@@ -38,9 +38,9 @@ emailOrMobileLogin.post("/signup", async (req, res) => {
       // tslint:disable-next-line: no-any
       profile = {
         emailId: email,
-        mobile: phone,
         fname: firstName,
         lname: lastName,
+        mobile: phone,
         password: password,
       };
       newUserDetails = await createuserWithmobileOrEmail(profile).catch(
