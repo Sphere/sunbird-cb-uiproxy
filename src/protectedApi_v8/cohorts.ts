@@ -144,7 +144,7 @@ cohortsApi.get('/user/autoenrollment/:courseId', async (req, res) => {
       const response = await axios.get(API_END_POINTS.autoenrollment(wid, courseId), {
           ...axiosRequestConfig,
           headers: {
-            Authorization: auth,
+            Authorization: extractUserToken(req),
             rootOrg: rootOrgValue,
           },
       })
