@@ -37,7 +37,7 @@ export const fetchnodebbUserDetails = async (
 
     return response.data.result.userId.uid
   } catch (e) {
-    logInfo('Error throwing Cookie : ' + e)
+    logInfo('Error in creating Nodebb user : ' + e)
     return false
   }
 }

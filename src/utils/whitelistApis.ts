@@ -473,7 +473,17 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/admin/userRegistration/bulkUploadData':{
+    '/protected/v8/admin/userRegistration/bulkUploadData': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/admin/bulk-upload/create-users': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/proxies/v8/admin/bulk-upload/create-users': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1241,7 +1251,9 @@ export const API_LIST = {
     '/protected/v8/resource/',
     '/protected/v8/user/details',
     '/protected/v8/admin/userRegistration/bulkUpload',
-    '/protected/v8/admin/userRegistration/bulkUploadData',
+    '/protected/v8/bulkUploadData/bulkUploadData',
+    '/protected/v8/admin/bulk-upload/create-users',
+    '/proxies/v8/admin/bulk-upload/create-users',
     '/protected/v8/connections/connections/recommended/userDepartment',
     '/protected/v8/discussionHub/categories/:cid/:slug?/:tid?',
     '/protected/v8/discussionHub/topics/recent',

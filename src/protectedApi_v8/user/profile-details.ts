@@ -390,7 +390,7 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
 profileDeatailsApi.patch('/updateUser', async (req, res) => {
     try {
           // tslint:disable-next-line: max-line-length
-        if (req.body.request.profileDetails.profileReq.personalDetails && !req.body.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber){
+        if (req.body.request.profileDetails.profileReq.personalDetails && !req.body.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber) {
             req.body.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber = '[NA]'
         }
           // tslint:disable-next-line: max-line-length

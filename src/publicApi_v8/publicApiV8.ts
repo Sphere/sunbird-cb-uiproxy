@@ -1,6 +1,7 @@
 import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { proxyCreatorRoute } from '../utils/proxyCreator'
+import { validateCertificate } from './certificateValidate'
 import { customSignUp } from './customSignup'
 import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
@@ -9,7 +10,6 @@ import { homePage } from './home'
 import { publicContentApi } from './publicContent'
 import { signup } from './signup'
 import { publicTnc } from './tnc'
-import { validateCertificate } from './certificateValidate'
 
 export const publicApiV8 = express.Router()
 

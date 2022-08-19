@@ -61,7 +61,7 @@ export const authorizationV2Api = async (
       }
     }
   } catch (e) {
-    logInfo('Error throwing Cookie : ' + e)
+    logInfo('Error throwing Cookie inside authorizationV2 : ' + e)
   }
   return true
 }

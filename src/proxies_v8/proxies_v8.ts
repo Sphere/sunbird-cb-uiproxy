@@ -118,7 +118,7 @@ proxiesV8.post('/upload/action/*', (req, res) => {
       contentType: file.mimetype,
       filename: file.name,
     })
-    const targetUrl  = '/api/private/content/v3/upload/' + url
+    const targetUrl  = '/api/content/v1/upload/' + url
     logInfo('URL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>' + targetUrl)
 
     axios({
@@ -147,7 +147,8 @@ proxiesV8.post('/upload/action/*', (req, res) => {
       return res.send(output)
     })
     .catch((error) => {
-      return res.send(error)
+      logInfo('Error on Upload :' + error)
+      return res.send('Error while uploading ..')
     })
 
   } else {
@@ -339,9 +340,37 @@ proxiesV8.use('/assets/*',
 //   // tslint:disable-next-line: max-line-length
 //   proxyCreatorDiscussion(express.Router(), `${CONSTANTS.DISCUSSION_HUB_MIDDLEWARE}`)
 // )
+
+// tslint:disable-next-line: no-any
+proxiesV8.use('/discussion/category/list', (req: any, res) => {
+
+    axios({
+              ...axiosRequestConfig,
+              data : req.body,
+              headers: {
+                Authorization: CONSTANTS.SB_API_KEY,
+                accessToken: extractUserToken(req),
+              },
+              method: 'post',
+              url: CONSTANTS.SUNBIRD_PROXY_API_BASE + '/discussion/category/list?_uid=' + req.session.nodebbUid,
+          })
+    // tslint:disable-next-line: all
+    .then(function(response: any)  {
+      // tslint:disable-next-line: no-any
+      response.data.result[0].topics.sort((a: any, b: any) => b.mainPid - a.mainPid)
+      // logInfo("Filtered Data >>>>>>>>>>>>>>>>>>>>"+JSON.stringify(response.data))
+      res.send({message: 'Success', data: response.data})
+    })
+    // tslint:disable-next-line: all
+    .catch(function(error) {
+     logInfo('Error throwing inside Category List Api : ' + error)
+     res.send({error: true, message: error})
+    })
+})
+
 proxiesV8.use('/discussion/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
+     proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
 function removePrefix(prefix: string, s: string) {

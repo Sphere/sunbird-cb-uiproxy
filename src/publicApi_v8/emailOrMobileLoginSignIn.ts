@@ -33,7 +33,7 @@ const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 export const emailOrMobileLogin = Router()
 emailOrMobileLogin.post('/signup', async (req, res) => {
   try {
-    logInfo("Entered into signup >>>>>", req.body.email)
+    logInfo('Entered into signup >>>>>', req.body.email)
     if (!req.body.email) {
       res.status(400).json({
         msg: 'Email id. can not be empty',
@@ -59,7 +59,7 @@ emailOrMobileLogin.post('/signup', async (req, res) => {
         psw: password,
         type: 'email',
       }
-      logInfo("Checking profile data "+ profile )
+      logInfo('Checking profile data ' + profile )
       newUserDetails = await createuserWithmobileOrEmail(profile).catch(
         handleCreateUserError
       )
@@ -413,13 +413,9 @@ const createuserWithmobileOrEmail = async (accountDetails: any) => {
 emailOrMobileLogin.post('/auth', async (req: any, res) => {
   res.clearCookie('connect.sid')
   // tslint:disable-next-line: no-any
-  req.session.regenerate( async (err: any) => {
-    if (err) {
-      res.send(401)
-    }
+  req.session.regenerate( async () => {
     // will have a new session here
     try {
-
       if (req.body.mobileNumber || req.body.email) {
         logInfo('Entered into /login/auth endpoint >>> ')
         const mobileNumber = req.body.mobileNumber
@@ -478,7 +474,7 @@ emailOrMobileLogin.post('/auth', async (req: any, res) => {
             }
 
         } catch (e) {
-          logInfo('Error throwing Cookie : ' + e)
+          logInfo('Error throwing Cookie inside auth route : ' + e)
           res.status(400).send({
             error: AUTH_FAIL,
           })
@@ -495,7 +491,7 @@ emailOrMobileLogin.post('/auth', async (req: any, res) => {
       logInfo('error' + error)
       res.status(500).send({
         error: GENERAL_ERROR_MSG,
-      })
+        })
     }
   })
 

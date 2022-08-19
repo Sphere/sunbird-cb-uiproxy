@@ -158,7 +158,7 @@ export class Server {
     )
     this.app.use(haltOnTimedOut)
   }
-  //tslint:disable-next-line: no-any
+  // tslint:disable-next-line: no-any
   private setKeyCloak(sessionConfig: any) {
     this.keycloak = new CustomKeycloak(sessionConfig)
     logInfo('Entered into Setkeycloak...')
