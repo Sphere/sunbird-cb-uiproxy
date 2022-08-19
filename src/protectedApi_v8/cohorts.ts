@@ -4,7 +4,7 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError} from '../utils/logger'
 import { ERROR } from '../utils/message'
-import { extractUserIdFromRequest } from '../utils/requestExtract'
+import { extractUserIdFromRequest, extractUserToken } from '../utils/requestExtract'
 
 const API_END_POINTS = {
   autoenrollment: (userId: string, courseId: string) => `${CONSTANTS.COHORTS_API_BASE}/v1/autoenrollment/${userId}/${courseId}`,
@@ -53,7 +53,7 @@ cohortsApi.get('/:cohortType/:contentId', async (req, res) => {
       const response = await axios({
         ...axiosRequestConfig,
         headers: {
-          Authorization: auth,
+          Authorization: extractUserToken(req),
           rootOrg : rootOrgValue,
         },
         method: 'GET',
