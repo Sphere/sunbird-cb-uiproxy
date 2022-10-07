@@ -468,7 +468,7 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-   '/protected/v8/admin/userRegistration/bulkUpload': {
+    '/protected/v8/admin/userRegistration/bulkUpload': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -592,6 +592,11 @@ export const API_LIST = {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/user/profileDetails/completeUserInfo': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.MDO_ADMIN, ROLE.SPV_ADMIN],
     },
     '/protected/v8/user/profileRegistry/getUserRegistryByUser/:id': {
       checksNeeded: [CHECK.ROLE],
@@ -950,11 +955,11 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/protected/v8/workflowhandler/historyByApplicationIdAndWfId/:applicationId/:wfId':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+      {
+        checksNeeded: [CHECK.ROLE],
+        // tslint:disable-next-line: object-literal-sort-keys
+        ROLE_CHECK: [ROLE.PUBLIC],
+      },
     '/protected/v8/workflowhandler/workflowProcess/:wfId': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1109,58 +1114,42 @@ export const API_LIST = {
     '/proxies/v8/action/framework/v3/read/:id': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/proxies/v8/action/framework/v3/category/master/create': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/proxies/v8/action/framework/v3/category/master/search': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/proxies/v8/action/framework/v3/category/master/read/:id': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/proxies/v8/action/framework/v3/category/create': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/proxies/v8/action/framework/v3/category/read/:id': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/proxies/v8/action/framework/v3/category/retire/:id': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/proxies/v8/action/framework/v3/term/create': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
   },
   URL_PATTERN: [
@@ -1274,6 +1263,7 @@ export const API_LIST = {
     '/protected/v8/portal/spv/mydepartment',
     '/protected/v8/portal/mdo/mydepartment',
     '/protected/v8/user/profileDetails/createUser',
+    '/protected/v8/user/profileDetails/completeUserInfo',
     '/protected/v8/user/profileRegistry/getUserRegistryByUser/:id',
     '/protected/v8/user/profileRegistry/createUserRegistryV2',
     '/protected/v8/user/profileRegistry/createUserRegistry',
