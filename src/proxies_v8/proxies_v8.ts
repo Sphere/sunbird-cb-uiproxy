@@ -22,9 +22,13 @@ import {
   proxyCreatorSunbirdSearch,
   proxyCreatorToAppentUserId,
   proxyHierarchyKnowledge,
-  scormProxyCreatorRoute
+  scormProxyCreatorRoute,
 } from '../utils/proxyCreator'
-import { extractUserIdFromRequest, extractUserToken } from '../utils/requestExtract'
+import {
+  extractUserIdFromRequest,
+  extractUserToken,
+} from '../utils/requestExtract'
+import { jumbler } from './../utils/questionBankCompetency'
 declare module 'axios' {
   export interface AxiosRequestConfig {
     maxBodyLength?: number
@@ -48,70 +52,79 @@ proxiesV8.get('/', (_req, res) => {
 })
 
 proxiesV8.get('/learning-analytics', (req, res) => {
-  const day = req.body.event// Should be in this format "24-12-2021"
-  client.search({
-    body: {
-      query: {
-        constant_score: {
-          filter: {
-            term: {
-              'userdata.Date.keyword': day,
+  const day = req.body.event // Should be in this format "24-12-2021"
+  client
+    .search({
+      body: {
+        query: {
+          constant_score: {
+            filter: {
+              term: {
+                'userdata.Date.keyword': day,
+              },
             },
           },
         },
       },
-    },
-    index: 'telemetry_ingest-2021.12',
-  }).then((resp) => {
-    res.status(200).json({
-      data: resp,
+      index: 'telemetry_ingest-2021.12',
     })
-  })
+    .then((resp) => {
+      res.status(200).json({
+        data: resp,
+      })
+    })
 })
 
-proxiesV8.get('/getContent',
-  getContentProxyCreatorRoute(express.Router())
-)
+proxiesV8.get('/getContent', getContentProxyCreatorRoute(express.Router()))
 
 proxiesV8.get('/getContents/*', (req, res) => {
   const path = removePrefix('/proxies/v8/getContents/', req.originalUrl)
-  const sunbirdUrl = 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/' + path
+  const sunbirdUrl =
+    'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/' + path
   logInfo('New getcontents sunbird URL >>>>>>>>>>> ', sunbirdUrl)
   return request(sunbirdUrl).pipe(res)
-}
-)
+})
+proxiesV8.get('/getAssessments/*', (req, res) => {
+  const path = removePrefix('/proxies/v8/getAssessments/', req.originalUrl)
+  jumbler(path).then((response) => {
+    return res.send(response)
+  })
+  logInfo('New getAssessments sunbird URL >>>>>>>>>>> ', path)
+})
 
 proxiesV8.get('/logout/user', (_req, res) => {
-
   const keycloakUrl = API_END_POINTS.logoutKeycloak
   const redirectUrl = `${CONSTANTS.HTTPS_HOST}` + '/public/home'
 
   res.clearCookie('connect.sid')
   axios({
     ...axiosRequestConfig,
-              headers: {
-                // tslint:disable-next-line:max-line-length
-                Authorization: 'bearer ' + extractUserToken(_req),
-                org: 'aastar',
-                rootorg: 'aastar',
-              },
-              method: 'get',
-              url: keycloakUrl,
+    headers: {
+      // tslint:disable-next-line:max-line-length
+      Authorization: 'bearer ' + extractUserToken(_req),
+      org: 'aastar',
+      rootorg: 'aastar',
+    },
+    method: 'get',
+    url: keycloakUrl,
   })
-  .then((response) => {
-    logInfo('Success IN LOGOUT USER >>>>>>>>>>>' + response)
-    res.clearCookie('connect.sid')
-    res.redirect(200, redirectUrl)
-  })
-  .catch((error) => {
-    logInfo('Error IN LOGOUT USER : >>>>>>>>>>>>>>>>>>>>>.', error)
-    return res.send('Attention ! Error in logging out user..' + error)
-  })
+    .then((response) => {
+      logInfo('Success IN LOGOUT USER >>>>>>>>>>>' + response)
+      res.clearCookie('connect.sid')
+      res.redirect(200, redirectUrl)
+    })
+    .catch((error) => {
+      logInfo('Error IN LOGOUT USER : >>>>>>>>>>>>>>>>>>>>>.', error)
+      return res.send('Attention ! Error in logging out user..' + error)
+    })
 })
 
 proxiesV8.post('/upload/action/*', (req, res) => {
   if (req.files && req.files.data) {
-    const url = removePrefix('/proxies/v8/upload/action/upload/content/v3/', req.originalUrl)
+    const url = removePrefix(
+      '/proxies/v8/upload/action/upload/content/v3/',
+      req.originalUrl
+    )
     const file: UploadedFile = req.files.data as UploadedFile
     const formData = new FormData()
     formData.append('file', Buffer.from(file.data), {
@@ -150,7 +163,6 @@ proxiesV8.post('/upload/action/*', (req, res) => {
         logInfo('Error on Upload :' + error)
         return res.send('Error while uploading ..')
       })
-
   } else {
     res.send('File not found')
   }
@@ -180,9 +192,11 @@ proxiesV8.post('/private/upload/*', (_req, _res) => {
         port: 9000,
       },
       (_err, _response) => {
-
         _response.on('data', (_data) => {
-          if (!_err && (_response.statusCode === 200 || _response.statusCode === 201)) {
+          if (
+            !_err &&
+            (_response.statusCode === 200 || _response.statusCode === 201)
+          ) {
             _res.send(JSON.parse(_data.toString('utf8')))
           } else {
             _res.send(_data.toString('utf8'))
@@ -191,7 +205,6 @@ proxiesV8.post('/private/upload/*', (_req, _res) => {
         if (_err) {
           _res.send(_err)
         }
-
       }
     )
   } else {
@@ -215,106 +228,162 @@ proxiesV8.use(
   '/hosted',
   proxyCreatorRoute(express.Router(), CONSTANTS.CONTENT_API_BASE + '/hosted')
 )
-proxiesV8.use('/ilp-api', ilpProxyCreatorRoute(express.Router(), CONSTANTS.ILP_FP_PROXY))
+proxiesV8.use(
+  '/ilp-api',
+  ilpProxyCreatorRoute(express.Router(), CONSTANTS.ILP_FP_PROXY)
+)
 proxiesV8.use(
   '/scorm-player',
   scormProxyCreatorRoute(express.Router(), CONSTANTS.SCORM_PLAYER_BASE)
 )
 proxiesV8.use(
   '/LA',
-  proxyCreatorRoute(express.Router(), CONSTANTS.APP_ANALYTICS, Number(CONSTANTS.ANALYTICS_TIMEOUT))
+  proxyCreatorRoute(
+    express.Router(),
+    CONSTANTS.APP_ANALYTICS,
+    Number(CONSTANTS.ANALYTICS_TIMEOUT)
+  )
 )
 proxiesV8.use(
   '/FordGamification',
-  proxyCreatorRoute(express.Router(), CONSTANTS.GAMIFICATION_API_BASE + '/FordGamification')
+  proxyCreatorRoute(
+    express.Router(),
+    CONSTANTS.GAMIFICATION_API_BASE + '/FordGamification'
+  )
 )
 proxiesV8.use(
   '/static-ilp',
-  proxyCreatorRoute(express.Router(), CONSTANTS.STATIC_ILP_PROXY + '/static-ilp')
+  proxyCreatorRoute(
+    express.Router(),
+    CONSTANTS.STATIC_ILP_PROXY + '/static-ilp'
+  )
 )
 proxiesV8.use(
   '/web-hosted',
   proxyCreatorRoute(express.Router(), CONSTANTS.WEB_HOST_PROXY + '/web-hosted')
 )
 
-proxiesV8.use('/sunbirdigot/*',
+proxiesV8.use(
+  '/sunbirdigot/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorSunbirdSearch(express.Router(), `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/composite/v1/search`)
+  proxyCreatorSunbirdSearch(
+    express.Router(),
+    `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/composite/v1/search`
+  )
 )
 
-proxiesV8.use('/v1/content/retire',
+proxiesV8.use(
+  '/v1/content/retire',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KNOWLEDGE_MW_API_BASE}`)
 )
 
-proxiesV8.use('/private/content/*',
+proxiesV8.use(
+  '/private/content/*',
   proxyContent(express.Router(), `${CONSTANTS.CONTENT_SERVICE_API_BASE}`)
 )
 
-proxiesV8.use('/learnervm/private/content/*',
-  proxyContentLearnerVM(express.Router(), `${CONSTANTS.VM_LEARNING_SERVICE_URL}`)
+proxiesV8.use(
+  '/learnervm/private/content/*',
+  proxyContentLearnerVM(
+    express.Router(),
+    `${CONSTANTS.VM_LEARNING_SERVICE_URL}`
+  )
 )
 
-proxiesV8.use('/content-progres/*',
+proxiesV8.use(
+  '/content-progres/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorSunbirdSearch(express.Router(), `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/update`)
+  proxyCreatorSunbirdSearch(
+    express.Router(),
+    `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/update`
+  )
 )
-proxiesV8.use('/read/content-progres/*',
+proxiesV8.use(
+  '/read/content-progres/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorSunbirdSearch(express.Router(), `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/read`)
+  proxyCreatorSunbirdSearch(
+    express.Router(),
+    `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/read`
+  )
 )
-proxiesV8.use('/api/user/v2/read',
-  proxyCreatorToAppentUserId(express.Router(), `${CONSTANTS.KONG_API_BASE}/user/v2/read/`)
+proxiesV8.use(
+  '/api/user/v2/read',
+  proxyCreatorToAppentUserId(
+    express.Router(),
+    `${CONSTANTS.KONG_API_BASE}/user/v2/read/`
+  )
 )
 
-proxiesV8.use([
-  '/action/questionset/v1/*',
-  '/action/question/v1/*',
-  '/action/object/category/definition/v1/*',
-],
+proxiesV8.use(
+  [
+    '/action/questionset/v1/*',
+    '/action/question/v1/*',
+    '/action/object/category/definition/v1/*',
+  ],
   proxyCreatorQML(express.Router(), `${CONSTANTS.KONG_API_BASE}`, '/action/')
 )
-proxiesV8.use('/action/content/v3/updateReviewStatus',
+proxiesV8.use(
+  '/action/content/v3/updateReviewStatus',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
-proxiesV8.use('/action/content/v3/hierarchy/add',
+proxiesV8.use(
+  '/action/content/v3/hierarchy/add',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.SUNBIRD_PROXY_API_BASE}`)
 )
-proxiesV8.use('/action/content/v3/hierarchy/*',
-  proxyHierarchyKnowledge(express.Router(), `${CONSTANTS.KNOWLEDGE_MW_API_BASE}`)
+proxiesV8.use(
+  '/action/content/v3/hierarchy/*',
+  proxyHierarchyKnowledge(
+    express.Router(),
+    `${CONSTANTS.KNOWLEDGE_MW_API_BASE}`
+  )
 )
-proxiesV8.use('/action/content/v3/hierarchyUpdate',
+proxiesV8.use(
+  '/action/content/v3/hierarchyUpdate',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
-proxiesV8.use('/action/*',
+proxiesV8.use(
+  '/action/*',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KNOWLEDGE_MW_API_BASE}`)
 )
 
-proxiesV8.use('/learner/*',
+proxiesV8.use(
+  '/learner/*',
   // tslint:disable-next-line: max-line-length
   proxyCreatorLearner(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
-proxiesV8.use('/notification/*',
+proxiesV8.use(
+  '/notification/*',
   // tslint:disable-next-line: max-line-length
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
-proxiesV8.use('/org/*',
+proxiesV8.use(
+  '/org/*',
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
-proxiesV8.use('/user/*',
+proxiesV8.use(
+  '/user/*',
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
-proxiesV8.use('/certreg/v2/certs/download/*',
+proxiesV8.use(
+  '/certreg/v2/certs/download/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorDownloadCertificate(express.Router(), `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/certreg/v2/certs/download/`)
+  proxyCreatorDownloadCertificate(
+    express.Router(),
+    `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/certreg/v2/certs/download/`
+  )
 )
 
-proxiesV8.use('/course/batch/cert/v1/issue',
+proxiesV8.use(
+  '/course/batch/cert/v1/issue',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorSunbirdSearch(express.Router(), `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/batch/cert/v1/issue`)
+  proxyCreatorSunbirdSearch(
+    express.Router(),
+    `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/batch/cert/v1/issue`
+  )
 )
 
 // proxiesV8.use('/api/framework/*',
@@ -322,16 +391,19 @@ proxiesV8.use('/course/batch/cert/v1/issue',
 //   proxyCreatorQML(express.Router(), `${CONSTANTS.KONG_API_BASE}`, '/api/')
 // )
 
-proxiesV8.use('/api/*',
+proxiesV8.use(
+  '/api/*',
   // tslint:disable-next-line: max-line-length
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
-proxiesV8.use('/data/*',
+proxiesV8.use(
+  '/data/*',
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
-proxiesV8.use('/assets/*',
+proxiesV8.use(
+  '/assets/*',
   // tslint:disable-next-line: max-line-length
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
@@ -341,7 +413,8 @@ proxiesV8.use('/assets/*',
 //   proxyCreatorDiscussion(express.Router(), `${CONSTANTS.DISCUSSION_HUB_MIDDLEWARE}`)
 // )
 
-proxiesV8.use('/discussion/*',
+proxiesV8.use(
+  '/discussion/*',
   // tslint:disable-next-line: max-line-length
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
@@ -351,12 +424,21 @@ function removePrefix(prefix: string, s: string) {
 }
 
 proxiesV8.post('/notifyContentState', async (req, res) => {
-  const contentStateError = 'It should be one of [sendForReview, reviewCompleted, reviewFailed,' +
+  const contentStateError =
+    'It should be one of [sendForReview, reviewCompleted, reviewFailed,' +
     ' sendForPublish, publishCompleted, publishFailed]'
   if (!req.body || !req.body.contentState) {
-    res.status(400).send('ContentState is missing in request body. ' + contentStateError)
+    res
+      .status(400)
+      .send('ContentState is missing in request body. ' + contentStateError)
   }
-  logInfo('Received req url is -> ' + req.protocol + '://' + req.get('host') + req.originalUrl)
+  logInfo(
+    'Received req url is -> ' +
+      req.protocol +
+      '://' +
+      req.get('host') +
+      req.originalUrl
+  )
   let contentBody = ''
   let emailSubject = ''
   switch (req.body.contentState) {
@@ -389,7 +471,11 @@ proxiesV8.post('/notifyContentState', async (req, res) => {
       break
   }
 
-  if (contentBody.includes('#contentLink') && req.body.contentLink && req.body.contentName) {
+  if (
+    contentBody.includes('#contentLink') &&
+    req.body.contentLink &&
+    req.body.contentName
+  ) {
     contentBody = contentBody.replace('#contentLink', req.body.contentLink)
   }
   logInfo('Composed contentBody -> ' + contentBody)
@@ -412,8 +498,7 @@ proxiesV8.post('/notifyContentState', async (req, res) => {
   const stateEmailResponse = await axios({
     ...axiosRequestConfig,
     data: {
-      request:
-      {
+      request: {
         notifications: [notifyMailRequest],
       },
     },
