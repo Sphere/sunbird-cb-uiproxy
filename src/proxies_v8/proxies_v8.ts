@@ -29,6 +29,8 @@ import {
   extractUserToken,
 } from '../utils/requestExtract'
 import { jumbler } from './../utils/questionBankCompetency'
+
+import { competencyAssessmentSubmit } from './../utils/assessmentSubmitCompetency'
 declare module 'axios' {
   export interface AxiosRequestConfig {
     maxBodyLength?: number
@@ -84,12 +86,21 @@ proxiesV8.get('/getContents/*', (req, res) => {
   logInfo('New getcontents sunbird URL >>>>>>>>>>> ', sunbirdUrl)
   return request(sunbirdUrl).pipe(res)
 })
-proxiesV8.get('/getAssessments/*', (req, res) => {
-  const path = removePrefix('/proxies/v8/getAssessments/', req.originalUrl)
+proxiesV8.get('/getCompetencyAssessments/*', (req, res) => {
+  const path = removePrefix(
+    '/proxies/v8/getCompetencyAssessments/',
+    req.originalUrl
+  )
   jumbler(path).then((response) => {
     return res.send(response)
   })
   logInfo('New getAssessments sunbird URL >>>>>>>>>>> ', path)
+})
+
+proxiesV8.post('/submitCompetencyAssessments/*', async (req, res) => {
+  const data = await competencyAssessmentSubmit(req)
+  logInfo('New gsubmitAssessments sunbird URL >>>>>>>>>>> ')
+  return res.send(data)
 })
 
 proxiesV8.get('/logout/user', (_req, res) => {
