@@ -8,8 +8,10 @@ export async function jumbler(path: string) {
     method: "get",
     url: sunbirdUrl,
   }).then((response) => {
+    const randomCount =
+      response.data.randomCount || response.data.questions.length;
     logInfo("Success IN Getting Assessment JSON >>>>>>>>>>>" + response);
-    return _.sampleSize(response.data.questions, 2).map(falseCreator);
+    return _.sampleSize(response.data.questions, randomCount).map(falseCreator);
   });
 }
 // tslint:disable-next-line: no-any
