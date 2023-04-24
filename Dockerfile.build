@@ -3,6 +3,7 @@ FROM node:12
 WORKDIR /usr/src/app
 
 COPY . .
+RUN echo 'deb http://security.debian.org/ stretch/updates main contrib non-free' > /etc/apt/sources.list
 RUN apt update && apt install -y zip
 
 RUN npm install && npm run build
