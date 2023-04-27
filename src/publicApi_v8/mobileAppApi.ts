@@ -11,12 +11,24 @@ import { getCurrentUserRoles } from './rolePermission'
 const API_END_POINTS = {
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
+  READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
+  UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
 }
+
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID."
 const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity"
 
 const authenticatedToken = 'x-authenticated-user-token'
+const contenyTypeHeader = { 'Content-Type': 'application/json' }
+// tslint:disable-next-line: no-any
+const getHeaders = (req: any) => {
+  return {
+    Authorization: CONSTANTS.SB_API_KEY,
+    contenyTypeHeader,
+    'x-authenticated-user-token': req.headers[authenticatedToken],
+  }
+}
 export const mobileAppApi = Router()
 
 // tslint:disable-next-line: no-any
@@ -146,8 +158,8 @@ mobileAppApi.post('/getEntityById/:id', async (req, res) => {
       const response = await axios({
         data: req.body,
         headers: {
-          'Content-Type': 'application/json',
           authenticatedToken: req.headers[authenticatedToken],
+          contenyTypeHeader,
         },
         method: 'POST',
         url: `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
@@ -170,8 +182,8 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
       const response = await axios({
         data: req.body,
         headers: {
-          'Content-Type': 'application/json',
           authenticatedToken: req.headers[authenticatedToken],
+          contenyTypeHeader,
         },
         method: 'POST',
         url: API_END_POINTS.GET_ALL_ENTITY,
@@ -190,3 +202,40 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
+mobileAppApi.post('/v2/updateProgress', async (req, res) => {
+  try {
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.status == 200) {
+      await axios({
+        data: req.body,
+        headers: getHeaders(req),
+        method: 'PATCH',
+        url: API_END_POINTS.UPDATE_PROGRESS,
+      })
+      logInfo('Check req body of getAllEntity >> ' + req.body)
+      const stateReadBody = {
+        request: {
+          batchId: req.body.request.contents[0].batchId,
+          contentIds: [],
+          courseId: req.body.request.contents[0].courseId,
+          fields: ['progressdetails'],
+          userId: req.body.request.userId,
+        },
+      }
+      const responseProgressRead = await axios({
+        data: stateReadBody,
+        headers: getHeaders(req),
+        method: 'POST',
+        url: API_END_POINTS.READ_PROGRESS,
+      })
+      logInfo('Check req body of update progress v2 >> ' + req.body)
+      res.status(200).json(responseProgressRead.data)
+    }
+  } catch (error) {
+    logError('Error in update progress v2  >>>>>>' + error)
+    res.status(500).send({
+      message: 'Something went wrong during progress update',
+      status: 'failed',
+    })
+  }
+})
