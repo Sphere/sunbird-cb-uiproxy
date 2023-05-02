@@ -239,3 +239,23 @@ mobileAppApi.post('/v2/updateProgress', async (req, res) => {
     })
   }
 })
+mobileAppApi.get('/version', async (_req, res) => {
+  try {
+    const filePath = CONSTANTS.APP_VERSION_PATH
+    const response = await axios({
+      headers: {},
+      method: 'GET',
+      url: filePath,
+    })
+    const filteredData = response.data
+    res.status(200).json({
+      message: 'success',
+      response: filteredData,
+      status: 200,
+    })
+  } catch (err) {
+    res.status(404).json({
+      message: 'Content not found',
+    })
+  }
+})
