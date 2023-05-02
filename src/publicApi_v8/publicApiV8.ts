@@ -16,6 +16,8 @@ import { publicSearch } from './publicSearch'
 import { sashakt } from './sashaktAuth'
 import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
+import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
+
 import { publicTnc } from './tnc'
 
 export const publicApiV8 = express.Router()
@@ -37,6 +39,8 @@ publicApiV8.use('/competency', publicCompetencyUser)
 publicApiV8.use('/tnc', publicTnc)
 publicApiV8.use('/signup', signup)
 publicApiV8.use('/signupWithAutoLogin', signupWithAutoLogin)
+publicApiV8.use('/signupWithAutoLoginV2', signupWithAutoLoginV2)
+
 publicApiV8.use('/homePage', homePage)
 publicApiV8.use('/register/', customSignUp)
 publicApiV8.use('/emailMobile/', emailOrMobileLogin)
