@@ -11,6 +11,7 @@ export const CONSTANTS = {
   APP_ANALYTICS: env.LA_HOST_PROXY || 'http://localhost:portNUmber',
   APP_CONFIGURATIONS: env.APP_CONFIGURATIONS || '/app-config',
   APP_LOGS: env.APP_LOGS || '/logs',
+  APP_VERSION_PATH: env.APP_VERSION_PATH || 'abc',
   ATTENDANCE_API_BASE: env.ATTENDANCE_API_BASE || env.SB_EXT_API_BASE_2,
   AUTHORING_BACKEND: env.SUNBIRD_BACKEND || 'http://localhost:3011',
   BADGE_API_BASE: env.BADGE_API_BASE || env.SB_EXT_API_BASE_2,
