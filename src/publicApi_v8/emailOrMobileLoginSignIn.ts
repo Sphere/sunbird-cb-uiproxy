@@ -4,7 +4,10 @@ import { Request, Response } from 'express'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
-import { axiosRequestConfig } from '../configs/request.config'
+import {
+  axiosRequestConfig,
+  axiosRequestConfigLong,
+} from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
@@ -204,6 +207,8 @@ emailOrMobileLogin.post(
         const email = req.body.email
         const validOtp = req.body.otp
         const userUUId = req.body.userUUId || req.body.userUUID
+        const updateRolesResponse = await updateRoles(userUUId)
+        logInfo(JSON.stringify(updateRolesResponse))
         if (!validOtp) {
           res.status(400).send({ message: OTP_MISSING, status: 'error' })
           return
@@ -214,21 +219,9 @@ emailOrMobileLogin.post(
           email ? 'email' : 'phone',
           validOtp
         )
-
-        if (verifyOtpResponse.data.result.response === 'SUCCESS') {
-          logInfo('opt verify : ')
-          // await authorizationV2Api(
-          //   email ? email : mobileNumber,
-          //   password,
-          //   req
-          // )
-          setTimeout(() => {
-            updateRoles(userUUId)
-          }, 5000)
-          res
-            .status(200)
-            .send({ message: VALIDATION_SUCCESS, status: 'success' })
-        }
+        res
+          .status(200)
+          .send({ message: VALIDATION_SUCCESS, status: 'success' })
         logInfo('Sending Responses in phone part : ' + verifyOtpResponse)
       } else {
         res.status(400).json({
@@ -364,7 +357,7 @@ const fetchUserBymobileorEmail = async (
 const updateRoles = async (userUUId: string) => {
   try {
     return await axios({
-      ...axiosRequestConfig,
+      ...axiosRequestConfigLong,
       data: {
         request: {
           organisationId: '0132317968766894088',
