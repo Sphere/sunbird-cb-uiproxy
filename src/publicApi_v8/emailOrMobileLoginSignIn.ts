@@ -207,8 +207,7 @@ emailOrMobileLogin.post(
         const email = req.body.email
         const validOtp = req.body.otp
         const userUUId = req.body.userUUId || req.body.userUUID
-        const updateRolesResponse = await updateRoles(userUUId)
-        logInfo(JSON.stringify(updateRolesResponse))
+        await updateRoles(userUUId)
         if (!validOtp) {
           res.status(400).send({ message: OTP_MISSING, status: 'error' })
           return
