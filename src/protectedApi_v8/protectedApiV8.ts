@@ -38,6 +38,7 @@ import { scromApi } from './scrom'
 import { socialApi } from './social'
 import { trainingApi } from './training'
 import { translateApi } from './translate'
+import { updateProgressv2 } from './updateProgressv2'
 import { user } from './user/user'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
@@ -92,3 +93,4 @@ protectedApiV8.use('/frac', fracApi)
 protectedApiV8.use('/assessment', assessmentApi)
 protectedApiV8.use('/autoEnrollmentv2', autoEnrollmentApiv2)
 protectedApiV8.use('/autoCompletev2', autoCompletev2)
+protectedApiV8.use('/updateProgressv2', updateProgressv2)
