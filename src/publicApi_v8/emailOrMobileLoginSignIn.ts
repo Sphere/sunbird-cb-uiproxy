@@ -159,9 +159,10 @@ emailOrMobileLogin.post("/generateOtp", async (req, res) => {
           // tslint:disable-next-line: no-console
           console.log("2 response form getOTP : " + response);
           if (response.data.result.response === "SUCCESS") {
-            res
-              .status(200)
-              .send({ message: "Success ! Please verify the OTP ." });
+            res.status(200).send({
+              message: "Success ! Please verify the OTP .",
+              status: 200,
+            });
           }
         }
       } else {
