@@ -13,7 +13,7 @@ counterApi.get('/', async (_req, res) => {
   try {
     let urlPrefix = CONSTANTS.COUNTER
     if (CONSTANTS.USE_SERVING_HOST_COUNTER) {
-      urlPrefix = 'http://10.177.63.164:5903'
+      urlPrefix = CONSTANTS.USE_SERVING_HOST_COUNTER
     }
 
     const response = await axios.get(

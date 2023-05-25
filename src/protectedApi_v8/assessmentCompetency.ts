@@ -1,19 +1,12 @@
-import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
-import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
+import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { jumbler } from '../utils/jumbler'
 import { logInfo } from '../utils/logger'
 import {
   extractUserIdFromRequest,
   extractUserToken,
 } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-  assessmentSubmitV3: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/user`,
-  updateAssessmentContent: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/update`,
-}
 
 export const assessmentCompetency = Router()
 const unknownError = 'Failed due to unknown reason'
@@ -39,61 +32,15 @@ assessmentCompetency.get('/v1/assessment/*', async (req, res) => {
 
 assessmentCompetency.post('/v1/assessment/submit', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const assessmentDataS3 = await axios({
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      method: 'GET',
-      url: req.body.artifactUrl,
-    })
-    const formattedAssessmentData = getFormatedRequest(
-      assessmentDataS3.data,
-      req.body
-    )
-    const url = `${API_END_POINTS.assessmentSubmitV3}/assessment/submit`
     const accessToken = extractUserToken(req)
     const userId = extractUserIdFromRequest(req)
-
-    const response = await axios({
-      data: formattedAssessmentData,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        rootOrg,
-        userId,
-        'x-authenticated-user-token': accessToken,
-      },
-      method: 'POST',
-      url,
-    })
-    logInfo('New submitAssessments competency >>>>>>>>>>> ')
-    const revisedData = {
-      request: {
-        contents: [
-          {
-            batchId: req.body.batchId,
-            completionPercentage: 100,
-            contentId: req.body.contentId,
-            courseId: req.body.courseId,
-            status: 2,
-          },
-        ],
-        userId: req.body.userId ? req.body.userId : userId,
-      },
-    }
-    if (response.data.result >= response.data.passPercent) {
-      await axios({
-        ...axiosRequestConfig,
-        data: revisedData,
-        headers: {
-          Authorization: CONSTANTS.SB_API_KEY,
-          'x-authenticated-user-token': accessToken,
-        },
-        method: 'PATCH',
-        url: API_END_POINTS.updateAssessmentContent,
-      })
-    }
-    res.status(response.status).send(response.data)
+    const assessmentData = req.body
+    const assessmentSubmitStatus = await assessmentCreator(
+      assessmentData,
+      accessToken,
+      userId
+    )
+    res.status(assessmentSubmitStatus.status).json(assessmentSubmitStatus.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
@@ -104,36 +51,4 @@ assessmentCompetency.post('/v1/assessment/submit', async (req, res) => {
 })
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
-}
-// tslint:disable-next-line: no-any
-const getFormatedRequest = (data: any, requestBody: any) => {
-  _.forEach(data.questions, (qkey) => {
-    _.forEach(requestBody.questions, (reqKey) => {
-      if (
-        qkey.questionType === 'mcq-sca' ||
-        qkey.questionType === 'fitb' ||
-        qkey.questionType === 'mcq-mca'
-      ) {
-        _.forEach(qkey.options, (qoptKey) => {
-          _.forEach(reqKey.options, (optKey) => {
-            if (optKey.optionId === qoptKey.optionId) {
-              if (
-                qkey.questionType === 'mcq-sca' ||
-                qkey.questionType === 'fitb' ||
-                qkey.questionType === 'mcq-mca'
-              ) {
-                _.set(optKey, 'isCorrect', _.get(qoptKey, 'isCorrect'))
-                _.set(optKey, 'text', _.get(qoptKey, 'text'))
-              } else if (qkey.questionType === 'mtf') {
-                _.set(optKey, 'isCorrect', _.get(qoptKey, 'isCorrect'))
-                _.set(optKey, 'match', _.get(qoptKey, 'match'))
-              }
-            }
-          })
-        })
-      }
-    })
-  })
-  logInfo('requestBody to submit the assessment ', JSON.stringify(requestBody))
-  return requestBody
 }

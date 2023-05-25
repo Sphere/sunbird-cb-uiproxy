@@ -7,7 +7,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 
 const API_END_POINTS = {
-  DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/apis/proxies/v8/certreg/v2/certs/download/`,
+  DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
 }
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
@@ -16,7 +16,6 @@ export const appCertificateDownload = Router()
 appCertificateDownload.get('/download', async (req, res) => {
   try {
     const certificateId = req.query.certificateId
-    const userCookie = req.query.cookie
     const certificateName = req.query.certificateName || 'certificate'
     if (!certificateId) {
       res.status(400).json({
@@ -28,7 +27,7 @@ appCertificateDownload.get('/download', async (req, res) => {
     const response = await axios({
       ...axiosRequestConfig,
       headers: {
-        cookie: userCookie,
+        Authorization: CONSTANTS.SB_API_KEY,
       },
       method: 'GET',
       url: `${API_END_POINTS.DOWNLOAD_CERTIFICATE}${certificateId}`,

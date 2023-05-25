@@ -44,10 +44,11 @@ rolesApi.get('/', async (req, res) => {
     res.json(response)
   } catch (err) {
     logError('ERROR FETCHING ROLES OF USER ->', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
         error: GENERAL_ERR_MSG,
-      })
+      }
+    )
   }
 })
 
@@ -63,10 +64,11 @@ rolesApi.get('/allRoles', async (req, res) => {
     res.json(response)
   } catch (err) {
     logError('ERROR FETCHING ALL ROLES ->', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.data) || {
         error: GENERAL_ERR_MSG,
-      })
+      }
+    )
   }
 })
 
@@ -82,10 +84,11 @@ rolesApi.get('/:userId', async (req, res) => {
     res.json(response)
   } catch (err) {
     logError('ERROR FETCHING ROLES OF SPECIFIC USER ->', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.data) || {
         error: GENERAL_ERR_MSG,
-      })
+      }
+    )
   }
 })
 
@@ -108,10 +111,11 @@ rolesApi.patch('/', async (req, res) => {
     res.json(response.data || {})
   } catch (err) {
     logError('ERROR ON UPDATE USER ROLES >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
         error: GENERAL_ERR_MSG,
-      })
+      }
+    )
   }
 })
 
@@ -127,10 +131,11 @@ rolesApi.get('/getRolesV2/:userId', async (req, res) => {
     res.send(response)
   } catch (err) {
     logError('GET ROLES V2 ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
         error: GENERAL_ERR_MSG,
-      })
+      }
+    )
   }
 })
 
@@ -142,22 +147,20 @@ rolesApi.get('/getUsersV2/:role', async (req, res) => {
       res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
-    const response = await axios.get(
-      `${apiEndpoints.rolesV2}/${role}/users`,
-      {
-        ...axiosRequestConfig,
-        headers: {
-          rootOrg,
-        },
-      }
-    )
+    const response = await axios.get(`${apiEndpoints.rolesV2}/${role}/users`, {
+      ...axiosRequestConfig,
+      headers: {
+        rootOrg,
+      },
+    })
     res.send(response.data)
   } catch (err) {
     logError('GET ROLES V2 ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
         error: GENERAL_ERR_MSG,
-      })
+      }
+    )
   }
 })
 
@@ -173,51 +176,51 @@ rolesApi.post('/updateRolesV2', async (req, res) => {
       res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
-    const response = await axios.post(
-      apiEndpoints.rolesV2,
-      body,
-      {
-        ...axiosRequestConfig,
-        headers: {
-          rootOrg,
-        },
-        params: req.query,
-      }
-    )
+    const response = await axios.post(apiEndpoints.rolesV2, body, {
+      ...axiosRequestConfig,
+      headers: {
+        rootOrg,
+      },
+      params: req.query,
+    })
     res.send(response.data)
   } catch (err) {
     logError('UPDATE ROLES V2 ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
         error: GENERAL_ERR_MSG,
-      })
+      }
+    )
   }
 })
 
-// tslint:disable-next-line: no-any
-export async function updateRolesV2Mock(actionByWid: any, updateRolesReq: any, rootOrg: string) {
-  return new Promise(async (resolve, reject) => {
+export async function updateRolesV2Mock(
+  // tslint:disable-next-line: no-any
+  actionByWid: any,
+  // tslint:disable-next-line: no-any
+  updateRolesReq: any,
+  // tslint:disable-next-line: no-any
+  rootOrg: string
+) {
+  return async () => {
     const body = {
       ...updateRolesReq,
       action_by: actionByWid,
     }
     if (!rootOrg) {
-      reject(ERROR.ERROR_NO_ORG_DATA)
+      return ERROR.ERROR_NO_ORG_DATA
     }
     logObject('Updating roles with', body)
-    const response = await axios.post(
-      apiEndpoints.rolesV2,
-      body,
-      {
+    return axios
+      .post(apiEndpoints.rolesV2, body, {
         ...axiosRequestConfig,
         headers: {
           rootOrg,
         },
-      }
-    ).catch((err) => {
-      logError('UPDATE ROLES V2 Mock ERR -> ', err)
-      reject(err)
-    })
-    resolve(response)
-  })
+      })
+      .catch((err) => {
+        logError('UPDATE ROLES V2 Mock ERR -> ', err)
+        return err
+      })
+  }
 }

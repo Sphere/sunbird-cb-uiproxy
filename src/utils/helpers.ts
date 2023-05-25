@@ -81,11 +81,17 @@ export function getDateRangeString(
 }
 
 // tslint:disable-next-line: no-any
-export function validateInputWithRegex(input: any, regex: any): Promise<boolean> {
-  return new Promise(async (resolve, _reject) => {
+export function validateInputWithRegex(
+  // tslint:disable-next-line: no-any
+  input: any,
+  // tslint:disable-next-line: no-any
+  regex: any
+  // tslint:disable-next-line: no-any
+): Promise<boolean> {
+  return new Promise(() => {
     if (!input) {
-      resolve(false)
+      return false
     }
-    resolve(regex.test(input))
+    return regex.test(input)
   })
 }
