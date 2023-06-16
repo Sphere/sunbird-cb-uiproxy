@@ -1138,6 +1138,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/recommendationEngineV2': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/content/parents/:do_id': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1450,6 +1455,7 @@ export const API_LIST = {
     '/protected/v8/connections/v2/add/connection',
     '/protected/v8/connections/v2/connections/suggests',
     '/protected/v8/connections/v2/update/connection',
+    '/protected/v8/recommendationEngineV2',
     '/protected/v8/content/parents/:do_id',
     '/protected/v8/content/:do_id/parent',
     '/protected/v8/user/tnc/accept',

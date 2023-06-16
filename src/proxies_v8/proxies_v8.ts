@@ -116,16 +116,15 @@ proxiesV8.post('/upload/action/*', (req, res) => {
       contentType: file.mimetype,
       filename: file.name,
     })
-    const targetUrl = '/api/private/content/v3/upload/' + url
+    const targetUrl = '/api/content/v1/upload/' + url
     logInfo('URL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>' + targetUrl)
-
     axios({
       ...axiosRequestConfig,
       data: formData,
       headers: {
         // tslint:disable-next-line:max-line-length
         Authorization: CONSTANTS.SB_API_KEY,
-        accessToken: extractUserToken(req),
+        'X-Authenticated-User-Token': extractUserToken(req),
         org: 'aastar',
         rootorg: 'aastar',
         ...formData.getHeaders(),

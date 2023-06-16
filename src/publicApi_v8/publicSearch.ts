@@ -7,16 +7,6 @@ import { logError } from '../utils/logger'
 
 export const publicSearch = Router()
 
-const facets = [
-  'learningMode',
-  'duration',
-  'complexityLevel',
-  'catalogPaths',
-  'sourceShortName',
-  'region',
-  'concepts',
-  'lastUpdatedOn',
-]
 const API_END_POINTS = {
   search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
 }
@@ -41,114 +31,6 @@ const headers = {
   org: 'aastar',
   rootorg: 'aastar',
 }
-// tslint:disable-next-line: no-any
-const competencySearchController = async (courseSearchRequestData: any) => {
-  const requestBodyForCompetencyLevel = JSON.stringify({
-    request: {
-      filters: {
-        competencySearch:
-          courseSearchRequestData.request.filters.competencySearch,
-        contentType: ['Course'],
-        primaryCategory: ['Course'],
-        status: ['Live'],
-      },
-      sort_by: {
-        lastUpdatedOn: 'desc',
-      },
-    },
-    sort: [
-      {
-        lastUpdatedOn: 'desc',
-      },
-    ],
-  })
-  return axios({
-    data: requestBodyForCompetencyLevel,
-    headers,
-    method: 'post',
-    url: API_END_POINTS.search,
-  })
-}
-// tslint:disable-next-line: no-any
-const homePageCourseController = async (
-  // tslint:disable-next-line: no-any
-  sortMethod: any,
-  // tslint:disable-next-line: no-any
-  languageSelected: any,
-  // tslint:disable-next-line: no-any
-  sourceName: any
-) => {
-  const requestBodyHomePageCourseData = {
-    query: '',
-    request: {
-      facets: [
-        'learningMode',
-        'duration',
-        'complexityLevel',
-        'catalogPaths',
-        'sourceShortName',
-        'region',
-        'concepts',
-        'lastUpdatedOn',
-      ],
-      filters: {
-        contentType: ['Course'],
-        lang: [languageSelected] || '',
-        primaryCategory: ['Course'],
-        sourceName,
-        status: ['Live'],
-      },
-      sort_by: {
-        lastUpdatedOn: sortMethod,
-      },
-    },
-    sort: [
-      {
-        lastUpdatedOn: 'desc',
-      },
-    ],
-  }
-  if (!languageSelected) {
-    delete requestBodyHomePageCourseData.request.filters.lang
-  }
-  if (!sourceName) {
-    delete requestBodyHomePageCourseData.request.filters.sourceName
-  }
-  return axios({
-    data: requestBodyHomePageCourseData,
-    headers,
-    method: 'post',
-    url: API_END_POINTS.search,
-  })
-}
-// tslint:disable-next-line: no-any
-const selfAssessmentController = async (courseSearchRequestData: any) => {
-  const requestBodyForCompetencySelfAssessment = {
-    request: {
-      filters: {
-        competency: [true],
-        contentType: ['Course'],
-        lang: courseSearchRequestData.request.filters.lang || '',
-        primaryCategory: ['Course'],
-        status: ['Live'],
-      },
-    },
-    sort: [
-      {
-        lastUpdatedOn: 'desc',
-      },
-    ],
-  }
-  if (!courseSearchRequestData.request.filters.lang) {
-    delete requestBodyForCompetencySelfAssessment.request.filters.lang
-  }
-  return axios({
-    data: requestBodyForCompetencySelfAssessment,
-    headers,
-    method: 'post',
-    url: API_END_POINTS.search,
-  })
-}
 const nullResponseStatus = {
   responseCode: 'OK',
   result: {
@@ -161,103 +43,71 @@ const nullResponseStatus = {
 
 publicSearch.post('/getCourses', async (request, response) => {
   try {
+    const facetsDataDefault = ['duration', 'lastUpdatedOn']
     const courseSearchRequestData = request.body
-    const languageSelected = courseSearchRequestData.request.filters.lang || ''
-    const sourceName = courseSearchRequestData.request.filters.sourceName || ''
-    if (courseSearchRequestData.request.filters.competencySearch) {
-      const competencySearchControllerData = await competencySearchController(
-        courseSearchRequestData
-      )
-      if (competencySearchControllerData.data.result.count == 0) {
-        response.status(200).json(nullResponseStatus)
-        return
+    const filters = courseSearchRequestData.request.filters
+    const facets = courseSearchRequestData.request.facets
+    const sortMethod = courseSearchRequestData.request.sort_by || {
+      lastUpdatedOn: 'desc',
+    }
+    if (!courseSearchRequestData.request.query) {
+      const requestBodyForSearch = JSON.stringify({
+        request: {
+          facets: facets || facetsDataDefault,
+          filters,
+          sort_by: sortMethod,
+        },
+        sort: [
+          {
+            lastUpdatedOn: 'desc',
+          },
+        ],
+      })
+      const searchResponseES = await axios({
+        data: requestBodyForSearch,
+        headers,
+        method: 'post',
+        url: API_END_POINTS.search,
+      })
+      if (searchResponseES.data.result.count == 0) {
+        return response.status(200).json(nullResponseStatus)
       }
-      const responseForCompetencyLevel =
-        competencySearchControllerData.data.result.content
-      const competencyLevelCourseFiltered = []
-      // tslint:disable-next-line: no-any
-      responseForCompetencyLevel.forEach((element: any) => {
-        if (!element.competency) {
-          competencyLevelCourseFiltered.push(element)
-        }
-      })
-      response.status(200).json({
+      let searchFilteredData = []
+      if (!courseSearchRequestData.request.filters.competency) {
+        // tslint:disable-next-line: no-any
+        searchResponseES.data.result.content.forEach((element: any) => {
+          if (!element.competency) {
+            searchFilteredData.push(element)
+          }
+        })
+      } else {
+        searchFilteredData = searchResponseES.data.result.content
+      }
+      return response.status(200).json({
         responseCode: 'OK',
         result: {
-          content: competencyLevelCourseFiltered,
-          count: competencyLevelCourseFiltered.length,
+          content: searchFilteredData,
+          count: searchFilteredData.length,
+          facets: searchResponseES.data.result.facets,
         },
         status: 200,
       })
-      return
-    } // ................................For home page courses........................................
-    if (
-      !courseSearchRequestData.request.filters.competency &&
-      !courseSearchRequestData.request.filters.competencySearch &&
-      !courseSearchRequestData.request.query
-    ) {
-      const sortMethod = courseSearchRequestData.request.sort_by
-        ? courseSearchRequestData.request.sort_by.lastUpdatedOn
-        : 'asc'
-      const homePageCourseControllerData = await homePageCourseController(
-        sortMethod,
-        languageSelected,
-        sourceName
-      )
-      const responseForHomePageCourseData =
-        homePageCourseControllerData.data.result.content
-      const homePageCourseFiltered = []
-      // tslint:disable-next-line: no-any
-      responseForHomePageCourseData.forEach((element: any) => {
-        if (!element.competency) {
-          homePageCourseFiltered.push(element)
-        }
-      })
-      response.status(200).json({
-        responseCode: 'OK',
-        result: {
-          content: homePageCourseFiltered,
-          count: homePageCourseFiltered.length,
-          facets: homePageCourseControllerData.data.result.facets,
-        },
-        status: 200,
-      })
-      return
-    } // ............................. For Self assessment courses.............................
-    if (courseSearchRequestData.request.filters.competency) {
-      const selfAssessmentCourseControllerData = await selfAssessmentController(
-        courseSearchRequestData
-      )
-      const responseForCompetencySelfAssessmentController =
-        selfAssessmentCourseControllerData.data.result.content
-      response.status(200).json({
-        responseCode: 'OK',
-        result: {
-          content: responseForCompetencySelfAssessmentController,
-          count: responseForCompetencySelfAssessmentController.length,
-        },
-        status: 200,
-      })
-      return
-    } // .................................For search button with query on home page..............................
+    }
+    // .................................For search button with query on home page..............................
     if (courseSearchRequestData.request.query) {
       const courseSearchPrimaryData = {
         request: {
           facets,
           fields: [],
-          filters: {
-            contentType: ['Course'],
-            lang: [languageSelected] || '',
-            status: ['Live'],
-          },
+          filters,
           query: `${courseSearchRequestData.request.query}`,
-          sort_by: {
-            lastUpdatedOn: '',
-          },
+          sort_by: sortMethod,
         },
-      }
-      if (!languageSelected) {
-        delete courseSearchPrimaryData.request.filters.lang
+        sort: [
+          {
+            lastUpdatedOn: 'asc',
+          },
+        ],
       }
       const esResponsePrimaryCourses = await axios({
         data: courseSearchPrimaryData,
@@ -274,7 +124,7 @@ publicSearch.post('/getCourses', async (request, response) => {
           logError(err)
           client.query(
             `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
-            ['competency', courseSearchRequestData.request.query],
+            ['Competency', '%' + courseSearchRequestData.request.query + '%'],
             // tslint:disable-next-line: no-any
             async (_err: any, res: any) => {
               // tslint:disable-next-line: no-any
@@ -290,20 +140,13 @@ publicSearch.post('/getCourses', async (request, response) => {
                 }
                 const courseSearchSecondaryData = {
                   request: {
-                    filters: {
-                      competencySearch: elasticSearchData,
-                      contentType: ['Course'],
-                      lang: [languageSelected] || '',
-                      primaryCategory: ['Course'],
-                      status: ['Live'],
-                    },
-                    sort_by: { lastUpdatedOn: 'desc' },
+                    filters,
+                    sort_by: sortMethod,
                   },
                   sort: [{ lastUpdatedOn: 'desc' }],
                 }
-                if (!languageSelected) {
-                  delete courseSearchSecondaryData.request.filters.lang
-                }
+                courseSearchSecondaryData.request.filters.competencySearch =
+                  elasticSearchData
                 const elasticSearchResponseSecond = await axios({
                   data: courseSearchSecondaryData,
                   headers,
@@ -311,12 +154,17 @@ publicSearch.post('/getCourses', async (request, response) => {
                   url: API_END_POINTS.search,
                 })
                 courseDataSecondary =
-                  elasticSearchResponseSecond.data.result.content
+                  elasticSearchResponseSecond.data.result.content || []
               }
+
               if (!courseDataPrimary) courseDataPrimary = []
               const finalFilteredData = []
               finalConcatenatedData =
                 courseDataPrimary.concat(courseDataSecondary)
+              if (finalConcatenatedData.length == 0) {
+                response.status(200).json(nullResponseStatus)
+                return
+              }
               finalConcatenatedData.forEach((element) => {
                 if (!element.competency) {
                   finalFilteredData.push(element)
@@ -326,10 +174,7 @@ publicSearch.post('/getCourses', async (request, response) => {
                 finalFilteredData,
                 'identifier'
               )
-              if (finalConcatenatedData.length == 0) {
-                response.status(200).json(nullResponseStatus)
-                return
-              }
+
               response.status(200).json({
                 responseCode: 'OK',
                 result: {

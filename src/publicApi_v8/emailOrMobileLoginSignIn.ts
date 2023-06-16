@@ -88,6 +88,7 @@ emailOrMobileLogin.post("/signup", async (req, res) => {
         // tslint:disable-next-line: no-console
         console.log("response form getOTP : " + response);
         if (response.data.result.response === "SUCCESS") {
+          await updateRoles(userUUId);
           res.status(200).json({
             msg: "user created successfully",
             status: "success",
@@ -276,6 +277,7 @@ emailOrMobileLogin.post("/registerUserWithMobile", async (req, res) => {
       );
       if (newUserDetails) {
         const userUUId = newUserDetails.result.userId;
+        await updateRoles(userUUId);
         const response = await getOTP(userUUId, phone, "phone");
         // tslint:disable-next-line: no-console
         console.log("response form getOTP : " + response);

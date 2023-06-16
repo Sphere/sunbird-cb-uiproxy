@@ -31,6 +31,7 @@ import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
 import { portalApi } from './portal-v3'
 import { recommendationApi } from './recommendation'
+import { recommendationEngineV2 } from './recommendationEngineV2'
 import { userAuthKeyCloakApi } from './resource'
 import { roleActivityApi } from './roleActivity'
 import { scoringApi } from './scoring'
@@ -94,3 +95,4 @@ protectedApiV8.use('/assessment', assessmentApi)
 protectedApiV8.use('/autoEnrollmentv2', autoEnrollmentApiv2)
 protectedApiV8.use('/autoCompletev2', autoCompletev2)
 protectedApiV8.use('/updateProgressv2', updateProgressv2)
+protectedApiV8.use('/recommendationEngineV2', recommendationEngineV2)
