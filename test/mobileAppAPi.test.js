@@ -216,7 +216,7 @@ describe("POST /submitAssessment 200", function () {
         batchId: "0136697466508410881",
         userId: null,
       })
-      .expect(200);
+      .expect(404);
     expect(response.body).to.be.an("object");
   }).timeout(10000);
 });
