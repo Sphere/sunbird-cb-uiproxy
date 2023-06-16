@@ -4,3 +4,5 @@
 
 * APP_CONFIGURATIONS
 * APP_LOGS
+
+Using Nodemon configs
