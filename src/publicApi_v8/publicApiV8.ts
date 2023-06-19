@@ -20,6 +20,7 @@ import { signupWithAutoLoginV2 } from "./signupWithAutoLoginV2";
 import { publicTelemetry } from "./publicTelemetry";
 
 import { publicTnc } from "./tnc";
+import { competencyAssets } from "./competencyAssets";
 
 export const publicApiV8 = express.Router();
 
@@ -56,3 +57,4 @@ publicApiV8.use("/publicCertificateFlinkv2/", publicCertificateFlinkv2);
 publicApiV8.use("/mobileApp/", mobileAppApi);
 publicApiV8.use("/publicSearch/", publicSearch);
 publicApiV8.use("/publicTelemetry/", publicTelemetry);
+publicApiV8.use("/competencyAssets/", competencyAssets);
