@@ -1,13 +1,17 @@
 import { Router } from 'express'
 import { createProxyServer } from 'http-proxy'
-import { extractUserIdFromRequest, extractUserToken } from '../utils/requestExtract'
-import {returnData } from './dataAlterer'
+import {
+  extractUserIdFromRequest,
+  extractUserToken,
+} from '../utils/requestExtract'
+import { returnData } from './dataAlterer'
 import { CONSTANTS } from './env'
 import { logInfo } from './logger'
 
-const proxyCreator = (timeout = 10000) => createProxyServer({
-  timeout,
-})
+const proxyCreator = (timeout = 10000) =>
+  createProxyServer({
+    timeout,
+  })
 const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
 
@@ -19,7 +23,7 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
   proxyReq.setHeader('x-authenticated-user-token', extractUserToken(req))
   proxyReq.setHeader('x-authenticated-userid', extractUserIdFromRequest(req))
 
-   // condition has been added to set the session in nodebb req header
+  // condition has been added to set the session in nodebb req header
   // condition don't require for nodebb as of now, we manage authentication through API key and uid will be passed for each req.
   // if (req.originalUrl.includes('/discussion') && !req.originalUrl.includes('/discussion/user/v1/create')) {
   //   proxyReq.setHeader('Authorization', 'Bearer ' + req.session.nodebb_authorization_token)
@@ -33,7 +37,7 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 })
 
 // tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any, ) => {
+proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
   if (req.originalUrl.includes('/discussion/user/v1/create')) {
     const nodebb_auth_token = proxyRes.headers.nodebb_auth_token
     if (req.session) {
@@ -43,31 +47,40 @@ proxy.on('proxyRes', (proxyRes: any, req: any, _res: any, ) => {
 })
 
 // tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any, ) => {
+proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
   // tslint:disable-next-line: no-any
   const tempBody: any = []
-  if (req.originalUrl.includes('/hierarchy') && req.originalUrl.includes('?mode=edit&src=sunbird')) {
+  if (
+    req.originalUrl.includes('/hierarchy') &&
+    req.originalUrl.includes('?mode=edit&src=sunbird')
+  ) {
     // tslint:disable-next-line: no-console
-       console.log('Enter into the response of hierarchy')
-        // tslint:disable-next-line: no-any
-       proxyRes.on('data', (chunk: any) => {
+    console.log('Enter into the response of hierarchy')
+    // tslint:disable-next-line: no-any
+    proxyRes.on('data', (chunk: any) => {
       tempBody.push(chunk)
-        })
-       proxyRes.on('end', () => {
-          const tempdata = tempBody.toString()
-          const updateRes = returnData(JSON.parse(tempdata), null, 'hierarchy')
-          _res.end(JSON.stringify(updateRes))
-      })
+    })
+    proxyRes.on('end', () => {
+      const tempdata = tempBody.toString()
+      const updateRes = returnData(JSON.parse(tempdata), null, 'hierarchy')
+      _res.end(JSON.stringify(updateRes))
+    })
   } else {
     return _res
   }
 })
 
-export function proxyCreatorRoute(route: Router, targetUrl: string, timeout = 10000): Router {
+export function proxyCreatorRoute(
+  route: Router,
+  targetUrl: string,
+  timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
     const downloadKeyword = '/download/'
     if (req.url.startsWith(downloadKeyword)) {
-      req.url = downloadKeyword + req.url.split(downloadKeyword)[1].replace(/\//g, '%2F')
+      req.url =
+        downloadKeyword +
+        req.url.split(downloadKeyword)[1].replace(/\//g, '%2F')
     }
     // tslint:disable-next-line: no-console
     console.log('REQ_URL_ORIGINAL', req.originalUrl)
@@ -107,10 +120,23 @@ export function scormProxyCreatorRoute(route: Router, baseUrl: string): Router {
   return route
 }
 
-export function proxyCreatorLearner(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyCreatorLearner(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
-
     const url = removePrefix(`${PROXY_SLUG}/learner`, req.originalUrl)
+    if (url.includes('/batch/create')) {
+      res.status(200).json({
+        responseCode: 'OK',
+        result: {
+          batchId: '',
+          response: 'SUCCESS',
+        },
+      })
+      return
+    }
     logInfo('Final URL: ', targetUrl + url)
     proxy.web(req, res, {
       changeOrigin: true,
@@ -121,8 +147,12 @@ export function proxyCreatorLearner(route: Router, targetUrl: string, _timeout =
   return route
 }
 
-export function proxyCreatorSunbird(route: Router, targetUrl: string, _timeout = 10000): Router {
-    // tslint:disable-next-line: no-any
+export function proxyCreatorSunbird(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
+  // tslint:disable-next-line: no-any
   route.all('/*', (req: any, res) => {
     let url
     // tslint:disable-next-line: no-console
@@ -131,15 +161,33 @@ export function proxyCreatorSunbird(route: Router, targetUrl: string, _timeout =
     if (req.originalUrl.includes('discussion/topic')) {
       const topic = req.originalUrl.toString().split('/')
       if (topic[5] === topic[6]) {
-        req.originalUrl = topic[0] + '/' + topic[1] + '/' + topic[2] + '/' + topic[3] + '/' + topic[4] + '/' + topic[5] + '/' + topic[7]
+        req.originalUrl =
+          topic[0] +
+          '/' +
+          topic[1] +
+          '/' +
+          topic[2] +
+          '/' +
+          topic[3] +
+          '/' +
+          topic[4] +
+          '/' +
+          topic[5] +
+          '/' +
+          topic[7]
       }
       logInfo('Updated req.originalUrl >>> ' + req.originalUrl)
-
     }
     if (req.originalUrl.includes('?')) {
-      url = removePrefix(`${PROXY_SLUG}`, req.originalUrl) + '&_uid=' + req.session.nodebbUid
+      url =
+        removePrefix(`${PROXY_SLUG}`, req.originalUrl) +
+        '&_uid=' +
+        req.session.nodebbUid
     } else {
-      url = removePrefix(`${PROXY_SLUG}`, req.originalUrl) + '?_uid=' + req.session.nodebbUid
+      url =
+        removePrefix(`${PROXY_SLUG}`, req.originalUrl) +
+        '?_uid=' +
+        req.session.nodebbUid
     }
     logInfo('Final Url for target >>>>>>>>>', targetUrl + url)
     proxy.web(req, res, {
@@ -151,59 +199,71 @@ export function proxyCreatorSunbird(route: Router, targetUrl: string, _timeout =
   return route
 }
 
-export function proxyCreatorKnowledge(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyCreatorKnowledge(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
-
     const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
     if (url.includes('hierarchy/add')) {
       const updateSlug = '/private/content/v3/hierarchy/add'
       logInfo('Targeturl value >>>>>>>>> ' + targetUrl + updateSlug)
       proxy.web(req, res, {
-                            changeOrigin: true,
-                            ignorePath: true,
-                            target: targetUrl + updateSlug,
-                          })
+        changeOrigin: true,
+        ignorePath: true,
+        target: targetUrl + updateSlug,
+      })
     } else {
       // tslint:disable-next-line: no-console
       console.log('REQ_URL_ORIGINAL proxyCreatorKnowledge', targetUrl + url)
       proxy.web(req, res, {
-                        changeOrigin: true,
-                        ignorePath: true,
-                        target: targetUrl + url,
-                      })
-
+        changeOrigin: true,
+        ignorePath: true,
+        target: targetUrl + url,
+      })
     }
   })
   return route
 }
 
-export function proxyHierarchyKnowledge(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyHierarchyKnowledge(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
     if (url.includes('hierarchy/update')) {
       const data = returnData(req.body, null, 'hierarchy')
       req.body = data
     }
-     // tslint:disable-next-line: no-console
+    // tslint:disable-next-line: no-console
     console.log('REQ_URL_ORIGINAL proxyCreatorKnowledge', targetUrl + url)
-    if (req.originalUrl.includes('/hierarchy') && req.originalUrl.includes('?mode=edit')) {
-      proxy.web(req, res,  {
+    if (
+      req.originalUrl.includes('/hierarchy') &&
+      req.originalUrl.includes('?mode=edit')
+    ) {
+      proxy.web(req, res, {
         changeOrigin: true,
         ignorePath: true,
         target: targetUrl + url,
       })
     }
-    proxy.web(req, res,  {
-        changeOrigin: true,
-        ignorePath: true,
-        target: targetUrl + url,
-      })
-
+    proxy.web(req, res, {
+      changeOrigin: true,
+      ignorePath: true,
+      target: targetUrl + url,
+    })
   })
   return route
 }
 
-export function proxyCreatorUpload(route: Router, targetUrl: string, _timeout = 10000000): Router {
+export function proxyCreatorUpload(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000000
+): Router {
   route.all('/*', (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}/action`, req.originalUrl)
     // tslint:disable-next-line: no-console
@@ -221,9 +281,12 @@ function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
 
-export function proxyCreatorSunbirdSearch(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyCreatorSunbirdSearch(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
-
     // tslint:disable-next-line: no-console
     console.log('REQ_URL_ORIGINAL proxyCreatorSunbirdSearch', req.originalUrl)
     // tslint:disable-next-line: no-console
@@ -237,9 +300,12 @@ export function proxyCreatorSunbirdSearch(route: Router, targetUrl: string, _tim
   return route
 }
 
-export function proxyCreatorToAppentUserId(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyCreatorToAppentUserId(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
-
     const userId = extractUserIdFromRequest(req).split(':')
     const userIdFromUrl = req.originalUrl.split('/').pop()
 
@@ -251,25 +317,27 @@ export function proxyCreatorToAppentUserId(route: Router, targetUrl: string, _ti
         target: targetUrl + userId[userId.length - 1],
       })
     } else {
+      logInfo('userId received in Read api  >>>>>>>>>' + userId)
+      logInfo('REQ_URL_ORIGINAL proxyCreatorToAppentUserId', req.originalUrl)
+      logInfo('userId Length value >>>>>>>>>>>>>>' + userId[userId.length - 1])
 
-    logInfo('userId received in Read api  >>>>>>>>>' + userId)
-    logInfo('REQ_URL_ORIGINAL proxyCreatorToAppentUserId', req.originalUrl)
-    logInfo('userId Length value >>>>>>>>>>>>>>' + userId[userId.length - 1])
-
-    proxy.web(req, res, {
-      changeOrigin: true,
-      ignorePath: true,
-     // target: targetUrl + userId[userId.length - 1],
-      target: targetUrl + userIdFromUrl,
-    })
-
+      proxy.web(req, res, {
+        changeOrigin: true,
+        ignorePath: true,
+        // target: targetUrl + userId[userId.length - 1],
+        target: targetUrl + userIdFromUrl,
+      })
     }
-
   })
   return route
 }
 
-export function proxyCreatorQML(route: Router, targetUrl: string, urlType: string, _timeout = 10000, ): Router {
+export function proxyCreatorQML(
+  route: Router,
+  targetUrl: string,
+  urlType: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
     const originalUrl = req.originalUrl.replace(urlType, '/')
     const url = removePrefix(`${PROXY_SLUG}`, originalUrl)
@@ -284,7 +352,11 @@ export function proxyCreatorQML(route: Router, targetUrl: string, urlType: strin
   return route
 }
 
-export function proxyContent(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyContent(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}/private`, req.originalUrl)
     // tslint:disable-next-line: no-console
@@ -298,9 +370,16 @@ export function proxyContent(route: Router, targetUrl: string, _timeout = 10000)
   return route
 }
 
-export function proxyContentLearnerVM(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyContentLearnerVM(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
-    const url = removePrefix(`${PROXY_SLUG}/learnervm/private`, req.originalUrl)
+    const url = removePrefix(
+      `${PROXY_SLUG}/learnervm/private`,
+      req.originalUrl
+    )
     // tslint:disable-next-line: no-console
     console.log('REQ_URL_ORIGINAL proxyContentLearnerVM', targetUrl)
     proxy.web(req, res, {
@@ -312,7 +391,11 @@ export function proxyContentLearnerVM(route: Router, targetUrl: string, _timeout
   return route
 }
 
-export function proxyCreatorDownloadCertificate(route: Router, targetUrl: string, _timeout = 10000): Router {
+export function proxyCreatorDownloadCertificate(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
   route.all('/*', (req, res) => {
     const originalUrl = req.originalUrl
     const lastIndex = originalUrl.lastIndexOf('/')
