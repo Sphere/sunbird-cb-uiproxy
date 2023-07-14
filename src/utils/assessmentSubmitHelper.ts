@@ -74,8 +74,9 @@ export async function assessmentCreator(
           Date.now(),
           userResponsedata.total,
           userResponsedata.result,
-          formatedRequest.questions,
+          JSON.parse(formatedRequest.questions),
         ];
+        console.log(formatedRequest.questions);
         client.execute(query, params, { prepare: true });
       } catch (error) {
         logInfo(JSON.stringify(error));
