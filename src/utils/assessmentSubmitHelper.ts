@@ -62,17 +62,19 @@ export async function assessmentCreator(
 
         const query =
           // tslint:disable-next-line: max-line-length
-          "INSERT INTO sunbird_courses.user_assessment_info ( userid, courseid, assessmentid, userresponse, userpercentage, total, blank,correct,passpercentage,incorrect,submissiontime) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+          "INSERT INTO sunbird_courses.user_assessment_info (userid,assessmentid,blank,correct,courseid,incorrect,paspercentage,submissiontime,total,userpercentge,userresponse) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
         const params = [
           userId,
-          courseId,
-          formatedRequest,
-          userResponsedata.result,
+          assessmentId,
           userResponsedata.blank,
           userResponsedata.correct,
-          userResponsedata.passPercent,
+          courseId,
           userResponsedata.inCorrect,
+          userResponsedata.passPercent,
           Date.now(),
+          userResponsedata.total,
+          userResponsedata.result,
+          formatedRequest,
         ];
         client.execute(query, params, { prepare: true });
       } catch (error) {
