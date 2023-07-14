@@ -74,7 +74,7 @@ export async function assessmentCreator(
           Date.now(),
           userResponsedata.total,
           userResponsedata.result,
-          formatedRequest,
+          formatedRequest.questions,
         ];
         client.execute(query, params, { prepare: true });
       } catch (error) {
