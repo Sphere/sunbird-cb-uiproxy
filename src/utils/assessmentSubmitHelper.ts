@@ -1,11 +1,17 @@
-import axios from "axios";
-import _ from "lodash";
-import { CONSTANTS } from "./env";
-import { logError, logInfo } from "./logger";
+import axios from 'axios'
+import _ from 'lodash'
+import { CONSTANTS } from './env'
+import { logError, logInfo } from './logger'
 const API_END_POINTS = {
   assessmentSubmitV2: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/user`,
   updateAssessmentContent: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/update`,
-};
+}
+const cassandra = require('cassandra-driver')
+const client = new cassandra.Client({
+  contactPoints: [CONSTANTS.CASSANDRA_IP],
+  keyspace: 'sunbird',
+  localDataCenter: 'datacenter1',
+})
 
 export async function assessmentCreator(
   // tslint:disable-next-line: no-any
@@ -17,41 +23,61 @@ export async function assessmentCreator(
 ) {
   const statusMessage = {
     data: {},
-    message: "Assessment submitted successfully",
+    message: 'Assessment submitted successfully',
     status: 200,
-  };
+  }
   try {
-    const batchId = assessmentReqData.batchId;
-    const courseId = assessmentReqData.courseId;
-    const assessmentId = assessmentReqData.contentId;
+    const batchId = assessmentReqData.batchId
+    const courseId = assessmentReqData.courseId
+    const assessmentId = assessmentReqData.contentId
     const assessmentQuestions = await fetchAssessment(
       assessmentReqData.artifactUrl
-    );
-    let passPercentage = 60;
+    )
+    let passPercentage = 60
     if (assessmentReqData.passPercentage == 0) {
-      passPercentage = 0;
+      passPercentage = 0
     } else if (assessmentReqData.passPercentage) {
-      passPercentage = assessmentReqData.passPercentage;
+      passPercentage = assessmentReqData.passPercentage
     }
-    logInfo(JSON.stringify(passPercentage), "passPercentage");
+    logInfo(JSON.stringify(passPercentage), 'passPercentage')
     if (assessmentQuestions) {
       const formatedRequest = getFormatedRequest(
         assessmentQuestions,
         assessmentReqData
-      );
-      const url = `${API_END_POINTS.assessmentSubmitV2}/assessment/submit`;
+      )
+      const url = `${API_END_POINTS.assessmentSubmitV2}/assessment/submit`
       const response = await axios({
         data: formatedRequest,
         headers: {
           Authorization: CONSTANTS.SB_API_KEY,
-          rootOrg: "aastar",
+          rootOrg: 'aastar',
           userId,
-          "x-authenticated-user-token": userToken,
+          'x-authenticated-user-token': userToken,
         },
-        method: "POST",
+        method: 'POST',
         url,
-      });
-      logInfo("Submit assessment response", response.data);
+      })
+      try {
+        const userResponsedata = response.data
+
+        const query =
+          // tslint:disable-next-line: max-line-length
+          'INSERT INTO sunbird_courses.user_assessment_info ( userId, courseId, assessmentId, userResponse, userPercentage, total, blank,correct,passPercentage,inCorrect,submissionTime) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )'
+        const params = [
+          userId,
+          courseId,
+          formatedRequest,
+          userResponsedata.result,
+          userResponsedata.blank,
+          userResponsedata.correct,
+          userResponsedata.passPercent,
+          userResponsedata.inCorrect,
+          Date.now(),
+        ]
+        client.execute(query, params, { prepare: true })
+      } catch (error) {
+        logInfo(JSON.stringify(error))
+      }
       const revisedData = {
         request: {
           contents: [
@@ -65,80 +91,81 @@ export async function assessmentCreator(
           ],
           userId,
         },
-      };
-      logInfo("response.data.result", response.data.result);
+      }
+      logInfo('response.data.result', response.data.result)
       if (response.data.result >= passPercentage) {
-        response.data.passPercent = passPercentage;
-        logInfo("Came inside if condition");
+        response.data.passPercent = passPercentage
+        logInfo('Came inside if condition')
         await axios({
           data: revisedData,
           headers: {
             Authorization: CONSTANTS.SB_API_KEY,
-            "x-authenticated-user-token": userToken,
+            'x-authenticated-user-token': userToken,
           },
-          method: "PATCH",
+          method: 'PATCH',
           url: API_END_POINTS.updateAssessmentContent,
-        });
+        })
       }
-      statusMessage.data = response.data;
-      return statusMessage;
+      statusMessage.data = response.data
+      return statusMessage
     }
   } catch (err) {
-    statusMessage.status = 404;
-    statusMessage.message = "Error occured while submit in cb-ext";
-    return statusMessage;
+    statusMessage.status = 404
+    statusMessage.message = 'Error occured while submit in cb-ext'
+    return statusMessage
   }
 }
 const fetchAssessment = async (artifactUrl: string) => {
-  logInfo("Checking fetchAssessment : ", artifactUrl);
+  logInfo('Checking fetchAssessment : ', artifactUrl)
   try {
     const response = await axios({
-      method: "GET",
+      method: 'GET',
       url: artifactUrl,
-    });
-    logInfo("Response Data in JSON :", response.data);
+    })
+    logInfo('Response Data in JSON :', response.data)
     if (response.data.questions) {
-      logInfo("Response questions :", _.get(response, "data"));
-      return _.get(response, "data");
+      logInfo('Response questions :', _.get(response, 'data'))
+      return _.get(response, 'data')
     }
   } catch (err) {
-    logError("fetchAssement  failed");
+    logError('fetchAssement  failed')
   }
-};
+}
 // tslint:disable-next-line: no-any
 const getFormatedRequest = (data: any, requestBody: any) => {
   logInfo(
-    "Response of questions in in getFormated method JSON :",
+    'Response of questions in in getFormated method JSON :',
     JSON.stringify(data.questions)
-  );
+  )
 
   _.forEach(data.questions, (qkey) => {
     _.forEach(requestBody.questions, (reqKey) => {
       if (
-        qkey.questionType === "mcq-sca" ||
-        qkey.questionType === "fitb" ||
-        qkey.questionType === "mcq-mca"
+        qkey.questionType === 'mcq-sca' ||
+        qkey.questionType === 'fitb' ||
+        qkey.questionType === 'mcq-mca'
       ) {
         _.forEach(qkey.options, (qoptKey) => {
           _.forEach(reqKey.options, (optKey) => {
             if (optKey.optionId === qoptKey.optionId) {
+              reqKey.question = qkey.question
               if (
-                qkey.questionType === "mcq-sca" ||
-                qkey.questionType === "fitb" ||
-                qkey.questionType === "mcq-mca"
+                qkey.questionType === 'mcq-sca' ||
+                qkey.questionType === 'fitb' ||
+                qkey.questionType === 'mcq-mca'
               ) {
-                _.set(optKey, "isCorrect", _.get(qoptKey, "isCorrect"));
-                _.set(optKey, "text", _.get(qoptKey, "text"));
-              } else if (qkey.questionType === "mtf") {
-                _.set(optKey, "isCorrect", _.get(qoptKey, "isCorrect"));
-                _.set(optKey, "match", _.get(qoptKey, "match"));
+                _.set(optKey, 'isCorrect', _.get(qoptKey, 'isCorrect'))
+                _.set(optKey, 'text', _.get(qoptKey, 'text'))
+              } else if (qkey.questionType === 'mtf') {
+                _.set(optKey, 'isCorrect', _.get(qoptKey, 'isCorrect'))
+                _.set(optKey, 'match', _.get(qoptKey, 'match'))
               }
             }
-          });
-        });
+          })
+        })
       }
-    });
-  });
-  logInfo("requestBody to submit the assessment ", JSON.stringify(requestBody));
-  return requestBody;
-};
+    })
+  })
+  logInfo('requestBody to submit the assessment ', JSON.stringify(requestBody))
+  return requestBody
+}
