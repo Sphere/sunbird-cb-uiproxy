@@ -62,7 +62,7 @@ export async function assessmentCreator(
 
         const query =
           // tslint:disable-next-line: max-line-length
-          "INSERT INTO sunbird_courses.user_assessment_info (userid,assessmentid,blank,correct,courseid,incorrect,passpercentage,submissiontime,total,userpercentge,userresponse) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+          "INSERT INTO sunbird_courses.user_assessment_info (userid,assessmentid,blank,correct,courseid,incorrect,passpercentage,submissiontime,total,userpercentage,userresponse) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
         const params = [
           userId,
           assessmentId,
