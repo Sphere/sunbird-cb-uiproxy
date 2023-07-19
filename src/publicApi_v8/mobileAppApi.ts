@@ -12,6 +12,7 @@ const API_END_POINTS = {
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
+  RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
 }
 
@@ -257,5 +258,33 @@ mobileAppApi.get('/version', async (_req, res) => {
     res.status(404).json({
       message: 'Content not found',
     })
+  }
+})
+mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
+  try {
+    /* tslint:disable-next-line */
+    let responseObject = {
+      background: req.query.background || '',
+      profession: req.query.profession || '',
+    }
+    if (!req.query.background) {
+      delete responseObject.background
+    }
+    if (!req.query.profession) {
+      delete responseObject.profession
+    }
+    const response = await axios({
+      method: 'GET',
+      params: responseObject,
+      url: API_END_POINTS.RECOMMENDATION_API,
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Exception occured in recommendation service',
+      }
+    )
   }
 })
