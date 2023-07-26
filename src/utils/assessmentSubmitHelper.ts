@@ -2,10 +2,18 @@ import axios from "axios";
 import _ from "lodash";
 import { CONSTANTS } from "./env";
 import { logError, logInfo } from "./logger";
+import uuid from "uuid";
+
 const API_END_POINTS = {
   assessmentSubmitV2: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/user`,
   updateAssessmentContent: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/update`,
 };
+const cassandra = require("cassandra-driver");
+const client = new cassandra.Client({
+  contactPoints: [CONSTANTS.CASSANDRA_IP],
+  keyspace: "sunbird_courses",
+  localDataCenter: "datacenter1",
+});
 
 export async function assessmentCreator(
   // tslint:disable-next-line: no-any
@@ -51,7 +59,31 @@ export async function assessmentCreator(
         method: "POST",
         url,
       });
-      logInfo("Submit assessment response", response.data);
+      try {
+        const userResponsedata = response.data;
+        const query =
+          // tslint:disable-next-line: max-line-length
+          "INSERT INTO sunbird_courses.user_assessment_info (uuid,userid,assessmentid,blank,correct,courseid,incorrect,passpercentage,submissiontime,total,userpercentage,userresponse) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+        const params = [
+          uuid(),
+          userId,
+          assessmentId,
+          userResponsedata.blank,
+          userResponsedata.correct,
+          courseId,
+          userResponsedata.inCorrect,
+          userResponsedata.passPercent,
+          Date.now(),
+          userResponsedata.total,
+          userResponsedata.result,
+          JSON.stringify(formatedRequest.questions),
+        ];
+        logInfo("params", JSON.stringify(params));
+        logInfo("formatted request data", formatedRequest.questions);
+        client.execute(query, params, { prepare: true });
+      } catch (error) {
+        logInfo(JSON.stringify(error));
+      }
       const revisedData = {
         request: {
           contents: [
@@ -122,6 +154,7 @@ const getFormatedRequest = (data: any, requestBody: any) => {
         _.forEach(qkey.options, (qoptKey) => {
           _.forEach(reqKey.options, (optKey) => {
             if (optKey.optionId === qoptKey.optionId) {
+              reqKey.question = qkey.question;
               if (
                 qkey.questionType === "mcq-sca" ||
                 qkey.questionType === "fitb" ||
