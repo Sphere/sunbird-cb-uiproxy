@@ -204,8 +204,55 @@ export function proxyCreatorKnowledge(
   targetUrl: string,
   _timeout = 10000
 ): Router {
-  route.all('/*', (req, res) => {
+  route.all('/*', async (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
+    // Code for checklist threshold checks for preventing publish
+    // if (url.includes('content/v3/publish')) {
+    //   try {
+    //     const scoringThreshold = 75
+    //     const newUrlArray = url.split('/')
+    //     const courseId = newUrlArray[newUrlArray.length - 1]
+    //     const courseHierarchyData = await axios({
+    //       headers: {
+    //         Authorization: CONSTANTS.SB_API_KEY,
+    //       },
+    //       method: 'GET',
+    //       url: `${CONSTANTS.HTTPS_HOST}/api/private/content/v3/hierarchy/${courseId}?mode=edit`,
+    //     })
+    //     const resourceMimetype =
+    //       courseHierarchyData.data.result.content.mimeType
+    //     if (resourceMimetype == 'application/vnd.ekstep.content-collection') {
+    //       const courseScore = await axios({
+    //         data: {
+    //           getLatestRecordEnabled: true,
+    //           resourceId: courseId,
+    //           resourceType: 'content',
+    //         },
+    //         headers: {
+    //           Authorization: CONSTANTS.SB_API_KEY,
+    //           org: 'aastar',
+    //           rootOrg: 'aastar',
+    //         },
+    //         method: 'POST',
+    //         url: `${CONSTANTS.HTTPS_HOST}/api/scoring/v1/fetch`,
+    //       })
+    //       const scoreObtained =
+    //         courseScore.data.result.resources[0].finalWeightedScore
+    //       if (scoreObtained < scoringThreshold) {
+    //         res.status(200).json({
+    //           message: 'Publish operation aborted',
+    //           status: 'Aborted',
+    //         })
+    //         return
+    //       }
+    //     }
+    //   } catch (error) {
+    //     res.status(400).json({
+    //       message: 'Publish operation failed',
+    //       status: 'Failed',
+    //     })
+    //   }
+    // }
     if (url.includes('hierarchy/add')) {
       const updateSlug = '/private/content/v3/hierarchy/add'
       logInfo('Targeturl value >>>>>>>>> ' + targetUrl + updateSlug)
