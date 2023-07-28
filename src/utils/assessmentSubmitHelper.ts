@@ -1,13 +1,14 @@
 import axios from "axios";
 import _ from "lodash";
+import uuid from "uuid";
 import { CONSTANTS } from "./env";
 import { logError, logInfo } from "./logger";
-import uuid from "uuid";
 
 const API_END_POINTS = {
   assessmentSubmitV2: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/user`,
   updateAssessmentContent: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/course/v1/content/state/update`,
 };
+
 const cassandra = require("cassandra-driver");
 const client = new cassandra.Client({
   contactPoints: [CONSTANTS.CASSANDRA_IP],
@@ -64,7 +65,20 @@ export async function assessmentCreator(
         const query =
           // tslint:disable-next-line: max-line-length
           "INSERT INTO sunbird_courses.user_assessment_info (uuid,userid,assessmentid,blank,correct,courseid,incorrect,passpercentage,submissiontime,total,userpercentage,userresponse) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
-        const params = [
+        const params: [
+          string,
+          string,
+          string,
+          number,
+          number,
+          string,
+          number,
+          number,
+          number,
+          number,
+          number,
+          string
+        ] = [
           uuid(),
           userId,
           assessmentId,
