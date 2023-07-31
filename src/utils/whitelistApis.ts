@@ -455,6 +455,17 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/competency/reports/assessment': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/competency/reports/passbook': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+
     '/proxies/v8/discussion/v2/posts/:id/vote': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1328,6 +1339,8 @@ export const API_LIST = {
     '/proxies/v8/admin/bulk-upload/create-users',
     '/protected/v8/admin/bulk-user-mapping/provider',
     '/protected/v8/connections/connections/recommended/userDepartment',
+    '/protected/v8/competency/reports/assessment',
+    '/protected/v8/competency/reports/passbook',
     '/protected/v8/discussionHub/categories/:cid/:slug?/:tid?',
     '/protected/v8/discussionHub/topics/recent',
     '/protected/v8/entityCompetency/addUpdateEntity',
