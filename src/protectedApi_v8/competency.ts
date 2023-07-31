@@ -3,7 +3,6 @@ import { Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
-import { logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractAuthorizationFromRequest } from '../utils/requestExtract'
 
@@ -13,10 +12,6 @@ const API_END_POINTS = {
   searchCompetency: `${CONSTANTS.FRAC_API_BASE}/api/frac/searchNodes`,
 }
 
-const API_END_POINTS_REPORTS = {
-  assessmentReports: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/competency/reports/assessment`,
-  passbookReports: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/competency/reports/passbook`,
-}
 export const competencyApi = Router()
 const unknownError = 'Failed due to unknown reason'
 
@@ -83,65 +78,5 @@ competencyApi.post('/searchCompetency', async (req, res) => {
         error: unknownError,
       }
     )
-  }
-})
-competencyApi.get('/reports/assessment', async (req, res) => {
-  try {
-    const startDate = req.query.start_date
-    const endDate = req.query.end_date
-    logInfo(
-      'Start date and end date for assessment reports',
-      startDate,
-      endDate
-    )
-    if (!startDate || !endDate) {
-      res.status(400).json({
-        message: 'Start date or end date cant be empty',
-        status: 'Failed',
-      })
-      return
-    }
-    const response = await axios({
-      method: 'GET',
-      params: {
-        end_date: endDate,
-        start_date: startDate,
-      },
-      url: API_END_POINTS_REPORTS.assessmentReports,
-    })
-    res.status(response.status).send(response.data)
-  } catch (error) {
-    res.status(400).json({
-      message: 'Something went wrong in recommendation service',
-      status: 'Failed',
-    })
-  }
-})
-competencyApi.get('/reports/passbook', async (req, res) => {
-  try {
-    const startDate = req.query.start_date
-    const endDate = req.query.end_date
-    logInfo('Start date and end date for passbook reports', startDate, endDate)
-    if (!startDate || !endDate) {
-      res.status(400).json({
-        message: 'Start date or end date cant be empty',
-        status: 'Failed',
-      })
-      return
-    }
-    const response = await axios({
-      method: 'GET',
-      params: {
-        end_date: endDate,
-        start_date: startDate,
-      },
-      url: API_END_POINTS_REPORTS.passbookReports,
-    })
-    res.status(response.status).send(response.data)
-  } catch (error) {
-    res.status(400).json({
-      message: 'Something went wrong in recommendation service',
-      status: 'Failed',
-    })
   }
 })
