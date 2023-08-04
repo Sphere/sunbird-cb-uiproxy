@@ -55,6 +55,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         request: {
           facets: facets || facetsDataDefault,
           filters,
+          limit: 200,
           sort_by: sortMethod,
         },
         sort: [
@@ -100,6 +101,7 @@ publicSearch.post('/getCourses', async (request, response) => {
           facets,
           fields: [],
           filters,
+          limit: 200,
           query: `${courseSearchRequestData.request.query}`,
           sort_by: sortMethod,
         },
