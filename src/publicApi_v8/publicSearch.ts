@@ -53,9 +53,9 @@ publicSearch.post("/getCourses", async (request, response) => {
     if (!courseSearchRequestData.request.query) {
       const requestBodyForSearch = JSON.stringify({
         request: {
-          limit: 200,
           facets: facets || facetsDataDefault,
           filters,
+          limit: 200,
           sort_by: sortMethod,
         },
         sort: [
@@ -98,10 +98,10 @@ publicSearch.post("/getCourses", async (request, response) => {
     if (courseSearchRequestData.request.query) {
       const courseSearchPrimaryData = {
         request: {
-          limit: 200,
           facets,
           fields: [],
           filters,
+          limit: 200,
           query: `${courseSearchRequestData.request.query}`,
           sort_by: sortMethod,
         },
