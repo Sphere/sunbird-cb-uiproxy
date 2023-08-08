@@ -18,6 +18,7 @@ import { connectionsV2Api } from './connections_v2'
 import { contentApi } from './content'
 import { contentValidationApi } from './contentValidation'
 import { counterApi } from './counter'
+import { creatorCertificateTemplate } from './creatorCertificateTemplate'
 import { deptApi } from './departments'
 import { discussionHubApi } from './discussionHub/discussionHub'
 import { entityCompetencyApi } from './entityCompetency'
@@ -43,7 +44,6 @@ import { updateProgressv2 } from './updateProgressv2'
 import { user } from './user/user'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
-
 export const protectedApiV8 = express.Router()
 
 protectedApiV8.get('/', (_req, res) => {
@@ -96,3 +96,4 @@ protectedApiV8.use('/autoEnrollmentv2', autoEnrollmentApiv2)
 protectedApiV8.use('/autoCompletev2', autoCompletev2)
 protectedApiV8.use('/updateProgressv2', updateProgressv2)
 protectedApiV8.use('/recommendationEngineV2', recommendationEngineV2)
+protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
