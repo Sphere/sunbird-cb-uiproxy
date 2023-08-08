@@ -22,7 +22,7 @@ creatorCertificateTemplate.patch("/template/add", async (req, res) => {
       return;
     }
     const templateAddResponse = await axios({
-      data: req.body,
+      data: JSON.stringify(req.body),
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         "x-authenticated-user-token": extractUserToken(req),
@@ -34,13 +34,14 @@ creatorCertificateTemplate.patch("/template/add", async (req, res) => {
     logInfo("templateAddResponse", JSON.stringify(templateAddResponse));
     res.status(200).json({
       message: "SUCCESS",
-      response: templateAddResponse.data,
+      response: templateAddResponse,
     });
   } catch (error) {
+    console.log(error);
     logInfo(JSON.stringify(error));
     res.status(400).json({
       message: "FAILED",
-      response: "Error occurred while template add",
+      response: error,
     });
   }
 });
