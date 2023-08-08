@@ -3,7 +3,6 @@ import express from "express";
 import { CONSTANTS } from "../utils/env";
 import { logInfo } from "../utils/logger";
 import { extractUserToken } from "../utils/requestExtract";
-import { Logic } from "keycloak-admin/lib/defs/policyRepresentation";
 
 export const creatorCertificateTemplate = express.Router();
 const templateAddEndpoint = `${CONSTANTS.HTTPS_HOST}/api/course/batch/cert/v1/template/add`;
