@@ -32,7 +32,7 @@ creatorCertificateTemplate.patch("/template/add", async (req, res) => {
     logInfo();
     res.status(200).json({
       message: "SUCCESS",
-      response: JSON.stringify(templateAddResponse.data),
+      response: templateAddResponse.data,
     });
   } catch (error) {
     res.status(400).json({
