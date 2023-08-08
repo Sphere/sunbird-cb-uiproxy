@@ -37,7 +37,6 @@ creatorCertificateTemplate.patch("/template/add", async (req, res) => {
       response: templateAddResponse,
     });
   } catch (error) {
-    console.log(error);
     logInfo(JSON.stringify(error));
     res.status(400).json({
       message: "FAILED",
