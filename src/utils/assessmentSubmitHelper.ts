@@ -168,7 +168,10 @@ const getFormatedRequest = (data: any, requestBody: any) => {
         _.forEach(qkey.options, (qoptKey) => {
           _.forEach(reqKey.options, (optKey) => {
             if (optKey.optionId === qoptKey.optionId) {
-              reqKey.question = qkey.question;
+              reqKey.question = qkey.question
+                .replace(/<\/?[^>]+(>|$)/g, "")
+                .replace("&nbsp;", "")
+                .replace(/\n/g, "");
               if (
                 qkey.questionType === "mcq-sca" ||
                 qkey.questionType === "fitb" ||
