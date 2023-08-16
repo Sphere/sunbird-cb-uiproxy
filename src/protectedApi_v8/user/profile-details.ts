@@ -476,6 +476,9 @@ profileDeatailsApi.post('/completeUserInfo', async (req, res) => {
 profileDeatailsApi.patch('/updateUser', async (req, res) => {
   try {
     // tslint:disable-next-line: max-line-length
+    if (req.body.request.profileDetails.personalDetails) {
+      delete req.body.request.profileDetails.personalDetails
+    }
     if (
       req.body.request.profileDetails.profileReq.personalDetails &&
       !req.body.request.profileDetails.profileReq.personalDetails
