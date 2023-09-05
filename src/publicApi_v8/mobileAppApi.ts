@@ -9,12 +9,12 @@ import { logError, logInfo } from "../utils/logger";
 import { getCurrentUserRoles } from "./rolePermission";
 
 const API_END_POINTS = {
+  CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
-  CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
 };
 
 const GET_ENTITY_BY_ID_FAIL =
@@ -295,24 +295,24 @@ mobileAppApi.get("/certificateDownload", async (req, res) => {
     const accesTokenResult = verifyToken(req, res);
     if (!userId || !certificateId || accesTokenResult.userId != userId) {
       return res.status(400).json({
-        status: "FAILED",
         message: "Token, Userid or Certificate missing or invalid",
+        status: "FAILED",
       });
     }
     const certificateDownloadResponse = await axios({
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
       method: "GET",
       params: userId,
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
       url: `${API_END_POINTS.CERTIFICATE_DOWNLOAD}/${certificateId}`,
     });
     res.status(200).json({
-      status: "SUCCESS",
       data: certificateDownloadResponse.data.result,
+      status: "SUCCESS",
     });
   } catch (error) {
     res.status(400).json({
-      status: "FAILED",
       message: "Error occurred while certificate download",
+      status: "FAILED",
     });
   }
 });
