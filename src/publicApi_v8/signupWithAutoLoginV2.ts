@@ -196,6 +196,7 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
         userEmail ? userEmail : userPhone,
         userEmail ? 'email' : 'phone'
       )
+      res.clearCookie('connect.sid')
       req.session.userLoginData = {
         password,
         userId,
