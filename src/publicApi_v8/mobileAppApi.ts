@@ -291,30 +291,10 @@ mobileAppApi.get("/courseRemommendationv2", async (req, res) => {
 });
 mobileAppApi.get("/certificateDownload", async (req, res) => {
   try {
-    let { userId, certificateId } = req.query;
+    const { userId, certificateId } = req.query;
     const accesTokenResult = verifyToken(req, res);
     if (!userId || !certificateId || accesTokenResult.userId != userId) {
       return res.status(400).json({
-<<<<<<< HEAD
-        status: "FAILED",
-        message: "Token, Userid or Certificate missing or invalid",
-      });
-    }
-    const certificateDownloadResponse = await axios({
-      method: "GET",
-      params: userId,
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
-      url: `${API_END_POINTS.CERTIFICATE_DOWNLOAD}/${certificateId}`,
-    });
-    res.status(200).json({
-      status: "SUCCESS",
-      data: certificateDownloadResponse.data.result,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "FAILED",
-      message: "Error occurred while certificate download",
-=======
         message: "Token, Userid or Certificate missing or invalid",
         status: "FAILED",
       });
@@ -333,7 +313,6 @@ mobileAppApi.get("/certificateDownload", async (req, res) => {
     res.status(400).json({
       message: "Error occurred while certificate download",
       status: "FAILED",
->>>>>>> 640b17bc4fac7999c2cda42bfddab929d0dad3d3
     });
   }
 });
