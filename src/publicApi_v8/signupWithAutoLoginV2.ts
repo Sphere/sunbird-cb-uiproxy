@@ -196,14 +196,12 @@ signupWithAutoLoginV2.post("/register", async (req, res) => {
         userEmail ? userEmail : userPhone,
         userEmail ? "email" : "phone"
       );
-      res.clearCookie("connect.sid");
-      req.session.user = null;
+      res.clearCookie("connect.sid", { path: "/" });
+      req.session.userLoginData = {
+        password,
+        userId,
+      };
       req.session.save((err) => {
-        req.session.userLoginData = {
-          password,
-          userId,
-        };
-
         logInfo(JSON.stringify(err));
       });
       res.status(200).json({
