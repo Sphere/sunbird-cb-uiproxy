@@ -12,6 +12,7 @@ import {
   axiosRequestConfigLong,
   axiosRequestConfigVeryLong,
 } from '../../configs/request.config'
+import { encryptData } from '../../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
@@ -37,11 +38,11 @@ const API_END_POINTS = {
   getUserRegistry: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getUserRegistry`,
   getUserRegistryById: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getUserRegistryById`,
   kongCreateUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  kongSearchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
+  kongSearchUser: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
   kongSendWelcomeEmail: `${CONSTANTS.KONG_API_BASE}/private/user/v1/notification/email`,
   kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
   kongUserRead: (userId: string) =>
-    `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
+    `${CONSTANTS.KONG_API_BASE}/user/v1/read/${userId}`,
   kongUserResetPassword: `${CONSTANTS.KONG_API_BASE}/private/user/v1/password/reset`,
   // tslint:disable-next-line: object-literal-sort-keys
   migrateRegistry: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/migrateRegistry`,
@@ -276,7 +277,6 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
     const sbemailVerified_ = true
     const sbfirstName_ = req.body.personalDetails.firstName
     const sblastName_ = req.body.personalDetails.lastName
-
     const searchresponse = await axios({
       ...axiosRequestConfig,
       data: {
@@ -290,6 +290,7 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
       method: 'POST',
       url: API_END_POINTS.kongSearchUser,
     })
+
     if (searchresponse.data.result.response.count > 0) {
       res.status(400).send({
         id: 'api.error.createUser',
@@ -315,6 +316,7 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
         emailVerified: sbemailVerified_,
         firstName: sbfirstName_,
         lastName: sblastName_,
+        password: encryptData(sbemail_),
       }
       const response = await axios({
         ...axiosRequestConfig,
@@ -342,7 +344,7 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
           method: 'GET',
           url: API_END_POINTS.kongUserRead(sbUserId),
         })
-        if (sbUserReadResponse.data.params.status !== 'success') {
+        if (sbUserReadResponse.data.params.status !== 'SUCCESS') {
           res.status(500).send(failedToReadUser)
           return
         }
@@ -374,60 +376,6 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
         })
         if (sbUserProfileUpdateResp.data.responseCode === 'CLIENT_ERROR') {
           res.status(400).send(failedToUpdateUser)
-          return
-        }
-
-        const passwordResetRequest = {
-          key: 'email',
-          type: 'email',
-          userId: sbUserId,
-        }
-
-        logInfo('Sending Password reset request -> ' + passwordResetRequest)
-        const passwordResetResponse = await axios({
-          ...axiosRequestConfig,
-          data: { request: passwordResetRequest },
-          headers: {
-            Authorization: CONSTANTS.SB_API_KEY,
-          },
-          method: 'POST',
-          url: API_END_POINTS.kongUserResetPassword,
-        })
-        logInfo(
-          'Received response from password reset -> ' + passwordResetResponse
-        )
-
-        if (passwordResetResponse.data.params.status === 'success') {
-          const welcomeMailRequest = {
-            allowedLoging: 'You can use your email to Login',
-            body: 'Hello',
-            emailTemplateType: 'iGotWelcome',
-            firstName: sbUserProfile.firstName,
-            link: passwordResetResponse.data.result.link,
-            mode: 'email',
-            orgName: sbChannel,
-            recipientEmails: [sbemail_],
-            setPasswordLink: true,
-            subject: 'Welcome Email',
-            welcomeMessage: 'Hello',
-          }
-
-          const welcomeMailResponse = await axios({
-            ...axiosRequestConfig,
-            data: { request: welcomeMailRequest },
-            headers: {
-              Authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'POST',
-            url: API_END_POINTS.kongSendWelcomeEmail,
-          })
-
-          if (welcomeMailResponse.data.params.status !== 'success') {
-            res.status(500).send('Failed to send Welcome Email.')
-            return
-          }
-        } else {
-          res.status(500).send('Failed to reset the password for user.')
           return
         }
 
