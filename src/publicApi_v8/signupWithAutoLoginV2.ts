@@ -142,7 +142,7 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
     const resultPhone = await fetchUserBymobileorEmail(userPhone, 'phone')
     logInfo(resultPhone, 'resutPhone')
     if (resultEmail || resultPhone) {
-      res.status(400).json({
+      return res.status(400).json({
         msg: 'User already exists',
         status: 'error',
         status_code: 400,
@@ -164,20 +164,9 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
         userEmail ? userEmail : userPhone,
         userEmail ? 'email' : 'phone'
       )
-      req.session.user = null
-      req.session.save((err) => {
-        logInfo(JSON.stringify(err))
-        req.session.regenerate(async () => {
-          req.session.userLoginData = {
-            password,
-            userId,
-          }
-          res.status(200).json({
-            message: 'User successfully created',
-            userId,
-          })
-          res.end()
-        })
+      res.status(200).json({
+        message: 'User successfully created',
+        userId,
       })
     } catch (error) {
       res.status(500).send({
@@ -208,8 +197,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
     const mobileNumber = req.body.phone || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
-    const userUUId = req.session.userLoginData.userId
-    const password = req.session.userLoginData.password
+    const userUUId = req.body.userId
     if (!validOtp) {
       res.status(400).send({ message: OTP_MISSING, status: 'error' })
       return
@@ -231,9 +219,10 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
           // A new session and cookie will be generated from here
           try {
             const transformedData = qs.stringify({
-              client_id: 'portal',
+              client_id: 'aastrika-sso-login',
+              client_secret: '0b409373-61cb-40ca-8d0b-c1e55f8ee8f7',
               grant_type: 'password',
-              password,
+              scope: 'offline_access',
               username: mobileNumber ? mobileNumber : email,
             })
             logInfo('Entered into authorization part.' + transformedData)
