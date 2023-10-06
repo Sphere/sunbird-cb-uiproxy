@@ -161,8 +161,8 @@ appSignUpWithAutoLogin.post("/register", async (req, res) => {
       );
       res.status(200).json({
         message: "User successfully created",
-        userId,
         status: 200,
+        userId,
       });
     } catch (error) {
       res.status(500).send({
