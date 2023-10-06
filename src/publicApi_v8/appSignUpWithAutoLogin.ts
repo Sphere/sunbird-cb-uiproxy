@@ -1,15 +1,15 @@
-import axios from "axios";
-import { Router } from "express";
-import _ from "lodash";
-import qs from "querystring";
+import axios from 'axios'
+import { Router } from 'express'
+import _ from 'lodash'
+import qs from 'querystring'
 import {
   axiosRequestConfig,
   axiosRequestConfigLong,
-} from "../configs/request.config";
-import { encryptData } from "../utils/emailHashPasswordGenerator";
-import { CONSTANTS } from "../utils/env";
-import { logError, logInfo } from "../utils/logger";
-import { getOTP, validateOTP } from "./otp";
+} from '../configs/request.config'
+import { encryptData } from '../utils/emailHashPasswordGenerator'
+import { CONSTANTS } from '../utils/env'
+import { logError, logInfo } from '../utils/logger'
+import { getOTP, validateOTP } from './otp'
 
 const API_END_POINTS = {
   createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
@@ -22,11 +22,11 @@ const API_END_POINTS = {
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
   verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-};
+}
 
-const VALIDATION_FAIL = "Please provide correct otp and try again.";
-const CREATION_FAIL = "Sorry ! User not created. Please try again in sometime.";
-const OTP_MISSING = "Otp cannnot be blank";
+const VALIDATION_FAIL = 'Please provide correct otp and try again.'
+const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
+const OTP_MISSING = 'Otp cannnot be blank'
 
 // function decryptData(encryptedData) {
 //   const buff = Buffer.from(encryptedData, "base64");
@@ -43,7 +43,7 @@ const OTP_MISSING = "Otp cannnot be blank";
 // tslint:disable-next-line: no-any
 const createAccount = async (profileData: any) => {
   try {
-    const typeOfAccount = profileData.email ? "email" : "phone";
+    const typeOfAccount = profileData.email ? 'email' : 'phone'
     return await axios({
       ...axiosRequestConfig,
       data: {
@@ -57,33 +57,33 @@ const createAccount = async (profileData: any) => {
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
       },
-      method: "POST",
+      method: 'POST',
       url: API_END_POINTS.createUserWithMobileNo,
-    });
+    })
   } catch (error) {
-    logInfo(JSON.stringify(error));
+    logInfo(JSON.stringify(error))
   }
-};
+}
 const updateRoles = async (userUUId: string) => {
   try {
     return await axios({
       ...axiosRequestConfigLong,
       data: {
         request: {
-          organisationId: "0132317968766894088",
-          roles: ["PUBLIC"],
+          organisationId: '0132317968766894088',
+          roles: ['PUBLIC'],
           userId: userUUId,
         },
       },
       headers: { Authorization: CONSTANTS.SB_API_KEY },
-      method: "POST",
+      method: 'POST',
       url: API_END_POINTS.userRoles,
-    });
+    })
   } catch (err) {
-    logError("update roles failed " + err);
-    return "false";
+    logError('update roles failed ' + err)
+    return 'false'
   }
-};
+}
 // tslint:disable-next-line: no-any
 const profileUpdate = async (profileData: any, userId: any) => {
   try {
@@ -93,7 +93,7 @@ const profileUpdate = async (profileData: any, userId: any) => {
         request: {
           profileDetails: {
             preferences: {
-              language: "en",
+              language: 'en',
             },
             profileReq: {
               id: userId,
@@ -108,40 +108,40 @@ const profileUpdate = async (profileData: any, userId: any) => {
         },
       },
       headers: { Authorization: CONSTANTS.SB_API_KEY },
-      method: "PATCH",
+      method: 'PATCH',
       url: API_END_POINTS.profileUpdate,
-    });
+    })
   } catch (error) {
-    logInfo(JSON.stringify(error));
+    logInfo(JSON.stringify(error))
   }
-};
-export const appSignUpWithAutoLogin = Router();
-appSignUpWithAutoLogin.post("/register", async (req, res) => {
+}
+export const appSignUpWithAutoLogin = Router()
+appSignUpWithAutoLogin.post('/register', async (req, res) => {
   try {
-    logInfo("Entered into Register >>>>>", req.body.email);
+    logInfo('Entered into Register >>>>>', req.body.email)
     if (!req.body.email && !req.body.phone) {
       res.status(400).json({
-        msg: "Email id or phone both can not be empty",
-        status: "error",
+        msg: 'Email id or phone both can not be empty',
+        status: 'error',
         status_code: 400,
-      });
+      })
     }
-    const userData = req.body;
-    const firstName = userData.firstName;
-    const lastName = userData.lastName;
-    const userEmail = userData.email || "";
-    const userPhone = userData.phone || "";
-    const password = userData.password || encryptData(userEmail || userPhone);
-    const resultEmail = await fetchUserBymobileorEmail(userEmail, "email");
-    logInfo(resultEmail, "resultemail");
-    const resultPhone = await fetchUserBymobileorEmail(userPhone, "phone");
-    logInfo(resultPhone, "resutPhone");
+    const userData = req.body
+    const firstName = userData.firstName
+    const lastName = userData.lastName
+    const userEmail = userData.email || ''
+    const userPhone = userData.phone || ''
+    const password = userData.password || encryptData(userEmail || userPhone)
+    const resultEmail = await fetchUserBymobileorEmail(userEmail, 'email')
+    logInfo(resultEmail, 'resultemail')
+    const resultPhone = await fetchUserBymobileorEmail(userPhone, 'phone')
+    logInfo(resultPhone, 'resutPhone')
     if (resultEmail || resultPhone) {
       return res.status(400).json({
-        msg: "User already exists",
-        status: "error",
+        msg: 'User already exists',
+        status: 'error',
         status_code: 400,
-      });
+      })
     }
     const profileData = {
       email: userEmail,
@@ -149,128 +149,128 @@ appSignUpWithAutoLogin.post("/register", async (req, res) => {
       lastName,
       password,
       phone: userPhone,
-    };
-    const newUserDetail = await createAccount(profileData);
-    const userId = newUserDetail.data.result.userId;
-    await profileUpdate(profileData, userId);
+    }
+    const newUserDetail = await createAccount(profileData)
+    const userId = newUserDetail.data.result.userId
+    await profileUpdate(profileData, userId)
     try {
       await getOTP(
         userId,
         userEmail ? userEmail : userPhone,
-        userEmail ? "email" : "phone"
-      );
+        userEmail ? 'email' : 'phone'
+      )
       res.status(200).json({
-        message: "User successfully created",
+        message: 'User successfully created',
         status: 200,
         userId,
-      });
+      })
     } catch (error) {
       res.status(500).send({
-        message: "OTP generation fail",
-        status: "failed",
-      });
+        message: 'OTP generation fail',
+        status: 'failed',
+      })
     }
   } catch (error) {
-    logInfo("Error in user creation >>>>>>" + error);
+    logInfo('Error in user creation >>>>>>' + error)
     res.status(500).send({
       message: CREATION_FAIL,
-      status: "failed",
-    });
+      status: 'failed',
+    })
   }
-});
+})
 
 // validate  otp for  register's the user
 // tslint:disable-next-line: no-any
-appSignUpWithAutoLogin.post("/validateOtpWithLogin", async (req: any, res) => {
+appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
   try {
     if (!req.body.otp) {
       res.status(400).json({
-        msg: "OTP is required",
-        status: "success",
-      });
+        msg: 'OTP is required',
+        status: 'success',
+      })
     }
-    logInfo("Entered into /validateOtp ", req.body);
-    const mobileNumber = req.body.phone || "";
-    const email = req.body.email || "";
-    const validOtp = req.body.otp;
-    const userUUId = req.body.userId;
+    logInfo('Entered into /validateOtp ', req.body)
+    const mobileNumber = req.body.phone || ''
+    const email = req.body.email || ''
+    const validOtp = req.body.otp
+    const userUUId = req.body.userId
     if (!validOtp) {
-      res.status(400).send({ message: OTP_MISSING, status: "error" });
-      return;
+      res.status(400).send({ message: OTP_MISSING, status: 'error' })
+      return
     }
     const verifyOtpResponse = await validateOTP(
       userUUId,
       mobileNumber ? mobileNumber : email,
-      email ? "email" : "phone",
+      email ? 'email' : 'phone',
       validOtp
-    );
-    if (verifyOtpResponse.data.result.response === "SUCCESS") {
-      logInfo("OTP validated");
-      await updateRoles(userUUId);
+    )
+    if (verifyOtpResponse.data.result.response === 'SUCCESS') {
+      logInfo('OTP validated')
+      await updateRoles(userUUId)
       try {
         const transformedData = qs.stringify({
-          client_id: "aastrika-sso-login",
+          client_id: 'aastrika-sso-login',
           client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
-          grant_type: "password",
-          scope: "offline_access",
+          grant_type: 'password',
+          scope: 'offline_access',
           username: mobileNumber ? mobileNumber : email,
-        });
-        logInfo("Entered into authorization part." + transformedData);
+        })
+        logInfo('Entered into authorization part.' + transformedData)
         const authTokenResponse = await axios({
           ...axiosRequestConfig,
           data: transformedData,
           headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
+            'Content-Type': 'application/x-www-form-urlencoded',
           },
-          method: "POST",
+          method: 'POST',
           url: API_END_POINTS.grantAccessToken,
-        });
-        authTokenResponse.data.status = 200;
-        res.status(200).json(authTokenResponse.data);
+        })
+        authTokenResponse.data.status = 200
+        res.status(200).json(authTokenResponse.data)
       } catch (error) {
         res.status(401).send({
-          message: "Keycloak failed",
-        });
+          message: 'Keycloak failed',
+        })
       }
     }
   } catch (error) {
     res.status(500).send({
       message: VALIDATION_FAIL,
-      status: "failed",
-    });
+      status: 'failed',
+    })
   }
-});
+})
 
 const fetchUserBymobileorEmail = async (
   searchValue: string,
   searchType: string
 ) => {
   logInfo(
-    "Checking Fetch Mobile no : ",
+    'Checking Fetch Mobile no : ',
     API_END_POINTS.fetchUserByMobileNo + searchValue
-  );
+  )
   try {
     const response = await axios({
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
       },
-      method: "GET",
+      method: 'GET',
       url:
-        searchType === "email"
+        searchType === 'email'
           ? API_END_POINTS.fetchUserByEmail + searchValue
           : API_END_POINTS.fetchUserByMobileNo + searchValue,
-    });
-    logInfo("Response Data in JSON :", JSON.stringify(response.data));
-    logInfo("Response Data in Success :", response.data.responseCode);
-    if (response.data.responseCode === "OK") {
+    })
+    logInfo('Response Data in JSON :', JSON.stringify(response.data))
+    logInfo('Response Data in Success :', response.data.responseCode)
+    if (response.data.responseCode === 'OK') {
       logInfo(
-        "Response result.exists :",
-        _.get(response, "data.result.exists")
-      );
-      return _.get(response, "data.result.exists");
+        'Response result.exists :',
+        _.get(response, 'data.result.exists')
+      )
+      return _.get(response, 'data.result.exists')
     }
   } catch (err) {
-    logError("fetchUserByMobile  failed");
+    logError('fetchUserByMobile  failed')
   }
-};
+}
