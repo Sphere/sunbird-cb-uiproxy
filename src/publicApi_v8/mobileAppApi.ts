@@ -291,7 +291,7 @@ mobileAppApi.get("/courseRemommendationv2", async (req, res) => {
 });
 mobileAppApi.get("/certificateDownload", async (req, res) => {
   try {
-    let { userId, certificateId } = req.query;
+    const { userId, certificateId } = req.query;
     const accesTokenResult = verifyToken(req, res);
     if (!userId || !certificateId || accesTokenResult.userId != userId) {
       return res.status(400).json({

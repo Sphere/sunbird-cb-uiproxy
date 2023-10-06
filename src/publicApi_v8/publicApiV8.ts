@@ -2,6 +2,7 @@ import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { proxyCreatorRoute } from '../utils/proxyCreator'
 import { appCertificateDownload } from './appCertificateDownload'
+import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { validateCertificate } from './certificateValidate'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
@@ -60,3 +61,4 @@ publicApiV8.use('/publicSearch/', publicSearch)
 publicApiV8.use('/publicTelemetry/', publicTelemetry)
 publicApiV8.use('/competencyAssets/', competencyAssets)
 publicApiV8.use('/competencyReporting/', competencyReporting)
+publicApiV8.use('/appSignUpWithAutoLogin', appSignUpWithAutoLogin)

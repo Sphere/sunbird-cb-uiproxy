@@ -1,14 +1,15 @@
 import axios from 'axios'
 import { Router } from 'express'
-import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
-import { axiosRequestConfig } from '../configs/request.config'
+import {
+  axiosRequestConfig,
+  axiosRequestConfigLong,
+} from '../configs/request.config'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
-import { getCurrentUserRoles } from './rolePermission'
 
 const API_END_POINTS = {
   createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
@@ -26,9 +27,6 @@ const API_END_POINTS = {
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
 const OTP_MISSING = 'Otp cannnot be blank'
-const AUTH_FAIL =
-  'Authentication failed ! Please check credentials and try again.'
-const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
 // function decryptData(encryptedData) {
 //   const buff = Buffer.from(encryptedData, "base64");
@@ -69,7 +67,7 @@ const createAccount = async (profileData: any) => {
 const updateRoles = async (userUUId: string) => {
   try {
     return await axios({
-      ...axiosRequestConfig,
+      ...axiosRequestConfigLong,
       data: {
         request: {
           organisationId: '0132317968766894088',
@@ -117,8 +115,8 @@ const profileUpdate = async (profileData: any, userId: any) => {
     logInfo(JSON.stringify(error))
   }
 }
-export const signupWithAutoLogin = Router()
-signupWithAutoLogin.post('/register', async (req, res) => {
+export const appSignUpWithAutoLogin = Router()
+appSignUpWithAutoLogin.post('/register', async (req, res) => {
   try {
     logInfo('Entered into Register >>>>>', req.body.email)
     if (!req.body.email && !req.body.phone) {
@@ -133,13 +131,13 @@ signupWithAutoLogin.post('/register', async (req, res) => {
     const lastName = userData.lastName
     const userEmail = userData.email || ''
     const userPhone = userData.phone || ''
-    const password = encryptData(userEmail || userPhone)
+    const password = userData.password || encryptData(userEmail || userPhone)
     const resultEmail = await fetchUserBymobileorEmail(userEmail, 'email')
     logInfo(resultEmail, 'resultemail')
     const resultPhone = await fetchUserBymobileorEmail(userPhone, 'phone')
     logInfo(resultPhone, 'resutPhone')
     if (resultEmail || resultPhone) {
-      res.status(400).json({
+      return res.status(400).json({
         msg: 'User already exists',
         status: 'error',
         status_code: 400,
@@ -153,7 +151,6 @@ signupWithAutoLogin.post('/register', async (req, res) => {
       phone: userPhone,
     }
     const newUserDetail = await createAccount(profileData)
-
     const userId = newUserDetail.data.result.userId
     await profileUpdate(profileData, userId)
     try {
@@ -183,7 +180,7 @@ signupWithAutoLogin.post('/register', async (req, res) => {
 
 // validate  otp for  register's the user
 // tslint:disable-next-line: no-any
-signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
+appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
   try {
     if (!req.body.otp) {
       res.status(400).json({
@@ -191,85 +188,46 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         status: 'success',
       })
     }
-    if (req.body.phone || req.body.email) {
-      logInfo('Entered into /validateOtp ', req.body)
-      const mobileNumber = req.body.phone
-      const email = req.body.email
-      const validOtp = req.body.otp
-      const userUUId = req.body.userUUId || req.body.userUUID
-      const password = encryptData(email || mobileNumber)
-      if (!validOtp) {
-        res.status(400).send({ message: OTP_MISSING, status: 'error' })
-        return
-      }
-      const verifyOtpResponse = await validateOTP(
-        userUUId,
-        mobileNumber ? mobileNumber : email,
-        email ? 'email' : 'phone',
-        validOtp
-      )
-      if (verifyOtpResponse.data.result.response === 'SUCCESS') {
-        logInfo('Otp is verified. Now autologin started.')
-        await updateRoles(userUUId)
-        res.clearCookie('connect.sid')
-        req.session.user = null
-        // tslint:disable-next-line: no-any
-        req.session.save(async () => {
-          req.session.regenerate(async () => {
-            // A new session and cookie will be generated from here. Keycloak activated.
-            try {
-              const transformedData = qs.stringify({
-                client_id: 'portal',
-                grant_type: 'password',
-                password,
-                username: mobileNumber ? mobileNumber : email,
-              })
-              logInfo('Entered into authorization part.' + transformedData)
-              const authTokenResponse = await axios({
-                ...axiosRequestConfig,
-                data: transformedData,
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                method: 'POST',
-                url: API_END_POINTS.grantAccessToken,
-              })
-              logInfo('Entered into authTokenResponsev2 :' + authTokenResponse)
-              if (authTokenResponse.data) {
-                const accessToken = authTokenResponse.data.access_token
-                // tslint:disable-next-line: no-any
-                const decodedToken: any = jwt_decode(accessToken)
-                const decodedTokenArray = decodedToken.sub.split(':')
-                const userId = decodedTokenArray[decodedTokenArray.length - 1]
-                req.session.userId = userId
-                req.kauth = {
-                  grant: {
-                    access_token: {
-                      content: decodedToken,
-                      token: accessToken,
-                    },
-                  },
-                }
-                req.session.grant = {
-                  access_token: { content: decodedToken, token: accessToken },
-                }
-                logInfo('Success ! Entered into usertokenResponse..')
-                await getCurrentUserRoles(req, accessToken)
-
-                res.status(200).json({
-                  msg: AUTHENTICATED,
-                  status: 'success',
-                })
-                res.end()
-              }
-            } catch (e) {
-              logInfo('Error throwing Cookie inside auth route : ' + e)
-              res.status(400).send({
-                error: AUTH_FAIL,
-                status: 'failed',
-              })
-            }
-          })
+    logInfo('Entered into /validateOtp ', req.body)
+    const mobileNumber = req.body.phone || ''
+    const email = req.body.email || ''
+    const validOtp = req.body.otp
+    const userUUId = req.body.userId
+    if (!validOtp) {
+      res.status(400).send({ message: OTP_MISSING, status: 'error' })
+      return
+    }
+    const verifyOtpResponse = await validateOTP(
+      userUUId,
+      mobileNumber ? mobileNumber : email,
+      email ? 'email' : 'phone',
+      validOtp
+    )
+    if (verifyOtpResponse.data.result.response === 'SUCCESS') {
+      logInfo('OTP validated')
+      await updateRoles(userUUId)
+      try {
+        const transformedData = qs.stringify({
+          client_id: 'aastrika-sso-login',
+          client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
+          grant_type: 'password',
+          scope: 'offline_access',
+          username: mobileNumber ? mobileNumber : email,
+        })
+        logInfo('Entered into authorization part.' + transformedData)
+        const authTokenResponse = await axios({
+          ...axiosRequestConfig,
+          data: transformedData,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          method: 'POST',
+          url: API_END_POINTS.grantAccessToken,
+        })
+        res.status(200).json(authTokenResponse.data)
+      } catch (error) {
+        res.status(401).send({
+          message: 'Keycloak failed',
         })
       }
     }
