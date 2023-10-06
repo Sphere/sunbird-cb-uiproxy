@@ -166,6 +166,7 @@ signupWithAutoLoginV2.post("/register", async (req, res) => {
       );
       res.status(200).json({
         message: "User successfully created",
+        status: 200,
         userId,
       });
     } catch (error) {

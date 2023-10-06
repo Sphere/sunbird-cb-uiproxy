@@ -161,6 +161,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
       )
       res.status(200).json({
         message: 'User successfully created',
+        status: 200,
         userId,
       })
     } catch (error) {
@@ -224,6 +225,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
           method: 'POST',
           url: API_END_POINTS.grantAccessToken,
         })
+        authTokenResponse.data.status = 200
         res.status(200).json(authTokenResponse.data)
       } catch (error) {
         res.status(401).send({
