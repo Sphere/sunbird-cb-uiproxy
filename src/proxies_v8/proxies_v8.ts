@@ -352,8 +352,6 @@ proxiesV8.use(
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 );
 proxiesV8.post("/userData/v1/bulkUpload", async (req, res) => {
-  console.log("Came inside post");
-  console.log(req.files);
   if (req.files && req.files.data) {
     const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload`;
     logInfo(url, "cb-ext url");
