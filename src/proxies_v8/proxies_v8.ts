@@ -352,7 +352,7 @@ proxiesV8.use(
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 );
 proxiesV8.post("/userData/v1/bulkUpload", async (req, res) => {
-  if (req.files.data) {
+  if (req.files) {
     const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload`;
     logInfo(url, "cb-ext url");
     const userId = extractUserIdFromRequest(req);
@@ -421,8 +421,6 @@ proxiesV8.post("/userData/v1/bulkUpload", async (req, res) => {
   }
 });
 proxiesV8.get("/userData/v1/bulkUpload", async (req, res) => {
-  const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload`;
-  logInfo(url, "cb-ext url");
   const userId = extractUserIdFromRequest(req);
   const sbUserReadResponse = await axios({
     ...axiosRequestConfig,
@@ -436,10 +434,12 @@ proxiesV8.get("/userData/v1/bulkUpload", async (req, res) => {
   });
   logInfo(sbUserReadResponse.data, "user-read-response");
   const channel = sbUserReadResponse.data.result.response.channel;
+
   let rootOrgId = _.get(req, "session.rootOrgId");
   if (!rootOrgId) {
     rootOrgId = "";
   }
+  const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload/${rootOrgId}`;
   const bulkUploadResponse = await axios({
     data: req.body,
     headers: {
