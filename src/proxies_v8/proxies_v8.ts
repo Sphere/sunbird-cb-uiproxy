@@ -352,7 +352,7 @@ proxiesV8.use(
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 );
 proxiesV8.post("/userData/v1/bulkUpload", async (req, res) => {
-  if (req.files && req.files.data) {
+  if (req.files.data) {
     const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload`;
     logInfo(url, "cb-ext url");
     const userId = extractUserIdFromRequest(req);
@@ -431,7 +431,7 @@ proxiesV8.get("/userData/v1/bulkUpload", async (req, res) => {
       // tslint:disable-next-line: all
       "x-authenticated-user-token": extractUserToken(req),
     },
-    method: "POST",
+    method: "GET",
     url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
   });
   logInfo(sbUserReadResponse.data, "user-read-response");
