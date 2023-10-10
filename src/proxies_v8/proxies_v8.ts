@@ -352,6 +352,8 @@ proxiesV8.use(
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 );
 proxiesV8.post("/userData/v1/bulkUpload", async (req, res) => {
+  console.log("Came inside post");
+  console.log(req.files);
   if (req.files && req.files.data) {
     const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload`;
     logInfo(url, "cb-ext url");
@@ -414,7 +416,10 @@ proxiesV8.post("/userData/v1/bulkUpload", async (req, res) => {
       }
     );
   } else {
-    res.send("File not found in the request");
+    res.status(400).json({
+      msg: "File not found in the request",
+      status: "FAILED",
+    });
   }
 });
 proxiesV8.get("/userData/v1/bulkUpload", async (req, res) => {
@@ -428,7 +433,7 @@ proxiesV8.get("/userData/v1/bulkUpload", async (req, res) => {
       // tslint:disable-next-line: all
       "x-authenticated-user-token": extractUserToken(req),
     },
-    method: "GET",
+    method: "POST",
     url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
   });
   logInfo(sbUserReadResponse.data, "user-read-response");
