@@ -3,7 +3,6 @@ import { Router } from "express";
 import _ from "lodash";
 import { Pool } from "pg";
 import { CONSTANTS } from "../utils/env";
-import { logError } from "../utils/logger";
 
 export const publicSearch = Router();
 
