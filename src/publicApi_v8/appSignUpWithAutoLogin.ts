@@ -152,6 +152,8 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
     }
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail.data.result.userId
+    await updateRoles(userId)
+
     await profileUpdate(profileData, userId)
     try {
       await getOTP(

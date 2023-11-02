@@ -2,6 +2,7 @@ import axios from "axios";
 import express from "express";
 import { UploadedFile } from "express-fileupload";
 import FormData from "form-data";
+import _ from "lodash";
 import request from "request";
 import { axiosRequestConfig } from "../configs/request.config";
 import { CONSTANTS } from "../utils/env";
@@ -350,7 +351,112 @@ proxiesV8.use(
   "/org/*",
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 );
+proxiesV8.post("/userData/v1/bulkUpload", async (req, res) => {
+  if (req.files) {
+    const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload`;
+    logInfo(url, "cb-ext url");
+    const userId = extractUserIdFromRequest(req);
+    const sbUserReadResponse = await axios({
+      ...axiosRequestConfig,
+      headers: {
+        Authorization: CONSTANTS.SB_API_KEY,
+        // tslint:disable-next-line: all
+        "x-authenticated-user-token": extractUserToken(req),
+      },
+      method: "GET",
+      url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
+    });
+    logInfo(sbUserReadResponse.data, "user read response");
 
+    const channel = sbUserReadResponse.data.result.response.channel;
+    const file: UploadedFile = req.files.data as UploadedFile;
+    const formData = new FormData();
+    formData.append("file", Buffer.from(file.data), {
+      contentType: file.mimetype,
+      filename: file.name,
+    });
+    let rootOrgId = _.get(req, "session.rootOrgId");
+    if (!rootOrgId) {
+      rootOrgId = "";
+    }
+    formData.submit(
+      {
+        headers: {
+          // tslint:disable-next-line:max-line-length
+          Authorization: CONSTANTS.SB_API_KEY,
+          // tslint:disable-next-line: all
+          "x-authenticated-user-channel": channel,
+          "x-authenticated-user-orgid": rootOrgId,
+          "x-authenticated-user-orgname": channel,
+          "x-authenticated-user-token": extractUserToken(req),
+          "x-authenticated-userid": extractUserIdFromRequest(req),
+        },
+        host: "kong",
+        path: url,
+        port: 8000,
+      },
+      // tslint:disable-next-line: all
+      (err, response) => {
+        // tslint:disable-next-line: all
+        response.on("data", (data) => {
+          if (
+            !err &&
+            (response.statusCode === 200 || response.statusCode === 201)
+          ) {
+            res.send(JSON.parse(data.toString("utf8")));
+          } else {
+            res.send(data.toString("utf8"));
+          }
+        });
+        if (err) {
+          res.send(err);
+        }
+      }
+    );
+  } else {
+    res.status(400).json({
+      msg: "File not found in the request",
+      status: "FAILED",
+    });
+  }
+});
+proxiesV8.get("/userData/v1/bulkUpload", async (req, res) => {
+  const userId = extractUserIdFromRequest(req);
+  const sbUserReadResponse = await axios({
+    ...axiosRequestConfig,
+    headers: {
+      Authorization: CONSTANTS.SB_API_KEY,
+      // tslint:disable-next-line: all
+      "x-authenticated-user-token": extractUserToken(req),
+    },
+    method: "GET",
+    url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
+  });
+  logInfo(sbUserReadResponse.data, "user-read-response");
+  const channel = sbUserReadResponse.data.result.response.channel;
+
+  let rootOrgId = _.get(req, "session.rootOrgId");
+  if (!rootOrgId) {
+    rootOrgId = "";
+  }
+  const url = `${CONSTANTS.KONG_API_BASE}/user/v1/bulkupload/${rootOrgId}`;
+  const bulkUploadResponse = await axios({
+    data: req.body,
+    headers: {
+      // tslint:disable-next-line:max-line-length
+      Authorization: CONSTANTS.SB_API_KEY,
+      // tslint:disable-next-line: all
+      "x-authenticated-user-channel": channel,
+      "x-authenticated-user-orgid": rootOrgId,
+      "x-authenticated-user-orgname": channel,
+      "x-authenticated-user-token": extractUserToken(req),
+      "x-authenticated-userid": extractUserIdFromRequest(req),
+    },
+    method: "GET",
+    url,
+  });
+  res.status(200).json(bulkUploadResponse.data);
+});
 proxiesV8.use(
   "/user/*",
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)

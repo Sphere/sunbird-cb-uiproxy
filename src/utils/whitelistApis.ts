@@ -440,10 +440,15 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    "/proxies/v8/user/v1/bulkupload/:id": {
+    "/proxies/v8/userData/v1/bulkupload/:id": {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
+      ROLE_CHECK: [ROLE.MDO_ADMIN],
+    },
+    "/proxies/v8/userData/v1/bulkupload": {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.MDO_ADMIN],
     },
     "/proxies/v8/user/v1/migrate": {
       checksNeeded: [CHECK.ROLE],
@@ -1324,7 +1329,8 @@ export const API_LIST = {
     "/proxies/v8/discussion/user/:userKey/downvoted",
     "/proxies/v8/discussion/categories",
     "/proxies/v8/user/v1/autocomplete/:key",
-    "/proxies/v8/user/v1/bulkupload/:id",
+    "/proxies/v8/userData/v1/bulkupload/:id",
+    "/proxies/v8/userData/v1/bulkupload",
     "/proxies/v8/user/v1/migrate",
     "/proxies/v8/user/private/v1/migrate",
     "/proxies/v8/user/private/v1/assign/role/userrole",
