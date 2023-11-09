@@ -42,6 +42,7 @@ import { trainingApi } from './training'
 import { translateApi } from './translate'
 import { updateProgressv2 } from './updateProgressv2'
 import { user } from './user/user'
+import { userEnrolledInSource } from './userEnrolledInSource'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
 export const protectedApiV8 = express.Router()
@@ -97,3 +98,4 @@ protectedApiV8.use('/autoCompletev2', autoCompletev2)
 protectedApiV8.use('/updateProgressv2', updateProgressv2)
 protectedApiV8.use('/recommendationEngineV2', recommendationEngineV2)
 protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
+protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
