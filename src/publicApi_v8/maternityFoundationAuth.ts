@@ -35,7 +35,7 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
   logInfo('Entered into maternity foundation route')
   const courseId = req.body.moduleId
   const host = req.get('host')
-  let resRedirectUrl = `https://sphere.aastrika.org/app/toc/${courseId}/overview?primaryCategory=Course&org=nhsrc`
+  let resRedirectUrl = `https://sphere.aastrika.org/app/toc/${courseId}/overview?primaryCategory=Course`
   try {
     const maternityFoundationToken = {
       accessToken: req.body.token,
@@ -216,7 +216,7 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
     }
   } catch (err) {
     logError('Failed to process callback API.. error: ' + JSON.stringify(err))
-    resRedirectUrl = `https://${host}/public/home?org=nhsrc`
+    resRedirectUrl = `https://${host}/public/home`
   }
   logInfo(resRedirectUrl, 'redirectUrl')
   res.status(200).json({
