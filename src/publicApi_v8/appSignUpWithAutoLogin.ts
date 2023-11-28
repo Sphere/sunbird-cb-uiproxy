@@ -192,7 +192,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       })
     }
     logInfo('Entered into /validateOtp ', req.body)
-    const mobileNumber = req.body.phone || ''
+    const mobileNumber = req.body.mobileNumber || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
     const userUUId = req.body.userId
