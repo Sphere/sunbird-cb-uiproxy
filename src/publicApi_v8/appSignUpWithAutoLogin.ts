@@ -165,6 +165,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
         message: 'User successfully created',
         status: 200,
         userId,
+        userUUID: userId
       })
     } catch (error) {
       res.status(500).send({
@@ -192,7 +193,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       })
     }
     logInfo('Entered into /validateOtp ', req.body)
-    const mobileNumber = req.body.phone || ''
+    const mobileNumber = req.body.mobileNumber || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
     const userUUId = req.body.userId
