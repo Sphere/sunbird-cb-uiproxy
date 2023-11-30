@@ -165,7 +165,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
         message: 'User successfully created',
         status: 200,
         userId,
-        userUUID: userId
+        userUUId: userId
       })
     } catch (error) {
       res.status(500).send({
@@ -187,7 +187,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
 appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
   try {
     if (!req.body.otp) {
-      res.status(400).json({
+      return res.status(400).json({
         msg: 'OTP is required',
         status: 'success',
       })
@@ -196,11 +196,8 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
     const mobileNumber = req.body.mobileNumber || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
-    const userUUId = req.body.userId
-    if (!validOtp) {
-      res.status(400).send({ message: OTP_MISSING, status: 'error' })
-      return
-    }
+    const userUUId = req.body.userId || req.body.userUUID
+
     const verifyOtpResponse = await validateOTP(
       userUUId,
       mobileNumber ? mobileNumber : email,
