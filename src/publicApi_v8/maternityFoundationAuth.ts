@@ -63,7 +63,7 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
     const maternityFoundationData =
       userDetailResponseFromMaternityFoundation.data
     const maternityFoundationEmail = maternityFoundationData.email
-    const maternityFoundationPhone = maternityFoundationData.phone
+    const maternityFoundationPhone = maternityFoundationData.phone.slice(3);
     const typeOfLogin = maternityFoundationData.phone ? 'phone' : 'email'
 
     logInfo('User details from maternity foundation', maternityFoundationData)

@@ -26,7 +26,6 @@ const API_END_POINTS = {
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
-const OTP_MISSING = 'Otp cannnot be blank'
 
 // function decryptData(encryptedData) {
 //   const buff = Buffer.from(encryptedData, "base64");
