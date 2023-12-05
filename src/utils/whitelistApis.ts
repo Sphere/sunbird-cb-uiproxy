@@ -19,6 +19,7 @@ const ROLE = {
   FRAC_REVIEWER_TWO: 'FRAC_REVIEWER_L2',
   IFU_MEMBER: 'IFU_MEMBER',
   MDO_ADMIN: 'MDO_ADMIN',
+  OBS_MENTOR: 'OBS_MENTOR',
   PUBLIC: 'PUBLIC',
   SPV_ADMIN: 'SPV_ADMIN',
   WAT_MEMBER: 'WAT_MEMBER',
@@ -62,18 +63,49 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-
     '/protected/v8/assessmentCompetency/v1/assessment/content/:id/artifact/:id':
-      {
-        checksNeeded: [CHECK.ROLE],
-        // tslint:disable-next-line: object-literal-sort-keys
-        ROLE_CHECK: [ROLE.PUBLIC],
-      },
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/assessmentCompetency/v1/assessment/submit': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/observationmw/v1/mentor/getAllMenteeForMentor':
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
+    },
+    '/protected/v8/observationmw/v1/mentor/getObservationForMentee':
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
+    },
+
+    '/protected/v8/observationmw/v1/mentee/verification/resendOtp':
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
+    },
+    '/protected/v8/observationmw/v1/mentee/verification/sendOtp':
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
+    },
+    '/protected/v8/observationmw/v1/mentee/verification/verifyOtp':
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
+    },
+
     '/protected/v8/autoCompletev2/getUserDetails': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1033,11 +1065,11 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/protected/v8/workflowhandler/historyByApplicationIdAndWfId/:applicationId/:wfId':
-      {
-        checksNeeded: [CHECK.ROLE],
-        // tslint:disable-next-line: object-literal-sort-keys
-        ROLE_CHECK: [ROLE.PUBLIC],
-      },
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/workflowhandler/workflowProcess/:wfId': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1435,6 +1467,11 @@ export const API_LIST = {
     '/protected/v8/connections/add/connection',
     '/protected/v8/connections/connections/suggests',
     '/protected/v8/cohorts/user/autoenrollment/:courseId',
+    '/protected/v8/observationmw/v1/mentor/getAllMenteeForMentor',
+    '/protected/v8/observationmw/v1/mentor/getObservationForMentee',
+    '/protected/v8/observationmw/v1/mentee/verification/sendOtp',
+    '/protected/v8/observationmw/v1/mentee/verification/verifyOtp',
+    '/protected/v8/observationmw/v1/mentee/verification/resendOtp',
     '/protected/v8/profanity/startPdfProfanity',
     '/protected/v8/profanity/getPdfProfanityForContent/:contentId',
     '/protected/v8/catalog',

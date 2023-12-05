@@ -30,6 +30,7 @@ import { leaderBoardApi } from './leaderboard'
 import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
+import { observationmwApi } from './observationmw'
 import { portalApi } from './portal-v3'
 import { recommendationApi } from './recommendation'
 import { recommendationEngineV2 } from './recommendationEngineV2'
@@ -45,6 +46,7 @@ import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
+
 export const protectedApiV8 = express.Router()
 
 protectedApiV8.get('/', (_req, res) => {
@@ -99,3 +101,4 @@ protectedApiV8.use('/updateProgressv2', updateProgressv2)
 protectedApiV8.use('/recommendationEngineV2', recommendationEngineV2)
 protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
 protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
+protectedApiV8.use('/observationmw', observationmwApi)
