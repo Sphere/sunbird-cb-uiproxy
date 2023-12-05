@@ -19,6 +19,9 @@ observationmwApi.get('/v1/mentor/getAllMenteeForMentor', async (req, res) => {
         /* tslint:disable-next-line */
         let mentorId = req.params.mentorId
         const response = await axios({
+            headers: {
+                "Authorization": CONSTANTS.SB_API_KEY
+            },
             method: 'GET',
             params: { mentorId },
             url: API_END_POINTS.getAllMenteeForMentor,
@@ -38,6 +41,9 @@ observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
         /* tslint:disable-next-line */
         let menteeId = req.params.menteeId
         const response = await axios({
+            headers: {
+                "Authorization": CONSTANTS.SB_API_KEY
+            },
             method: 'GET',
             params: { menteeId },
             url: API_END_POINTS.getObservationForMentee,
@@ -57,6 +63,9 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
         /* tslint:disable-next-line */
         let phone = req.params.phone
         const response = await axios({
+            headers: {
+                "Authorization": CONSTANTS.SB_API_KEY
+            },
             method: 'GET',
             params: { phone },
             url: API_END_POINTS.sendOtp,
@@ -76,6 +85,9 @@ observationmwApi.get('/v1/mentee/verification/verifyOtp', async (req, res) => {
         /* tslint:disable-next-line */
         let { phone, otp } = req.params;
         const response = await axios({
+            headers: {
+                "Authorization": CONSTANTS.SB_API_KEY
+            },
             method: 'GET',
             params: { phone, otp },
             url: API_END_POINTS.verifyOtp,
@@ -95,6 +107,9 @@ observationmwApi.get('/v1/mentee/verification/resendOtp', async (req, res) => {
         /* tslint:disable-next-line */
         let phone = req.params.phone
         const response = await axios({
+            headers: {
+                "Authorization": CONSTANTS.SB_API_KEY
+            },
             method: 'GET',
             params: { phone },
             url: API_END_POINTS.resendOtp,
