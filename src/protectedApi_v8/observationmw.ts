@@ -17,10 +17,10 @@ export const observationmwApi = Router()
 observationmwApi.get('/v1/mentor/getAllMenteeForMentor', async (req, res) => {
     try {
         /* tslint:disable-next-line */
-        let mentorId = req.params.mentorId
+        let mentorId = req.query.mentorId
         const response = await axios({
             headers: {
-                "Authorization": CONSTANTS.SB_API_KEY
+                Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'GET',
             params: { mentorId },
@@ -39,10 +39,10 @@ observationmwApi.get('/v1/mentor/getAllMenteeForMentor', async (req, res) => {
 observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
     try {
         /* tslint:disable-next-line */
-        let menteeId = req.params.menteeId
+        let menteeId = req.query.menteeId
         const response = await axios({
             headers: {
-                "Authorization": CONSTANTS.SB_API_KEY
+                Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'GET',
             params: { menteeId },
@@ -61,10 +61,10 @@ observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
 observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
     try {
         /* tslint:disable-next-line */
-        let phone = req.params.phone
+        let phone = req.query.phone
         const response = await axios({
             headers: {
-                "Authorization": CONSTANTS.SB_API_KEY
+                Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'GET',
             params: { phone },
@@ -83,10 +83,10 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
 observationmwApi.get('/v1/mentee/verification/verifyOtp', async (req, res) => {
     try {
         /* tslint:disable-next-line */
-        let { phone, otp } = req.params;
+        let { phone, otp } = req.query;
         const response = await axios({
             headers: {
-                "Authorization": CONSTANTS.SB_API_KEY
+                Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'GET',
             params: { phone, otp },
@@ -105,10 +105,10 @@ observationmwApi.get('/v1/mentee/verification/verifyOtp', async (req, res) => {
 observationmwApi.get('/v1/mentee/verification/resendOtp', async (req, res) => {
     try {
         /* tslint:disable-next-line */
-        let phone = req.params.phone
+        let phone = req.query.phone
         const response = await axios({
             headers: {
-                "Authorization": CONSTANTS.SB_API_KEY
+                Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'GET',
             params: { phone },
