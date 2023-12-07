@@ -22,6 +22,8 @@ observationmwApi.get('/v1/mentor/getAllMenteeForMentor', async (req, res) => {
         const response = await axios({
             headers: {
                 authenticatedToken: req.headers[authenticatedToken],
+                Authorization: CONSTANTS.SB_API_KEY,
+
             },
             method: 'GET',
             params: { mentorId },
@@ -44,6 +46,8 @@ observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
         const response = await axios({
             headers: {
                 authenticatedToken: req.headers[authenticatedToken],
+                Authorization: CONSTANTS.SB_API_KEY,
+
             },
             method: 'GET',
             params: { menteeId },
@@ -66,6 +70,8 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
         const response = await axios({
             headers: {
                 authenticatedToken: req.headers[authenticatedToken],
+                Authorization: CONSTANTS.SB_API_KEY,
+
             },
             method: 'GET',
             params: { phone },
@@ -88,6 +94,8 @@ observationmwApi.get('/v1/mentee/verification/verifyOtp', async (req, res) => {
         const response = await axios({
             headers: {
                 authenticatedToken: req.headers[authenticatedToken],
+                Authorization: CONSTANTS.SB_API_KEY,
+
             },
             method: 'GET',
             params: { phone, otp },
@@ -110,6 +118,8 @@ observationmwApi.get('/v1/mentee/verification/resendOtp', async (req, res) => {
         const response = await axios({
             headers: {
                 authenticatedToken: req.headers[authenticatedToken],
+                Authorization: CONSTANTS.SB_API_KEY,
+
             },
             method: 'GET',
             params: { phone },
