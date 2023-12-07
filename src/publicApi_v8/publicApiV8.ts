@@ -4,6 +4,7 @@ import { proxyCreatorRoute } from '../utils/proxyCreator'
 import { appCertificateDownload } from './appCertificateDownload'
 import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { validateCertificate } from './certificateValidate'
+import { competencyAssets } from './competencyAssets'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
 import { customSignUp } from './customSignup'
@@ -11,7 +12,9 @@ import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
 import { googleAuth } from './googleSignInRoutes'
 import { homePage } from './home'
+import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { mobileAppApi } from './mobileAppApi'
+import { observationmwApi } from './observationmw'
 import { publicCertificateFlinkv2 } from './publicCertifcateFlinkv2'
 import { publicContentApi } from './publicContent'
 import { publicSearch } from './publicSearch'
@@ -20,9 +23,6 @@ import { sashakt } from './sashaktAuth'
 import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
 import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
-
-import { competencyAssets } from './competencyAssets'
-import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { publicTnc } from './tnc'
 
 export const publicApiV8 = express.Router()
@@ -64,3 +64,4 @@ publicApiV8.use('/competencyAssets/', competencyAssets)
 publicApiV8.use('/competencyReporting/', competencyReporting)
 publicApiV8.use('/appSignUpWithAutoLogin', appSignUpWithAutoLogin)
 publicApiV8.use('/maternityFoundation', maternityFoundationAuth)
+publicApiV8.use('/observationmw', observationmwApi)

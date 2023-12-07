@@ -30,7 +30,6 @@ import { leaderBoardApi } from './leaderboard'
 import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
-import { observationmwApi } from './observationmw'
 import { portalApi } from './portal-v3'
 import { recommendationApi } from './recommendation'
 import { recommendationEngineV2 } from './recommendationEngineV2'
@@ -101,4 +100,3 @@ protectedApiV8.use('/updateProgressv2', updateProgressv2)
 protectedApiV8.use('/recommendationEngineV2', recommendationEngineV2)
 protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
 protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
-protectedApiV8.use('/observationmw', observationmwApi)

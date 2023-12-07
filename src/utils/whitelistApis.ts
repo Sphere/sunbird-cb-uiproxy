@@ -74,38 +74,6 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/observationmw/v1/mentor/getAllMenteeForMentor':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
-    },
-    '/protected/v8/observationmw/v1/mentor/getObservationForMentee':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
-    },
-
-    '/protected/v8/observationmw/v1/mentee/verification/resendOtp':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
-    },
-    '/protected/v8/observationmw/v1/mentee/verification/sendOtp':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
-    },
-    '/protected/v8/observationmw/v1/mentee/verification/verifyOtp':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.OBS_MENTOR, ROLE.PUBLIC],
-    },
-
     '/protected/v8/autoCompletev2/getUserDetails': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1467,11 +1435,6 @@ export const API_LIST = {
     '/protected/v8/connections/add/connection',
     '/protected/v8/connections/connections/suggests',
     '/protected/v8/cohorts/user/autoenrollment/:courseId',
-    '/protected/v8/observationmw/v1/mentor/getAllMenteeForMentor',
-    '/protected/v8/observationmw/v1/mentor/getObservationForMentee',
-    '/protected/v8/observationmw/v1/mentee/verification/sendOtp',
-    '/protected/v8/observationmw/v1/mentee/verification/verifyOtp',
-    '/protected/v8/observationmw/v1/mentee/verification/resendOtp',
     '/protected/v8/profanity/startPdfProfanity',
     '/protected/v8/profanity/getPdfProfanityForContent/:contentId',
     '/protected/v8/catalog',

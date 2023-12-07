@@ -14,13 +14,14 @@ const API_END_POINTS = {
 const unknownError = 'Failed due to unknown reason'
 
 export const observationmwApi = Router()
+const tokenHeader = '[x-authenticated-user-token]'
 observationmwApi.get('/v1/mentor/getAllMenteeForMentor', async (req, res) => {
     try {
         /* tslint:disable-next-line */
         let mentorId = req.query.mentorId
         const response = await axios({
             headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
+                [tokenHeader]: req.headers.tokenHeader,
             },
             method: 'GET',
             params: { mentorId },
@@ -42,7 +43,7 @@ observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
         let menteeId = req.query.menteeId
         const response = await axios({
             headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
+                [tokenHeader]: req.headers.tokenHeader,
             },
             method: 'GET',
             params: { menteeId },
@@ -64,7 +65,7 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
         let phone = req.query.phone
         const response = await axios({
             headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
+                [tokenHeader]: req.headers.tokenHeader,
             },
             method: 'GET',
             params: { phone },
@@ -86,7 +87,7 @@ observationmwApi.get('/v1/mentee/verification/verifyOtp', async (req, res) => {
         let { phone, otp } = req.query;
         const response = await axios({
             headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
+                [tokenHeader]: req.headers.tokenHeader,
             },
             method: 'GET',
             params: { phone, otp },
@@ -108,7 +109,7 @@ observationmwApi.get('/v1/mentee/verification/resendOtp', async (req, res) => {
         let phone = req.query.phone
         const response = await axios({
             headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
+                [tokenHeader]: req.headers.tokenHeader,
             },
             method: 'GET',
             params: { phone },
