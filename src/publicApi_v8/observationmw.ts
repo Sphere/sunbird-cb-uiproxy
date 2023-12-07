@@ -21,7 +21,7 @@ observationmwApi.get('/v1/mentor/getAllMenteeForMentor', async (req, res) => {
         let mentorId = req.query.mentorId
         const response = await axios({
             headers: {
-                'x-authenticated-user-token': req.headers[authenticatedToken],
+                authenticatedToken: req.headers[authenticatedToken],
             },
             method: 'GET',
             params: { mentorId },
@@ -43,7 +43,7 @@ observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
         let menteeId = req.query.menteeId
         const response = await axios({
             headers: {
-                'x-authenticated-user-token': req.headers[authenticatedToken],
+                authenticatedToken: req.headers[authenticatedToken],
             },
             method: 'GET',
             params: { menteeId },
@@ -65,7 +65,7 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
         let phone = req.query.phone
         const response = await axios({
             headers: {
-                'x-authenticated-user-token': req.headers[authenticatedToken],
+                authenticatedToken: req.headers[authenticatedToken],
             },
             method: 'GET',
             params: { phone },
@@ -87,7 +87,7 @@ observationmwApi.get('/v1/mentee/verification/verifyOtp', async (req, res) => {
         let { phone, otp } = req.query;
         const response = await axios({
             headers: {
-                'x-authenticated-user-token': req.headers[authenticatedToken],
+                authenticatedToken: req.headers[authenticatedToken],
             },
             method: 'GET',
             params: { phone, otp },
@@ -109,7 +109,7 @@ observationmwApi.get('/v1/mentee/verification/resendOtp', async (req, res) => {
         let phone = req.query.phone
         const response = await axios({
             headers: {
-                'x-authenticated-user-token': req.headers[authenticatedToken],
+                authenticatedToken: req.headers[authenticatedToken],
             },
             method: 'GET',
             params: { phone },
