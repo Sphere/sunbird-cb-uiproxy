@@ -12,6 +12,7 @@ const API_END_POINTS = {
     verifyOtp: `${CONSTANTS.HTTPS_HOST}/api/observationmw/v1/otp/verifyOtp`,
 }
 const unknownError = 'Failed due to unknown reason'
+const authTokenMissingError = 'Auth token missing from request'
 
 export const observationmwApi = Router()
 const authenticatedToken = 'x-authenticated-user-token'
@@ -19,10 +20,15 @@ observationmwApi.get('/v1/mentor/getAllMenteeForMentor', async (req, res) => {
     try {
         /* tslint:disable-next-line */
         let mentorId = req.query.mentorId
+        if (!req.headers[authenticatedToken]) {
+            return res.status(401).json({
+                message: authTokenMissingError,
+            })
+        }
         const response = await axios({
             headers: {
                 Authorization: CONSTANTS.SB_API_KEY,
-                authenticatedToken: req.headers[authenticatedToken],
+                [authenticatedToken]: req.headers[authenticatedToken],
 
             },
             method: 'GET',
@@ -43,10 +49,16 @@ observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
     try {
         /* tslint:disable-next-line */
         let menteeId = req.query.menteeId
+
+        if (!req.headers[authenticatedToken]) {
+            return res.status(401).json({
+                message: authTokenMissingError,
+            })
+        }
         const response = await axios({
             headers: {
                 Authorization: CONSTANTS.SB_API_KEY,
-                authenticatedToken: req.headers[authenticatedToken],
+                [authenticatedToken]: req.headers[authenticatedToken],
 
             },
             method: 'GET',
@@ -67,10 +79,15 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
     try {
         /* tslint:disable-next-line */
         let phone = req.query.phone
+        if (!req.headers[authenticatedToken]) {
+            return res.status(401).json({
+                message: authTokenMissingError,
+            })
+        }
         const response = await axios({
             headers: {
                 Authorization: CONSTANTS.SB_API_KEY,
-                ['x-authenticated-user-token']: req.headers[authenticatedToken],
+                [authenticatedToken]: req.headers[authenticatedToken],
 
             },
             method: 'GET',
@@ -91,10 +108,15 @@ observationmwApi.get('/v1/mentee/verification/verifyOtp', async (req, res) => {
     try {
         /* tslint:disable-next-line */
         let { phone, otp } = req.query;
+        if (!req.headers[authenticatedToken]) {
+            return res.status(401).json({
+                message: authTokenMissingError,
+            })
+        }
         const response = await axios({
             headers: {
                 Authorization: CONSTANTS.SB_API_KEY,
-                authenticatedToken: req.headers[authenticatedToken],
+                [authenticatedToken]: req.headers[authenticatedToken],
 
             },
             method: 'GET',
@@ -115,11 +137,15 @@ observationmwApi.get('/v1/mentee/verification/resendOtp', async (req, res) => {
     try {
         /* tslint:disable-next-line */
         let phone = req.query.phone
+        if (!req.headers[authenticatedToken]) {
+            return res.status(401).json({
+                message: authTokenMissingError,
+            })
+        }
         const response = await axios({
             headers: {
                 Authorization: CONSTANTS.SB_API_KEY,
-                authenticatedToken: req.headers[authenticatedToken],
-
+                [authenticatedToken]: req.headers[authenticatedToken],
             },
             method: 'GET',
             params: { phone },
