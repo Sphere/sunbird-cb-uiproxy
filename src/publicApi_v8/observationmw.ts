@@ -7,7 +7,7 @@ const API_END_POINTS = {
     // tslint:disable-next-line: no-any
     getAllMenteeForMentor: `${CONSTANTS.HTTPS_HOST}/api/observationmw/v1/mentor/getAllMenteeForMentor`,
     getObservationForMentee: `${CONSTANTS.HTTPS_HOST}/api/observationmw/v1/mentor/getObservationForMentee`,
-    getSurveyDetails: `${CONSTANTS.HTTPS_HOST}/api/observationmw/v1/survey/verifySurveyLink`,
+    getSurveyDetails: `${CONSTANTS.HTTPS_HOST}/api/observationmw/v1/survey/getSurveyDetails`,
 
     resendOtp: `${CONSTANTS.HTTPS_HOST}/api/observationmw/v1/otp/retry`,
     sendOtp: `${CONSTANTS.HTTPS_HOST}/api/observationmw/v1/otp/sendOtp`,
