@@ -70,7 +70,7 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
         const response = await axios({
             headers: {
                 Authorization: CONSTANTS.SB_API_KEY,
-                authenticatedToken: req.headers[authenticatedToken],
+                ['x-authenticated-user-token']: req.headers[authenticatedToken],
 
             },
             method: 'GET',
