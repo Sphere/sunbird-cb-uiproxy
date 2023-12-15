@@ -81,7 +81,7 @@ observationmwApi.get('/v1/mentor/getObservationForMentee', async (req, res) => {
 observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
     try {
         /* tslint:disable-next-line */
-        let phone = req.query.phone
+        let menteeId = req.query.menteeId
         if (!req.headers[authenticatedToken]) {
             return res.status(401).json({
                 message: authTokenMissingError,
@@ -94,7 +94,7 @@ observationmwApi.get('/v1/mentee/verification/sendOtp', async (req, res) => {
 
             },
             method: 'GET',
-            params: { phone },
+            params: { menteeId },
             url: API_END_POINTS.sendOtp,
         })
         res.status(200).send(response.data)
