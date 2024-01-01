@@ -1,6 +1,5 @@
 import axios from 'axios'
 import { Router } from 'express'
-import { logInfo } from 'src/utils/logger'
 import { CONSTANTS } from '../utils/env'
 
 const API_END_POINTS_REPORTS = {
@@ -16,6 +15,10 @@ const keyMissingMessage = {
     message: 'Access key invalid or not present',
     status: 'Failed',
 }
+const serviceHeaders = {
+    'Content-Type': 'application/json',
+    accesskey: accessKey,
+}
 
 export const userReporting = Router()
 userReporting.get('/user/top/trendingcourses', async (req, res) => {
@@ -25,12 +28,13 @@ userReporting.get('/user/top/trendingcourses', async (req, res) => {
             return
         }
         const response = await axios({
+            headers: serviceHeaders,
             method: 'GET',
             url: API_END_POINTS_REPORTS.trendingCourses,
         })
         res.status(response.status).send(response.data)
     } catch (error) {
-        logInfo(error)
+        console.log(error)
         res.status(400).json({
             message: 'Something went wrong while fetching trending courses',
             status: 'Failed',
@@ -45,6 +49,7 @@ userReporting.get('/user/certificate/downloads', async (req, res) => {
             return
         }
         const response = await axios({
+            headers: serviceHeaders,
             method: 'GET',
             url: API_END_POINTS_REPORTS.certificateDownloads,
         })
@@ -63,6 +68,7 @@ userReporting.get('/user/reg/total_count', async (req, res) => {
             return
         }
         const response = await axios({
+            headers: serviceHeaders,
             method: 'GET',
             url: API_END_POINTS_REPORTS.regTotalCount,
         })
@@ -81,6 +87,7 @@ userReporting.get('/user/enroll/user_count', async (req, res) => {
             return
         }
         const response = await axios({
+            headers: serviceHeaders,
             method: 'GET',
             url: API_END_POINTS_REPORTS.enrolledUserCount,
         })
@@ -99,6 +106,7 @@ userReporting.get('/user/course/completed_users', async (req, res) => {
             return
         }
         const response = await axios({
+            headers: serviceHeaders,
             method: 'GET',
             url: API_END_POINTS_REPORTS.courseCompletedUsers,
         })
@@ -128,6 +136,7 @@ userReporting.get('/role/course/recommendation', async (req, res) => {
             delete responseObject.profession
         }
         const response = await axios({
+            headers: serviceHeaders,
             method: 'GET',
             params: responseObject,
             url: API_END_POINTS_REPORTS.courseRecommendaion,
