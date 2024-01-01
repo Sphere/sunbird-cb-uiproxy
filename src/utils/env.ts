@@ -230,6 +230,7 @@ export const CONSTANTS = {
   CERT_AUTH_TOKEN: '',
   GOOGLE_CLIENT_ID: env.google_client_id || '',
   BULK_USER: env.BULK_USER || 'Sunbird@123',
+  USER_REPORTING_SERVICE: env.USER_REPORTING_SERVICE
 }
 
 export const RESTRICTED_PYTHON_STMT: string[] = process.env
