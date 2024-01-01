@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { CONSTANTS } from '../utils/env'
+import { logInfo } from 'src/utils/logger'
 
 const API_END_POINTS_REPORTS = {
     certificateDownloads: `${CONSTANTS.USER_REPORTING_SERVICE}/user/certificate/downloads`,
@@ -29,6 +30,7 @@ userReporting.get('/user/top/trendingcourses', async (req, res) => {
         })
         res.status(response.status).send(response.data)
     } catch (error) {
+        logInfo(error)
         res.status(400).json({
             message: 'Something went wrong while fetching trending courses',
             status: 'Failed',
