@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
-import { CONSTANTS } from '../utils/env'
 import { logInfo } from 'src/utils/logger'
+import { CONSTANTS } from '../utils/env'
 
 const API_END_POINTS_REPORTS = {
     certificateDownloads: `${CONSTANTS.USER_REPORTING_SERVICE}/user/certificate/downloads`,
