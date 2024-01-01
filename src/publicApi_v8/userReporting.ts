@@ -34,7 +34,6 @@ userReporting.get('/user/top/trendingcourses', async (req, res) => {
         })
         res.status(response.status).send(response.data)
     } catch (error) {
-        console.log(error)
         res.status(400).json({
             message: 'Something went wrong while fetching trending courses',
             status: 'Failed',
