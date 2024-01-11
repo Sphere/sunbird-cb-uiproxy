@@ -38,7 +38,7 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
   let resRedirectUrl = `https://sphere.aastrika.org/app/toc/${courseId}/overview?primaryCategory=Course`
   try {
     const maternityFoundationToken = {
-      accessToken: req.body.token,
+      accessToken: decodeURIComponent(req.body.token),
     }
     let userDetailResponseFromMaternityFoundation
     try {
@@ -63,7 +63,7 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
     const maternityFoundationData =
       userDetailResponseFromMaternityFoundation.data
     const maternityFoundationEmail = maternityFoundationData.email
-    const maternityFoundationPhone = maternityFoundationData.phone
+    const maternityFoundationPhone = maternityFoundationData.phone.slice(3)
     const typeOfLogin = maternityFoundationData.phone ? 'phone' : 'email'
 
     logInfo('User details from maternity foundation', maternityFoundationData)

@@ -24,7 +24,7 @@ import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
 import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
 import { publicTnc } from './tnc'
-
+import { userReporting } from './userReporting'
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
@@ -65,3 +65,4 @@ publicApiV8.use('/competencyReporting/', competencyReporting)
 publicApiV8.use('/appSignUpWithAutoLogin', appSignUpWithAutoLogin)
 publicApiV8.use('/maternityFoundation', maternityFoundationAuth)
 publicApiV8.use('/observationmw', observationmwApi)
+publicApiV8.use('/userReporting', userReporting)
