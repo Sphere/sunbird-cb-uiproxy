@@ -5,6 +5,7 @@ import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { logError } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
+import { requestValidator } from '../utils/requestValidator'
 
 export const updateProgressv2 = Router()
 
@@ -14,6 +15,8 @@ const API_END_POINTS = {
 }
 updateProgressv2.patch('/update', async (req, res) => {
   try {
+    if (requestValidator(['userId', 'contents'], req.body.request, res)) return
+
     await axios({
       data: req.body,
       headers: {
