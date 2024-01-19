@@ -64,11 +64,11 @@ export const API_LIST = {
     },
 
     '/protected/v8/assessmentCompetency/v1/assessment/content/:id/artifact/:id':
-      {
-        checksNeeded: [CHECK.ROLE],
-        // tslint:disable-next-line: object-literal-sort-keys
-        ROLE_CHECK: [ROLE.PUBLIC],
-      },
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/assessmentCompetency/v1/assessment/submit': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1033,11 +1033,11 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/protected/v8/workflowhandler/historyByApplicationIdAndWfId/:applicationId/:wfId':
-      {
-        checksNeeded: [CHECK.ROLE],
-        // tslint:disable-next-line: object-literal-sort-keys
-        ROLE_CHECK: [ROLE.PUBLIC],
-      },
+    {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/workflowhandler/workflowProcess/:wfId': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1150,6 +1150,11 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/protected/v8/recommendationEngineV2': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/recommendationEngineV2/publicSearch/getcourse': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1480,6 +1485,7 @@ export const API_LIST = {
     '/protected/v8/connections/v2/connections/suggests',
     '/protected/v8/connections/v2/update/connection',
     '/protected/v8/recommendationEngineV2',
+    '/protected/v8/recommendationEngineV2/publicSearch/getcourse',
     '/protected/v8/userEnrolledInSource',
     '/protected/v8/content/parents/:do_id',
     '/protected/v8/content/:do_id/parent',
