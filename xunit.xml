@@ -1,0 +1,11 @@
+<testExecutions version="1">
+<file path="test/mobileAppAPi.test.js">
+<testCase name="GET /getContents: Get contents" duration="215"/>
+<testCase name="GET /v1/assessment/*: Get competency assessment" duration="147"/>
+<testCase name="POST /submitAssessment 404: Requires authentication" duration="85"/>
+<testCase name="POST /submitAssessment 200: Requires an authentication" duration="82"/>
+</file>
+<file path="test/userEnrolledInSource.test.js">
+<testCase name="GET /enrolledUsersCount: Get contents" duration="78"/>
+</file>
+</testExecutions>

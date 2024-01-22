@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha 'test/*.js' --timeout 1000000 ",
-    "test-with-coverage": "nyc --all --reporter=html npm test",
+    "test": "mocha 'test/*.js' --timeout 1000000",
+    "test-with-coverage": "nyc --all --reporter=lcov npm test",
     "build": "gulp build",
     "gulp": "gulp",
     "lint": "tslint -c tslint.json -p tsconfig.json --fix",
@@ -53,6 +53,7 @@
     "keycloak-admin": "^1.13.0",
     "keycloak-connect": "^7.0.1",
     "lodash": "^4.17.21",
+    "mocha-sonarqube-reporter": "^1.0.2",
     "morgan": "^1.9.1",
     "node-html-to-image": "^3.2.4",
     "node-xlsx": "^0.15.0",
