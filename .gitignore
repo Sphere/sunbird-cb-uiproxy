@@ -8,6 +8,9 @@
 /.sonarlint
 # dependencies
 /node_modules
+.nyc_output
+coverage
+
 
 # IDEs and editors
 /.idea
