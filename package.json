@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha 'test/*.js' --timeout 1000000 --reporter mocha-sonarqube-reporter --exit ",
+    "test": "mocha 'test/*.js' --timeout 1000000",
     "test-with-coverage": "nyc --all --reporter=lcov npm test",
     "build": "gulp build",
     "gulp": "gulp",
