@@ -209,6 +209,7 @@ mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
     if (requestValidator(['userId', 'contents'], req.body.request, res)) return
+    logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
 
     if (accesTokenResult.status == 200) {
       await axios({
@@ -217,7 +218,6 @@ mobileAppApi.post('/v2/updateProgress', async (req, res) => {
         method: 'PATCH',
         url: API_END_POINTS.UPDATE_PROGRESS,
       })
-      logInfo('Check req body of getAllEntity >> ' + req.body)
       const stateReadBody = {
         request: {
           batchId: req.body.request.contents[0].batchId,

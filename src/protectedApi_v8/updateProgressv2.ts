@@ -15,7 +15,10 @@ const API_END_POINTS = {
 }
 updateProgressv2.patch('/update', async (req, res) => {
   try {
+    logInfo('Check req body of update progress v2 for web>> ' + req.body)
+
     if (requestValidator(['userId', 'contents'], req.body.request, res)) return
+
 
     await axios({
       data: req.body,
@@ -27,7 +30,6 @@ updateProgressv2.patch('/update', async (req, res) => {
       method: 'PATCH',
       url: API_END_POINTS.UPDATE_PROGRESS,
     })
-    logInfo('Check req body of update progress v2 >> ' + req.body)
     const stateReadBody = {
       request: {
         batchId: req.body.request.contents[0].batchId,
