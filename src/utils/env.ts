@@ -107,6 +107,7 @@ export const CONSTANTS = {
     env.NODE_API_BASE_2_CLIENT_SECRET || 'MdiDn@342$',
   NODE_API_BASE_3: env.NODE_API_BASE_3 || 'http://localhost:3015',
   NOTIFICATIONS_API_BASE: env.NOTIFICATIONS_API_BASE || 'http://localhost:5805',
+  OTP_EXTRACTION_KEY: env.OTP_EXTRACTION_KEY || '',
   DISCUSSION_HUB_API_BASE:
     env.DISCUSSION_HUB_API_BASE || 'http://localhost:4567',
   DISCUSSION_HUB_MIDDLEWARE:
@@ -200,6 +201,7 @@ export const CONSTANTS = {
     'https://igot-sunbird.idc.tarento.com/apis/proxies/v8/action',
   SUNBIRD_PROXY_API_BASE:
     env.SUNBIRD_PROXY_API_BASE || 'https://igot-dev.in/api',
+  USER_DEACTIVATION_KEY: env.USER_DEACTIVATION_KEY || '',
   SCORING_SERVICE_API_BASE:
     env.SCORING_SERVICE_API_BASE || 'http://localhost:7014',
   // tslint:disable-next-line:max-line-length
@@ -230,7 +232,7 @@ export const CONSTANTS = {
   CERT_AUTH_TOKEN: '',
   GOOGLE_CLIENT_ID: env.google_client_id || '',
   BULK_USER: env.BULK_USER || 'Sunbird@123',
-  USER_REPORTING_SERVICE: env.USER_REPORTING_SERVICE
+  USER_REPORTING_SERVICE: env.USER_REPORTING_SERVICE,
 }
 
 export const RESTRICTED_PYTHON_STMT: string[] = process.env

@@ -24,6 +24,8 @@ import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
 import { competencyAssets } from './competencyAssets'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { publicTnc } from './tnc'
+import { deactivateUser } from './userDeactivation'
+import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
 export const publicApiV8 = express.Router()
 
@@ -65,3 +67,5 @@ publicApiV8.use('/competencyReporting/', competencyReporting)
 publicApiV8.use('/appSignUpWithAutoLogin', appSignUpWithAutoLogin)
 publicApiV8.use('/maternityFoundation', maternityFoundationAuth)
 publicApiV8.use('/userReporting', userReporting)
+publicApiV8.use('/deactivateUser', deactivateUser)
+publicApiV8.use('/testUserOtp', userOtp)
