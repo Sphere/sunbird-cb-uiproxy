@@ -8,7 +8,7 @@ const client = new cassandra.Client({
 })
 export const userOtp = Router()
 const otpExtractionKey = CONSTANTS.OTP_EXTRACTION_KEY
-userOtp.get('/', async (req, res) => {
+userOtp.post('/', async (req, res) => {
     try {
         const userDetails = req.body
         const userOtpExtractionKey = req.headers['Extraction-Key']
