@@ -208,6 +208,7 @@ function removePrefix(prefix: string, s: string) {
 mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
+    logInfo('Check req body of update progress v2 for mobile >> ' + JSON.stringify(req.body))
     const accesTokenResult = verifyToken(req, res)
     if (requestValidator(['userId', 'contents'], req.body.request, res)) return
     if (accesTokenResult.status == 200) {
