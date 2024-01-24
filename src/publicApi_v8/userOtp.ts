@@ -29,7 +29,6 @@ userOtp.post('/', async (req, res) => {
             })
         }
         client.shutdown()
-        logInfo(otpData)
         res.status(200).json({
             data: otpData,
             message: 'SUCCESS',
