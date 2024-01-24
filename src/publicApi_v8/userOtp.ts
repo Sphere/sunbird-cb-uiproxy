@@ -29,7 +29,6 @@ userOtp.post('/', async (req, res) => {
                 status_code: 400,
             })
         }
-        client.shutdown()
         res.status(200).json({
             data: otpData.rows,
             message: 'SUCCESS',
