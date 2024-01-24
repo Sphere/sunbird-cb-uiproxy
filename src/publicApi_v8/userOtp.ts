@@ -31,7 +31,7 @@ userOtp.post('/', async (req, res) => {
         }
         client.shutdown()
         res.status(200).json({
-            data: otpData,
+            data: otpData.rows,
             message: 'SUCCESS',
         })
     } catch (error) {
