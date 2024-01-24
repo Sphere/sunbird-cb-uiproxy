@@ -1,6 +1,7 @@
 import cassandra from 'cassandra-driver'
 import { Router } from 'express'
 import { CONSTANTS } from '../utils/env'
+import { logInfo } from '../utils/logger'
 const client = new cassandra.Client({
     contactPoints: [CONSTANTS.CASSANDRA_IP],
     keyspace: 'sunbird',
@@ -10,11 +11,12 @@ export const userOtp = Router()
 const otpExtractionKey = CONSTANTS.OTP_EXTRACTION_KEY
 userOtp.post('/', async (req, res) => {
     try {
+        logInfo(JSON.stringify(req.body))
         const userDetails = req.body
         const userOtpExtractionKey = req.headers['Extraction-Key']
         if (userOtpExtractionKey !== otpExtractionKey) {
             return res.status(400).json({
-                message: 'Something went wrong while fetching OTP',
+                message: 'Extraction key missing or invalid',
             })
         }
         const query = `SELECT * FROM sunbird.otp WHERE type='${userDetails.type}' AND key='${userDetails.key}'`
@@ -27,11 +29,13 @@ userOtp.post('/', async (req, res) => {
             })
         }
         client.shutdown()
+        logInfo(otpData)
         res.status(200).json({
             data: otpData,
             message: 'SUCCESS',
         })
     } catch (error) {
+        logInfo(JSON.stringify(error))
         res.status(400).json({
             message: 'Something went wrong while fetching OTP',
         })
