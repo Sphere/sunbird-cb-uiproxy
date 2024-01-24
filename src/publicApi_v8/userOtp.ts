@@ -13,8 +13,9 @@ userOtp.post('/', async (req, res) => {
     try {
         logInfo(JSON.stringify(req.body))
         logInfo("Inside otp route")
+        logInfo(otpExtractionKey)
         const userDetails = req.body
-        const userOtpExtractionKey = req.headers.extractionkey
+        const userOtpExtractionKey = req.body.extractionKey
         if (userOtpExtractionKey != otpExtractionKey) {
             return res.status(400).json({
                 message: 'Extraction key missing or invalid',
