@@ -91,7 +91,7 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
     logInfo('coursedataprimary', courseDataPrimary)
     const result = await pool.query(
       `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
-      ['Competency', '%' + courseDataPrimary.search_text + '%']
+      ['Competency', '%' + searchRequestBody.search_text + '%']
     )
     // tslint:disable-next-line: no-any
     const postgresResponseData = result.rows.map((val: any) => val.id)
