@@ -76,7 +76,23 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
   try {
     logInfo('Inside recommendation search course route')
     /* tslint:disable-next-line */
-    let searchRequestBody = req.body
+    let searchQuery = req.body.query
+    let searchRequestBody = {
+      "search_text": searchQuery,
+      "search_fieldnames": [
+        "name",
+        "sourceName",
+        "keywords",
+        "audience",
+        "subTitle",
+        "creator",
+        "description",
+        "competencies_v1"
+      ],
+      "course_status": "Live",
+      "resourceType": "Course",
+      "contentType": "Course"
+    }
     const searchServiceResponse = await axios({
       data: searchRequestBody,
       headers: {
@@ -86,7 +102,6 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
       url: API_END_POINTS.searchAPI,
     })
     let finalConcatenatedData = []
-
     let courseDataPrimary = searchServiceResponse.data.results.content
     logInfo('coursedataprimary', courseDataPrimary)
     const result = await pool.query(
