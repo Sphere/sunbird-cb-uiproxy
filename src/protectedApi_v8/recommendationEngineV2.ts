@@ -108,7 +108,9 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
       logInfo('elasticSearchData', JSON.stringify(elasticSearchData))
       const courseSearchSecondaryData = {
         request: {
-          filters: elasticSearchData,
+          filters: {
+            competencySearch: elasticSearchData
+          }
         },
         sort: [{ lastUpdatedOn: 'desc' }],
       }
