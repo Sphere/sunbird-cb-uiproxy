@@ -77,21 +77,23 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
     logInfo('Inside recommendation search course route')
     /* tslint:disable-next-line */
     let searchQuery = req.body.query
-    let searchRequestBody = {
-      "search_text": searchQuery,
-      "search_fieldnames": [
-        "name",
-        "sourceName",
-        "keywords",
-        "audience",
-        "subTitle",
-        "creator",
-        "description",
-        "competencies_v1"
+    const searchRequestBody = {
+      contentType: 'Course',
+      course_status: 'Live',
+      resourceType: 'Course',
+
+      search_fieldnames: [
+        'audience',
+        'competencies_v1',
+        'creator',
+        'description',
+        'keywords',
+        'sourceName',
+        'subTitle',
+        'name',
       ],
-      "course_status": "Live",
-      "resourceType": "Course",
-      "contentType": "Course"
+      search_text: searchQuery,
+
     }
     const searchServiceResponse = await axios({
       data: searchRequestBody,
@@ -124,8 +126,8 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
       const courseSearchSecondaryData = {
         request: {
           filters: {
-            competencySearch: elasticSearchData
-          }
+            competencySearch: elasticSearchData,
+          },
         },
         sort: [{ lastUpdatedOn: 'desc' }],
       }
