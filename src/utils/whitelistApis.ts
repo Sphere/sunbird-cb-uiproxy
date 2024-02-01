@@ -867,6 +867,26 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/scroing/comments/create': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/scroing/comments/course': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/scroing/comments/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/scroing/comments/getAllComments': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/portal/cbc/department': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1428,6 +1448,10 @@ export const API_LIST = {
     '/protected/v8/frac/getNodeById/:id/:type',
     '/protected/v8/portal/listDeptNames',
     '/protected/v8/scroing/getTemplate/:templateId',
+    '/protected/v8/scroing/comments/create',
+    '/protected/v8/scroing/comments/course',
+    '/protected/v8/scroing/comments/update',
+    '/protected/v8/scroing/comments/getAllComments',
     '/protected/v8/portal/cbc/department',
     '/protected/v8/portal/cbc/department/:deptId/',
     '/protected/v8/portal/spv/department/:deptId/',
