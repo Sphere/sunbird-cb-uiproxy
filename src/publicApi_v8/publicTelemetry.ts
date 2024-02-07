@@ -28,3 +28,23 @@ publicTelemetry.post("/", async (req: Request, res: Response) => {
     );
   }
 });
+
+
+publicTelemetry.post("/telemetry", async (req: Request, res: Response) => {
+  logInfo("Reuest Body for TELEMETRY -", JSON.stringify(req.body));
+  try {
+    const response = await axios.post(
+      API_END_POINTS.telemetry,
+      req.body,
+      axiosRequestConfig
+    );
+
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: "Failed due to unknown reason",
+      }
+    );
+  }
+});
