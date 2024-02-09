@@ -1527,5 +1527,7 @@ export const API_LIST = {
     '/proxies/v8/action/framework/v3/term/create',
     '/proxies/v8/user/v1/passbook',
     '/proxies/v8/user/v1/admin/passbook',
+    '/public/v8/publicTelemetry',
+    '/public/v8/publicTelemetry/telemetry'
   ],
 }
