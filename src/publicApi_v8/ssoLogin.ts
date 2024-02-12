@@ -15,7 +15,7 @@ const API_END_POINTS = {
     generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
     grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
     searchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-    verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`
+    verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
 }
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
@@ -23,16 +23,15 @@ const AUTH_FAIL =
     'Authentication failed ! Please check credentials and try again.'
 const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
-
 export const ssoLogin = Router()
 ssoLogin.post('/otp/sendOtp', async (req, res) => {
     try {
         logInfo('Entered into SSO Login with SSO >>>>>')
-        const { userEmail = "", userPhone = "" } = req.body
+        const { userEmail = '', userPhone = '' } = req.body
         if (!userEmail && !userPhone) {
             res.status(400).json({
                 msg: "Email id and phone both can't be empty",
-                status: 'error'
+                status: 'error',
             })
         }
         const userDetails = await getUserDetails(userEmail, userPhone)
@@ -51,7 +50,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
             )
             res.status(200).json({
                 message: 'User otp successfully sent',
-                userId
+                userId,
             })
         } catch (error) {
             res.status(500).send({
@@ -63,18 +62,18 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
     } catch (error) {
         logInfo('Error in sending user OTP >>>>>>' + error)
         res.status(500).send({
-            message: "",
+            message: '',
             status: 'failed',
         })
     }
 })
 
-ssoLogin.post('/otp/resendOtp', async (req: any, res) => {
+ssoLogin.post('/otp/resendOtp', async (req, res) => {
     try {
-        let { userId, userEmail, userPhone } = req.body
+        const { userId, userEmail, userPhone } = req.body
         if ((!userPhone && !userEmail) || !userId) {
             return res.status(400).json({
-                "message": "Mandatory parameters userId, email/phone missing"
+                message: 'Mandatory parameters userId, email/phone missing',
             })
         }
         await getOTP(
@@ -84,7 +83,7 @@ ssoLogin.post('/otp/resendOtp', async (req: any, res) => {
         )
         res.status(200).json({
             message: 'User otp successfully resent',
-            userId
+            userId,
         })
     } catch (error) {
         res.status(500).send({
@@ -96,12 +95,13 @@ ssoLogin.post('/otp/resendOtp', async (req: any, res) => {
 ssoLogin.post('/login', async (req: any, res) => {
     try {
         logInfo('Entered into /validateOtp ', req.body)
-        let { userEmail = "", userPhone = "", userId = "", otp = "", userPassword = "", typeOfLogin = "" } = req.body
+        let userId = ''
+        const { userEmail = '', userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
         if ((!userPhone && !userEmail) || !typeOfLogin) {
-            return res.status(400).send({ message: "Mandatory parameters typeOfLogin and email/phone", status: 'error' })
+            return res.status(400).send({ message: 'Mandatory parameters typeOfLogin and email/phone', status: 'error' })
 
         }
-        if (typeOfLogin == "otp") {
+        if (typeOfLogin == 'otp') {
             const verifyOtpResponse = await validateOTP(
                 userId,
                 userEmail ? userEmail : userPhone,
@@ -110,7 +110,7 @@ ssoLogin.post('/login', async (req: any, res) => {
             )
             if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
                 return res.status(400).json({
-                    "message": "OTP validation failed try again"
+                    message: 'OTP validation failed try again',
                 })
             }
         }
@@ -122,21 +122,21 @@ ssoLogin.post('/login', async (req: any, res) => {
                 // A new session and cookie will be generated from here
                 try {
                     const keycloakLoginData = {
-                        "otp": {
+                        otp: {
                             client_id: 'aastrika-sso-login',
                             client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
                             grant_type: 'password',
                             scope: 'offline_access',
                             username: userPhone ? userPhone : userEmail,
                         },
-                        "password": {
+                        password: {
                             client_id: 'portal',
                             grant_type: 'password',
                             password: userPassword,
                             username: userEmail ? userEmail : userPhone,
-                        }
+                        },
                     }
-                    const transformedData = qs.stringify(typeOfLogin == "otp" ? keycloakLoginData.otp : keycloakLoginData.password)
+                    const transformedData = qs.stringify(typeOfLogin == 'otp' ? keycloakLoginData.otp : keycloakLoginData.password)
                     logInfo('Entered into authorization part.' + transformedData)
                     const authTokenResponse = await axios({
                         ...axiosRequestConfig,
@@ -147,14 +147,13 @@ ssoLogin.post('/login', async (req: any, res) => {
                         method: 'POST',
                         url: API_END_POINTS.grantAccessToken,
                     })
-                    console.log(authTokenResponse.data)
                     logInfo('Entered into authTokenResponsev2 :' + authTokenResponse)
                     if (authTokenResponse.data) {
                         const accessToken = authTokenResponse.data.access_token
                         // tslint:disable-next-line: no-any
                         const decodedToken: any = jwt_decode(accessToken)
                         const decodedTokenArray = decodedToken.sub.split(':')
-                        const userId = decodedTokenArray[decodedTokenArray.length - 1]
+                        userId = decodedTokenArray[decodedTokenArray.length - 1]
                         req.session.userId = userId
                         req.kauth = {
                             grant: {
@@ -172,7 +171,7 @@ ssoLogin.post('/login', async (req: any, res) => {
                         res.status(200).json({
                             msg: AUTHENTICATED,
                             status: 'success',
-                            "token": authTokenResponse.data
+                            token: authTokenResponse.data,
                         })
                         res.end()
                     }
@@ -195,12 +194,12 @@ ssoLogin.post('/login', async (req: any, res) => {
 })
 const getUserDetails = async (userEmail: string, userPhone: string) => {
     const typeOfAccount = userEmail ? 'email' : 'phone'
-    return await axios({
+    return axios({
         ...axiosRequestConfig,
         data: {
             request: {
                 filters: {
-                    [typeOfAccount]: typeOfAccount == "email" ? userEmail : userPhone,
+                    [typeOfAccount]: typeOfAccount == 'email' ? userEmail : userPhone,
                 },
             },
         },
