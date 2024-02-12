@@ -27,6 +27,7 @@ import { publicTnc } from './tnc'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
+import { ssoLogin } from "./ssoLogin"
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
@@ -69,3 +70,4 @@ publicApiV8.use('/maternityFoundation', maternityFoundationAuth)
 publicApiV8.use('/userReporting', userReporting)
 publicApiV8.use('/deactivateUser', deactivateUser)
 publicApiV8.use('/testUserOtp', userOtp)
+publicApiV8.use('/ssoLogin', ssoLogin)
