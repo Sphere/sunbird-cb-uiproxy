@@ -35,7 +35,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
             })
         }
         const userDetails = await getUserDetails(userEmail, userPhone)
-        if (userDetails.data.result.response.count < 0) {
+        if (userDetails.data.result.response.count <= 0) {
             return res.status(400).json({
                 msg: "User doesn't exists please signup and try again",
                 status: 'error',
