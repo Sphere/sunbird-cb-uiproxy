@@ -60,9 +60,9 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         }
 
     } catch (error) {
-        logInfo('Error in sending user OTP >>>>>>' + error)
+        logInfo('Error in sending user OTP' + error)
         res.status(500).send({
-            message: '',
+            message: 'Error in sending user OTP',
             status: 'failed',
         })
     }
