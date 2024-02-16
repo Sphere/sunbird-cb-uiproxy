@@ -112,7 +112,7 @@ publicSearch.post('/getCourses', async (request, response) => {
           },
         ],
       }
-      logInfo('courseSearchPrimaryData', courseSearchPrimaryData)
+      logInfo('courseSearchPrimaryData', JSON.stringify(courseSearchPrimaryData))
       const esResponsePrimaryCourses = await axios({
         data: courseSearchPrimaryData,
         headers,
@@ -134,7 +134,7 @@ publicSearch.post('/getCourses', async (request, response) => {
 
         // tslint:disable-next-line: no-any
         const postgresResponseData = result.rows.map((val: any) => val.id)
-        logInfo('finalConcatenatedData', finalConcatenatedData)
+        logInfo('finalConcatenatedData', JSON.stringify(finalConcatenatedData))
         let courseDataSecondary = []
         if (postgresResponseData.length > 0) {
           const elasticSearchData = []
@@ -160,11 +160,11 @@ publicSearch.post('/getCourses', async (request, response) => {
               method: 'post',
               url: API_END_POINTS.search,
             })
-            logInfo('elasticSearchResponseSecond', elasticSearchResponseSecond)
+            logInfo('elasticSearchResponseSecond', JSON.stringify(elasticSearchResponseSecond))
             courseDataSecondary =
               elasticSearchResponseSecond.data.result.content || []
           } catch (error) {
-            logInfo(error)
+            logInfo(JSON.stringify(error))
             return response.status(500).json({
               "message": "Something went wrong while connecting search service"
             })
@@ -175,7 +175,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        logInfo('finalConcatenatedData', finalConcatenatedData)
+        logInfo('finalConcatenatedData', JSON.stringify(finalConcatenatedData))
 
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
@@ -199,7 +199,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         })
       } catch (error) {
         response.status(400).json({
-          message: 'Something went wrong while connecting search service',
+          message: 'Error while connecting postgres',
         })
       }
     }
