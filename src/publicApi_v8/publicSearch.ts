@@ -3,7 +3,7 @@ import { Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
-import { logInfo } from 'src/utils/logger'
+import { logInfo } from '../utils/logger'
 
 export const publicSearch = Router()
 
