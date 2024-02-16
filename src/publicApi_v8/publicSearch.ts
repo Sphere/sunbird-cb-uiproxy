@@ -3,6 +3,7 @@ import { Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
+import { logInfo } from 'src/utils/logger'
 
 export const publicSearch = Router()
 
@@ -95,6 +96,7 @@ publicSearch.post('/getCourses', async (request, response) => {
     }
     // .................................For search button with query on home page..............................
     if (courseSearchRequestData.request.query) {
+      logInfo('Inside query if')
       const courseSearchPrimaryData = {
         request: {
           facets,
@@ -110,12 +112,14 @@ publicSearch.post('/getCourses', async (request, response) => {
           },
         ],
       }
+      logInfo('courseSearchPrimaryData', courseSearchPrimaryData)
       const esResponsePrimaryCourses = await axios({
         data: courseSearchPrimaryData,
         headers,
         method: 'post',
         url: API_END_POINTS.search,
       })
+      logInfo('esResponsePrimaryCourses', esResponsePrimaryCourses.data)
       let courseDataPrimary = esResponsePrimaryCourses.data.result.content
       const facetsData = esResponsePrimaryCourses.data.result.facets
       try {
@@ -130,6 +134,7 @@ publicSearch.post('/getCourses', async (request, response) => {
 
         // tslint:disable-next-line: no-any
         const postgresResponseData = result.rows.map((val: any) => val.id)
+        logInfo('finalConcatenatedData', finalConcatenatedData)
         let courseDataSecondary = []
         if (postgresResponseData.length > 0) {
           const elasticSearchData = []
@@ -139,28 +144,39 @@ publicSearch.post('/getCourses', async (request, response) => {
               elasticSearchData.push(`${postgresResponse}-${value}`)
             }
           }
-          const courseSearchSecondaryData = {
-            request: {
-              filters,
-              sort_by: sortMethod,
-            },
-            sort: [{ lastUpdatedOn: 'desc' }],
+          try {
+            const courseSearchSecondaryData = {
+              request: {
+                filters,
+                sort_by: sortMethod,
+              },
+              sort: [{ lastUpdatedOn: 'desc' }],
+            }
+            courseSearchSecondaryData.request.filters.competencySearch =
+              elasticSearchData
+            const elasticSearchResponseSecond = await axios({
+              data: courseSearchSecondaryData,
+              headers,
+              method: 'post',
+              url: API_END_POINTS.search,
+            })
+            logInfo('elasticSearchResponseSecond', elasticSearchResponseSecond)
+            courseDataSecondary =
+              elasticSearchResponseSecond.data.result.content || []
+          } catch (error) {
+            logInfo(error)
+            return response.status(500).json({
+              "message": "Something went wrong while connecting search service"
+            })
           }
-          courseSearchSecondaryData.request.filters.competencySearch =
-            elasticSearchData
-          const elasticSearchResponseSecond = await axios({
-            data: courseSearchSecondaryData,
-            headers,
-            method: 'post',
-            url: API_END_POINTS.search,
-          })
-          courseDataSecondary =
-            elasticSearchResponseSecond.data.result.content || []
+
         }
 
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
+        logInfo('finalConcatenatedData', finalConcatenatedData)
+
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return
@@ -183,7 +199,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         })
       } catch (error) {
         response.status(400).json({
-          message: 'Error while connecting postgres',
+          message: 'Something went wrong while connecting search service',
         })
       }
     }
