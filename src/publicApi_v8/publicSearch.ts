@@ -3,7 +3,6 @@ import { Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
-import { logInfo } from '../utils/logger'
 
 export const publicSearch = Router()
 
@@ -96,7 +95,6 @@ publicSearch.post('/getCourses', async (request, response) => {
     }
     // .................................For search button with query on home page..............................
     if (courseSearchRequestData.request.query) {
-      logInfo('Inside query if')
       const courseSearchPrimaryData = {
         request: {
           facets,
@@ -112,14 +110,12 @@ publicSearch.post('/getCourses', async (request, response) => {
           },
         ],
       }
-      logInfo('courseSearchPrimaryData', JSON.stringify(courseSearchPrimaryData))
       const esResponsePrimaryCourses = await axios({
         data: courseSearchPrimaryData,
         headers,
         method: 'post',
         url: API_END_POINTS.search,
       })
-      logInfo('esResponsePrimaryCourses', esResponsePrimaryCourses.data)
       let courseDataPrimary = esResponsePrimaryCourses.data.result.content
       const facetsData = esResponsePrimaryCourses.data.result.facets
       try {
@@ -134,7 +130,6 @@ publicSearch.post('/getCourses', async (request, response) => {
 
         // tslint:disable-next-line: no-any
         const postgresResponseData = result.rows.map((val: any) => val.id)
-        logInfo('finalConcatenatedData', JSON.stringify(finalConcatenatedData))
         let courseDataSecondary = []
         if (postgresResponseData.length > 0) {
           const elasticSearchData = []
@@ -144,39 +139,29 @@ publicSearch.post('/getCourses', async (request, response) => {
               elasticSearchData.push(`${postgresResponse}-${value}`)
             }
           }
-          try {
-            const courseSearchSecondaryData = {
-              request: {
-                filters,
-                sort_by: sortMethod,
-              },
-              sort: [{ lastUpdatedOn: 'desc' }],
-            }
-            courseSearchSecondaryData.request.filters.competencySearch =
-              elasticSearchData
-            const elasticSearchResponseSecond = await axios({
-              data: courseSearchSecondaryData,
-              headers,
-              method: 'post',
-              url: API_END_POINTS.search,
-            })
-            logInfo('elasticSearchResponseSecond', JSON.stringify(elasticSearchResponseSecond))
-            courseDataSecondary =
-              elasticSearchResponseSecond.data.result.content || []
-          } catch (error) {
-            logInfo(JSON.stringify(error))
-            return response.status(500).json({
-              "message": "Something went wrong while connecting search service"
-            })
+          const courseSearchSecondaryData = {
+            request: {
+              filters,
+              sort_by: sortMethod,
+            },
+            sort: [{ lastUpdatedOn: 'desc' }],
+            limit: 50
           }
-
+          courseSearchSecondaryData.request.filters.competencySearch =
+            elasticSearchData
+          const elasticSearchResponseSecond = await axios({
+            data: courseSearchSecondaryData,
+            headers,
+            method: 'post',
+            url: API_END_POINTS.search,
+          })
+          courseDataSecondary =
+            elasticSearchResponseSecond.data.result.content || []
         }
 
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        logInfo('finalConcatenatedData', JSON.stringify(finalConcatenatedData))
-
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return
@@ -199,7 +184,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         })
       } catch (error) {
         response.status(400).json({
-          message: 'Error while connecting postgres',
+          message: 'Something went wrong while connecting search service',
         })
       }
     }
