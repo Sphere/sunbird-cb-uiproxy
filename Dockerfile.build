@@ -1,4 +1,5 @@
 FROM node:12
+ENV NODE_OPTIONS="--max-old-space-size=16384"
 
 WORKDIR /usr/src/app
 
