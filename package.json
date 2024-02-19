@@ -99,6 +99,6 @@
     "tslint": "^5.17.0",
     "tslint-config-airbnb": "^5.11.1",
     "tslint-sonarts": "^1.9.0",
-    "typescript": "^3.9.10"
+    "typescript": "^5.3.3"
   }
 }
