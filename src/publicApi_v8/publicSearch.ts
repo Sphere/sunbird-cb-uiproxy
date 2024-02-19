@@ -4,6 +4,8 @@ import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
+import { axiosRequestConfigLong } from '../configs/request.config'
+
 
 export const publicSearch = Router()
 
@@ -154,6 +156,7 @@ publicSearch.post('/getCourses', async (request, response) => {
             elasticSearchData
           try {
             const elasticSearchResponseSecond = await axios({
+              ...axiosRequestConfigLong,
               data: courseSearchSecondaryData,
               headers,
               method: 'post',
