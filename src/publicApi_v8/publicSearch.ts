@@ -4,6 +4,8 @@ import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
+import { axiosRequestConfigLong } from '../configs/request.config'
+
 
 export const publicSearch = Router()
 
@@ -67,10 +69,11 @@ publicSearch.post('/getCourses', async (request, response) => {
         ],
       })
       const searchResponseES = await axios({
+        ...axiosRequestConfigLong,
         data: requestBodyForSearch,
         headers,
         method: 'post',
-        url: API_END_POINTS.search,
+        url: API_END_POINTS.searchv1,
       })
       if (searchResponseES.data.result.count == 0) {
         return response.status(200).json(nullResponseStatus)
@@ -103,7 +106,7 @@ publicSearch.post('/getCourses', async (request, response) => {
           facets,
           fields: [],
           filters,
-          limit: 200,
+          limit: 100,
           query: `${courseSearchRequestData.request.query}`,
           sort_by: sortMethod,
         },
@@ -114,6 +117,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         ],
       }
       const esResponsePrimaryCourses = await axios({
+        ...axiosRequestConfigLong,
         data: courseSearchPrimaryData,
         headers,
         method: 'post',
@@ -154,6 +158,7 @@ publicSearch.post('/getCourses', async (request, response) => {
             elasticSearchData
           try {
             const elasticSearchResponseSecond = await axios({
+              ...axiosRequestConfigLong,
               data: courseSearchSecondaryData,
               headers,
               method: 'post',
@@ -173,7 +178,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        logInfo("finalConcatenatedData", finalConcatenatedData)
+        logInfo("finalConcatenatedData", JSON.stringify(finalConcatenatedData))
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return
@@ -201,6 +206,7 @@ publicSearch.post('/getCourses', async (request, response) => {
       }
     }
   } catch (err) {
+    logInfo(JSON.stringify(err))
     response.status(400).json({
       message: 'Error while public search',
     })
