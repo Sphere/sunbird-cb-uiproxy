@@ -149,7 +149,7 @@ publicSearch.post('/getCourses', async (request, response) => {
             },
             sort: [{ lastUpdatedOn: 'desc' }],
           }
-          logInfo("Competency search postgres collection", elasticSearchData)
+          logInfo("Competency search postgres collection", JSON.stringify(elasticSearchData))
           courseSearchSecondaryData.request.filters.competencySearch =
             elasticSearchData
           try {
@@ -163,7 +163,7 @@ publicSearch.post('/getCourses', async (request, response) => {
             courseDataSecondary =
               elasticSearchResponseSecond.data.result.content || []
           } catch (error) {
-            logInfo(error)
+            logInfo(JSON.stringify(error))
             return response.status(500).json({
               "message": "Something went wrong while fetching competency filtered data"
             })
