@@ -70,7 +70,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         data: requestBodyForSearch,
         headers,
         method: 'post',
-        url: API_END_POINTS.search,
+        url: API_END_POINTS.searchv1,
       })
       if (searchResponseES.data.result.count == 0) {
         return response.status(200).json(nullResponseStatus)
@@ -173,7 +173,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        logInfo("finalConcatenatedData", finalConcatenatedData)
+        logInfo("finalConcatenatedData", JSON.stringify(finalConcatenatedData))
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return
@@ -201,6 +201,7 @@ publicSearch.post('/getCourses', async (request, response) => {
       }
     }
   } catch (err) {
+    logInfo(JSON.stringify(err))
     response.status(400).json({
       message: 'Error while public search',
     })
