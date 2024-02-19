@@ -3,11 +3,14 @@ import { Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
+import { logInfo } from '../utils/logger'
 
 export const publicSearch = Router()
 
 const API_END_POINTS = {
   search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
+  searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
+
 }
 const postgresConnectionDetails = {
   database: CONSTANTS.POSTGRES_DATABASE,
@@ -114,8 +117,9 @@ publicSearch.post('/getCourses', async (request, response) => {
         data: courseSearchPrimaryData,
         headers,
         method: 'post',
-        url: API_END_POINTS.search,
+        url: API_END_POINTS.searchv1,
       })
+      logInfo("courseDataPrimary", esResponsePrimaryCourses.data.result.content)
       let courseDataPrimary = esResponsePrimaryCourses.data.result.content
       const facetsData = esResponsePrimaryCourses.data.result.facets
       try {
@@ -126,8 +130,6 @@ publicSearch.post('/getCourses', async (request, response) => {
           `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
           ['Competency', '%' + courseSearchRequestData.request.query + '%']
         )
-        // tslint:disable-next-line: no-any
-
         // tslint:disable-next-line: no-any
         const postgresResponseData = result.rows.map((val: any) => val.id)
         let courseDataSecondary = []
@@ -145,23 +147,33 @@ publicSearch.post('/getCourses', async (request, response) => {
               filters,
               sort_by: sortMethod,
             },
-            sort: [{ lastUpdatedOn: 'desc' }]
+            sort: [{ lastUpdatedOn: 'desc' }],
           }
+          logInfo("Competency search postgres collection", elasticSearchData)
           courseSearchSecondaryData.request.filters.competencySearch =
             elasticSearchData
-          const elasticSearchResponseSecond = await axios({
-            data: courseSearchSecondaryData,
-            headers,
-            method: 'post',
-            url: API_END_POINTS.search,
-          })
-          courseDataSecondary =
-            elasticSearchResponseSecond.data.result.content || []
-        }
+          try {
+            const elasticSearchResponseSecond = await axios({
+              data: courseSearchSecondaryData,
+              headers,
+              method: 'post',
+              url: API_END_POINTS.searchv1,
+            })
+            logInfo("elasticSearchResponseSecond", elasticSearchResponseSecond.data)
+            courseDataSecondary =
+              elasticSearchResponseSecond.data.result.content || []
+          } catch (error) {
+            logInfo(error)
+            return response.status(500).json({
+              "message": "Something went wrong while fetching competency filtered data"
+            })
+          }
 
+        }
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
+        logInfo("finalConcatenatedData", finalConcatenatedData)
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return
