@@ -1,5 +1,6 @@
 FROM node:14
 
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 WORKDIR /usr/src/app
 RUN mkdir -p /usr/src/app/user_upload
 RUN mkdir -p /usr/src/app/logs
