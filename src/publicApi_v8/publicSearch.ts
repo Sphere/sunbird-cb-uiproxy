@@ -69,6 +69,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         ],
       })
       const searchResponseES = await axios({
+        ...axiosRequestConfigLong,
         data: requestBodyForSearch,
         headers,
         method: 'post',
@@ -105,7 +106,7 @@ publicSearch.post('/getCourses', async (request, response) => {
           facets,
           fields: [],
           filters,
-          limit: 200,
+          limit: 100,
           query: `${courseSearchRequestData.request.query}`,
           sort_by: sortMethod,
         },
@@ -116,6 +117,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         ],
       }
       const esResponsePrimaryCourses = await axios({
+        ...axiosRequestConfigLong,
         data: courseSearchPrimaryData,
         headers,
         method: 'post',
