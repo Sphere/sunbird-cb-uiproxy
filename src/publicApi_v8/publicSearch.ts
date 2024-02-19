@@ -140,12 +140,12 @@ publicSearch.post('/getCourses', async (request, response) => {
             }
           }
           const courseSearchSecondaryData = {
+            limit: 50,
             request: {
               filters,
               sort_by: sortMethod,
             },
-            sort: [{ lastUpdatedOn: 'desc' }],
-            limit: 50
+            sort: [{ lastUpdatedOn: 'desc' }]
           }
           courseSearchSecondaryData.request.filters.competencySearch =
             elasticSearchData
