@@ -8,7 +8,6 @@ const API_END_POINTS = {
     ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
 
 }
-CONSTANTS.SB_EXT_API_BASE_2
 export const ratingServiceApi = Router()
 const headers = {
     'Content-Type': 'application/json',
