@@ -77,7 +77,7 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
     logInfo('Inside recommendation search course route')
     /* tslint:disable-next-line */
     let searchQuery = req.body.query
-    let language=req.body.language
+    const language = req.body.language
     const searchRequestBody = {
       contentType: 'Course',
       course_status: 'Live',

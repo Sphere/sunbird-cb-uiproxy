@@ -19,7 +19,6 @@ updateProgressv2.patch('/update', async (req, res) => {
 
     if (requestValidator(['userId', 'contents'], req.body.request, res)) return
 
-
     await axios({
       data: req.body,
       headers: {

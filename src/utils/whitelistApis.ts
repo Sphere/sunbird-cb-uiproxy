@@ -817,6 +817,21 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/ratings/v2/read': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/ratings/ratingLookUp': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/ratings/upsert': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/user/rating/content/average-ratingInfo/:do_id': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1396,6 +1411,9 @@ export const API_LIST = {
     '/protected/v8/assessmentCompetency/v1/submitAssessment',
     '/protected/v8/autoEnrollmentv2/user',
     '/protected/v8/user/rating/:contentId',
+    '/protected/v8/ratings/v2/read',
+    '/protected/v8/ratings/ratingLookUp',
+    '/protected/v8/ratings/upsert',
     '/protected/v8/user/progress',
     '/protected/v8/user/history/continue',
     '/protected/v8/portal/departmentType/',
@@ -1528,6 +1546,6 @@ export const API_LIST = {
     '/proxies/v8/user/v1/passbook',
     '/proxies/v8/user/v1/admin/passbook',
     '/public/v8/publicTelemetry',
-    '/public/v8/publicTelemetry/telemetry'
+    '/public/v8/publicTelemetry/telemetry',
   ],
 }

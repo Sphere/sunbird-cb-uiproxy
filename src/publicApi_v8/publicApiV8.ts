@@ -23,11 +23,11 @@ import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
 
 import { competencyAssets } from './competencyAssets'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
+import { ssoLogin } from './ssoLogin'
 import { publicTnc } from './tnc'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
-import { ssoLogin } from "./ssoLogin"
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {

@@ -2,10 +2,9 @@ import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
+import { axiosRequestConfigLong } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-import { axiosRequestConfigLong } from '../configs/request.config'
-
 
 export const publicSearch = Router()
 
@@ -123,7 +122,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         method: 'post',
         url: API_END_POINTS.searchv1,
       })
-      logInfo("courseDataPrimary", esResponsePrimaryCourses.data.result.content)
+      logInfo('courseDataPrimary', esResponsePrimaryCourses.data.result.content)
       let courseDataPrimary = esResponsePrimaryCourses.data.result.content
       const facetsData = esResponsePrimaryCourses.data.result.facets
       try {
@@ -153,7 +152,7 @@ publicSearch.post('/getCourses', async (request, response) => {
             },
             sort: [{ lastUpdatedOn: 'desc' }],
           }
-          logInfo("Competency search postgres collection", JSON.stringify(elasticSearchData))
+          logInfo('Competency search postgres collection', JSON.stringify(elasticSearchData))
           courseSearchSecondaryData.request.filters.competencySearch =
             elasticSearchData
           try {
@@ -164,13 +163,13 @@ publicSearch.post('/getCourses', async (request, response) => {
               method: 'post',
               url: API_END_POINTS.searchv1,
             })
-            logInfo("elasticSearchResponseSecond", elasticSearchResponseSecond.data)
+            logInfo('elasticSearchResponseSecond', elasticSearchResponseSecond.data)
             courseDataSecondary =
               elasticSearchResponseSecond.data.result.content || []
           } catch (error) {
             logInfo(JSON.stringify(error))
             return response.status(500).json({
-              "message": "Something went wrong while fetching competency filtered data"
+              message: 'Something went wrong while fetching competency filtered data',
             })
           }
 
@@ -178,7 +177,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        logInfo("finalConcatenatedData", JSON.stringify(finalConcatenatedData))
+        logInfo('finalConcatenatedData', JSON.stringify(finalConcatenatedData))
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return

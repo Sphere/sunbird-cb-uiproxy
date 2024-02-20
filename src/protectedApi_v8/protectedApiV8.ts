@@ -8,6 +8,7 @@ import { attendedContentApi } from './attendent-content'
 import { autoCompletev2 } from './autoCompletev2'
 import { autoEnrollmentApiv2 } from './autoEnrollmentv2'
 import { catalogApi } from './catalog'
+import { ratingServiceApi } from './cbExtRatings'
 import { certificationApi } from './certifications'
 import { cohortsApi } from './cohorts'
 import { competencyApi } from './competency'
@@ -99,3 +100,4 @@ protectedApiV8.use('/updateProgressv2', updateProgressv2)
 protectedApiV8.use('/recommendationEngineV2', recommendationEngineV2)
 protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
 protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
+protectedApiV8.use('/ratings', ratingServiceApi)

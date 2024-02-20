@@ -12,7 +12,7 @@ const otpExtractionKey = CONSTANTS.OTP_EXTRACTION_KEY
 userOtp.post('/', async (req, res) => {
     try {
         logInfo(JSON.stringify(req.body))
-        logInfo("Inside otp route")
+        logInfo('Inside otp route')
         logInfo(otpExtractionKey)
         const userDetails = req.body
         const userOtpExtractionKey = req.body.extractionKey
