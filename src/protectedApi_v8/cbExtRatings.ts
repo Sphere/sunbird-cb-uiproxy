@@ -1,14 +1,14 @@
 import axios from 'axios'
 import { Router } from 'express'
+// import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-import { CONSTANTS } from '../utils/env'
 const API_END_POINTS = {
-    ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
-    ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
-    ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
+    ratingLookUp: `http://localhost:7001/ratings/v1/ratingLookUp`,
+    ratingRead: `http://localhost:7001/ratings/v2/read`,
+    ratingUpsert: `http://localhost:7001/ratings/v1/upsert`,
 
 }
-
+// CONSTANTS.SB_EXT_API_BASE_2
 export const ratingServiceApi = Router()
 const headers = {
     'Content-Type': 'application/json',
@@ -26,6 +26,7 @@ ratingServiceApi.post('/upsert', async (req, res) => {
         })
         res.status(200).json(response.data)
     } catch (error) {
+        logInfo(JSON.stringify(error))
         res.status(400).json({
             message: 'Something went wrong while ratings upsert',
         })
@@ -46,6 +47,7 @@ ratingServiceApi.post('/v2/read', async (req, res) => {
         })
         res.status(200).json(response.data)
     } catch (error) {
+        logInfo(JSON.stringify(error))
         res.status(400).json({
             message: 'Something went wrong while reading ratings',
         })
@@ -66,6 +68,7 @@ ratingServiceApi.post('/ratingLookUp', async (req, res) => {
         })
         res.status(200).json(response.data)
     } catch (error) {
+        logInfo(JSON.stringify(error))
         res.status(400).json({
             message: 'Something went wrong while rating lookup',
         })
