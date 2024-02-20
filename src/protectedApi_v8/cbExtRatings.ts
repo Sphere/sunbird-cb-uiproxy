@@ -1,14 +1,14 @@
 import axios from 'axios'
 import { Router } from 'express'
-// import { CONSTANTS } from '../utils/env'
+import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 const API_END_POINTS = {
-    ratingLookUp: `http://localhost:7001/ratings/v1/ratingLookUp`,
-    ratingRead: `http://localhost:7001/ratings/v2/read`,
-    ratingUpsert: `http://localhost:7001/ratings/v1/upsert`,
+    ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
+    ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
+    ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
 
 }
-// CONSTANTS.SB_EXT_API_BASE_2
+CONSTANTS.SB_EXT_API_BASE_2
 export const ratingServiceApi = Router()
 const headers = {
     'Content-Type': 'application/json',
