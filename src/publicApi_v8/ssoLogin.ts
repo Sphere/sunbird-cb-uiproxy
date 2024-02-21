@@ -70,12 +70,20 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
 
 ssoLogin.post('/otp/resendOtp', async (req, res) => {
     try {
-        const { userId, userEmail, userPhone } = req.body
-        if ((!userPhone && !userEmail) || !userId) {
+        const { userEmail, userPhone } = req.body
+        if (!userPhone && !userEmail) {
             return res.status(400).json({
-                message: 'Mandatory parameters userId, email/phone missing',
+                message: 'Mandatory parameters email/phone missing',
             })
         }
+        const userDetails = await getUserDetails(userEmail, userPhone)
+        if (userDetails.data.result.response.count <= 0) {
+            return res.status(400).json({
+                msg: "User doesn't exists please signup and try again",
+                status: 'error',
+            })
+        }
+        const userId = userDetails.data.result.response.content[0].id
         await getOTP(
             userId,
             userEmail ? userEmail : userPhone,
@@ -87,7 +95,7 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
         })
     } catch (error) {
         res.status(500).send({
-            message: 'OTP generation fail',
+            message: 'OTP regeneration failed',
         })
     }
 })
