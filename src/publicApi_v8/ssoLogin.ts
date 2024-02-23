@@ -102,13 +102,20 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
 // tslint:disable-next-line: no-any
 ssoLogin.post('/login', async (req: any, res) => {
     try {
-        logInfo('Entered into /validateOtp ', req.body)
-        let userId = ''
+        logInfo('Entered into /login ', req.body)
         const { userEmail = '', userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
         if ((!userPhone && !userEmail) || !typeOfLogin) {
             return res.status(400).send({ message: 'Mandatory parameters typeOfLogin and email/phone', status: 'error' })
 
         }
+        const userDetails = await getUserDetails(userEmail, userPhone)
+        if (userDetails.data.result.response.count <= 0) {
+            return res.status(400).json({
+                msg: "User doesn't exists please signup and try again",
+                status: 'error',
+            })
+        }
+        let userId = userDetails.data.result.response.content[0].id
         if (typeOfLogin == 'otp') {
             const verifyOtpResponse = await validateOTP(
                 userId,
@@ -160,8 +167,6 @@ ssoLogin.post('/login', async (req: any, res) => {
                         const accessToken = authTokenResponse.data.access_token
                         // tslint:disable-next-line: no-any
                         const decodedToken: any = jwt_decode(accessToken)
-                        const decodedTokenArray = decodedToken.sub.split(':')
-                        userId = decodedTokenArray[decodedTokenArray.length - 1]
                         req.session.userId = userId
                         req.kauth = {
                             grant: {
