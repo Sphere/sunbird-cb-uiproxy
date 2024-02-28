@@ -79,19 +79,19 @@ export async function assessmentCreator(
           number,
           string
         ] = [
-          uuid(),
-          userId,
-          assessmentId,
-          userResponsedata.blank,
-          userResponsedata.correct,
-          courseId,
-          userResponsedata.inCorrect,
-          userResponsedata.passPercent,
-          Date.now(),
-          userResponsedata.total,
-          userResponsedata.result,
-          JSON.stringify(formatedRequest.questions),
-        ]
+            uuid(),
+            userId,
+            assessmentId,
+            userResponsedata.blank,
+            userResponsedata.correct,
+            courseId,
+            userResponsedata.inCorrect,
+            userResponsedata.passPercent,
+            Date.now(),
+            userResponsedata.total,
+            userResponsedata.result,
+            JSON.stringify(formatedRequest.questions),
+          ]
         logInfo('params', JSON.stringify(params))
         logInfo('formatted request data', formatedRequest.questions)
         client.execute(query, params, { prepare: true })
@@ -113,6 +113,7 @@ export async function assessmentCreator(
         },
       }
       logInfo('response.data.result', response.data.result)
+      response.data.passPercent = passPercentage
       if (response.data.result >= passPercentage) {
         response.data.passPercent = passPercentage
         logInfo('Came inside if condition')
