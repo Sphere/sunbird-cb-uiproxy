@@ -37,6 +37,9 @@ export async function assessmentCreator(
       assessmentReqData.artifactUrl
     )
     let passPercentage = 60
+    if (!assessmentReqData.passPercentage) {
+      passPercentage = 60
+    }
     if (assessmentReqData.passPercentage == 0) {
       passPercentage = 0
     } else if (assessmentReqData.passPercentage) {
