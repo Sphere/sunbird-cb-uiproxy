@@ -1189,6 +1189,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/recommendationEngineV2//publicSearch/courseRecommendationCbp': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/recommendationEngineV2/publicSearch/getcourse': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1528,6 +1533,7 @@ export const API_LIST = {
     '/protected/v8/connections/v2/update/connection',
     '/protected/v8/recommendationEngineV2',
     '/protected/v8/recommendationEngineV2/publicSearch/getcourse',
+    '/protected/v8/recommendationEngineV2/publicSearch/courseRecommendationCbp',
     '/protected/v8/userEnrolledInSource',
     '/protected/v8/content/parents/:do_id',
     '/protected/v8/content/:do_id/parent',

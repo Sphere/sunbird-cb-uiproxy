@@ -7,6 +7,7 @@ import { logInfo } from '../utils/logger'
 
 const API_END_POINTS = {
   // tslint:disable-next-line: no-any
+  cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
   recommendationAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
   searchAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/getcourse`,
@@ -169,6 +170,28 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
       },
       status: 200,
     })
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: unknownError,
+      }
+    )
+  }
+})
+recommendationEngineV2.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
+  try {
+    /* tslint:disable-next-line */
+    logInfo("Inside CBP course recommendation route")
+    logInfo('Request body', JSON.stringify(req.body))
+    const searchRequestBody = req.body
+    const response = await axios({
+      data: searchRequestBody,
+      headers,
+      method: 'POST',
+      url: API_END_POINTS.cbpCourseRecommendation,
+    })
+    res.status(response.status).send(response.data)
   } catch (err) {
     logInfo(JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
