@@ -827,6 +827,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/ratings/summary': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/ratings/upsert': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1418,6 +1423,7 @@ export const API_LIST = {
     '/protected/v8/user/rating/:contentId',
     '/protected/v8/ratings/v2/read',
     '/protected/v8/ratings/ratingLookUp',
+    '/protected/v8/ratings/summary',
     '/protected/v8/ratings/upsert',
     '/protected/v8/user/progress',
     '/protected/v8/user/history/continue',
