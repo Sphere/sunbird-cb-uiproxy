@@ -7,7 +7,7 @@ const API_END_POINTS = {
     ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
     ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
     summary: (courseId) =>
-        `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/course`,
+        `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
 
 }
 export const ratingServiceApi = Router()
@@ -77,7 +77,7 @@ ratingServiceApi.post('/ratingLookUp', async (req, res) => {
     }
 }
 )
-ratingServiceApi.post('/summary', async (req, res) => {
+ratingServiceApi.get('/summary', async (req, res) => {
     try {
         logInfo('Inside ratings summary API')
         const courseId = req.query.courseId
