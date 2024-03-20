@@ -193,6 +193,7 @@ ssoLogin.post('/login', async (req: any, res) => {
                     logInfo('Error throwing Cookie inside auth route : ' + e)
                     res.status(400).send({
                         error: AUTH_FAIL,
+                        msg: AUTH_FAIL,
                         status: 'failed',
                     })
                 }
