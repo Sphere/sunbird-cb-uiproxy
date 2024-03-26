@@ -270,7 +270,9 @@ mobileAppApi.get('/version', async (_req, res) => {
 mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    let responseObject = {
+    let appId = req.query.appId || ""
+    logInfo('Appid', appId)
+    const responseObject = {
       background: req.query.background || '',
       profession: req.query.profession || '',
     }
@@ -285,6 +287,11 @@ mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
       params: responseObject,
       url: API_END_POINTS.RECOMMENDATION_API,
     })
+    if (appId == 'app.aastrika.ekhamata') {
+      // tslint:disable-next-line: no-any
+      const filteredCourses = response.data.filter((course: any) => course.course_sourceName == 'IHAT')
+      return res.status(200).send(filteredCourses)
+    }
     res.status(response.status).send(response.data)
   } catch (err) {
     logInfo(JSON.stringify(err))
