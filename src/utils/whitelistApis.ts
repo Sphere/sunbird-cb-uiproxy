@@ -1143,12 +1143,12 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/AI/getQuestions':{
+    '/protected/v8/AI/getQuestions': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/AI/translate':{
+    '/protected/v8/AI/translate': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1576,6 +1576,6 @@ export const API_LIST = {
     '/proxies/v8/user/v1/admin/passbook',
     '/public/v8/publicTelemetry',
     '/public/v8/publicTelemetry/telemetry',
-    '/protected/v8/AI/translate'
+    '/protected/v8/AI/translate',
   ],
 }

@@ -4,6 +4,7 @@ import { admin } from './admin/admin'
 import { assessmentApi } from './assessment'
 import { assessmentCompetency } from './assessmentCompetency'
 
+import { aiServiceAPI } from './AI_Hub_Research/AIService'
 import { attendedContentApi } from './attendent-content'
 import { autoCompletev2 } from './autoCompletev2'
 import { autoEnrollmentApiv2 } from './autoEnrollmentv2'
@@ -46,7 +47,6 @@ import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
-import { aiServiceAPI } from './AI_Hub_Research/AIService'
 export const protectedApiV8 = express.Router()
 
 protectedApiV8.get('/', (_req, res) => {
@@ -103,4 +103,3 @@ protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
 protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
 protectedApiV8.use('/ratings', ratingServiceApi)
 protectedApiV8.use('/AI', aiServiceAPI)
-
