@@ -15,6 +15,7 @@ const API_END_POINTS = {
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
+  SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
 }
 
@@ -270,7 +271,13 @@ mobileAppApi.get('/version', async (_req, res) => {
 mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    let responseObject = {
+    let appId = req.query.appId || ""
+    if (appId == 'app.aastrika.ekhamata') {
+      const filteredCourses = await getCoursesForIhat()
+      return res.status(200).send(filteredCourses)
+    }
+    logInfo('Appid', appId)
+    const responseObject = {
       background: req.query.background || '',
       profession: req.query.profession || '',
     }
@@ -285,6 +292,7 @@ mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
       params: responseObject,
       url: API_END_POINTS.RECOMMENDATION_API,
     })
+
     res.status(response.status).send(response.data)
   } catch (err) {
     logInfo(JSON.stringify(err))
@@ -322,3 +330,52 @@ mobileAppApi.get('/certificateDownload', async (req, res) => {
     })
   }
 })
+const getCoursesForIhat = async () => {
+  const requestFilterForIhat = {
+    request: {
+      filters: {
+        contentType: [
+          'Course',
+        ],
+        primaryCategory: [
+          'Course',
+        ],
+        sourceName: 'IHAT',
+        status: [
+          'Live',
+        ],
+
+      },
+      limit: 15,
+
+      sort_by: {
+        lastUpdatedOn: 'desc',
+      },
+    },
+    sort: [
+      {
+        lastUpdatedOn: 'desc',
+      },
+    ],
+  }
+  const ihatCoursesList = await axios({
+    data: requestFilterForIhat,
+    headers: { Authorization: CONSTANTS.SB_API_KEY },
+    method: 'POST',
+    url: `${API_END_POINTS.SEARCH_COURSE_SB}`,
+  })
+  return ihatCoursesList.data.result.content.map((course) => {
+    return {
+      background: 'Healthcare Worker',
+      course_appIcon: course.appIcon,
+      course_creator: course.creator,
+      course_id: course.identifier,
+      course_issueCertification: course.issueCertification || false,
+      course_name: course.name,
+      course_sourceName: course.sourceName,
+      course_thumbnail: course.thumbnail,
+      profession: 'ANM',
+      user_count: 3,
+    }
+  })
+}

@@ -6,6 +6,8 @@ const API_END_POINTS = {
     ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
     ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
     ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
+    summary: (courseId) =>
+        `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
 
 }
 export const ratingServiceApi = Router()
@@ -72,6 +74,30 @@ ratingServiceApi.post('/ratingLookUp', async (req, res) => {
             message: 'Something went wrong while rating lookup',
         })
 
+    }
+}
+)
+ratingServiceApi.get('/summary', async (req, res) => {
+    try {
+        logInfo('Inside ratings summary API')
+        const courseId = req.query.courseId
+        if (!courseId) {
+            return res.status(400).json({
+                message: 'CourseId cannot be empty',
+                status: 'Failed',
+            })
+        }
+        const response = await axios({
+            headers,
+            method: 'GET',
+            url: API_END_POINTS.summary(courseId),
+        })
+        res.status(200).json(response.data)
+    } catch (error) {
+        logInfo(JSON.stringify(error))
+        res.status(400).json({
+            message: 'Something went wrong getting summary results',
+        })
     }
 }
 )
