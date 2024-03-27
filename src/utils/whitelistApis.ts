@@ -1133,6 +1133,21 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/AI/uploadFileAndGetUUID': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/AI/getQuestions':{
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/AI/translate':{
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/assessment/get': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1522,6 +1537,8 @@ export const API_LIST = {
     '/reset',
     '/protected/v8/assessment/get',
     '/protected/v8/assessment/submit/v2',
+    '/protected/v8/AI/uploadFileAndGetUUID',
+    '/protected/v8/AI/getQuestions',
     '/protected/v8/connections/v2/connections/recommended/userDepartment',
     '/protected/v8/connections/v2/connections/recommended',
     '/protected/v8/connections/v2/connections/requests/received',
@@ -1553,5 +1570,6 @@ export const API_LIST = {
     '/proxies/v8/user/v1/admin/passbook',
     '/public/v8/publicTelemetry',
     '/public/v8/publicTelemetry/telemetry',
+    '/protected/v8/AI/translate'
   ],
 }
