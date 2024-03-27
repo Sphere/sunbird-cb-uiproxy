@@ -8,8 +8,8 @@ import { logError, logInfo } from '../../utils/logger'
 
 const API_END_POINTS = {
     bhashiniIntefrancePipeline: `${CONSTANTS.DHURVA_BHASHINI_API_BASE}/services/inference/pipeline`,
-    getModelsPipeline: `${CONSTANTS.MEITY_AUTH_ULCACONTRIB}/ulca/apis/v0/model/getModelsPipeline`,
     generateUUID: `${CONSTANTS.JUGALBANDI_API_BASE}/upload-files`,
+    getModelsPipeline: `${CONSTANTS.MEITY_AUTH_ULCACONTRIB}/ulca/apis/v0/model/getModelsPipeline`,
     querywWithLangchainGpt: `${CONSTANTS.JUGALBANDI_API_BASE}/query-with-langchain-gpt3-5`,
 }
 export const aiServiceAPI = Router()
@@ -72,8 +72,8 @@ aiServiceAPI.post('/getQuestions', async (req, res) => {
                 const questions = answerObject.questions
                 res.status(200).json({
                     data: questions,
-                    status: 'success'
-                   
+                    status: 'success',
+
                 })
             }
         } catch (error) {
@@ -140,19 +140,6 @@ const extractDataFromResponse = (responseData) => {
 
 /*Function to build translate request data */
 const buildTranslateRequestData = (body, serviceId) => ({
-    pipelineTasks: [
-        {
-           
-            config: {
-                language: {
-                    sourceLanguage: body.sourceLanguage,
-                    targetLanguage: body.targetLanguage,
-                },
-                serviceId,
-            },
-            taskType: 'translation'
-        },
-    ],
     inputData: {
         input: [
             {
@@ -160,23 +147,37 @@ const buildTranslateRequestData = (body, serviceId) => ({
             },
         ],
     },
+    pipelineTasks: [
+        {
+
+            config: {
+                language: {
+                    sourceLanguage: body.sourceLanguage,
+                    targetLanguage: body.targetLanguage,
+                },
+                serviceId,
+            },
+            taskType: 'translation',
+        },
+    ]
+   
 })
 
 const pipeLineRequestData = (body, pipelineId) => ({
+    pipelineRequestConfig : {
+        pipelineId,
+    },
     pipelineTasks: [
         {
-            taskType: 'translation',
             config: {
                 language: {
                     sourceLanguage: body.sourceLanguage,
                     targetLanguage: body.targetLanguage,
                 },
             },
+            taskType: 'translation'
         },
-    ],
-    pipelineRequestConfig : {
-        pipelineId,
-    },
+    ]
 })
 /* Function to build translate request headers */
 const buildTranslateRequestHeaders = (authorizationToken) => ({
