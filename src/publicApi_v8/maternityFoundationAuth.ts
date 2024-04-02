@@ -137,11 +137,10 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
             profileDetails: {
               profileReq: {
                 id: responseCreateUser.data.result.userId,
-
                 personalDetails: {
                   dob: '01-01-2000',
-                  firstname: maternityFoundationData.firstname,
-                  surname: maternityFoundationData.lastname,
+                  firstname: maternityFoundationData.firstName,
+                  surname: maternityFoundationData.lastName,
                 },
                 userId: responseCreateUser.data.result.userId,
               },

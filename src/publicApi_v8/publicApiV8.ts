@@ -24,6 +24,7 @@ import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
 import { competencyAssets } from './competencyAssets'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { ssoLogin } from './ssoLogin'
+import { tnaiAuth } from './tnaiAuth'
 import { publicTnc } from './tnc'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
@@ -71,3 +72,4 @@ publicApiV8.use('/userReporting', userReporting)
 publicApiV8.use('/deactivateUser', deactivateUser)
 publicApiV8.use('/testUserOtp', userOtp)
 publicApiV8.use('/ssoLogin', ssoLogin)
+publicApiV8.use('/tnai', tnaiAuth)

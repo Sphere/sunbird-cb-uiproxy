@@ -159,8 +159,8 @@ const buildTranslateRequestData = (body, serviceId) => ({
             },
             taskType: 'translation',
         },
-    ]
-   
+    ],
+
 })
 
 const pipeLineRequestData = (body, pipelineId) => ({
@@ -175,9 +175,9 @@ const pipeLineRequestData = (body, pipelineId) => ({
                     targetLanguage: body.targetLanguage,
                 },
             },
-            taskType: 'translation'
+            taskType: 'translation',
         },
-    ]
+    ],
 })
 /* Function to build translate request headers */
 const buildTranslateRequestHeaders = (authorizationToken) => ({
