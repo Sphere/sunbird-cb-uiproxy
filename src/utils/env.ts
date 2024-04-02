@@ -82,9 +82,11 @@ export const CONSTANTS = {
   KNOWLEDGE_MW_API_BASE:
     env.KNOWLEDGE_MW_API_BASE || 'http://knowledge-mw-service:5000',
   KONG_API_BASE: env.KONG_API_BASE || 'https://sphere.aastrika.org/api',
+  MSG_91_AUTH_KEY_SSO: env.MSG_91_AUTH_KEY_SSO || '',
   MSG91BASE: env.MSG91BASE || 'http://localhost:3300',
   MSG91KEY: env.MSG91KEY || 'http://localhost:3301',
   MSG91TEMPLATEID: env.MSG91TEMPLATEID || 'http://localhost:3302',
+  MSG_91_TEMPLATE_ID_SEND_OTP_SSO: env.MSG_91_TEMPLATE_ID_SEND_OTP_SSO || '',
   POST_ASSESSMENT_BASE: env.POST_ASSESSMENT_BASE || 'http://localhost.com',
   POST_ASSESSMENT_CLIENT_ID: env.POST_ASSESSMENT_CLIENT_ID || '',
   POST_ASSESSMENT_CLIENT_SECRET: env.POST_ASSESSMENT_CLIENT_SECRET || '',
