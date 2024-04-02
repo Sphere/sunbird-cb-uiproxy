@@ -143,6 +143,9 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                 data: {
                     request: {
                         profileDetails: {
+                            "preferences": {
+                                "language": "hi"
+                            },
                             profileReq: {
                                 academics: [
                                     {
@@ -153,9 +156,7 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                                     },
                                 ],
                                 id: responseCreateUser.data.result.userId,
-
                                 personalDetails: {
-                                    dob: '01-01-2000',
                                     firstname: tnaiUserData.firstname,
                                     surname: tnaiUserData.lastname,
                                 },
