@@ -17,6 +17,11 @@ const API_END_POINTS = {
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
+  ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
+  ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
+  ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
+  summary: (courseId) =>
+    `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
 }
 
 const GET_ENTITY_BY_ID_FAIL =
@@ -24,12 +29,12 @@ const GET_ENTITY_BY_ID_FAIL =
 const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity"
 
 const authenticatedToken = 'x-authenticated-user-token'
-const contenyTypeHeader = { 'Content-Type': 'application/json' }
+const contentTypeHeader = { 'Content-Type': 'application/json' }
 // tslint:disable-next-line: no-any
 const getHeaders = (req: any) => {
   return {
     Authorization: CONSTANTS.SB_API_KEY,
-    contenyTypeHeader,
+    contentTypeHeader,
     'x-authenticated-user-token': req.headers[authenticatedToken],
   }
 }
@@ -163,7 +168,7 @@ mobileAppApi.post('/getEntityById/:id', async (req, res) => {
         data: req.body,
         headers: {
           authenticatedToken: req.headers[authenticatedToken],
-          contenyTypeHeader,
+          contentTypeHeader,
         },
         method: 'POST',
         url: `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
@@ -187,7 +192,7 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
         data: req.body,
         headers: {
           authenticatedToken: req.headers[authenticatedToken],
-          contenyTypeHeader,
+          contentTypeHeader,
         },
         method: 'POST',
         url: API_END_POINTS.GET_ALL_ENTITY,
@@ -330,6 +335,90 @@ mobileAppApi.get('/certificateDownload', async (req, res) => {
     })
   }
 })
+mobileAppApi.post('/ratings/upsert', async (req, res) => {
+  try {
+    logInfo('Inside ratings upsert API')
+    const upsertData = req.body
+    const response = await axios({
+      data: upsertData,
+      headers: contentTypeHeader,
+      method: 'post',
+      url: API_END_POINTS.ratingUpsert,
+    })
+    res.status(200).json(response.data)
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    res.status(400).json({
+      message: 'Something went wrong while ratings upsert',
+    })
+
+  }
+}
+)
+mobileAppApi.post('/ratings/v2/read', async (req, res) => {
+  try {
+    logInfo('Inside ratings read API')
+    const readRatingsData = req.body
+    const response = await axios({
+      data: readRatingsData,
+      headers: contentTypeHeader,
+      method: 'post',
+      url: API_END_POINTS.ratingRead,
+    })
+    res.status(200).json(response.data)
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    res.status(400).json({
+      message: 'Something went wrong while reading ratings',
+    })
+
+  }
+}
+)
+mobileAppApi.post('/ratings/ratingLookUp', async (req, res) => {
+  try {
+    logInfo('Inside ratings lookup API')
+    const upsertData = req.body
+    const response = await axios({
+      data: upsertData,
+      headers: contentTypeHeader,
+      method: 'post',
+      url: API_END_POINTS.ratingLookUp,
+    })
+    res.status(200).json(response.data)
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    res.status(400).json({
+      message: 'Something went wrong while rating lookup',
+    })
+
+  }
+}
+)
+mobileAppApi.get('/ratings/summary', async (req, res) => {
+  try {
+    logInfo('Inside ratings summary API')
+    const courseId = req.query.courseId
+    if (!courseId) {
+      return res.status(400).json({
+        message: 'CourseId cannot be empty',
+        status: 'Failed',
+      })
+    }
+    const response = await axios({
+      headers: contentTypeHeader,
+      method: 'GET',
+      url: API_END_POINTS.summary(courseId),
+    })
+    res.status(200).json(response.data)
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    res.status(400).json({
+      message: 'Something went wrong getting summary results',
+    })
+  }
+}
+)
 const getCoursesForIhat = async () => {
   const requestFilterForIhat = {
     request: {
