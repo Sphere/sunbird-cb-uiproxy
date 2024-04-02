@@ -143,8 +143,8 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                 data: {
                     request: {
                         profileDetails: {
-                            "preferences": {
-                                "language": "hi"
+                            preferences: {
+                                language: 'en',
                             },
                             profileReq: {
                                 academics: [
