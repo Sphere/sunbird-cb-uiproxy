@@ -28,8 +28,11 @@ export const ssoLogin = Router()
 ssoLogin.post('/otp/sendOtp', async (req, res) => {
     try {
         logInfo('Entered into SSO Login with SSO >>>>>')
-        let { userEmail = '', userPhone = '' } = req.body
+        const userPhone = req.body.userPhone || ''
+        let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowercase()
+        logInfo('user email after sendotp', userEmail)
+
         if (!userEmail && !userPhone) {
             res.status(400).json({
                 msg: "Email id and phone both can't be empty",
@@ -72,8 +75,10 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
 
 ssoLogin.post('/otp/resendOtp', async (req, res) => {
     try {
-        let { userEmail, userPhone } = req.body
+        const userPhone = req.body.userPhone || ''
+        let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowercase()
+        logInfo('user email after resendotp', userEmail)
         if (!userPhone && !userEmail) {
             return res.status(400).json({
                 message: 'Mandatory parameters email/phone missing',
@@ -106,8 +111,10 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
 ssoLogin.post('/login', async (req: any, res) => {
     try {
         logInfo('Entered into /login ', req.body)
-        let { userEmail = '', userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
+        const { userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
+        let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowercase()
+        logInfo('userEmail in login', userEmail)
         if ((!userPhone && !userEmail) || !typeOfLogin) {
             return res.status(400).send({ message: 'Mandatory parameters typeOfLogin and email/phone', status: 'error' })
 
