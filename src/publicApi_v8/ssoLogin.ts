@@ -14,24 +14,16 @@ import { getCurrentUserRoles } from './rolePermission'
 const API_END_POINTS = {
     generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
     grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
     searchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
     verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-
 }
-const indianCountryCode = '+91'
+
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const AUTH_FAIL =
     'Authentication failed ! Please check credentials and try again.'
-const AUTHENTICATED = 'Success ! User is successfully authenticated.'
+const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 const USER_NOT_EXISTS = "User doesn't exists please signup and try again"
-const msg91Headers = {
-    accept: 'application/json',
-    authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-    'content-type': 'application/json',
-}
+
 export const ssoLogin = Router()
 ssoLogin.post('/otp/sendOtp', async (req, res) => {
     try {
@@ -51,50 +43,23 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
             })
         }
         const userId = userDetails.data.result.response.content[0].id
-        // User OTP send through MSG91 for phone
-        if (userPhone) {
-            try {
-                await axios({
-                    headers: msg91Headers,
-                    params: {
-                        mobile: `${indianCountryCode}${userPhone}`,
-                        template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
-                    },
-
-                    method: 'POST',
-                    url: API_END_POINTS.msg91SendOtp,
-                })
-                return res.status(200).json({
-                    message: `OTP successfully sent on phone ${userPhone}`,
-                    userId,
-                })
-            } catch (error) {
-                return res.status(500).send({
-                    message: `OTP generation fail for phone ${userPhone}`,
-                    status: 'failed',
-                })
-            }
-
+        try {
+            await getOTP(
+                userId,
+                userEmail ? userEmail : userPhone,
+                userEmail ? 'email' : 'phone'
+            )
+            res.status(200).json({
+                message: 'User otp successfully sent',
+                userId,
+            })
+        } catch (error) {
+            res.status(500).send({
+                message: 'OTP generation fail',
+                status: 'failed',
+            })
         }
-        // User otp send through learner service for email users
-        if (userEmail) {
-            try {
-                await getOTP(
-                    userId,
-                    userEmail,
-                    'email'
-                )
-                res.status(200).json({
-                    message: `OTP successfully sent on email ${userEmail}`,
-                    userId,
-                })
-            } catch (error) {
-                res.status(500).send({
-                    message: `OTP generation fail for email ${userEmail}`,
-                    status: 'failed',
-                })
-            }
-        }
+
     } catch (error) {
         logInfo('Error in sending user OTP' + error)
         res.status(500).send({
@@ -103,6 +68,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         })
     }
 })
+
 ssoLogin.post('/otp/resendOtp', async (req, res) => {
     try {
         const { userEmail, userPhone } = req.body
@@ -119,50 +85,15 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
             })
         }
         const userId = userDetails.data.result.response.content[0].id
-        // User OTP send through MSG91 for phone
-        if (userPhone) {
-            try {
-                await axios({
-                    headers: msg91Headers,
-                    params: {
-                        mobile: `${indianCountryCode}${userPhone}`,
-                        retrytype: 'text',
-                    },
-
-                    method: 'POST',
-                    url: API_END_POINTS.msg91ResendOtp,
-                })
-                return res.status(200).json({
-                    message: `OTP successfully re-sent on phone ${userPhone}`,
-                    userId,
-                })
-            } catch (error) {
-                return res.status(500).send({
-                    message: `OTP generation fail for phone ${userPhone}`,
-                    status: 'failed',
-                })
-            }
-
-        }
-        // User otp send through learner service for email users
-        if (userEmail) {
-            try {
-                await getOTP(
-                    userId,
-                    userEmail,
-                    'email'
-                )
-                res.status(200).json({
-                    message: `OTP successfully re-sent on email ${userEmail}`,
-                    userId,
-                })
-            } catch (error) {
-                res.status(500).send({
-                    message: `OTP generation fail for email ${userEmail}`,
-                    status: 'failed',
-                })
-            }
-        }
+        await getOTP(
+            userId,
+            userEmail ? userEmail : userPhone,
+            userEmail ? 'email' : 'phone'
+        )
+        res.status(200).json({
+            message: 'User otp successfully resent',
+            userId,
+        })
     } catch (error) {
         res.status(500).send({
             message: 'OTP regeneration failed',
@@ -186,33 +117,16 @@ ssoLogin.post('/login', async (req: any, res) => {
             })
         }
         const userId = userDetails.data.result.response.content[0].id
-        if (typeOfLogin == 'otp' && userEmail) {
+        if (typeOfLogin == 'otp') {
             const verifyOtpResponse = await validateOTP(
                 userId,
-                userEmail,
-                'email',
+                userEmail ? userEmail : userPhone,
+                userEmail ? 'email' : 'phone',
                 otp
             )
             if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
                 return res.status(400).json({
-                    message: 'Email OTP validation failed try again',
-                })
-            }
-        }
-        if (typeOfLogin == 'otp' && userPhone) {
-            const verifyOtpResponse = await axios({
-                headers: msg91Headers,
-                method: 'GET',
-                params: {
-                    mobile: `${indianCountryCode}${userPhone}`,
-                    otp,
-                },
-
-                url: API_END_POINTS.msg91VerifyOtp,
-            })
-            if (verifyOtpResponse.data.type !== 'success') {
-                return res.status(400).json({
-                    message: 'Phone OTP validation failed try again',
+                    message: 'OTP validation failed try again',
                 })
             }
         }
