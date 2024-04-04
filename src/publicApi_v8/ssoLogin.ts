@@ -30,7 +30,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         logInfo('Entered into SSO Login with SSO >>>>>')
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
-        userEmail = userEmail.toLowercase()
+        userEmail = userEmail.toLowerCase()
         logInfo('user email after sendotp', userEmail)
 
         if (!userEmail && !userPhone) {
@@ -77,7 +77,7 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
     try {
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
-        userEmail = userEmail.toLowercase()
+        userEmail = userEmail.toLowerCase()
         logInfo('user email after resendotp', userEmail)
         if (!userPhone && !userEmail) {
             return res.status(400).json({
@@ -113,7 +113,7 @@ ssoLogin.post('/login', async (req: any, res) => {
         logInfo('Entered into /login ', req.body)
         const { userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
         let userEmail = req.body.userEmail || ''
-        userEmail = userEmail.toLowercase()
+        userEmail = userEmail.toLowerCase()
         logInfo('userEmail in login', userEmail)
         if ((!userPhone && !userEmail) || !typeOfLogin) {
             return res.status(400).send({ message: 'Mandatory parameters typeOfLogin and email/phone', status: 'error' })
