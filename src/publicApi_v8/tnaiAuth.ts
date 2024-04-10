@@ -52,7 +52,7 @@ export const tnaiAuth = express.Router()
 // Endpoint to create TNAI foundation SSO
 // tslint:disable-next-line: no-any
 tnaiAuth.post('/login', async (req: any, res: Response) => {
-    let resRedirectUrl = `${CONSTANTS.HTTPS_HOST}`
+    let resRedirectUrl = `${CONSTANTS.HTTPS_HOST}/app/org-details?orgId=TRAINED NURSES' ASSOCIATION OF INDIA (TNAI)`
     logInfo('Entered into tnai route')
     try {
         const tnaiAccessToken = decodeURIComponent(req.body.token)
