@@ -188,7 +188,7 @@ ssoLogin.post('/login', async (req: any, res) => {
         logInfo('SSO login endpoint request body', JSON.stringify(req.body))
         const { userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
         let userEmail = req.body.userEmail || ''
-        userEmail = userEmail.toLowercase()
+        userEmail = userEmail.toLowerCase()
         if ((!userPhone && !userEmail) || !typeOfLogin) {
             return res.status(400).send({ message: 'Mandatory parameters typeOfLogin and email/phone', status: 'error' })
 
