@@ -39,7 +39,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowerCase()
-        logInfo("User request body send otp", JSON.stringify(req.body))
+        logInfo("User request body send otp", req.body)
         if (!userEmail && !userPhone) {
             res.status(400).json({
                 msg: "Email id and phone both can't be empty",
@@ -53,7 +53,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
                 status: 'error',
             })
         }
-        logInfo("SSO Login user details from search", JSON.stringify(userDetails.data))
+        logInfo("SSO Login user details from search", userDetails.data)
         const userId = userDetails.data.result.response.content[0].id
         // User OTP send through MSG91 for phone
         if (userPhone) {
@@ -116,7 +116,7 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowerCase()
-        logInfo("SSO login resend OTP route request body", JSON.stringify(req.body))
+        logInfo("SSO login resend OTP route request body", req.body)
         if (!userPhone && !userEmail) {
             return res.status(400).json({
                 message: 'Mandatory parameters email/phone missing',
