@@ -7,23 +7,31 @@ import {
     axiosRequestConfig,
 } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
-import { logInfo } from '../utils/logger'
+import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
 
 const API_END_POINTS = {
     generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
     grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
+    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
+    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
+    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
     searchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
     verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-}
 
+}
+const indianCountryCode = '+91'
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const AUTH_FAIL =
     'Authentication failed ! Please check credentials and try again.'
-const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
+const AUTHENTICATED = 'Success ! User is successfully authenticated.'
 const USER_NOT_EXISTS = "User doesn't exists please signup and try again"
-
+const msg91Headers = {
+    accept: 'application/json',
+    authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+    'content-type': 'application/json',
+}
 export const ssoLogin = Router()
 ssoLogin.post('/otp/sendOtp', async (req, res) => {
     try {
@@ -31,8 +39,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowerCase()
-        logInfo('user email after sendotp', userEmail)
-
+        logInfo("User request body send otp", JSON.stringify(req.body))
         if (!userEmail && !userPhone) {
             res.status(400).json({
                 msg: "Email id and phone both can't be empty",
@@ -46,24 +53,56 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
                 status: 'error',
             })
         }
+        logInfo("SSO Login user details from search", JSON.stringify(userDetails.data))
         const userId = userDetails.data.result.response.content[0].id
-        try {
-            await getOTP(
-                userId,
-                userEmail ? userEmail : userPhone,
-                userEmail ? 'email' : 'phone'
-            )
-            res.status(200).json({
-                message: 'User otp successfully sent',
-                userId,
-            })
-        } catch (error) {
-            res.status(500).send({
-                message: 'OTP generation fail',
-                status: 'failed',
-            })
-        }
+        // User OTP send through MSG91 for phone
+        if (userPhone) {
+            try {
+                logInfo("SSO Login send otp through phone", userPhone)
+                await axios({
+                    headers: msg91Headers,
+                    params: {
+                        mobile: `${indianCountryCode}${userPhone}`,
+                        template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
+                    },
 
+                    method: 'POST',
+                    url: API_END_POINTS.msg91SendOtp,
+                })
+                return res.status(200).json({
+                    message: `OTP successfully sent on phone ${userPhone}`,
+                    userId,
+                })
+            } catch (error) {
+                logError("Error while sending mobile OTP", JSON.stringify(error))
+                return res.status(500).send({
+                    message: `OTP generation fail for phone ${userPhone}`,
+                    status: 'failed',
+                })
+            }
+
+        }
+        // User otp send through learner service for email users
+        if (userEmail) {
+            try {
+                logInfo("SSO Login send otp through email", userEmail)
+                await getOTP(
+                    userId,
+                    userEmail,
+                    'email'
+                )
+                res.status(200).json({
+                    message: `OTP successfully sent on email ${userEmail}`,
+                    userId,
+                })
+            } catch (error) {
+                logError("Error while sending email OTP", JSON.stringify(error))
+                res.status(500).send({
+                    message: `OTP generation fail for email ${userEmail}`,
+                    status: 'failed',
+                })
+            }
+        }
     } catch (error) {
         logInfo('Error in sending user OTP' + error)
         res.status(500).send({
@@ -72,13 +111,12 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         })
     }
 })
-
 ssoLogin.post('/otp/resendOtp', async (req, res) => {
     try {
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowerCase()
-        logInfo('user email after resendotp', userEmail)
+        logInfo("SSO login resend OTP route request body", JSON.stringify(req.body))
         if (!userPhone && !userEmail) {
             return res.status(400).json({
                 message: 'Mandatory parameters email/phone missing',
@@ -92,15 +130,52 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
             })
         }
         const userId = userDetails.data.result.response.content[0].id
-        await getOTP(
-            userId,
-            userEmail ? userEmail : userPhone,
-            userEmail ? 'email' : 'phone'
-        )
-        res.status(200).json({
-            message: 'User otp successfully resent',
-            userId,
-        })
+        // User OTP send through MSG91 for phone
+        if (userPhone) {
+            try {
+                logInfo("SSO Resend OTP through phone", userPhone)
+                await axios({
+                    headers: msg91Headers,
+                    params: {
+                        mobile: `${indianCountryCode}${userPhone}`,
+                        retrytype: 'text',
+                    },
+
+                    method: 'POST',
+                    url: API_END_POINTS.msg91ResendOtp,
+                })
+                return res.status(200).json({
+                    message: `OTP successfully re-sent on phone ${userPhone}`,
+                    userId,
+                })
+            } catch (error) {
+                return res.status(500).send({
+                    message: `OTP generation fail for phone ${userPhone}`,
+                    status: 'failed',
+                })
+            }
+
+        }
+        // User otp send through learner service for email users
+        if (userEmail) {
+            try {
+                logInfo("SSO Resend OTP through email", userEmail)
+                await getOTP(
+                    userId,
+                    userEmail,
+                    'email'
+                )
+                res.status(200).json({
+                    message: `OTP successfully re-sent on email ${userEmail}`,
+                    userId,
+                })
+            } catch (error) {
+                res.status(500).send({
+                    message: `OTP generation fail for email ${userEmail}`,
+                    status: 'failed',
+                })
+            }
+        }
     } catch (error) {
         res.status(500).send({
             message: 'OTP regeneration failed',
@@ -110,11 +185,10 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
 // tslint:disable-next-line: no-any
 ssoLogin.post('/login', async (req: any, res) => {
     try {
-        logInfo('Entered into /login ', req.body)
+        logInfo('SSO login endpoint request body', JSON.stringify(req.body))
         const { userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
         let userEmail = req.body.userEmail || ''
-        userEmail = userEmail.toLowerCase()
-        logInfo('userEmail in login', userEmail)
+        userEmail = userEmail.toLowercase()
         if ((!userPhone && !userEmail) || !typeOfLogin) {
             return res.status(400).send({ message: 'Mandatory parameters typeOfLogin and email/phone', status: 'error' })
 
@@ -126,17 +200,39 @@ ssoLogin.post('/login', async (req: any, res) => {
                 status: 'error',
             })
         }
+        logInfo("User details from search SSO login", JSON.stringify(userDetails.data))
         const userId = userDetails.data.result.response.content[0].id
-        if (typeOfLogin == 'otp') {
+        logInfo("SSO login userid", userId)
+        if (typeOfLogin == 'otp' && userEmail) {
+            logInfo("Validate otp for email")
             const verifyOtpResponse = await validateOTP(
                 userId,
-                userEmail ? userEmail : userPhone,
-                userEmail ? 'email' : 'phone',
+                userEmail,
+                'email',
                 otp
             )
             if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
                 return res.status(400).json({
-                    message: 'OTP validation failed try again',
+                    message: 'Email OTP validation failed try again',
+                })
+            }
+        }
+        if (typeOfLogin == 'otp' && userPhone) {
+            logInfo("Validate otp for phone")
+
+            const verifyOtpResponse = await axios({
+                headers: msg91Headers,
+                method: 'GET',
+                params: {
+                    mobile: `${indianCountryCode}${userPhone}`,
+                    otp,
+                },
+
+                url: API_END_POINTS.msg91VerifyOtp,
+            })
+            if (verifyOtpResponse.data.type !== 'success') {
+                return res.status(400).json({
+                    message: 'Phone OTP validation failed try again',
                 })
             }
         }
