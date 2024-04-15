@@ -234,7 +234,7 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
         }
     } catch (err) {
         logError('Failed to process callback API.. error: ' + JSON.stringify(err))
-        resRedirectUrl = `https://${CONSTANTS.HTTPS_HOST}/public/home`
+        resRedirectUrl = `${CONSTANTS.HTTPS_HOST}/public/home`
     }
     logInfo(resRedirectUrl, 'redirectUrl')
     res.status(200).json({
