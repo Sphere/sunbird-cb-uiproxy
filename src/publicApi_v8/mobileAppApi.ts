@@ -220,7 +220,7 @@ mobileAppApi.post('/cmi/lmsListner', async (req, res) => {
     const accesTokenResult = verifyToken(req, res)
     const userId = accesTokenResult.userId
     req.body.request.userId = userId
-    logInfo('Check req body of update progress v2 for mobile after fix >> ' + req.body)
+    logInfo('Check req body of for mobile after fix >> ' + req.body)
     if (requestValidator(['userId', 'contents'], req.body.request, res)) return
     if (accesTokenResult.status == 200) {
       await axios({
@@ -244,7 +244,7 @@ mobileAppApi.post('/cmi/lmsListner', async (req, res) => {
         method: 'POST',
         url: API_END_POINTS.READ_PROGRESS,
       })
-      logInfo('Check req body of update progress v2 >> ' + req.body)
+      logInfo('Check req body of update  v2 >> ' + req.body)
       res.status(200).json(responseProgressRead.data)
     }
   } catch (error) {

@@ -39,7 +39,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowerCase()
-        logInfo("User request body send otp", JSON.stringify(req.body))
+        logInfo('User request body send otp', JSON.stringify(req.body))
         if (!userEmail && !userPhone) {
             res.status(400).json({
                 msg: "Email id and phone both can't be empty",
@@ -53,12 +53,12 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
                 status: 'error',
             })
         }
-        logInfo("SSO Login user details from search", userDetails.data.result.response.content[0])
+        logInfo('SSO Login user details from search', userDetails.data.result.response.content[0])
         const userId = userDetails.data.result.response.content[0].id
         // User OTP send through MSG91 for phone
         if (userPhone) {
             try {
-                logInfo("SSO Login send otp through phone", userPhone)
+                logInfo('SSO Login send otp through phone', userPhone)
                 await axios({
                     headers: msg91Headers,
                     params: {
@@ -74,7 +74,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
                     userId,
                 })
             } catch (error) {
-                logError("Error while sending mobile OTP", JSON.stringify(error))
+                logError('Error while sending mobile OTP', JSON.stringify(error))
                 return res.status(500).send({
                     message: `OTP generation fail for phone ${userPhone}`,
                     status: 'failed',
@@ -85,7 +85,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         // User otp send through learner service for email users
         if (userEmail) {
             try {
-                logInfo("SSO Login send otp through email", userEmail)
+                logInfo('SSO Login send otp through email', userEmail)
                 await getOTP(
                     userId,
                     userEmail,
@@ -96,7 +96,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
                     userId,
                 })
             } catch (error) {
-                logError("Error while sending email OTP", JSON.stringify(error))
+                logError('Error while sending email OTP', JSON.stringify(error))
                 res.status(500).send({
                     message: `OTP generation fail for email ${userEmail}`,
                     status: 'failed',
@@ -116,7 +116,7 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
         const userPhone = req.body.userPhone || ''
         let userEmail = req.body.userEmail || ''
         userEmail = userEmail.toLowerCase()
-        logInfo("SSO login resend OTP route request body", req.body)
+        logInfo('SSO login resend OTP route request body', req.body)
         if (!userPhone && !userEmail) {
             return res.status(400).json({
                 message: 'Mandatory parameters email/phone missing',
@@ -133,7 +133,7 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
         // User OTP send through MSG91 for phone
         if (userPhone) {
             try {
-                logInfo("SSO Resend OTP through phone", userPhone)
+                logInfo('SSO Resend OTP through phone', userPhone)
                 await axios({
                     headers: msg91Headers,
                     params: {
@@ -159,7 +159,7 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
         // User otp send through learner service for email users
         if (userEmail) {
             try {
-                logInfo("SSO Resend OTP through email", userEmail)
+                logInfo('SSO Resend OTP through email', userEmail)
                 await getOTP(
                     userId,
                     userEmail,
@@ -200,11 +200,11 @@ ssoLogin.post('/login', async (req: any, res) => {
                 status: 'error',
             })
         }
-        logInfo("User details from search SSO login", JSON.stringify(userDetails.data))
+        logInfo('User details from search SSO login', JSON.stringify(userDetails.data))
         const userId = userDetails.data.result.response.content[0].id
-        logInfo("SSO login userid", userId)
+        logInfo('SSO login userid', userId)
         if (typeOfLogin == 'otp' && userEmail) {
-            logInfo("Validate otp for email")
+            logInfo('Validate otp for email')
             const verifyOtpResponse = await validateOTP(
                 userId,
                 userEmail,
@@ -218,7 +218,7 @@ ssoLogin.post('/login', async (req: any, res) => {
             }
         }
         if (typeOfLogin == 'otp' && userPhone) {
-            logInfo("Validate otp for phone")
+            logInfo('Validate otp for phone')
 
             const verifyOtpResponse = await axios({
                 headers: msg91Headers,
