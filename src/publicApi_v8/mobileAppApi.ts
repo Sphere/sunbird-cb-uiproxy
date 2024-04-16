@@ -255,27 +255,6 @@ mobileAppApi.post('/cmi/lmsListner', async (req, res) => {
     })
   }
 })
-mobileAppApi.post('/cmi/tokenGen', async (req, res) => {
-  try {
-    logInfo('Check req body of accesTokenResult for mobile >> ' + req.body)
-    logInfo('Check req body of accesTokenResult  fix >> ' + JSON.stringify(req.body))
-    const accesTokenResult = verifyToken(req, res)
-    const userId = accesTokenResult.userId
-    req.body.request.userId = userId
-    logInfo('Check req body of update progress v2 for mobile after fix >> ' + req.body)
-    if (requestValidator(['userId', 'contents'], req.body.request, res)) return
-    if (accesTokenResult.status == 200) {
-
-      res.status(200).json(accesTokenResult.userId)
-    }
-  } catch (error) {
-    logError('Error in accesTokenResult  >>>>>>' + error)
-    res.status(500).send({
-      message: 'Something went wrong during  accesTokenResult',
-      status: 'failed',
-    })
-  }
-})
 mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
