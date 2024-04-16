@@ -213,48 +213,7 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
-mobileAppApi.post('/cmi/lmsListner', async (req, res) => {
-  try {
-    logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
-    logInfo('Check req body of update progress v2 for mobile before fix >> ' + JSON.stringify(req.body))
-    const accesTokenResult = verifyToken(req, res)
-    const userId = accesTokenResult.userId
-    req.body.request.userId = userId
-    logInfo('Check req body of for mobile after fix >> ' + req.body)
-    if (requestValidator(['userId', 'contents'], req.body.request, res)) return
-    if (accesTokenResult.status == 200) {
-      await axios({
-        data: req.body,
-        headers: getHeaders(req),
-        method: 'PATCH',
-        url: API_END_POINTS.UPDATE_PROGRESS,
-      })
-      const stateReadBody = {
-        request: {
-          batchId: req.body.request.contents[0].batchId,
-          contentIds: [],
-          courseId: req.body.request.contents[0].courseId,
-          fields: ['progressdetails'],
-          userId: req.body.request.userId,
-        },
-      }
-      const responseProgressRead = await axios({
-        data: stateReadBody,
-        headers: getHeaders(req),
-        method: 'POST',
-        url: API_END_POINTS.READ_PROGRESS,
-      })
-      logInfo('Check req body of update  v2 >> ' + req.body)
-      res.status(200).json(responseProgressRead.data)
-    }
-  } catch (error) {
-    logError('Error in update progress v2  >>>>>>' + error)
-    res.status(500).send({
-      message: 'Something went wrong during progress update',
-      status: 'failed',
-    })
-  }
-})
+
 mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
