@@ -258,7 +258,7 @@ mobileAppApi.post('/cmi/lmsListner', async (req, res) => {
 mobileAppApi.post('/cmi/tokenGen', async (req, res) => {
   try {
     logInfo('Check req body of accesTokenResult for mobile >> ' + req.body)
-    logInfo('Check req body of accesTokenResult for mobile before fix >> ' + JSON.stringify(req.body))
+    logInfo('Check req body of accesTokenResult  fix >> ' + JSON.stringify(req.body))
     const accesTokenResult = verifyToken(req, res)
     const userId = accesTokenResult.userId
     req.body.request.userId = userId
