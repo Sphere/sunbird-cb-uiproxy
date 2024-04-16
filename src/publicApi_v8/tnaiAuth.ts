@@ -52,7 +52,7 @@ export const tnaiAuth = express.Router()
 // Endpoint to create TNAI foundation SSO
 // tslint:disable-next-line: no-any
 tnaiAuth.post('/login', async (req: any, res: Response) => {
-    let resRedirectUrl = `${CONSTANTS.HTTPS_HOST}`
+    let resRedirectUrl = `${CONSTANTS.HTTPS_HOST}/app/org-details?orgId=TRAINED NURSES' ASSOCIATION OF INDIA (TNAI)`
     logInfo('Entered into tnai route')
     try {
         const tnaiAccessToken = decodeURIComponent(req.body.token)
@@ -234,7 +234,7 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
         }
     } catch (err) {
         logError('Failed to process callback API.. error: ' + JSON.stringify(err))
-        resRedirectUrl = `https://${CONSTANTS.HTTPS_HOST}/public/home`
+        resRedirectUrl = `${CONSTANTS.HTTPS_HOST}/public/home`
     }
     logInfo(resRedirectUrl, 'redirectUrl')
     res.status(200).json({

@@ -10,6 +10,7 @@ import { requestValidator } from '../utils/requestValidator'
 import { getCurrentUserRoles } from './rolePermission'
 
 const API_END_POINTS = {
+
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
@@ -17,6 +18,7 @@ const API_END_POINTS = {
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
+  cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
   ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
   ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
   ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
@@ -482,6 +484,30 @@ mobileAppApi.get('/ratings/summary', async (req, res) => {
   }
 }
 )
+
+mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
+  try {
+    /* tslint:disable-next-line */
+    logInfo("Inside CBP course recommendation route")
+    logInfo('Request body', JSON.stringify(req.body))
+    const searchRequestBody = req.body
+    const response = await axios({
+      data: searchRequestBody,
+      headers: contentTypeHeader,
+      method: 'POST',
+      url: API_END_POINTS.cbpCourseRecommendation,
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong fetching results',
+      }
+    )
+  }
+})
+
 const getCoursesForIhat = async () => {
   const requestFilterForIhat = {
     request: {
