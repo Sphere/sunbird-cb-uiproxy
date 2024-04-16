@@ -213,6 +213,7 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
+
 mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)

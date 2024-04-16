@@ -35,7 +35,7 @@ aiServiceAPI.post('/uploadFileAndGetUUID', async (req, res) => {
                 },
             })
             if (response) {
-                logInfo('Entered into generateUUIDResponsev2 :' + JSON.stringify(response))
+                logInfo('Entered into generateUUIDResponsev2 :' + JSON.stringify(response.data))
                 res.status(200).json({
                     data: response.data.uuid_number,
                     msg: 'Files uploading is successful',
@@ -67,7 +67,8 @@ aiServiceAPI.post('/getQuestions', async (req, res) => {
                 },
             })
             if (response && response.data) {
-                logInfo('Entered into getQuestions :' + response)
+                logInfo('Entered into getQuestions :' + response.data)
+                logInfo('Entered into getQuestions :' + response.data.answer)
                 const answerObject = JSON.parse(response.data.answer)
                 const questions = answerObject.questions
                 res.status(200).json({
