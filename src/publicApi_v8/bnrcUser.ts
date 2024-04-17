@@ -13,7 +13,6 @@ interface UserDetails {
     bnrcRegistrationNumber: string
     courseSelection?: string
     district: string
-    division: string
     email: string
     firstName: string
     facultyType?: string
@@ -26,7 +25,8 @@ interface UserDetails {
     privateFacilityType?: string
     publicFacilityType?: string
     roleForInService?: 'Public Health Facility' | 'Private Health Facility'
-    role: 'Student' | 'Faculty' | 'In Service'
+    role: 'Student' | 'Faculty' | 'In Service',
+    serviceType?: string
 }
 const shortHands = {
     privateHealthFacility: 'Private Health Facility',
@@ -60,26 +60,13 @@ const serviceSchemaJoi = Joi.object({
         }),
 
     email: Joi.string()
-        .email()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Email is required',
-            'string.email': 'Email must be a valid email address',
-        }),
+        .email(),
 
     district: Joi.string()
         .required()
         .messages({
             // tslint:disable-next-line: all
             'any.required': 'District is required',
-        }),
-
-    division: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Division is required',
         }),
 
     hrmsId: Joi.string()
@@ -190,7 +177,7 @@ const serviceSchemaJoi = Joi.object({
             otherwise: Joi.string().allow('').optional(),
             then: Joi.string().required(),
         }),
-
+    serviceType: Joi.string(),
 })
 const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
@@ -205,6 +192,7 @@ const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshama
 // tslint:disable-next-line: all
 const userSuccessRegistrationMessage = 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.'
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
+logInfo("Mongodb connection URL", mongodbConnectionUri)
 const databaseName = 'bnrc'
 let client: MongoClient | null = null
 let db: Db | null = null
@@ -459,7 +447,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 bnrcRegistrationNumber: '',
                                 completePostalAddress: '',
                                 designation: 'ANM-Bihar',
-                                division: '',
                                 doj: '',
                                 facilityName: '',
                                 facultyType: '',
@@ -475,6 +462,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 publicFacilityType: '',
                                 qualification: '',
                                 roleForInService: '',
+                                serviceType: '',
                             },
                         ],
                         userId,
@@ -518,7 +506,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
                                     designation: 'ANM-Student-Bihar',
-                                    division: user.division,
                                     doj: '',
                                     facilityName: '',
                                     facultyType: '',
@@ -535,6 +522,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     publicFacilityType: '',
                                     qualification: user.courseSelection,
                                     roleForInService: '',
+                                    serviceType: user.serviceType || '',
                                 },
                             ],
                             userId,
@@ -577,7 +565,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-Bihar',
-                                    division: user.division,
+
                                     doj: '',
                                     facilityName: '',
                                     facultyType: user.facultyType,
@@ -593,6 +581,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     publicFacilityType: '',
                                     qualification: user.courseSelection,
                                     roleForInService: '',
+                                    serviceType: user.serviceType || '',
                                 },
                             ],
                             userId: `${userId}`,
@@ -635,7 +624,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
                                     designation: 'ANM-Bihar',
-                                    division: user.division,
                                     doj: '',
                                     facilityName: user.facilityName || '',
                                     facultyType: '',
@@ -651,6 +639,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     publicFacilityType: user.publicFacilityType || '',
                                     qualification: '',
                                     roleForInService: user.roleForInService || '',
+                                    serviceType: user.serviceType || '',
                                 },
                             ],
                             userId,
@@ -679,7 +668,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber,
         courseSelection: userDetails.courseSelection,
         district: userDetails.district,
-        division: userDetails.division,
         email: userDetails.email,
         facilityName: userDetails.facilityName,
         facultyType: userDetails.facultyType,
@@ -693,6 +681,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         publicFacilityType: userDetails.publicFacilityType,
         role: userDetails.role,
         roleForInService: userDetails.roleForInService,
+        serviceType: userDetails.serviceType,
     }
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
     try {
