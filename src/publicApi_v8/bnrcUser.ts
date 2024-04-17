@@ -284,7 +284,10 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.registrationSuccessMessage = 'success'
         }
         // Step 5 Insert User Status in Database
-        await updateUserStatusInDatabase(req.body)
+        const databseUpdationStatus = await updateUserStatusInDatabase(req.body)
+        if (databseUpdationStatus) {
+            userJourneyStatus.databaseInserTionStatus = 'success'
+        }
         logInfo('User Journey Status', userJourneyStatus)
         res.status(200).json({
             message: 'User successfully created',
