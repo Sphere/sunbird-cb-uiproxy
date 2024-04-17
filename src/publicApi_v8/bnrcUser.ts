@@ -202,7 +202,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
             return res.status(400).json({
-                message: result.error.message.details.map((error) => error.message),
+                message: result.error,
                 status: 'FAILED',
             })
         }
