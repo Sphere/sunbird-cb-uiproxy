@@ -193,16 +193,17 @@ const serviceSchemaJoi = Joi.object({
 
 })
 const API_END_POINTS = {
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-    createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`
+    createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
+    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
+    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
+    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
 const standardDob = '01/01/1970'
 const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
-const userSuccessRegistrationMessage = "Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP."
+// tslint:disable-next-line: all
+const userSuccessRegistrationMessage = 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.'
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 const databaseName = 'bnrc'
 let client: MongoClient | null = null
@@ -245,9 +246,9 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                     status: 'SUCCESS',
                 })
             } else if (isUserExists.userDetails.rootOrgName == 'aastrika') {
-                const userMigrationStatus = migrateUserToBnrc(isUserExists.userDetails.id)
-                const assignRoleResponse = await assignRoleToUser(isUserExists.userDetails.id)
-                if (!userMigrationStatus || !assignRoleResponse) {
+                const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails.id)
+                const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id)
+                if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
                     return res.status(400).json({
                         message: accessDeniedMessage,
                         status: 'FAILED',
