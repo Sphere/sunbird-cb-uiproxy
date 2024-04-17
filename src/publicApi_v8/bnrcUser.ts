@@ -33,6 +33,13 @@ const shortHands = {
     publicHealthFacility: 'Public Health Facility',
 }
 const serviceSchemaJoi = Joi.object({
+    bnrcRegistrationNumber: Joi.string().optional(),
+    district: Joi.string()
+        .required()
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'District is required',
+        }),
     firstName: Joi.string()
         .required()
         .messages({
@@ -60,15 +67,9 @@ const serviceSchemaJoi = Joi.object({
         }),
 
     email: Joi.string().optional(),
-    district: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'District is required',
-        }),
 
     hrmsId: Joi.string().optional(),
-    bnrcRegistrationNumber: Joi.string().optional(),
+
     role: Joi.string()
         .valid('Student', 'Faculty', 'In Service')
         .required()
@@ -197,6 +198,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             roleAssign: 'failed',
         }
         const preServiceData = userFormDetails
+        // tslint:disable-next-line: no-any
         const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
             return res.status(400).json({
