@@ -3,7 +3,7 @@ import axios from 'axios'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { Collection, Db } from 'mongodb'
-import { MongoClient } from 'mongodb/lib/mongo_client'
+import { MongoClient } from 'mongodb';
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
@@ -191,15 +191,16 @@ const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
 // tslint:disable-next-line: all
 const userSuccessRegistrationMessage = 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.'
-const mongodbConnectionUri = CONSTANTS.MONGODB_URL
+const mongodbConnectionUri = "mongodb://10.0.136.159:27017"
 logInfo("Mongodb connection URL", mongodbConnectionUri)
 const databaseName = 'bnrc'
-let client: MongoClient | null = null
+const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true });
 let db: Db | null = null
 async function connectToDatabase() {
     try {
-        client = await MongoClient.connect(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true })
+        await client.connect();
         db = client.db(databaseName)
+        logInfo("Successfully connected to mongodb")
     } catch (error) {
         logError('Error while connecting mongodb', JSON.stringify(error))
     }
