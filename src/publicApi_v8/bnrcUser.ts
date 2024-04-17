@@ -715,8 +715,9 @@ const migrateUserToBnrc = async (userId: string) => {
             data: migrateUserData,
             headers: {
                 authorization: CONSTANTS.SB_API_KEY,
+                "X-Authenticated-User-Token": ""
             },
-            method: 'POST',
+            method: 'PATCH',
             url: API_END_POINTS.migrateUser,
         })
         if (migrateUserResponse.data.result.response == 'success') {
