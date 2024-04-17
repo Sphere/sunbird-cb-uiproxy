@@ -33,7 +33,7 @@ const shortHands = {
     publicHealthFacility: 'Public Health Facility',
 }
 const serviceSchemaJoi = Joi.object({
-    bnrcRegistrationNumber: Joi.string().allow('').optional(),
+    bnrcRegistrationNumber: Joi.string().allow('', null).optional(),
     district: Joi.string()
         .required()
         .messages({
@@ -66,8 +66,8 @@ const serviceSchemaJoi = Joi.object({
             'number.positive': 'Phone number must be a positive integer',
         }),
 
-    email: Joi.string().allow('').email().optional(),
-    hrmsId: Joi.string().allow('').optional(),
+    email: Joi.string().allow('', null).email().optional(),
+    hrmsId: Joi.string().allow('', null).optional(),
     role: Joi.string()
         .valid('Student', 'Faculty', 'In Service')
         .required()
@@ -80,7 +80,7 @@ const serviceSchemaJoi = Joi.object({
     courseSelection: Joi.string()
         .when('role', {
             is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('').optional(),
+            otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
         .messages({
@@ -91,7 +91,7 @@ const serviceSchemaJoi = Joi.object({
         .when('role', {
             // tslint:disable-next-line: all
             is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('').optional(),
+            otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
         .messages({
@@ -102,7 +102,7 @@ const serviceSchemaJoi = Joi.object({
     instituteName: Joi.string()
         .when('role', {
             is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('').optional(),
+            otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
         .messages({
@@ -113,7 +113,7 @@ const serviceSchemaJoi = Joi.object({
     facultyType: Joi.string()
         .when('role', {
             is: 'Faculty',
-            otherwise: Joi.string().allow('').optional(),
+            otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
         .messages({
@@ -125,7 +125,7 @@ const serviceSchemaJoi = Joi.object({
         .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility)
         .when('role', {
             is: Joi.not('Student', 'Faculty'),
-            otherwise: Joi.string().allow('').optional(),
+            otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().optional(),
         })
         .messages({
@@ -137,7 +137,7 @@ const serviceSchemaJoi = Joi.object({
     publicFacilityType: Joi.string()
         .when('roleForInService', {
             is: shortHands.publicHealthFacility,
-            otherwise: Joi.string().allow('').optional(),
+            otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
         .messages({
@@ -145,14 +145,14 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'Public Facility Type is required for Public Health Facility role',
         }),
 
-    facilityName: Joi.string().allow('').optional(),
+    facilityName: Joi.string().allow('', null).optional(),
     privateFacilityType: Joi.string()
         .when('roleForInService', {
             is: shortHands.privateHealthFacility,
-            otherwise: Joi.string().allow('').optional(),
+            otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         }),
-    serviceType: Joi.string().allow('').optional(),
+    serviceType: Joi.string().allow('', null).optional(),
 })
 const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
