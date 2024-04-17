@@ -378,10 +378,10 @@ const createUser = async (userDetails: UserDetails) => {
             method: 'POST',
             url: API_END_POINTS.createUser,
         })
-        if (userCreationResponse.data.result.userid) {
+        if (userCreationResponse.data.result.userId) {
             return {
                 message: 'success',
-                userId: userCreationResponse.data.result.userid,
+                userId: userCreationResponse.data.result.userId,
             }
         }
     } catch (error) {
