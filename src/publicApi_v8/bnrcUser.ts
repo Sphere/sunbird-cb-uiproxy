@@ -714,8 +714,8 @@ const migrateUserToBnrc = async (userId: string) => {
         const migrateUserResponse = await axios({
             data: migrateUserData,
             headers: {
+                "X-Authenticated-User-Token": "",
                 authorization: CONSTANTS.SB_API_KEY,
-                "X-Authenticated-User-Token": ""
             },
             method: 'PATCH',
             url: API_END_POINTS.migrateUser,
