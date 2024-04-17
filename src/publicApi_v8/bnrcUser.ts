@@ -191,7 +191,7 @@ const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
 // tslint:disable-next-line: all
 const userSuccessRegistrationMessage = 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.'
-const mongodbConnectionUri = "mongodb://10.0.136.159:27017"
+const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 logInfo("Mongodb connection URL", mongodbConnectionUri)
 const databaseName = 'bnrc'
 const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -230,7 +230,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         const isUserExists = await getUserDetails(phone)
         if (isUserExists.message = 'success' && isUserExists.userDetails) {
             if (isUserExists.userDetails.rootOrgName == biharOrgName) {
-                return res.status(400).json({
+                return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
@@ -243,7 +243,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                         status: 'FAILED',
                     })
                 }
-                return res.status(400).json({
+                return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
@@ -261,10 +261,12 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         // Step 1 Create user
         const createUserResponse = await createUser(req.body)
+        logInfo("createUserResponse", JSON.stringify(createUserResponse))
         if (createUserResponse.userId) {
             userJourneyStatus.createAccount = 'success'
         }
         const userId = createUserResponse.userId
+        logInfo("userId create user", JSON.stringify(userId))
         // Step 2 Role Assign
         const assignRoleResponse = await assignRoleToUser(userId)
         if (assignRoleResponse) {
@@ -272,6 +274,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         // Step 3 User Profile Update
         const userProfileUpdateResponse = await userProfileUpdate(req.body, userId)
+        logInfo("userProfileUpdateResponse", JSON.stringify(userProfileUpdateResponse))
         if (userProfileUpdateResponse) {
             userJourneyStatus.profileUpdate = 'success'
         }
@@ -356,6 +359,7 @@ const getUserDetails = async (phone: number) => {
 }
 const createUser = async (userDetails: UserDetails) => {
     try {
+        logInfo("Create user bnrc body", JSON.stringify(userDetails))
         const userCreationData = {
             request: {
                 channel: CONSTANTS.BNRC_USER_CHANNEL,
