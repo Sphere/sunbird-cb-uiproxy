@@ -8,16 +8,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 export const bnrcUserCreation = express.Router()
-const API_END_POINTS = {
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
-const standardDob = '01/01/1970'
-const biharOrgName = 'Bihar Nursing Registration Council'
-const shortHands = {
-    privateHealthFacility: 'Private Health Facility',
-    publicHealthFacility: 'Public Health Facility',
-}
+
 interface UserDetails {
     bnrcRegistrationNumber: string
     courseSelection?: string
@@ -37,7 +28,10 @@ interface UserDetails {
     roleForInService?: 'Public Health Facility' | 'Private Health Facility'
     role: 'Student' | 'Faculty' | 'In Service'
 }
-
+const shortHands = {
+    privateHealthFacility: 'Private Health Facility',
+    publicHealthFacility: 'Public Health Facility',
+}
 const serviceSchemaJoi = Joi.object({
     firstName: Joi.string()
         .required()
@@ -198,15 +192,25 @@ const serviceSchemaJoi = Joi.object({
         }),
 
 })
+const API_END_POINTS = {
+    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
+    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
+    createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
+    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
+    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`
+}
+const standardDob = '01/01/1970'
+const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
-const uri = CONSTANTS.MONGODB_URL
-const dbName = 'bnrc'
+const userSuccessRegistrationMessage = "Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP."
+const mongodbConnectionUri = CONSTANTS.MONGODB_URL
+const databaseName = 'bnrc'
 let client: MongoClient | null = null
 let db: Db | null = null
 async function connectToDatabase() {
     try {
-        client = await MongoClient.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
-        db = client.db(dbName)
+        client = await MongoClient.connect(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true })
+        db = client.db(databaseName)
     } catch (error) {
         logError('Error while connecting mongodb', JSON.stringify(error))
     }
@@ -237,22 +241,20 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         if (isUserExists.message = 'success' && isUserExists.userDetails) {
             if (isUserExists.userDetails.rootOrgName == biharOrgName) {
                 return res.status(400).json({
-                    // tslint:disable-next-line: all
-                    message: 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.',
+                    message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
             } else if (isUserExists.userDetails.rootOrgName == 'aastrika') {
                 const userMigrationStatus = migrateUserToBnrc(isUserExists.userDetails.id)
-                if (!userMigrationStatus) {
-                    // tslint:disable-next-line: all
+                const assignRoleResponse = await assignRoleToUser(isUserExists.userDetails.id)
+                if (!userMigrationStatus || !assignRoleResponse) {
                     return res.status(400).json({
                         message: accessDeniedMessage,
                         status: 'FAILED',
                     })
                 }
                 return res.status(400).json({
-                    // tslint:disable-next-line: all
-                    message: 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.',
+                    message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
             }
@@ -380,7 +382,7 @@ const createUser = async (userDetails: UserDetails) => {
             },
 
             method: 'POST',
-            url: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
+            url: API_END_POINTS.createUser,
         })
         if (userCreationResponse.data.result.userid) {
             return {
@@ -411,7 +413,7 @@ const assignRoleToUser = async (userId: string) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
-            url: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
+            url: API_END_POINTS.assignRole,
         })
         if (roleAssignResponse.data.result.response == 'SUCCESS') {
             return true
@@ -427,7 +429,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         let userProfileUpdateData = {
             request: {
                 profileDetails: {
-
                     preferences: {
                         language: 'hi',
                     },
@@ -441,9 +442,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                         ],
                         id: userId,
-
                         personalDetails: {
-
                             dob: standardDob,
                             email: '',
                             firstname: '',
@@ -478,17 +477,14 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                         ],
                         userId,
-
                     },
                 },
                 userId,
-
             },
         }
         if (user.role == 'Student') {
             userProfileUpdateData = {
                 request: {
-
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -516,7 +512,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 regNurseRegMidwifeNumber: 'NA',
                                 surname: user.lastName || user.firstName,
                             },
-
                             professionalDetails: [
                                 {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
@@ -543,7 +538,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             userId,
                         },
-
                     },
                     userId,
                 },
@@ -552,7 +546,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         if (user.role == 'Faculty') {
             userProfileUpdateData = {
                 request: {
-
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -567,9 +560,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 },
                             ],
                             id: `${userId}`,
-
                             personalDetails: {
-
                                 dob: standardDob,
                                 email: user.email,
                                 firstname: user.firstName,
@@ -580,9 +571,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 regNurseRegMidwifeNumber: 'NA',
                                 surname: user.lastName || user.firstName,
                             },
-
                             professionalDetails: [
-
                                 {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
@@ -594,7 +583,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     hrmsId: user.hrmsId,
                                     instituteName: user.instituteName,
                                     instituteType: user.instituteType,
-
                                     name: biharOrgName,
                                     nameOther: '',
                                     orgType: 'Government',
@@ -604,12 +592,10 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     publicFacilityType: '',
                                     qualification: user.courseSelection,
                                     roleForInService: '',
-
                                 },
                             ],
                             userId: `${userId}`,
                         },
-
                     },
                     userId: `${userId}`,
                 },
@@ -618,7 +604,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         if (!user.role && user.roleForInService) {
             userProfileUpdateData = {
                 request: {
-
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -633,9 +618,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 },
                             ],
                             id: userId,
-
                             personalDetails: {
-
                                 dob: standardDob,
                                 email: user.email,
                                 firstname: user.firstName,
@@ -646,7 +629,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 regNurseRegMidwifeNumber: 'NA',
                                 surname: user.lastName || user.firstName,
                             },
-
                             professionalDetails: [
                                 {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
@@ -659,7 +641,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     hrmsId: user.hrmsId,
                                     instituteName: '',
                                     instituteType: '',
-
                                     name: biharOrgName,
                                     nameOther: '',
                                     orgType: 'Government',
@@ -673,7 +654,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             userId,
                         },
-
                     },
                     userId,
                 },
@@ -685,14 +665,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
-            url: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
+            url: API_END_POINTS.profileUpdate,
         })
         return true
     } catch (error) {
         logError('Error while user profile update', JSON.stringify(error))
         return false
     }
-
 }
 const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
     const userDetailedStructure = {
