@@ -3,7 +3,7 @@ import axios from 'axios'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { Collection, Db } from 'mongodb'
-import { MongoClient } from 'mongodb';
+import { MongoClient } from 'mongodb'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
@@ -192,15 +192,15 @@ const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshama
 // tslint:disable-next-line: all
 const userSuccessRegistrationMessage = 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.'
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
-logInfo("Mongodb connection URL", mongodbConnectionUri)
+logInfo('Mongodb connection URL', mongodbConnectionUri)
 const databaseName = 'bnrc'
-const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true });
+const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true })
 let db: Db | null = null
 async function connectToDatabase() {
     try {
-        await client.connect();
+        await client.connect()
         db = client.db(databaseName)
-        logInfo("Successfully connected to mongodb")
+        logInfo('Successfully connected to mongodb')
     } catch (error) {
         logError('Error while connecting mongodb', JSON.stringify(error))
     }
@@ -210,8 +210,9 @@ connectToDatabase()
 let userJourneyStatus
 bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
     try {
-        const phone = req.body.phone
-        logInfo('Request body BNRC', JSON.stringify(req.body))
+        const userFormDetails = req.body.value.request.formValues
+        const phone = userFormDetails.phone
+        logInfo('Request body BNRC', JSON.stringify(userFormDetails))
         userJourneyStatus = {
             createAccount: 'failed',
             databaseInserTionStatus: 'failed',
@@ -219,7 +220,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             registrationSuccessMessage: 'failed',
             roleAssign: 'failed',
         }
-        const preServiceData = req.body
+        const preServiceData = userFormDetails
         const result = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
             return res.status(400).json({
@@ -260,21 +261,21 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             })
         }
         // Step 1 Create user
-        const createUserResponse = await createUser(req.body)
-        logInfo("createUserResponse", JSON.stringify(createUserResponse))
+        const createUserResponse = await createUser(userFormDetails)
+        logInfo('createUserResponse', JSON.stringify(createUserResponse))
         if (createUserResponse.userId) {
             userJourneyStatus.createAccount = 'success'
         }
         const userId = createUserResponse.userId
-        logInfo("userId create user", JSON.stringify(userId))
+        logInfo('userId create user', JSON.stringify(userId))
         // Step 2 Role Assign
         const assignRoleResponse = await assignRoleToUser(userId)
         if (assignRoleResponse) {
             userJourneyStatus.roleAssign = 'success'
         }
         // Step 3 User Profile Update
-        const userProfileUpdateResponse = await userProfileUpdate(req.body, userId)
-        logInfo("userProfileUpdateResponse", JSON.stringify(userProfileUpdateResponse))
+        const userProfileUpdateResponse = await userProfileUpdate(userFormDetails, userId)
+        logInfo('userProfileUpdateResponse', JSON.stringify(userProfileUpdateResponse))
         if (userProfileUpdateResponse) {
             userJourneyStatus.profileUpdate = 'success'
         }
@@ -284,7 +285,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.registrationSuccessMessage = 'success'
         }
         // Step 5 Insert User Status in Database
-        const databseUpdationStatus = await updateUserStatusInDatabase(req.body)
+        const databseUpdationStatus = await updateUserStatusInDatabase(userFormDetails)
         if (databseUpdationStatus) {
             userJourneyStatus.databaseInserTionStatus = 'success'
         }
@@ -362,7 +363,7 @@ const getUserDetails = async (phone: number) => {
 }
 const createUser = async (userDetails: UserDetails) => {
     try {
-        logInfo("Create user bnrc body", JSON.stringify(userDetails))
+        logInfo('Create user bnrc body', JSON.stringify(userDetails))
         const userCreationData = {
             request: {
                 channel: CONSTANTS.BNRC_USER_CHANNEL,
@@ -714,7 +715,7 @@ const migrateUserToBnrc = async (userId: string) => {
         const migrateUserResponse = await axios({
             data: migrateUserData,
             headers: {
-                "X-Authenticated-User-Token": "",
+                'X-Authenticated-User-Token': '',
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
