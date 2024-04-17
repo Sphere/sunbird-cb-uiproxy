@@ -33,7 +33,7 @@ const shortHands = {
     publicHealthFacility: 'Public Health Facility',
 }
 const serviceSchemaJoi = Joi.object({
-    bnrcRegistrationNumber: Joi.string().optional(),
+    bnrcRegistrationNumber: Joi.string().allow('').optional(),
     district: Joi.string()
         .required()
         .messages({
@@ -66,10 +66,8 @@ const serviceSchemaJoi = Joi.object({
             'number.positive': 'Phone number must be a positive integer',
         }),
 
-    email: Joi.string().optional(),
-
-    hrmsId: Joi.string().optional(),
-
+    email: Joi.string().allow('').email().optional(),
+    hrmsId: Joi.string().allow('').optional(),
     role: Joi.string()
         .valid('Student', 'Faculty', 'In Service')
         .required()
@@ -147,14 +145,14 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'Public Facility Type is required for Public Health Facility role',
         }),
 
-    facilityName: Joi.string().optional(),
+    facilityName: Joi.string().allow('').optional(),
     privateFacilityType: Joi.string()
         .when('roleForInService', {
             is: shortHands.privateHealthFacility,
             otherwise: Joi.string().allow('').optional(),
             then: Joi.string().required(),
         }),
-    serviceType: Joi.string().optional(),
+    serviceType: Joi.string().allow('').optional(),
 })
 const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
