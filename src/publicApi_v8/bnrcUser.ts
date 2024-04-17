@@ -80,7 +80,7 @@ const serviceSchemaJoi = Joi.object({
     courseSelection: Joi.string()
         .when('role', {
             is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().optional(),
+            otherwise: Joi.string().allow('').optional(),
             then: Joi.string().required(),
         })
         .messages({
@@ -91,7 +91,7 @@ const serviceSchemaJoi = Joi.object({
         .when('role', {
             // tslint:disable-next-line: all
             is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().optional(),
+            otherwise: Joi.string().allow('').optional(),
             then: Joi.string().required(),
         })
         .messages({
@@ -102,7 +102,7 @@ const serviceSchemaJoi = Joi.object({
     instituteName: Joi.string()
         .when('role', {
             is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().optional(),
+            otherwise: Joi.string().allow('').optional(),
             then: Joi.string().required(),
         })
         .messages({
