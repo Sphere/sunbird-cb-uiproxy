@@ -59,9 +59,7 @@ const serviceSchemaJoi = Joi.object({
             'number.positive': 'Phone number must be a positive integer',
         }),
 
-    email: Joi.string()
-        .email(),
-
+    email: Joi.string().optional(),
     district: Joi.string()
         .required()
         .messages({
@@ -69,20 +67,8 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'District is required',
         }),
 
-    hrmsId: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'HRMS ID is required',
-        }),
-
-    bnrcRegistrationNumber: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'BNRC Registration number is required',
-        }),
-
+    hrmsId: Joi.string().optional(),
+    bnrcRegistrationNumber: Joi.string().optional(),
     role: Joi.string()
         .valid('Student', 'Faculty', 'In Service')
         .required()
@@ -160,24 +146,14 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'Public Facility Type is required for Public Health Facility role',
         }),
 
-    facilityName: Joi.string()
-        .when('roleForInService', {
-            is: Joi.valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility),
-            otherwise: Joi.string().allow('').optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Facility name is required for Public and Private Health Facility role',
-        }),
-
+    facilityName: Joi.string().optional(),
     privateFacilityType: Joi.string()
         .when('roleForInService', {
             is: shortHands.privateHealthFacility,
             otherwise: Joi.string().allow('').optional(),
             then: Joi.string().required(),
         }),
-    serviceType: Joi.string(),
+    serviceType: Joi.string().optional(),
 })
 const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
@@ -221,10 +197,10 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             roleAssign: 'failed',
         }
         const preServiceData = userFormDetails
-        const result = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
+        const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
             return res.status(400).json({
-                message: result.error,
+                message: result.error.message.details.map((error) => error.message),
                 status: 'FAILED',
             })
         }
