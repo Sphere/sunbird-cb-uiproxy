@@ -190,7 +190,6 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         logInfo('Request body BNRC', JSON.stringify(userFormDetails))
         userJourneyStatus = {
             createAccount: 'failed',
-            databaseInserTionStatus: 'failed',
             profileUpdate: 'failed',
             registrationSuccessMessage: 'failed',
             roleAssign: 'failed',
@@ -261,11 +260,16 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.registrationSuccessMessage = 'success'
         }
         // Step 5 Insert User Status in Database
-        const databseUpdationStatus = await updateUserStatusInDatabase(userFormDetails)
-        if (databseUpdationStatus) {
-            userJourneyStatus.databaseInserTionStatus = 'success'
-        }
+        await updateUserStatusInDatabase(userFormDetails)
         logInfo('User Journey Status', userJourneyStatus)
+        const isUserJourneySucceess = Object.values(userJourneyStatus).some(status => status === 'failed');
+        if (!isUserJourneySucceess) {
+            return res.status(400).json({
+                message: accessDeniedMessage,
+                status: 'FAILED',
+                userJourneyStatus,
+            })
+        }
         res.status(200).json({
             message: userSuccessRegistrationMessage,
             status: 'SUCCESS',
