@@ -25,6 +25,7 @@ interface UserDetails {
     privateFacilityType?: string
     publicFacilityType?: string
     roleForInService?: 'Public Health Facility' | 'Private Health Facility'
+    // tslint:disable-next-line: all
     role: 'Student' | 'Faculty' | 'In Service',
     serviceType?: string
 }
@@ -262,7 +263,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         // Step 5 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails)
         logInfo('User Journey Status', userJourneyStatus)
-        const isUserJourneySucceess = Object.values(userJourneyStatus).some(status => status === 'failed');
+        const isUserJourneySucceess = Object.values(userJourneyStatus).some((status) => status === 'failed')
         if (isUserJourneySucceess) {
             return res.status(400).json({
                 message: accessDeniedMessage,
@@ -580,6 +581,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
+        // tslint:disable-next-line: all
         if (user.role == "In Service") {
             userProfileUpdateData = {
                 request: {
