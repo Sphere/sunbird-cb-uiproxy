@@ -580,7 +580,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
-        if (!user.role && user.roleForInService) {
+        if (user.role == "In Service") {
             userProfileUpdateData = {
                 request: {
                     profileDetails: {
