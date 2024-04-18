@@ -663,6 +663,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
     const userDetailedStructure = {
         bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber,
         courseSelection: userDetails.courseSelection,
+        createdOn: new Date(),
         district: userDetails.district,
         email: userDetails.email,
         facilityName: userDetails.facilityName,
