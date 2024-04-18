@@ -165,7 +165,7 @@ const standardDob = '01/01/1970'
 const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
 // tslint:disable-next-line: all
-const userSuccessRegistrationMessage = 'Registration Successful! Kindly download e-Kshamata app - https://bit.ly/E-kshamataApp and login using your given mobile number using OTP.'
+const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 logInfo('Mongodb connection URL', mongodbConnectionUri)
 const databaseName = 'bnrc'
@@ -263,7 +263,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         await updateUserStatusInDatabase(userFormDetails)
         logInfo('User Journey Status', userJourneyStatus)
         const isUserJourneySucceess = Object.values(userJourneyStatus).some(status => status === 'failed');
-        if (!isUserJourneySucceess) {
+        if (isUserJourneySucceess) {
             return res.status(400).json({
                 message: accessDeniedMessage,
                 status: 'FAILED',
