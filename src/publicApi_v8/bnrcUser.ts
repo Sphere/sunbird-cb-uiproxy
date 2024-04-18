@@ -162,6 +162,11 @@ const API_END_POINTS = {
     profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
     userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
+const getUserDesignationFromRole = {
+    Faculty: 'ANM-Faculty-Bihar',
+    'In Service': 'ANM-Bihar',
+    Student: 'ANM-Student-Bihar',
+}
 const standardDob = '01/01/1970'
 const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
@@ -212,7 +217,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                     status: 'SUCCESS',
                 })
             } else if (isUserExists.userDetails.rootOrgName == 'aastrika') {
-                const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails.id)
+                const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id)
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
                     return res.status(400).json({
@@ -683,7 +688,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         return false
     }
 }
-const migrateUserToBnrc = async (userId: string) => {
+const migrateUserToBnrc = async (userDetails, userFormDetails) => {
     try {
         const migrateUserData = {
             request: {
@@ -691,7 +696,7 @@ const migrateUserToBnrc = async (userId: string) => {
                 forceMigration: true,
                 notifyMigration: false,
                 softDeleteOldOrg: true,
-                userId,
+                userId: userDetails.userId,
             },
         }
         const migrateUserResponse = await axios({
@@ -702,6 +707,25 @@ const migrateUserToBnrc = async (userId: string) => {
             },
             method: 'PATCH',
             url: API_END_POINTS.migrateUser,
+        })
+        const userProfileDetails = userDetails.profileDetails
+        const updatedProfessionalDetails = { ...userProfileDetails.profileReq.professionalDetails[0], ...userFormDetails }
+        userProfileDetails.profileReq.professionalDetails[0] = updatedProfessionalDetails
+        userProfileDetails.profileReq.personalDetails.postalAddress = `India, Bihar, ${userFormDetails.district}`
+        userProfileDetails.profileReq.professionalDetails[0].designation = getUserDesignationFromRole[userFormDetails.role]
+        const userProfileUpdateBody = {
+            request: {
+                profileDetails: userProfileDetails,
+                userId: userDetails.id,
+            },
+        }
+        await axios({
+            data: userProfileUpdateBody,
+            headers: {
+                authorization: CONSTANTS.SB_API_KEY,
+            },
+            method: 'PATCH',
+            url: API_END_POINTS.profileUpdate,
         })
         if (migrateUserResponse.data.result.response == 'success') {
             return true
