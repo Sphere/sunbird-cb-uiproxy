@@ -79,7 +79,7 @@ const serviceSchemaJoi = Joi.object({
 
     courseSelection: Joi.string()
         .when('role', {
-            is: Joi.valid('Student', 'Faculty'),
+            is: Joi.valid('Student'),
             otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
@@ -200,7 +200,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
             return res.status(400).json({
-                message: result.error,
+                message: result.error.message,
                 status: 'FAILED',
             })
         }
