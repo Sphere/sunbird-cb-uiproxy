@@ -267,7 +267,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         logInfo('User Journey Status', userJourneyStatus)
         res.status(200).json({
-            message: 'User successfully created',
+            message: userSuccessRegistrationMessage,
             status: 'SUCCESS',
             userJourneyStatus,
         })
