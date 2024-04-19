@@ -167,6 +167,48 @@ const getUserDesignationFromRole = {
     'In Service': 'ANM-Bihar',
     Student: 'ANM-Student-Bihar',
 }
+
+const getDetailsAsPerRole = (userDetails: UserDetails) => {
+    let designation: string;
+    let orgId: string;
+    let orgName: string;
+
+    switch (userDetails.role) {
+        case "Student":
+            designation = "ANM-Student-Bihar";
+            orgId = "014005962721189888281";
+            orgName = "Bihar Nursing Registration Council";
+            break;
+        case "Faculty":
+            designation = "ANM-Faculty-Bihar";
+            orgId = "014005962721189888281";
+            orgName = "Bihar Nursing Registration Council";
+            break;
+        case "In Service":
+            if (userDetails.roleForInService === "Public Health Facility") {
+                designation = "ANM-Bihar";
+                orgId = "01403709013603123234776";
+                orgName = "Health (Bihar)";
+            } else if (userDetails.roleForInService === "Private Health Facility") {
+                designation = "ANM-Bihar";
+                orgId = "01403708858877542434777";
+                orgName = "Private (Bihar)";
+            }
+            break;
+        default:
+            designation = "ANM-Student-Bihar";
+            orgId = "014005962721189888281";
+            orgName = "Bihar Nursing Registration Council";
+            break;
+    }
+
+    return {
+        designation: designation,
+        orgId: orgId,
+        orgName: orgName
+    };
+}
+
 const standardDob = '01/01/1970'
 const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
@@ -218,7 +260,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                 })
             } else if (isUserExists.userDetails.rootOrgName == 'aastrika') {
                 const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
-                const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id)
+                const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
                     return res.status(400).json({
                         message: accessDeniedMessage,
@@ -250,7 +292,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         const userId = createUserResponse.userId
         logInfo('userId create user', JSON.stringify(userId))
         // Step 2 Role Assign
-        const assignRoleResponse = await assignRoleToUser(userId)
+        const assignRoleResponse = await assignRoleToUser(userId, userFormDetails)
         if (assignRoleResponse) {
             userJourneyStatus.roleAssign = 'success'
         }
@@ -347,12 +389,14 @@ const getUserDetails = async (phone: number) => {
     }
 
 }
+
 const createUser = async (userDetails: UserDetails) => {
     try {
         logInfo('Create user bnrc body', JSON.stringify(userDetails))
+        const userChannel = getDetailsAsPerRole(userDetails).orgName
         const userCreationData = {
             request: {
-                channel: CONSTANTS.BNRC_USER_CHANNEL,
+                channel: userChannel,
                 firstName: userDetails.firstName,
                 lastName: userDetails.lastName || userDetails.firstName,
                 password: CONSTANTS.BNRC_USER_DEFAULT_PASSWORD,
@@ -382,11 +426,12 @@ const createUser = async (userDetails: UserDetails) => {
         }
     }
 }
-const assignRoleToUser = async (userId: string) => {
+const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
     try {
+        const userOrgId = getDetailsAsPerRole(userDetails).orgId
         const userRoleAssignData = {
             request: {
-                organisationId: CONSTANTS.BNRC_USER_ORGANISATION_ID,
+                organisationId: userOrgId,
                 roles: ['PUBLIC'],
                 userId,
             },
@@ -560,7 +605,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-Bihar',
-
                                     doj: '',
                                     facilityName: '',
                                     facultyType: user.facultyType,
@@ -673,6 +717,8 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         instituteName: userDetails.instituteName,
         instituteType: userDetails.instituteType,
         lastName: userDetails.lastName,
+        organisationId: getDetailsAsPerRole(userDetails).orgId,
+        organisationName: getDetailsAsPerRole(userDetails).orgName,
         phone: userDetails.phone,
         privateFacilityType: userDetails.privateFacilityType,
         publicFacilityType: userDetails.publicFacilityType,
