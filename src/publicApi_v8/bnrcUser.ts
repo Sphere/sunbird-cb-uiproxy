@@ -24,6 +24,7 @@ interface UserDetails {
     phone: number
     privateFacilityType?: string
     publicFacilityType?: string
+    // tslint:disable-next-line: all
     roleForInService?: 'Public Health Facility' | 'Private Health Facility'
     // tslint:disable-next-line: all
     role: 'Student' | 'Faculty' | 'In Service',
@@ -163,50 +164,54 @@ const API_END_POINTS = {
     userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
 const getUserDesignationFromRole = {
+    // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-Bihar',
     'In Service': 'ANM-Bihar',
+    // tslint:disable-next-line: all
     Student: 'ANM-Student-Bihar',
 }
 
 const getDetailsAsPerRole = (userDetails: UserDetails) => {
-    let designation: string;
-    let orgId: string;
-    let orgName: string;
+    let designation: string
+    let orgId: string
+    let orgName: string
 
     switch (userDetails.role) {
-        case "Student":
-            designation = "ANM-Student-Bihar";
-            orgId = "014005962721189888281";
-            orgName = "Bihar Nursing Registration Council";
-            break;
-        case "Faculty":
-            designation = "ANM-Faculty-Bihar";
-            orgId = "014005962721189888281";
-            orgName = "Bihar Nursing Registration Council";
-            break;
-        case "In Service":
-            if (userDetails.roleForInService === "Public Health Facility") {
-                designation = "ANM-Bihar";
-                orgId = "01403709013603123234776";
-                orgName = "Health (Bihar)";
-            } else if (userDetails.roleForInService === "Private Health Facility") {
-                designation = "ANM-Bihar";
-                orgId = "01403708858877542434777";
-                orgName = "Private (Bihar)";
+        case 'Student':
+            // tslint:disable-next-line: all
+            designation = 'ANM-Student-Bihar'
+            orgId = '014005962721189888281'
+            // tslint:disable-next-line: all
+            orgName = 'Bihar Nursing Registration Council'
+            break
+        case 'Faculty':
+            designation = 'ANM-Faculty-Bihar'
+            orgId = '014005962721189888281'
+            orgName = 'Bihar Nursing Registration Council'
+            break
+        case 'In Service':
+            if (userDetails.roleForInService === 'Public Health Facility') {
+                designation = 'ANM-Bihar'
+                orgId = '01403709013603123234776'
+                orgName = 'Health (Bihar)'
+            } else if (userDetails.roleForInService === 'Private Health Facility') {
+                designation = 'ANM-Bihar'
+                orgId = '01403708858877542434777'
+                orgName = 'Private (Bihar)'
             }
-            break;
+            break
         default:
-            designation = "ANM-Student-Bihar";
-            orgId = "014005962721189888281";
-            orgName = "Bihar Nursing Registration Council";
-            break;
+            designation = 'NA'
+            orgId = 'NA'
+            orgName = 'NA'
+            break
     }
 
     return {
-        designation: designation,
-        orgId: orgId,
-        orgName: orgName
-    };
+        designation,
+        orgId,
+        orgName,
+    }
 }
 
 const standardDob = '01/01/1970'
