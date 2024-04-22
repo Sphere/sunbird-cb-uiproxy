@@ -6,6 +6,7 @@ import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { validateCertificate } from './certificateValidate'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
+import { courseRecommendation } from './courseRecommendation'
 import { customSignUp } from './customSignup'
 import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
@@ -75,3 +76,4 @@ publicApiV8.use('/testUserOtp', userOtp)
 publicApiV8.use('/ssoLogin', ssoLogin)
 publicApiV8.use('/tnai', tnaiAuth)
 publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
+publicApiV8.use('/courseRecommendation', courseRecommendation)
