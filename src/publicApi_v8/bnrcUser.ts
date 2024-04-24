@@ -258,7 +258,8 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         const isUserExists = await getUserDetails(phone)
         if (isUserExists.message = 'success' && isUserExists.userDetails) {
-            if (isUserExists.userDetails.rootOrgName == "Bihar Nursing Registration Council" || isUserExists.userDetails.rootOrgName == "Health (Bihar)" || isUserExists.userDetails.rootOrgName == "Private (Bihar)") {
+            // tslint:disable-next-line: all
+            if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == 'Health (Bihar)' || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
@@ -290,6 +291,13 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         // Step 1 Create user
         const createUserResponse = await createUser(userFormDetails)
+        if (!createUserResponse.userId) {
+            return res.status(400).json({
+                message: accessDeniedMessage,
+                status: 'FAILED',
+                userJourneyStatus,
+            })
+        }
         logInfo('createUserResponse', JSON.stringify(createUserResponse))
         if (createUserResponse.userId) {
             userJourneyStatus.createAccount = 'success'
