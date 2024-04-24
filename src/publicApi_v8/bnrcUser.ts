@@ -258,7 +258,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         const isUserExists = await getUserDetails(phone)
         if (isUserExists.message = 'success' && isUserExists.userDetails) {
-            if (isUserExists.userDetails.rootOrgName == biharOrgName) {
+            if (isUserExists.userDetails.rootOrgName == "Bihar Nursing Registration Council" || isUserExists.userDetails.rootOrgName == "Health (Bihar)" || isUserExists.userDetails.rootOrgName == "Private (Bihar)") {
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
