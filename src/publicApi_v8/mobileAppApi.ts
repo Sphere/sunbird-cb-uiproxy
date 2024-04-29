@@ -9,7 +9,6 @@ import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { getCurrentUserRoles } from './rolePermission'
 
-
 const API_END_POINTS = {
 
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
