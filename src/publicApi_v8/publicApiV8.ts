@@ -6,6 +6,7 @@ import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { validateCertificate } from './certificateValidate'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
+import { courseRecommendation } from './courseRecommendation'
 import { customSignUp } from './customSignup'
 import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
@@ -21,6 +22,7 @@ import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
 import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
 
+import { bnrcUserCreation } from './bnrcUser'
 import { competencyAssets } from './competencyAssets'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { ssoLogin } from './ssoLogin'
@@ -73,3 +75,5 @@ publicApiV8.use('/deactivateUser', deactivateUser)
 publicApiV8.use('/testUserOtp', userOtp)
 publicApiV8.use('/ssoLogin', ssoLogin)
 publicApiV8.use('/tnai', tnaiAuth)
+publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
+publicApiV8.use('/courseRecommendation', courseRecommendation)

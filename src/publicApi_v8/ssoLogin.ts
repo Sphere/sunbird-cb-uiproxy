@@ -48,6 +48,7 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
         }
         const userDetails = await getUserDetails(userEmail, userPhone)
         if (userDetails.data.result.response.count <= 0) {
+            logInfo("SSO sendotp: User doesn't exists please signup and try again")
             return res.status(400).json({
                 msg: "User doesn't exists please signup and try again",
                 status: 'error',
@@ -124,6 +125,7 @@ ssoLogin.post('/otp/resendOtp', async (req, res) => {
         }
         const userDetails = await getUserDetails(userEmail, userPhone)
         if (userDetails.data.result.response.count <= 0) {
+            logInfo("SSO re-sendotp: User doesn't exists please signup and try again")
             return res.status(400).json({
                 msg: USER_NOT_EXISTS,
                 status: 'error',
@@ -195,6 +197,7 @@ ssoLogin.post('/login', async (req: any, res) => {
         }
         const userDetails = await getUserDetails(userEmail, userPhone)
         if (userDetails.data.result.response.count <= 0) {
+            logInfo("SSO login: User doesn't exists please signup and try again")
             return res.status(400).json({
                 msg: USER_NOT_EXISTS,
                 status: 'error',
