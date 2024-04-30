@@ -437,9 +437,9 @@ profileDeatailsApi.patch('/updateUser', async (req, res) => {
       if (error) {
         return res.status(400).json({
           result: {
+            errorSource: 'JOI',
             errors: error.details.map((value) => value.message),
             response: 'FAILED',
-            errorSource: "JOI"
           },
         })
       }
