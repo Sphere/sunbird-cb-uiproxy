@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
 import * as fs from 'fs'
+import Joi from 'joi'
 import _ from 'lodash'
 import {
   IPersonalDetails,
@@ -423,6 +424,33 @@ profileDeatailsApi.post('/completeUserInfo', async (req, res) => {
 })
 profileDeatailsApi.patch('/updateUser', async (req, res) => {
   try {
+    try {
+      const schema = Joi.object({
+        request: Joi.object({
+          profileDetails: Joi.object().required().keys({
+            profileReq: Joi.object().required().unknown(true),
+          }).unknown(true),
+          userId: Joi.string().required(),
+        }).required(),
+      }).unknown(true)
+      const { error } = schema.validate(req.body)
+      if (error) {
+        return res.status(400).json({
+          result: {
+            errors: error.details.map((value) => value.message),
+            response: 'FAILED',
+          },
+        })
+      }
+    } catch (err) {
+      logError(failedToUpdateUser + err)
+      return res.status((err && err.response && err.response.status) || 500).send(
+        (err && err.response && err.response.data) || {
+          error: unknownError,
+        }
+      )
+    }
+
     // tslint:disable-next-line: max-line-length
     if (req.body.request.profileDetails.personalDetails) {
       delete req.body.request.profileDetails.personalDetails
