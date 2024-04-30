@@ -213,7 +213,88 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
+mobileAppApi.post('/cmi5/getAuthorization', async (req, res) => {
+  logInfo('Check req body of cmi5 authorization>> ' + req.body)
+  try {
+    const accesTokenResult = verifyToken(req, res)
+    res.status(200).json(accesTokenResult)
 
+  } catch (error) {
+    res.status(500).send({
+      message: 'Something went wrong',
+      status: 'failed',
+    })
+
+  }
+
+})
+mobileAppApi.post('/cmi5/updateProgress', async (req, res) => {
+  try {
+
+    const accesTokenResult = verifyToken(req, res)
+    const userId = accesTokenResult.userId
+    req.body.request.userId = userId
+    if (requestValidator(['userId', 'contents'], req.body.request, res)) return
+    if (accesTokenResult.status == 200) {
+      await axios({
+        data: req.body,
+        headers: getHeaders(req),
+        method: 'PATCH',
+        url: API_END_POINTS.UPDATE_PROGRESS,
+      })
+      const stateReadBody = {
+        request: {
+          batchId: req.body.request.contents[0].batchId,
+          contentIds: [],
+          courseId: req.body.request.contents[0].courseId,
+          fields: ['progressdetails'],
+          userId: req.body.request.userId,
+        },
+      }
+      const responseProgressRead = await axios({
+        data: stateReadBody,
+        headers: getHeaders(req),
+        method: 'POST',
+        url: API_END_POINTS.READ_PROGRESS,
+      })
+      res.status(200).json(responseProgressRead.data)
+    }
+  } catch (error) {
+    logError('Error in update cmi5 progress  >>>>>>' + error)
+    res.status(500).send({
+      message: 'Something went wrong during cmi5 progress update',
+      status: 'failed',
+    })
+  }
+})
+mobileAppApi.post('/cmi5/readProgress', async (req, res) => {
+  try {
+    const stateReadBody = {
+      request: {
+        batchId: req.body.request.contents[0].batchId,
+        contentIds: [],
+        courseId: req.body.request.contents[0].courseId,
+        fields: ['progressdetails'],
+        userId: req.body.request.userId,
+      },
+    }
+    const responseProgressRead = await axios({
+      data: stateReadBody,
+      headers: getHeaders(req),
+      method: 'POST',
+      url: API_END_POINTS.READ_PROGRESS,
+    })
+    res.status(200).json(responseProgressRead.data)
+
+  } catch (error) {
+    logError('Error in reading cmi5  >>>>>>' + error)
+    res.status(500).send({
+      message: 'Something went wrong during cmi5 progress read',
+      status: 'failed',
+    })
+  }
+
+})
 mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
