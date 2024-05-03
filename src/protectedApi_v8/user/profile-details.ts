@@ -431,8 +431,8 @@ profileDeatailsApi.patch('/updateUser', async (req, res) => {
             profileReq: Joi.object().required().unknown(true),
           }).unknown(true),
           userId: Joi.string().required(),
-        }).required(),
-      }).unknown(true)
+        }).required().unknown(true),
+      })
       const { error } = schema.validate(req.body)
       if (error) {
         return res.status(400).json({
