@@ -363,7 +363,7 @@ mobileAppApi.get('/version', async (_req, res) => {
 })
 mobileAppApi.patch('/updateUserProfile', async (req, res) => {
   try {
-    logInfo("Check req body of mobile app profile update API", JSON.stringify(req.body))
+    logInfo('Check req body of mobile app profile update API', JSON.stringify(req.body))
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.status == 200) {
       try {

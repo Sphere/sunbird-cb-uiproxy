@@ -163,6 +163,7 @@ const API_END_POINTS = {
     profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
     userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
+const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-Bihar',
@@ -493,8 +494,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             mobile: '',
                             postalAddress: `India, Bihar, Patna`,
                             regNurseRegMidwifeNumber: 'NA',
+                            registrationSource,
                             surname: '',
-                            registrationSource: "Self Registration",
 
                         },
                         professionalDetails: [
@@ -554,8 +555,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 mobile: JSON.stringify(user.phone),
                                 postalAddress: `India, Bihar, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
+                                registrationSource,
                                 surname: user.lastName || user.firstName,
-                                registrationSource: "Self Registration",
 
                             },
                             professionalDetails: [
@@ -615,8 +616,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 mobile: JSON.stringify(user.phone),
                                 postalAddress: `India, Bihar, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
+                                registrationSource,
                                 surname: user.lastName || user.firstName,
-                                registrationSource: "Self Registration",
 
                             },
                             professionalDetails: [
@@ -676,8 +677,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 mobile: JSON.stringify(user.phone),
                                 postalAddress: `India, Bihar, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
+                                registrationSource,
                                 surname: user.lastName || user.firstName,
-                                registrationSource: "Self Registration",
 
                             },
                             professionalDetails: [
