@@ -494,6 +494,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             postalAddress: `India, Bihar, Patna`,
                             regNurseRegMidwifeNumber: 'NA',
                             surname: '',
+                            registrationSource: "Self Registration",
+
                         },
                         professionalDetails: [
                             {
@@ -553,6 +555,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 postalAddress: `India, Bihar, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
                                 surname: user.lastName || user.firstName,
+                                registrationSource: "Self Registration",
+
                             },
                             professionalDetails: [
                                 {
@@ -612,6 +616,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 postalAddress: `India, Bihar, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
                                 surname: user.lastName || user.firstName,
+                                registrationSource: "Self Registration",
+
                             },
                             professionalDetails: [
                                 {
@@ -671,6 +677,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 postalAddress: `India, Bihar, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
                                 surname: user.lastName || user.firstName,
+                                registrationSource: "Self Registration",
+
                             },
                             professionalDetails: [
                                 {
