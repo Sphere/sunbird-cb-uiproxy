@@ -1,5 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
+import express from 'express'
+import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
@@ -10,10 +12,8 @@ import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
-import { getCurrentUserRoles } from './rolePermission'
-import express from 'express'
-import { createProxyServer } from 'http-proxy'
 import { fetchnodebbUserDetails } from './nodebbUser'
+import { getCurrentUserRoles } from './rolePermission'
 
 const API_END_POINTS = {
 
@@ -90,13 +90,10 @@ mobileAppApi.get('/getContents/*', (req, res) => {
   }
 })
 
-
 mobileAppApi.use(
   '/discussion/*',
   mobileProxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
-);
-
-
+)
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
@@ -621,9 +618,9 @@ function mobileProxyCreatorSunbird(
 ): Router {
   route.all('/*', async (req, res) => {
     try {
-      const accessToken = req.headers[authenticatedToken];
+      const accessToken = req.headers[authenticatedToken]
       if (!accessToken) {
-        throw new Error('Access token not found');
+        throw new Error('Access token not found')
       }
       // tslint:disable-next-line: no-any
       const decodedToken: any = jwt_decode(accessToken.toString())
@@ -631,6 +628,7 @@ function mobileProxyCreatorSunbird(
       const userId = decodedTokenArray[decodedTokenArray.length - 1]
 
       const nodebbUserId = await fetchnodebbUserDetails(userId, decodedToken.preferred_username, decodedToken.name, decodedToken)
+      // tslint:disable-next-line: no-console
       console.log('discussion response---', nodebbUserId)
       let url
       // tslint:disable-next-line: no-console
@@ -668,23 +666,24 @@ function mobileProxyCreatorSunbird(
           nodebbUserId
       }
       logInfo('Final Url for target >>>>>>>>>', targetUrl + url)
+      // tslint:disable-next-line: no-any
       const headers: any = {
+        Authorization: CONSTANTS.SB_API_KEY,
+        authenticatedToken: req.headers[authenticatedToken],
         'X-Channel-Id': '0132317968766894088',
-        'Authorization': CONSTANTS.SB_API_KEY,
-        'x-authenticated-user-token': req.headers['x-authenticated-user-token']
-
-      };
+      }
       proxy.web(req, res, {
         changeOrigin: true,
+        headers,
         ignorePath: true,
-        target: targetUrl + url,
-        headers: headers
-      });
+        target: targetUrl + url
+
+      })
     } catch (error) {
-      res.status(401).send('Unauthorized');
+      res.status(401).send('Unauthorized')
     }
-  });
-  return route;
+  })
+  return route
 }
 const getCoursesForIhat = async () => {
   const requestFilterForIhat = {
