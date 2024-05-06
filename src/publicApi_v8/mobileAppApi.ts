@@ -1,7 +1,10 @@
 import axios from 'axios'
 import { Router } from 'express'
+import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
+import _ from 'lodash'
 import request from 'request'
+import { axiosRequestConfig } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
@@ -22,6 +25,7 @@ const API_END_POINTS = {
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
+  kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
   ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
   ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
   ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
@@ -369,6 +373,78 @@ mobileAppApi.get('/version', async (_req, res) => {
     })
   }
 })
+mobileAppApi.patch('/updateUserProfile', async (req, res) => {
+  try {
+    logInfo('Check req body of mobile app profile update API', JSON.stringify(req.body))
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.status == 200) {
+      try {
+        const schema = Joi.object({
+          request: Joi.object({
+            profileDetails: Joi.object().required().keys({
+              profileReq: Joi.object().required().unknown(true),
+            }).unknown(true),
+            userId: Joi.string().required(),
+          }).required(),
+        }).unknown(true)
+        const { error } = schema.validate(req.body)
+        if (error) {
+          return res.status(400).json({
+            result: {
+              errorSource: 'JOI',
+              errors: error.details.map((value) => value.message),
+              response: 'FAILED',
+            },
+          })
+        }
+      } catch (err) {
+        logError('Something went wrong while updating user' + err)
+        return res.status((err && err.response && err.response.status) || 500).send(
+          (err && err.response && err.response.data) || {
+            error: 'Something went wrong during profile update',
+          }
+        )
+      }
+
+      // tslint:disable-next-line: max-line-length
+      if (req.body.request.profileDetails.personalDetails) {
+        delete req.body.request.profileDetails.personalDetails
+      }
+      if (
+        req.body.request.profileDetails.profileReq.personalDetails &&
+        !req.body.request.profileDetails.profileReq.personalDetails
+          .regNurseRegMidwifeNumber
+      ) {
+        req.body.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber =
+          '[NA]'
+      }
+      // tslint:disable-next-line: max-line-length
+      req.body.request.profileDetails.profileReq.personalDetails = _.omitBy(
+        req.body.request.profileDetails.profileReq.personalDetails,
+        (v) => _.isUndefined(v) || _.isNull(v) || _.isEmpty(v)
+      )
+      logInfo(JSON.stringify(req.body))
+      const response = await axios.patch(
+        API_END_POINTS.kongUpdateUser,
+        req.body,
+        {
+          ...axiosRequestConfig,
+          headers: getHeaders(req),
+        }
+      )
+      res.status(response.status).send(response.data)
+    }
+  } catch (err) {
+    logError('Something went wrong while updating user' + err)
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong',
+      }
+    )
+  }
+
+})
+
 mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
   try {
     /* tslint:disable-next-line */
