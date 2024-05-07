@@ -46,34 +46,7 @@ const pool = new Pool({
     port: Number(postgresConnectionDetails.port),
     user: postgresConnectionDetails.user,
 })
-const getCombinedRatingsResult = async (sourceCourses) => {
-    try {
-        const getCourseIdsForRatings = sourceCourses.map((course) => course.identifier)
-        logInfo('course Ids for search', getCourseIdsForRatings)
-        const getRatingsFromRatingService = await axios({
-            data: {
-                activityIds: getCourseIdsForRatings,
-                activityType: 'Course',
-            },
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            method: 'POST',
-            url: API_END_POINTS.ratingsSearch,
-        })
-        logInfo('ratings service response', getRatingsFromRatingService.data)
-        const combinedArray = sourceCourses.map((course) => {
-            const matchingRating = getRatingsFromRatingService.data.find((rating) => rating.activityId === course.identifier)
-            return { ...course, ...matchingRating }
-        })
-        logInfo('combined array', combinedArray)
-        return combinedArray
-    } catch (error) {
-        logInfo(JSON.stringify(error))
-        return []
 
-    }
-}
 export const courseRecommendation = Router()
 
 courseRecommendation.post('/publicSearch/getcourse', async (req, res) => {
