@@ -8,9 +8,11 @@ import { logInfo } from '../utils/logger'
 const API_END_POINTS = {
     // tslint:disable-next-line: no-any
     cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
+    ratingsSearch: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/bulkRatingLookup'`,
     recommendationAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
     search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
     searchAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/getcourse`,
+
 }
 const nullResponseStatus = {
     responseCode: 'OK',
@@ -23,6 +25,7 @@ const nullResponseStatus = {
 }
 const headers = {
     Accept: 'application/json, text/plain, */*',
+    /* tslint:disable-next-line */
     'Content-Type': 'application/json',
     org: 'aastar',
     rootorg: 'aastar',
@@ -43,6 +46,34 @@ const pool = new Pool({
     port: Number(postgresConnectionDetails.port),
     user: postgresConnectionDetails.user,
 })
+const getCombinedRatingsResult = async (sourceCourses) => {
+    try {
+        const getCourseIdsForRatings = sourceCourses.map((course) => course.identifier)
+        logInfo('course Ids for search', getCourseIdsForRatings)
+        const getRatingsFromRatingService = await axios({
+            data: {
+                activityIds: getCourseIdsForRatings,
+                activityType: 'Course',
+            },
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+            url: API_END_POINTS.ratingsSearch,
+        })
+        logInfo('ratings service response', getRatingsFromRatingService.data)
+        const combinedArray = sourceCourses.map((course) => {
+            const matchingRating = getRatingsFromRatingService.data.find((rating) => rating.activityId === course.identifier)
+            return { ...course, ...matchingRating }
+        })
+        logInfo('combined array', combinedArray)
+        return combinedArray
+    } catch (error) {
+        logInfo(JSON.stringify(error))
+        return []
+
+    }
+}
 export const courseRecommendation = Router()
 
 courseRecommendation.post('/publicSearch/getcourse', async (req, res) => {

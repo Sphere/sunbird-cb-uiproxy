@@ -668,15 +668,15 @@ function mobileProxyCreatorSunbird(
       logInfo('Final Url for target >>>>>>>>>', targetUrl + url)
       // tslint:disable-next-line: no-any
       const headers: any = {
-        Authorization: CONSTANTS.SB_API_KEY,
-        authenticatedToken: req.headers[authenticatedToken],
         'X-Channel-Id': '0132317968766894088',
+        authenticatedToken: req.headers[authenticatedToken],
+        Authorization: CONSTANTS.SB_API_KEY,
       }
       proxy.web(req, res, {
         changeOrigin: true,
         headers,
         ignorePath: true,
-        target: targetUrl + url
+        target: targetUrl + url,
 
       })
     } catch (error) {
