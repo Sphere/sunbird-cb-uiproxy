@@ -1,5 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
+import express from 'express'
+import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
@@ -10,6 +12,7 @@ import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
+import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
 
 const API_END_POINTS = {
@@ -36,6 +39,7 @@ const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity"
 
 const authenticatedToken = 'x-authenticated-user-token'
 const contentTypeHeader = { 'Content-Type': 'application/json' }
+const proxy = createProxyServer({})
 // tslint:disable-next-line: no-any
 const getHeaders = (req: any) => {
   return {
@@ -85,6 +89,11 @@ mobileAppApi.get('/getContents/*', (req, res) => {
     })
   }
 })
+
+mobileAppApi.use(
+  '/discussion/*',
+  mobileProxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
+)
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
@@ -602,7 +611,80 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     )
   }
 })
+function mobileProxyCreatorSunbird(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
+  route.all('/*', async (req, res) => {
+    try {
+      const accessToken = req.headers[authenticatedToken]
+      if (!accessToken) {
+        throw new Error('Access token not found')
+      }
+      // tslint:disable-next-line: no-any
+      const decodedToken: any = jwt_decode(accessToken.toString())
+      const decodedTokenArray = decodedToken.sub.split(':')
+      const userId = decodedTokenArray[decodedTokenArray.length - 1]
 
+      const nodebbUserId = await fetchnodebbUserDetails(userId, decodedToken.preferred_username, decodedToken.name, decodedToken)
+      // tslint:disable-next-line: no-console
+      console.log('discussion response---', nodebbUserId)
+      let url
+      // tslint:disable-next-line: no-console
+      console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
+
+      if (req.originalUrl.includes('discussion/topic')) {
+        const topic = req.originalUrl.toString().split('/')
+        if (topic[5] === topic[6]) {
+          req.originalUrl =
+            topic[0] +
+            '/' +
+            topic[1] +
+            '/' +
+            topic[2] +
+            '/' +
+            topic[3] +
+            '/' +
+            topic[4] +
+            '/' +
+            topic[5] +
+            '/' +
+            topic[7]
+        }
+        logInfo('Updated req.originalUrl >>> ' + req.originalUrl)
+      }
+      if (req.originalUrl.includes('?')) {
+        url =
+          removePrefix('/public/v8/mobileApp', req.originalUrl) +
+          '&_uid=' +
+          nodebbUserId
+      } else {
+        url =
+          removePrefix('/public/v8/mobileApp', req.originalUrl) +
+          '?_uid=' +
+          nodebbUserId
+      }
+      logInfo('Final Url for target >>>>>>>>>', targetUrl + url)
+      // tslint:disable-next-line: no-any
+      const headers: any = {
+        Authorization: CONSTANTS.SB_API_KEY,
+        authenticatedToken: req.headers[authenticatedToken],
+        'X-Channel-Id': '0132317968766894088',
+      }
+      proxy.web(req, res, {
+        changeOrigin: true,
+        headers,
+        ignorePath: true,
+        target: targetUrl + url
+
+      })
+    } catch (error) {
+      res.status(401).send('Unauthorized')
+    }
+  })
+  return route
+}
 const getCoursesForIhat = async () => {
   const requestFilterForIhat = {
     request: {
