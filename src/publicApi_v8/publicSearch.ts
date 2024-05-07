@@ -9,6 +9,7 @@ import { logInfo } from '../utils/logger'
 export const publicSearch = Router()
 
 const API_END_POINTS = {
+  ratingsSearch: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/bulkRatingLookup'`,
   search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
   searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
 
@@ -43,7 +44,34 @@ const nullResponseStatus = {
   },
   status: 200,
 }
+const getCombinedRatingsResult = async (sourceCourses) => {
+  try {
+    const getCourseIdsForRatings = sourceCourses.map((course) => course.identifier)
+    logInfo('course Ids for search', getCourseIdsForRatings)
+    const getRatingsFromRatingService = await axios({
+      data: {
+        activityIds: getCourseIdsForRatings,
+        activityType: 'Course',
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+      url: API_END_POINTS.ratingsSearch,
+    })
+    logInfo('ratings service response', getRatingsFromRatingService.data)
+    const combinedArray = sourceCourses.map((course) => {
+      const matchingRating = getRatingsFromRatingService.data.find((rating) => rating.activityId === course.identifier)
+      return { ...course, ...matchingRating }
+    })
+    logInfo('combined array', combinedArray)
+    return combinedArray
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    return []
 
+  }
+}
 publicSearch.post('/getCourses', async (request, response) => {
   try {
     const facetsDataDefault = ['duration', 'lastUpdatedOn']
@@ -58,7 +86,7 @@ publicSearch.post('/getCourses', async (request, response) => {
         request: {
           facets: facets || facetsDataDefault,
           filters,
-          limit: 200,
+          limit: 20,
           sort_by: sortMethod,
         },
         sort: [
@@ -91,7 +119,7 @@ publicSearch.post('/getCourses', async (request, response) => {
       return response.status(200).json({
         responseCode: 'OK',
         result: {
-          content: searchFilteredData,
+          content: getCombinedRatingsResult(searchFilteredData),
           count: searchFilteredData.length,
           facets: searchResponseES.data.result.facets,
         },
