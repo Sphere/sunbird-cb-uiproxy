@@ -119,7 +119,7 @@ publicSearch.post('/getCourses', async (request, response) => {
       return response.status(200).json({
         responseCode: 'OK',
         result: {
-          content: getCombinedRatingsResult(searchFilteredData),
+          content: await getCombinedRatingsResult(searchFilteredData),
           count: searchFilteredData.length,
           facets: searchResponseES.data.result.facets,
         },
