@@ -16,7 +16,7 @@ const client = new cassandra.Client({
     keyspace: 'sunbird',
     localDataCenter: 'datacenter1',
 })
-
+logInfo(JSON.stringify(client))
 const AUTH_FAIL =
     'Authentication failed ! Please check credentials and try again.'
 const API_END_POINTS = {
