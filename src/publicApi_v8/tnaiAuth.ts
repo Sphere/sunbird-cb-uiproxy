@@ -186,9 +186,13 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                 userDetailResponseFromTnai.data.userId,
                 'THE TRAINED NURSES ASSOCIATION OF INDIA (TNAI)',
             ]
-            await client.execute(query, params, {
-                prepare: true,
-            })
+            try {
+                await client.execute(query, params, {
+                    prepare: true,
+                })
+            } catch (error) {
+                logInfo(JSON.stringify(error))
+            }
         }
         const encodedData = qs.stringify({
             client_id: 'TNAI',
