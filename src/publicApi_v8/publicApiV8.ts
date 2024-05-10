@@ -17,6 +17,7 @@ import { publicCertificateFlinkv2 } from './publicCertifcateFlinkv2'
 import { publicContentApi } from './publicContent'
 import { publicSearch } from './publicSearch'
 import { publicTelemetry } from './publicTelemetry'
+import { ratingsSearch } from './ratingsSearch'
 import { sashakt } from './sashaktAuth'
 import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
@@ -77,3 +78,4 @@ publicApiV8.use('/ssoLogin', ssoLogin)
 publicApiV8.use('/tnai', tnaiAuth)
 publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
+publicApiV8.use('/ratingsSearch', ratingsSearch)
