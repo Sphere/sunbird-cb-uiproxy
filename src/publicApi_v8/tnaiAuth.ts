@@ -1,21 +1,14 @@
 import axios from 'axios'
-import cassandra from 'cassandra-driver'
 import express, { Response } from 'express'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
-import { v4 as uuidv4 } from 'uuid'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
 import { getCurrentUserRoles } from './rolePermission'
 
-const client = new cassandra.Client({
-    contactPoints: [CONSTANTS.CASSANDRA_IP],
-    keyspace: 'sunbird',
-    localDataCenter: 'datacenter1',
-})
 const AUTH_FAIL =
     'Authentication failed ! Please check credentials and try again.'
 const API_END_POINTS = {
@@ -158,6 +151,7 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                                 personalDetails: {
                                     firstname: tnaiUserData.firstname,
                                     surname: tnaiUserData.lastname,
+                                    tnaiUserId: userDetailResponseFromTnai.data.userId
                                 },
 
                                 userId: responseCreateUser.data.result.userId,
@@ -171,27 +165,6 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                 url: API_END_POINTS.profileUpdate,
             })
             logInfo('Data after profile update', userProfileUpdate.data)
-            const uniqueSSOuserId = uuidv4()
-            const query =
-                // tslint:disable-next-line: max-line-length
-                'INSERT INTO sunbird.user_sso_bulkupload_v2 ( id, code, mainuseruuid, orgid, status, shashaktUserId, provider) VALUES ( ?, ?, ?, ?, ?, ?, ? )'
-
-            const params = [
-                uniqueSSOuserId,
-                'ASHAs',
-                responseCreateUser.data.result.userId,
-                '01402440090956595232672',
-                'success',
-                userDetailResponseFromTnai.data.userId,
-                'THE TRAINED NURSES ASSOCIATION OF INDIA (TNAI)',
-            ]
-            try {
-                await client.execute(query, params, {
-                    prepare: true,
-                })
-            } catch (error) {
-                logInfo(JSON.stringify(error))
-            }
         }
         const encodedData = qs.stringify({
             client_id: 'TNAI',
