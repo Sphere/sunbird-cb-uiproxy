@@ -96,14 +96,13 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                 symbols: true,
                 uppercase: true,
             })
-            logInfo(randomPassword)
             const responseCreateUser = await axios({
                 ...axiosRequestConfig,
                 data: {
                     request: {
                         channel: 'THE TRAINED NURSES ASSOCIATION OF INDIA (TNAI)',
                         firstName: tnaiUserData.firstname,
-                        lastName: tnaiUserData.lastname,
+                        lastName: tnaiUserData.lastname || tnaiUserData.firstname,
                         password: randomPassword,
                         [typeOfLogin]: tnaiUserData[typeOfLogin],
                         tcStatus: false,

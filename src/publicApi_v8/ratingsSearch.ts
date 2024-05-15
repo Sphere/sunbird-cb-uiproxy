@@ -298,9 +298,13 @@ ratingsSearch.post('/recommendation/publicSearch/getcourse', async (req, res) =>
                 request: {
                     filters: {
                         competencySearch: elasticSearchData,
+                        lang: language
                     },
                 },
                 sort: [{ lastUpdatedOn: 'desc' }],
+            }
+            if (!language) {
+                delete courseSearchSecondaryData.request.filters.lang
             }
             const elasticSearchResponseSecond = await axios({
                 data: courseSearchSecondaryData,
