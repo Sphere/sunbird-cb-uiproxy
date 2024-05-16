@@ -146,7 +146,6 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
     if (!courseDataPrimary) courseDataPrimary = []
     const finalFilteredData = []
     finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-    logInfo('finalConcatenatedData 1', JSON.stringify(finalConcatenatedData))
     if (finalConcatenatedData.length == 0) {
       res.status(200).json(nullResponseStatus)
       return
@@ -157,7 +156,6 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
         finalFilteredData.push(element)
       }
     })
-    logInfo('finalFilteredData', JSON.stringify(finalFilteredData))
 
     const uniqueCourseData = _.uniqBy(finalFilteredData, 'identifier')
 

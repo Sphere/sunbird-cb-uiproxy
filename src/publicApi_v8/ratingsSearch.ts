@@ -298,7 +298,7 @@ ratingsSearch.post('/recommendation/publicSearch/getcourse', async (req, res) =>
                 request: {
                     filters: {
                         competencySearch: elasticSearchData,
-                        lang: language
+                        lang: language,
                     },
                 },
                 sort: [{ lastUpdatedOn: 'desc' }],

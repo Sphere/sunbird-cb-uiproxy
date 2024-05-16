@@ -633,7 +633,7 @@ function mobileProxyCreatorSunbird(
       let url
       // tslint:disable-next-line: no-console
       console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
-
+      req.originalUrl = req.originalUrl.replace(/\/uid/g, "")
       if (req.originalUrl.includes('discussion/topic')) {
         const topic = req.originalUrl.toString().split('/')
         if (topic[5] === topic[6]) {
@@ -659,7 +659,8 @@ function mobileProxyCreatorSunbird(
           removePrefix('/public/v8/mobileApp', req.originalUrl) +
           '&_uid=' +
           nodebbUserId
-      } else {
+      }
+      else {
         url =
           removePrefix('/public/v8/mobileApp', req.originalUrl) +
           '?_uid=' +

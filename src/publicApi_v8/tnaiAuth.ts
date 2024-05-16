@@ -150,7 +150,7 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
                                 personalDetails: {
                                     firstname: tnaiUserData.firstname,
                                     surname: tnaiUserData.lastname || tnaiUserData.firstname,
-                                    tnaiUserId: userDetailResponseFromTnai.data.userId
+                                    tnaiUserId: userDetailResponseFromTnai.data.userId,
                                 },
 
                                 userId: responseCreateUser.data.result.userId,
