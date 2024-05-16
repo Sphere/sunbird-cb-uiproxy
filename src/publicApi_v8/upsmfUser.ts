@@ -23,16 +23,37 @@ interface UserDetails {
     phone: number
     upsmfRegistrationNumber?: string
     // tslint:disable-next-line: all
-    role: 'Student' | 'Faculty' | 'In Service',
+    role: 'Student' | 'Faculty',
 
 }
 
 const serviceSchemaJoi = Joi.object({
+    courseSelection: Joi.string()
+        .when('role', {
+            is: Joi.valid('Student'),
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Course selection is required for Student and Faculty roles',
+        }),
     district: Joi.string()
         .required()
         .messages({
             // tslint:disable-next-line: all
             'any.required': 'District is required',
+        }),
+    email: Joi.string().allow('', null).email().optional(),
+    facultyType: Joi.string()
+        .when('role', {
+            is: 'Faculty',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Faculty type is required for Faculty role',
         }),
     firstName: Joi.string()
         .required()
@@ -40,7 +61,29 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'First name is required',
         }),
+    hrmsId: Joi.string().allow('', null).optional(),
 
+    instituteName: Joi.string()
+        .when('role', {
+            is: Joi.valid('Student', 'Faculty'),
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Institute name is required for Student and Faculty roles',
+        }),
+    instituteType: Joi.string()
+        .when('role', {
+            // tslint:disable-next-line: all
+            is: Joi.valid('Student', 'Faculty'),
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Institute type is required for Student and Faculty roles',
+        }),
     lastName: Joi.string()
         .required()
         .messages({
@@ -59,10 +102,6 @@ const serviceSchemaJoi = Joi.object({
             'number.integer': 'Phone number must be an integer',
             'number.positive': 'Phone number must be a positive integer',
         }),
-
-    email: Joi.string().allow('', null).email().optional(),
-    hrmsId: Joi.string().allow('', null).optional(),
-    upsmfRegistrationNumber: Joi.string().allow('', null).optional(),
     role: Joi.string()
         .valid('Student', 'Faculty')
         .required()
@@ -71,47 +110,7 @@ const serviceSchemaJoi = Joi.object({
             'any.only': 'Role must be either Student, Faculty',
             'any.required': 'Role is required',
         }),
-    courseSelection: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            'any.required': 'Course selection is required for Student and Faculty roles',
-        }),
-    facultyType: Joi.string()
-        .when('role', {
-            is: 'Faculty',
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Faculty type is required for Faculty role',
-        }),
-    instituteType: Joi.string()
-        .when('role', {
-            // tslint:disable-next-line: all
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute type is required for Student and Faculty roles',
-        }),
-    instituteName: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute name is required for Student and Faculty roles',
-        }),
-
+    upsmfRegistrationNumber: Joi.string().allow('', null).optional(),
 })
 const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
@@ -422,7 +421,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 profession: 'Nurse',
                                 professionOtherSpecify: '',
                                 qualification: '',
-                                upsmfRegistrationNumber: ""
+                                upsmfRegistrationNumber: '',
                             },
                         ],
                         userId,
@@ -474,7 +473,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     profession: 'Student',
                                     professionOtherSpecify: '',
                                     qualification: user.courseSelection,
-                                    upsmfRegistrationNumber: user.upsmfRegistrationNumber
+                                    upsmfRegistrationNumber: user.upsmfRegistrationNumber,
                                 },
                             ],
                             userId,
@@ -528,7 +527,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     profession: 'Faculty',
                                     professionOtherSpecify: '',
                                     qualification: user.courseSelection,
-                                    upsmfRegistrationNumber: user.upsmfRegistrationNumber
+                                    upsmfRegistrationNumber: user.upsmfRegistrationNumber,
                                 },
                             ],
                             userId: `${userId}`,
@@ -568,7 +567,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         organisationId: getDetailsAsPerRole(userDetails).orgId,
         organisationName: getDetailsAsPerRole(userDetails).orgName,
         phone: userDetails.phone,
-        upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber
+        upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber,
     }
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
     try {
