@@ -15,7 +15,6 @@ interface UserDetails {
     email: string
     firstName: string
     facultyType?: string
-    facilityName?: string
     hrmsId: string
     instituteName?: string
     instituteType?: string
@@ -412,7 +411,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 completePostalAddress: '',
                                 designation: 'ANM-Student-UP',
                                 doj: '',
-                                facilityName: '',
                                 facultyType: '',
                                 hrmsId: '',
                                 name: upsmfOrgName,
@@ -464,7 +462,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     completePostalAddress: '',
                                     designation: 'ANM-Student-UP',
                                     doj: '',
-                                    facilityName: '',
                                     facultyType: '',
                                     hrmsId: user.hrmsId,
                                     name: upsmfOrgName,
@@ -518,7 +515,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-UP',
                                     doj: '',
-                                    facilityName: '',
                                     facultyType: user.facultyType,
                                     hrmsId: user.hrmsId,
                                     name: user.instituteName,
@@ -557,7 +553,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         createdOn: new Date(),
         district: userDetails.district,
         email: userDetails.email,
-        facilityName: userDetails.facilityName,
         facultyType: userDetails.facultyType,
         firstName: userDetails.firstName,
         hrmsId: userDetails.hrmsId,
