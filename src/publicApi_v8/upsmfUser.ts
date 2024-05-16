@@ -10,7 +10,6 @@ import { logInfo } from '../utils/logger'
 export const upsmfUserCreation = express.Router()
 
 interface UserDetails {
-    bnrcRegistrationNumber: string
     courseSelection?: string
     district: string
     email: string
@@ -22,17 +21,13 @@ interface UserDetails {
     instituteType?: string
     lastName: string
     phone: number
-    privateFacilityType?: string
-    publicFacilityType?: string
-    // tslint:disable-next-line: all
-    roleForInService?: 'Public Health Facility' | 'Private Health Facility'
+    upsmfRegistrationNumber?: string
     // tslint:disable-next-line: all
     role: 'Student' | 'Faculty' | 'In Service',
-    serviceType?: string
+
 }
 
 const serviceSchemaJoi = Joi.object({
-    bnrcRegistrationNumber: Joi.string().allow('', null).optional(),
     district: Joi.string()
         .required()
         .messages({
@@ -67,15 +62,15 @@ const serviceSchemaJoi = Joi.object({
 
     email: Joi.string().allow('', null).email().optional(),
     hrmsId: Joi.string().allow('', null).optional(),
+    upsmfRegistrationNumber: Joi.string().allow('', null).optional(),
     role: Joi.string()
-        .valid('Student', 'Faculty', 'In Service')
+        .valid('Student', 'Faculty')
         .required()
         .messages({
             // tslint:disable-next-line: all
             'any.only': 'Role must be either Student, Faculty',
             'any.required': 'Role is required',
         }),
-
     courseSelection: Joi.string()
         .when('role', {
             is: Joi.valid('Student'),
@@ -106,7 +101,6 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'Institute type is required for Student and Faculty roles',
         }),
-
     instituteName: Joi.string()
         .when('role', {
             is: Joi.valid('Student', 'Faculty'),
@@ -172,7 +166,7 @@ const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshama
 const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 logInfo('Mongodb connection URL', mongodbConnectionUri)
-const databaseName = 'bnrc'
+const databaseName = 'upsmf'
 const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true })
 let db: Db | null = null
 async function connectToDatabase() {
@@ -265,7 +259,7 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
         if (userProfileUpdateResponse) {
             userJourneyStatus.profileUpdate = 'success'
         }
-        // Step 5 Insert User Status in Database
+        // Step 4 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails)
         logInfo('User Journey Status', userJourneyStatus)
         const isUserJourneySucceess = Object.values(userJourneyStatus).some((status) => status === 'failed')
@@ -284,7 +278,7 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
     } catch (error) {
         logInfo('UPSMF user creation error')
         logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
-        logInfo('Error BNRC', JSON.stringify(error))
+        logInfo('Error UPSMF', JSON.stringify(error))
         res.status(400).json({
             message: accessDeniedMessage,
             status: 'FAILED',
@@ -322,7 +316,7 @@ const getUserDetails = async (phone: number) => {
 
 const createUser = async (userDetails: UserDetails) => {
     try {
-        logInfo('Create user bnrc body', JSON.stringify(userDetails))
+        logInfo('Create user upsmf body', JSON.stringify(userDetails))
         const userChannel = getDetailsAsPerRole(userDetails).orgName
         const userCreationData = {
             request: {
@@ -408,7 +402,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             gender: '',
                             knownLanguages: [],
                             mobile: '',
-                            postalAddress: `India, Bihar, Patna`,
+                            postalAddress: `India, Uttar Pradesh, Lucknow`,
                             regNurseRegMidwifeNumber: 'NA',
                             registrationSource,
                             surname: '',
@@ -416,25 +410,19 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         },
                         professionalDetails: [
                             {
-                                bnrcRegistrationNumber: '',
                                 completePostalAddress: '',
-                                designation: 'ANM-Bihar',
+                                designation: 'ANM-Student-UP',
                                 doj: '',
                                 facilityName: '',
                                 facultyType: '',
                                 hrmsId: '',
-                                instituteName: '',
-                                instituteType: '',
                                 name: upsmfOrgName,
                                 nameOther: '',
                                 orgType: 'Government',
-                                privateFacilityType: '',
                                 profession: 'Nurse',
                                 professionOtherSpecify: '',
-                                publicFacilityType: '',
                                 qualification: '',
-                                roleForInService: '',
-                                serviceType: '',
+                                upsmfRegistrationNumber: ""
                             },
                         ],
                         userId,
@@ -453,50 +441,40 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         profileReq: {
                             academics: [
                                 {
-                                    nameOfInstitute: '',
-                                    nameOfQualification: '',
-                                    type: 'GRADUATE',
+                                    nameOfInstitute: user.instituteName,
+                                    nameOfQualification: user.courseSelection,
+                                    type: user.instituteType,
                                     yearOfPassing: '',
                                 },
                             ],
                             id: userId,
-
                             personalDetails: {
-
                                 dob: standardDob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
-                                postalAddress: `India, Bihar, ${user.district}`,
+                                postalAddress: `India, Uttar Pradesh, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
-
                             },
                             professionalDetails: [
                                 {
-                                    bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
-                                    designation: 'ANM-Student-Bihar',
+                                    designation: 'ANM-Student-UP',
                                     doj: '',
                                     facilityName: '',
                                     facultyType: '',
                                     hrmsId: user.hrmsId,
-                                    instituteName: user.instituteName,
-                                    instituteType: user.instituteType,
-
                                     name: upsmfOrgName,
                                     nameOther: '',
                                     orgType: 'Government',
-                                    privateFacilityType: '',
                                     profession: 'Student',
                                     professionOtherSpecify: '',
-                                    publicFacilityType: '',
                                     qualification: user.courseSelection,
-                                    roleForInService: '',
-                                    serviceType: user.serviceType || '',
+                                    upsmfRegistrationNumber: user.upsmfRegistrationNumber
                                 },
                             ],
                             userId,
@@ -530,7 +508,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
-                                postalAddress: `India, Bihar, ${user.district}`,
+                                postalAddress: `India, Uttar Pradesh, ${user.district}`,
                                 regNurseRegMidwifeNumber: 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
@@ -538,92 +516,25 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                             professionalDetails: [
                                 {
-                                    bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
-                                    designation: 'ANM-Faculty-Bihar',
+                                    designation: 'ANM-Faculty-UP',
                                     doj: '',
                                     facilityName: '',
                                     facultyType: user.facultyType,
                                     hrmsId: user.hrmsId,
-                                    instituteName: user.instituteName,
-                                    instituteType: user.instituteType,
-                                    name: upsmfOrgName,
+                                    name: user.instituteName,
                                     nameOther: '',
-                                    orgType: 'Government',
-                                    privateFacilityType: '',
+                                    orgType: user.instituteType,
                                     profession: 'Faculty',
                                     professionOtherSpecify: '',
-                                    publicFacilityType: '',
                                     qualification: user.courseSelection,
-                                    roleForInService: '',
-                                    serviceType: user.serviceType || '',
+                                    upsmfRegistrationNumber: user.upsmfRegistrationNumber
                                 },
                             ],
                             userId: `${userId}`,
                         },
                     },
                     userId: `${userId}`,
-                },
-            }
-        }
-        // tslint:disable-next-line: all
-        if (user.role == "In Service") {
-            userProfileUpdateData = {
-                request: {
-                    profileDetails: {
-                        preferences: {
-                            language: 'hi',
-                        },
-                        profileReq: {
-                            academics: [
-                                {
-                                    nameOfInstitute: '',
-                                    nameOfQualification: '',
-                                    type: 'GRADUATE',
-                                    yearOfPassing: '',
-                                },
-                            ],
-                            id: userId,
-                            personalDetails: {
-                                dob: standardDob,
-                                email: user.email,
-                                firstname: user.firstName,
-                                gender: '',
-                                knownLanguages: [],
-                                mobile: JSON.stringify(user.phone),
-                                postalAddress: `India, Bihar, ${user.district}`,
-                                regNurseRegMidwifeNumber: 'NA',
-                                registrationSource,
-                                surname: user.lastName || user.firstName,
-
-                            },
-                            professionalDetails: [
-                                {
-                                    bnrcRegistrationNumber: user.bnrcRegistrationNumber,
-                                    completePostalAddress: '',
-                                    designation: 'ANM-Bihar',
-                                    doj: '',
-                                    facilityName: user.facilityName || '',
-                                    facultyType: '',
-                                    hrmsId: user.hrmsId,
-                                    instituteName: '',
-                                    instituteType: '',
-                                    name: upsmfOrgName,
-                                    nameOther: '',
-                                    orgType: 'Government',
-                                    privateFacilityType: user.privateFacilityType || '',
-                                    profession: 'Nurse',
-                                    professionOtherSpecify: '',
-                                    publicFacilityType: user.publicFacilityType || '',
-                                    qualification: '',
-                                    roleForInService: user.roleForInService || '',
-                                    serviceType: user.serviceType || '',
-                                },
-                            ],
-                            userId,
-                        },
-                    },
-                    userId,
                 },
             }
         }
@@ -643,7 +554,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
 }
 const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
     const userDetailedStructure = {
-        bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber,
         courseSelection: userDetails.courseSelection,
         createdOn: new Date(),
         district: userDetails.district,
@@ -658,11 +568,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         organisationId: getDetailsAsPerRole(userDetails).orgId,
         organisationName: getDetailsAsPerRole(userDetails).orgName,
         phone: userDetails.phone,
-        privateFacilityType: userDetails.privateFacilityType,
-        publicFacilityType: userDetails.publicFacilityType,
-        role: userDetails.role,
-        roleForInService: userDetails.roleForInService,
-        serviceType: userDetails.serviceType,
+        upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber
     }
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
     try {
@@ -716,7 +622,7 @@ const migrateUserToUpsmf = async (userDetails, userFormDetails) => {
             return true
         }
     } catch (error) {
-        logError('Error while migrating user to BNRC org', JSON.stringify(error))
+        logError('Error while migrating user to UPSMF org', JSON.stringify(error))
         return false
     }
 }
