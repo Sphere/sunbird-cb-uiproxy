@@ -744,6 +744,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         phone: userDetails.phone,
         privateFacilityType: userDetails.privateFacilityType,
         publicFacilityType: userDetails.publicFacilityType,
+        registrationSource: "Self Registration",
         role: userDetails.role,
         roleForInService: userDetails.roleForInService,
         serviceType: userDetails.serviceType,
