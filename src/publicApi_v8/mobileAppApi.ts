@@ -14,6 +14,7 @@ import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
+import * as jwt from 'jsonwebtoken';
 
 const API_END_POINTS = {
 
@@ -49,11 +50,15 @@ const getHeaders = (req: any) => {
   }
 }
 export const mobileAppApi = Router()
-
+const publicKey = CONSTANTS.KEYCLOAK_PUBLIC_KEY;
 // tslint:disable-next-line: no-any
 const verifyToken = (req: any, res: any) => {
   try {
     const accessToken = req.headers[authenticatedToken]
+    const decoded = jwt.verify(accessToken, publicKey, { algorithms: ['RS256'] });
+    if (!decoded) {
+      throw new Error();
+    }
     // tslint:disable-next-line: no-any
     const decodedToken: any = jwt_decode(accessToken.toString())
     const decodedTokenArray = decodedToken.sub.split(':')
@@ -67,7 +72,7 @@ const verifyToken = (req: any, res: any) => {
   } catch (error) {
     return res.status(404).json({
       message: 'User token missing or invalid',
-      redirectUrl: 'https://sphere.aastrika.org/public/home',
+      redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
     })
   }
 }
