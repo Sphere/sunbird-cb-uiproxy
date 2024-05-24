@@ -245,6 +245,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         userAlreadyExists: false,
         userExistingOrganisation: 'NA',
         validationStatus: 'success',
+        validationStatusFailedReason: "NA"
     }
     const userFormDetails = req.body.value.request.formValues
     try {
@@ -255,6 +256,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
             userJourneyStatus.validationStatus = 'failed'
+            userJourneyStatus.validationStatusFailedReason = JSON.stringify(result.error.message) || result.error.message
             await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: result.error.message,
