@@ -236,22 +236,26 @@ async function connectToDatabase() {
 }
 connectToDatabase()
 
-let userJourneyStatus
 bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
+    const userJourneyStatus = {
+        createAccount: 'failed',
+        profileUpdate: 'failed',
+        registrationSuccessMessage: 'failed',
+        roleAssign: 'failed',
+        userAlreadyExists: false,
+        userExistingOrganisation: 'NA',
+        validationStatus: 'success',
+    }
+    const userFormDetails = req.body.value.request.formValues
     try {
-        const userFormDetails = req.body.value.request.formValues
         const phone = userFormDetails.phone
         logInfo('Request body BNRC', JSON.stringify(userFormDetails))
-        userJourneyStatus = {
-            createAccount: 'failed',
-            profileUpdate: 'failed',
-            registrationSuccessMessage: 'failed',
-            roleAssign: 'failed',
-        }
         const preServiceData = userFormDetails
         // tslint:disable-next-line: no-any
         const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
+            userJourneyStatus.validationStatus = 'failed'
+            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: result.error.message,
                 status: 'FAILED',
@@ -259,8 +263,11 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         const isUserExists = await getUserDetails(phone)
         if (isUserExists.message = 'success' && isUserExists.userDetails) {
+            userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
             if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == 'Health (Bihar)' || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
+                userJourneyStatus.userExistingOrganisation = 'Bihar Nursing Registration Council || Health (Bihar) || Private (Bihar)'
+                await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
@@ -269,22 +276,29 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                 const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
+                    userJourneyStatus.userExistingOrganisation = 'aastrika'
+                    await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                     return res.status(400).json({
                         message: accessDeniedMessage,
                         status: 'FAILED',
                     })
                 }
+                userJourneyStatus.userExistingOrganisation = 'aastrika'
+                await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
             }
+            userJourneyStatus.userExistingOrganisation = isUserExists.userDetails.rootOrgName
+            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: accessDeniedMessage,
                 status: 'FAILED',
             })
 
         } else if (isUserExists.message == 'failed') {
+            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: accessDeniedMessage,
                 status: 'FAILED',
@@ -322,10 +336,11 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.registrationSuccessMessage = 'success'
         }
         // Step 5 Insert User Status in Database
-        await updateUserStatusInDatabase(userFormDetails)
-        logInfo('User Journey Status', userJourneyStatus)
+        await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
+        logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
         const isUserJourneySucceess = Object.values(userJourneyStatus).some((status) => status === 'failed')
         if (isUserJourneySucceess) {
+            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: accessDeniedMessage,
                 status: 'FAILED',
@@ -341,6 +356,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         logInfo('BNRC user creation error')
         logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
         logInfo('Error BNRC', JSON.stringify(error))
+        await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
         res.status(400).json({
             message: accessDeniedMessage,
             status: 'FAILED',
@@ -725,29 +741,29 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         return false
     }
 }
-const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
+const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
-        bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber,
-        courseSelection: userDetails.courseSelection,
+        bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber || '',
+        courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
-        district: userDetails.district,
-        email: userDetails.email,
-        facilityName: userDetails.facilityName,
-        facultyType: userDetails.facultyType,
-        firstName: userDetails.firstName,
-        hrmsId: userDetails.hrmsId,
-        instituteName: userDetails.instituteName,
-        instituteType: userDetails.instituteType,
-        lastName: userDetails.lastName,
-        organisationId: getDetailsAsPerRole(userDetails).orgId,
-        organisationName: getDetailsAsPerRole(userDetails).orgName,
-        phone: userDetails.phone,
-        privateFacilityType: userDetails.privateFacilityType,
-        publicFacilityType: userDetails.publicFacilityType,
-        registrationSource: "Self Registration",
-        role: userDetails.role,
-        roleForInService: userDetails.roleForInService,
-        serviceType: userDetails.serviceType,
+        district: userDetails.district || '',
+        email: userDetails.email || '',
+        facilityName: userDetails.facilityName || '',
+        facultyType: userDetails.facultyType || '',
+        firstName: userDetails.firstName || '',
+        hrmsId: userDetails.hrmsId || '',
+        instituteName: userDetails.instituteName || '',
+        instituteType: userDetails.instituteType || '',
+        lastName: userDetails.lastName || '',
+        organisationId: getDetailsAsPerRole(userDetails).orgId || '',
+        organisationName: getDetailsAsPerRole(userDetails).orgName || '',
+        phone: userDetails.phone || '',
+        privateFacilityType: userDetails.privateFacilityType || '',
+        publicFacilityType: userDetails.publicFacilityType || '',
+        registrationSource: 'Self Registration' || '',
+        role: userDetails.role || '',
+        roleForInService: userDetails.roleForInService || '',
+        serviceType: userDetails.serviceType || '',
     }
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
     try {
