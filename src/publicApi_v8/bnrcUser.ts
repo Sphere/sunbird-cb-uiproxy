@@ -274,11 +274,11 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
-            } else if (isUserExists.userDetails.rootOrgName == 'aastrika') {
+            } else if (isUserExists.userDetails.rootOrgName == 'aastrika' || isUserExists.userDetails.rootOrgName == "SPhere Team 1") {
                 const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
-                    userJourneyStatus.userExistingOrganisation = 'aastrika'
+                    userJourneyStatus.userExistingOrganisation = 'aastrika || SPhere Team 1'
                     await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                     return res.status(400).json({
                         message: accessDeniedMessage,
