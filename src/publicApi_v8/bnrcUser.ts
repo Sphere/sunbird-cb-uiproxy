@@ -220,6 +220,7 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
 }
 const indianCountryCode = '+91'
 const msg91Headers = {
+    // tslint:disable-next-line: all
     accept: 'application/json',
     authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
     'content-type': 'application/json',
@@ -253,7 +254,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         userAlreadyExists: false,
         userExistingOrganisation: 'NA',
         validationStatus: 'success',
-        validationStatusFailedReason: "NA"
+        validationStatusFailedReason: 'NA',
     }
     const userFormDetails = req.body.value.request.formValues
     try {
@@ -282,7 +283,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
-            } else if (isUserExists.userDetails.rootOrgName == 'aastrika' || isUserExists.userDetails.rootOrgName == "SPhere Team 1") {
+            } else if (isUserExists.userDetails.rootOrgName == 'aastrika' || isUserExists.userDetails.rootOrgName == 'SPhere Team 1') {
                 const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
@@ -381,7 +382,7 @@ bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
         logInfo('User request body send otp', JSON.stringify(req.body))
         if (!phone) {
             res.status(400).json({
-                message: "Mandatory parameters phone missing",
+                message: 'Mandatory parameters phone missing',
                 status: 'error',
             })
         }
@@ -442,7 +443,7 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
         logInfo('Entered into validate OTP for BNRC >>>>>', req.body)
         if (!phone || !otp) {
             res.status(400).json({
-                message: "Mandatory parameters phone or otp missing",
+                message: 'Mandatory parameters phone or otp missing',
                 status: 'error',
             })
         }
