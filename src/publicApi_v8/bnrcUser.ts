@@ -398,6 +398,7 @@ bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
         })
         return res.status(200).json({
             message: `OTP successfully sent on phone ${phone}`,
+            status: 'success',
         })
     } catch (error) {
         logInfo('Error in sending user OTP' + error)
@@ -414,6 +415,7 @@ bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
         if (!phone) {
             return res.status(400).json({
                 message: 'Mandatory parameters phone missing',
+                status: 'error',
             })
         }
         logInfo('SSO Resend OTP through phone', phone)
@@ -429,6 +431,7 @@ bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
         })
         return res.status(200).json({
             message: `OTP successfully re-sent on phone ${phone}`,
+            status: 'success',
         })
     } catch (error) {
         return res.status(500).send({
@@ -460,10 +463,12 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
                 message: 'Phone OTP validation failed try again',
+                status: 'failed',
             })
         }
         return res.status(200).json({
             message: verifyOtpResponse.data,
+            status: 'success',
         })
     } catch (error) {
         return res.status(500).send({
