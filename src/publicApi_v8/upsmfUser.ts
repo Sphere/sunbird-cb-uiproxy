@@ -562,7 +562,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
         organisationId: getDetailsAsPerRole(userDetails).orgId,
         organisationName: getDetailsAsPerRole(userDetails).orgName,
         phone: userDetails.phone,
-        registrationSource: "Self Registration",
+        registrationSource: 'Self Registration',
         upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber,
     }
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
