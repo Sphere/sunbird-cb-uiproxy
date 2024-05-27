@@ -30,6 +30,7 @@ interface UserDetails {
     role: 'Student' | 'Faculty' | 'In Service',
     serviceType?: string
 }
+
 const shortHands = {
     privateHealthFacility: 'Private Health Facility',
     publicHealthFacility: 'Public Health Facility',
@@ -160,6 +161,9 @@ const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
     createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
     migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
+    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
+    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
+    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
     profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
     userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
@@ -214,7 +218,12 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
         orgName,
     }
 }
-
+const indianCountryCode = '+91'
+const msg91Headers = {
+    accept: 'application/json',
+    authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+    'content-type': 'application/json',
+}
 const standardDob = '01/01/1970'
 const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
@@ -235,7 +244,6 @@ async function connectToDatabase() {
     }
 }
 connectToDatabase()
-
 bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {
         createAccount: 'failed',
@@ -365,6 +373,103 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         })
     }
 
+})
+bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
+    const phone = req.body.phone || ''
+    try {
+        logInfo('Entered into Send OTP for BNRC >>>>>')
+        logInfo('User request body send otp', JSON.stringify(req.body))
+        if (!phone) {
+            res.status(400).json({
+                message: "Mandatory parameters phone missing",
+                status: 'error',
+            })
+        }
+        await axios({
+            headers: msg91Headers,
+            params: {
+                mobile: `${indianCountryCode}${phone}`,
+                template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
+            },
+
+            method: 'POST',
+            url: API_END_POINTS.msg91SendOtp,
+        })
+        return res.status(200).json({
+            message: `OTP successfully sent on phone ${phone}`,
+        })
+    } catch (error) {
+        logInfo('Error in sending user OTP' + error)
+        return res.status(500).send({
+            message: `OTP generation fail for phone ${phone}`,
+            status: 'failed',
+        })
+    }
+})
+bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
+    const phone = req.body.phone || ''
+    try {
+        logInfo('Entered into Re-Send OTP for BNRC >>>>>', req.body)
+        if (!phone) {
+            return res.status(400).json({
+                message: 'Mandatory parameters phone missing',
+            })
+        }
+        logInfo('SSO Resend OTP through phone', phone)
+        await axios({
+            headers: msg91Headers,
+            params: {
+                mobile: `${indianCountryCode}${phone}`,
+                retrytype: 'text',
+            },
+
+            method: 'POST',
+            url: API_END_POINTS.msg91ResendOtp,
+        })
+        return res.status(200).json({
+            message: `OTP successfully re-sent on phone ${phone}`,
+        })
+    } catch (error) {
+        return res.status(500).send({
+            message: `OTP generation fail for phone ${phone}`,
+            status: 'failed',
+        })
+    }
+})
+bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
+    const { phone, otp } = req.body
+    try {
+        logInfo('Entered into validate OTP for BNRC >>>>>', req.body)
+        if (!phone || !otp) {
+            res.status(400).json({
+                message: "Mandatory parameters phone or otp missing",
+                status: 'error',
+            })
+        }
+        const verifyOtpResponse = await axios({
+            headers: msg91Headers,
+            method: 'GET',
+            params: {
+                mobile: `${indianCountryCode}${phone}`,
+                otp,
+            },
+
+            url: API_END_POINTS.msg91VerifyOtp,
+        })
+        if (verifyOtpResponse.data.type !== 'success') {
+            return res.status(400).json({
+                message: 'Phone OTP validation failed try again',
+            })
+        }
+        return res.status(200).json({
+            message: verifyOtpResponse.data,
+        })
+    } catch (error) {
+        return res.status(500).send({
+            message: `OTP validation failed for phone ${phone}`,
+            status: 'failed',
+        })
+    }
 })
 const sendRegistrationMessage = async (phone: number) => {
     try {
