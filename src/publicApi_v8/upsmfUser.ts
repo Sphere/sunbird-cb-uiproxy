@@ -115,6 +115,9 @@ const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
     createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
     migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
+    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
+    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
+    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
     profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
     userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
@@ -673,21 +676,21 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
 }
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
-        courseSelection: userDetails.courseSelection || "",
+        courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
-        district: userDetails.district || "",
-        email: userDetails.email || "",
-        facultyType: userDetails.facultyType || "",
-        firstName: userDetails.firstName || "",
-        hrmsId: userDetails.hrmsId || "",
-        instituteName: userDetails.instituteName || "",
-        instituteType: userDetails.instituteType || "",
-        lastName: userDetails.lastName ||,
+        district: userDetails.district || '',
+        email: userDetails.email || '',
+        facultyType: userDetails.facultyType || '',
+        firstName: userDetails.firstName || '',
+        hrmsId: userDetails.hrmsId || '',
+        instituteName: userDetails.instituteName || '',
+        instituteType: userDetails.instituteType || '',
+        lastName: userDetails.lastName || '',
         organisationId: getDetailsAsPerRole(userDetails).orgId,
         organisationName: getDetailsAsPerRole(userDetails).orgName,
-        phone: userDetails.phone || "",
+        phone: userDetails.phone || '',
         registrationSource: 'Self Registration',
-        upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || "",
+        upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || '',
     }
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
     try {
