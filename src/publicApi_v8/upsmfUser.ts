@@ -165,6 +165,13 @@ const userSuccessRegistrationMessage = `Registration Successful! Kindly download
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 logInfo('Mongodb connection URL', mongodbConnectionUri)
 const databaseName = 'upsmf'
+const indianCountryCode = '+91'
+const msg91Headers = {
+    // tslint:disable-next-line: all
+    accept: 'application/json',
+    authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+    'content-type': 'application/json',
+}
 const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true })
 let db: Db | null = null
 async function connectToDatabase() {
@@ -177,22 +184,28 @@ async function connectToDatabase() {
     }
 }
 connectToDatabase()
-
-let userJourneyStatus
 upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
+    const userJourneyStatus = {
+        createAccount: 'failed',
+        profileUpdate: 'failed',
+        registrationSuccessMessage: 'failed',
+        roleAssign: 'failed',
+        userAlreadyExists: false,
+        userExistingOrganisation: 'NA',
+        validationStatus: 'success',
+        validationStatusFailedReason: 'NA',
+    }
     try {
         const userFormDetails = req.body.value.request.formValues
         const phone = userFormDetails.phone
         logInfo('Request body UPSMF', JSON.stringify(userFormDetails))
-        userJourneyStatus = {
-            createAccount: 'failed',
-            profileUpdate: 'failed',
-            roleAssign: 'failed',
-        }
         const preServiceData = userFormDetails
         // tslint:disable-next-line: no-any
         const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
         if (result.error) {
+            userJourneyStatus.validationStatus = 'failed'
+            userJourneyStatus.validationStatusFailedReason = JSON.stringify(result.error.message) || result.error.message
+            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: result.error.message,
                 status: 'FAILED',
@@ -200,32 +213,42 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
         }
         const isUserExists = await getUserDetails(phone)
         if (isUserExists.message = 'success' && isUserExists.userDetails) {
+            userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
             if (isUserExists.userDetails.rootOrgName == 'Department of Medical Education Education and Training') {
+                userJourneyStatus.userExistingOrganisation = 'Bihar Nursing Registration Council || Health (Bihar) || Private (Bihar)'
+                await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
-            } else if (isUserExists.userDetails.rootOrgName == 'aastrika') {
+            } else if (isUserExists.userDetails.rootOrgName == 'aastrika' || isUserExists.userDetails.rootOrgName == 'SPhere Team 1') {
                 const userMigrationStatus = await migrateUserToUpsmf(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
+                    userJourneyStatus.userExistingOrganisation = 'aastrika || SPhere Team 1'
+                    await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                     return res.status(400).json({
                         message: accessDeniedMessage,
                         status: 'FAILED',
                     })
                 }
+                userJourneyStatus.userExistingOrganisation = 'aastrika'
+                await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
                     status: 'SUCCESS',
                 })
             }
+            userJourneyStatus.userExistingOrganisation = isUserExists.userDetails.rootOrgName
+            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: accessDeniedMessage,
                 status: 'FAILED',
             })
 
         } else if (isUserExists.message == 'failed') {
+            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: accessDeniedMessage,
                 status: 'FAILED',
@@ -258,8 +281,8 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.profileUpdate = 'success'
         }
         // Step 4 Insert User Status in Database
-        await updateUserStatusInDatabase(userFormDetails)
-        logInfo('User Journey Status', userJourneyStatus)
+        await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
+        logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
         const isUserJourneySucceess = Object.values(userJourneyStatus).some((status) => status === 'failed')
         if (isUserJourneySucceess) {
             return res.status(400).json({
@@ -284,7 +307,108 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
     }
 
 })
+upsmfUserCreation.post('/otp/sendOtp', async (req, res) => {
+    const phone = req.body.phone || ''
+    try {
+        logInfo('Entered into Send OTP for BNRC >>>>>')
+        logInfo('User request body send otp', JSON.stringify(req.body))
+        if (!phone) {
+            res.status(400).json({
+                message: 'Mandatory parameters phone missing',
+                status: 'error',
+            })
+        }
+        await axios({
+            headers: msg91Headers,
+            params: {
+                mobile: `${indianCountryCode}${phone}`,
+                template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
+            },
 
+            method: 'POST',
+            url: API_END_POINTS.msg91SendOtp,
+        })
+        return res.status(200).json({
+            message: `OTP successfully sent on phone ${phone}`,
+            status: 'success',
+        })
+    } catch (error) {
+        logInfo('Error in sending user OTP' + error)
+        return res.status(500).send({
+            message: `OTP generation fail for phone ${phone}`,
+            status: 'failed',
+        })
+    }
+})
+upsmfUserCreation.post('/otp/resendOtp', async (req, res) => {
+    const phone = req.body.phone || ''
+    try {
+        logInfo('Entered into Re-Send OTP for BNRC >>>>>', req.body)
+        if (!phone) {
+            return res.status(400).json({
+                message: 'Mandatory parameters phone missing',
+                status: 'error',
+            })
+        }
+        logInfo('SSO Resend OTP through phone', phone)
+        await axios({
+            headers: msg91Headers,
+            params: {
+                mobile: `${indianCountryCode}${phone}`,
+                retrytype: 'text',
+            },
+
+            method: 'POST',
+            url: API_END_POINTS.msg91ResendOtp,
+        })
+        return res.status(200).json({
+            message: `OTP successfully re-sent on phone ${phone}`,
+            status: 'success',
+        })
+    } catch (error) {
+        return res.status(500).send({
+            message: `OTP generation fail for phone ${phone}`,
+            status: 'failed',
+        })
+    }
+})
+upsmfUserCreation.post('/otp/validateOtp', async (req, res) => {
+    const { phone, otp } = req.body
+    try {
+        logInfo('Entered into validate OTP for BNRC >>>>>', req.body)
+        if (!phone || !otp) {
+            res.status(400).json({
+                message: 'Mandatory parameters phone or otp missing',
+                status: 'error',
+            })
+        }
+        const verifyOtpResponse = await axios({
+            headers: msg91Headers,
+            method: 'GET',
+            params: {
+                mobile: `${indianCountryCode}${phone}`,
+                otp,
+            },
+
+            url: API_END_POINTS.msg91VerifyOtp,
+        })
+        if (verifyOtpResponse.data.type !== 'success') {
+            return res.status(400).json({
+                message: 'Phone OTP validation failed try again',
+                status: 'failed',
+            })
+        }
+        return res.status(200).json({
+            message: verifyOtpResponse.data,
+            status: 'success',
+        })
+    } catch (error) {
+        return res.status(500).send({
+            message: `OTP validation failed for phone ${phone}`,
+            status: 'failed',
+        })
+    }
+})
 const getUserDetails = async (phone: number) => {
     try {
         const userDetails = await axios({
@@ -547,23 +671,23 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         return false
     }
 }
-const updateUserStatusInDatabase = async (userDetails: UserDetails) => {
+const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
-        courseSelection: userDetails.courseSelection,
+        courseSelection: userDetails.courseSelection || "",
         createdOn: new Date(),
-        district: userDetails.district,
-        email: userDetails.email,
-        facultyType: userDetails.facultyType,
-        firstName: userDetails.firstName,
-        hrmsId: userDetails.hrmsId,
-        instituteName: userDetails.instituteName,
-        instituteType: userDetails.instituteType,
-        lastName: userDetails.lastName,
+        district: userDetails.district || "",
+        email: userDetails.email || "",
+        facultyType: userDetails.facultyType || "",
+        firstName: userDetails.firstName || "",
+        hrmsId: userDetails.hrmsId || "",
+        instituteName: userDetails.instituteName || "",
+        instituteType: userDetails.instituteType || "",
+        lastName: userDetails.lastName ||,
         organisationId: getDetailsAsPerRole(userDetails).orgId,
         organisationName: getDetailsAsPerRole(userDetails).orgName,
-        phone: userDetails.phone,
+        phone: userDetails.phone || "",
         registrationSource: 'Self Registration',
-        upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber,
+        upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || "",
     }
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
     try {
