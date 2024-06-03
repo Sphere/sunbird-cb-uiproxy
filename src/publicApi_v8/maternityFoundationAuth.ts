@@ -25,9 +25,6 @@ export const maternityFoundationAuth = express.Router()
 // tslint:disable-next-line: no-any
 maternityFoundationAuth.post('/login', async (req: any, res) => {
   logInfo('Entered into maternity foundation route', JSON.stringify(req.body))
-  const courseId = req.body.moduleId
-  const host = req.get('host')
-  let resRedirectUrl = `https://sphere.aastrika.org/app/toc/${courseId}/overview?primaryCategory=Course`
   try {
     const maternityFoundationToken = {
       accessToken: decodeURIComponent(req.body.token),
@@ -44,8 +41,9 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
         method: 'POST',
         url: API_END_POINTS.maternityFoundationUserDetailsUrl,
       })
-      logInfo("Data from Maternity foundation", JSON.stringify(userDetailResponseFromMaternityFoundation.data))
+      logInfo('Data from Maternity foundation', JSON.stringify(userDetailResponseFromMaternityFoundation.data))
     } catch (error) {
+      logInfo(JSON.stringify(error))
       return res.status(400).json({
         msg: 'Token invalid or User not present in maternity foundation',
         status: 'error',
@@ -183,19 +181,16 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
       logInfo('Success ! Entered into usertokenResponse..')
       await getCurrentUserRoles(req, accessToken)
     } else {
-      res.status(302).json({
+      res.status(400).json({
         msg: AUTH_FAIL,
         status: 'error',
       })
     }
   } catch (err) {
     logError('Failed to process callback API.. error: ' + JSON.stringify(err))
-    resRedirectUrl = `https://${host}/public/home`
   }
-  logInfo(resRedirectUrl, 'redirectUrl')
   res.status(200).json({
     message: 'success',
-    resRedirectUrl,
   })
 })
 
