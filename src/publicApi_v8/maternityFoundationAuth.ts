@@ -1,21 +1,13 @@
 import axios from 'axios'
-import cassandra from 'cassandra-driver'
 import express from 'express'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
-import { v4 as uuidv4 } from 'uuid'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
 import { getCurrentUserRoles } from './rolePermission'
-
-const client = new cassandra.Client({
-  contactPoints: [CONSTANTS.CASSANDRA_IP],
-  keyspace: 'sunbird',
-  localDataCenter: 'datacenter1',
-})
 
 const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
@@ -32,7 +24,7 @@ const API_END_POINTS = {
 export const maternityFoundationAuth = express.Router()
 // tslint:disable-next-line: no-any
 maternityFoundationAuth.post('/login', async (req: any, res) => {
-  logInfo('Entered into maternity foundation route')
+  logInfo('Entered into maternity foundation route', JSON.stringify(req.body))
   const courseId = req.body.moduleId
   const host = req.get('host')
   let resRedirectUrl = `https://sphere.aastrika.org/app/toc/${courseId}/overview?primaryCategory=Course`
@@ -52,6 +44,7 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
         method: 'POST',
         url: API_END_POINTS.maternityFoundationUserDetailsUrl,
       })
+      logInfo("Data from Maternity foundation", JSON.stringify(userDetailResponseFromMaternityFoundation.data))
     } catch (error) {
       return res.status(400).json({
         msg: 'Token invalid or User not present in maternity foundation',
@@ -74,18 +67,18 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
         status: 'error',
         status_code: 400,
       })
-      logInfo('User details not present in e maternity foundation')
+      logInfo('User details not present in maternity foundation')
     }
     const resultEmail = await fetchUserBymobileorEmail(
       maternityFoundationEmail,
       'email'
     )
-    logInfo(resultEmail, 'resultemail')
+    logInfo(resultEmail, 'resultEmail')
     const resultPhone = await fetchUserBymobileorEmail(
       maternityFoundationPhone,
       'phone'
     )
-    logInfo(resultPhone, 'resutPhone')
+    logInfo(resultPhone, 'resultPhone')
 
     logInfo('User details sunbird', resultEmail)
     if (!resultEmail && !resultPhone) {
@@ -96,7 +89,6 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
         uppercase: true,
       })
 
-      logInfo(randomPassword)
       const responseCreateUser = await axios({
         ...axiosRequestConfig,
         data: {
@@ -153,23 +145,6 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
         url: API_END_POINTS.profileUpdate,
       })
       logInfo('Data after profile update', userProfileUpdate.data)
-      const uniqueSSOuserId = uuidv4()
-      const query =
-        // tslint:disable-next-line: max-line-length
-        'INSERT INTO sunbird.user_sso_bulkupload_v2 ( id, code, mainuseruuid, orgid, status, shashaktUserId, provider) VALUES ( ?, ?, ?, ?, ?, ?, ? )'
-
-      const params = [
-        uniqueSSOuserId,
-        'ASHAs',
-        responseCreateUser.data.result.userId,
-        '0139026512304373761757',
-        'success',
-        userDetailResponseFromMaternityFoundation.data.userId,
-        'Maternity Foundation',
-      ]
-      await client.execute(query, params, {
-        prepare: true,
-      })
     }
     const encodedData = qs.stringify({
       client_id: 'Maternity-Foundation',
