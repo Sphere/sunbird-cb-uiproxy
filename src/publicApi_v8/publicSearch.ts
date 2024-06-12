@@ -49,6 +49,9 @@ publicSearch.post('/getCourses', async (request, response) => {
     const facetsDataDefault = ['duration', 'lastUpdatedOn']
     const courseSearchRequestData = request.body
     const filters = courseSearchRequestData.request.filters
+    filters.contentType = [
+      'Course', 'CourseUnit',
+    ]
     const facets = courseSearchRequestData.request.facets
     const sortMethod = courseSearchRequestData.request.sort_by || {
       lastUpdatedOn: 'desc',
