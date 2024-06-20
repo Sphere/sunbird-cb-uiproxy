@@ -209,7 +209,7 @@ const respond419 = (req: Request, res: Response) => {
  */
 export const isAllowed = () => {
     // tslint:disable-next-line: only-arrow-functions
-    return function (req: Request, res: Response, next: NextFunction) {
+    return function(req: Request, res: Response, next: NextFunction) {
         let REQ_URL = req.path
         if (CONSTANTS.PORTAL_API_WHITELIST_CHECK === 'true') {
             if (shouldAllow(req) || _.includes(REQ_URL, '/resource')) {
@@ -292,7 +292,8 @@ const validateAPI = (req: Request, res: Response, next: NextFunction) => {
 
 export function apiWhiteListLogger() {
     return (req: Request, res: Response, next: NextFunction) => {
-        if (req.path === '/' || checkIsStaticRoute(req.path) || _.includes(req.path, 'public') || _.includes(req.path, "/admin/selfService")) {
+        // tslint:disable-next-line: all
+        if (req.path === '/' || checkIsStaticRoute(req.path) || _.includes(req.path, 'public') || _.includes(req.path, '/admin/selfService')) {
             next()
             return
         }
