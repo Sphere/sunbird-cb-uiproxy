@@ -15,6 +15,8 @@ import { getSessionConfig } from './configs/session.config'
 import { protectedApiV8 } from './protectedApi_v8/protectedApiV8'
 import { proxiesV8 } from './proxies_v8/proxies_v8'
 import { publicApiV8 } from './publicApi_v8/publicApiV8'
+import { adminApiV8 } from './admin/selfServicePortal'
+
 import { CustomKeycloak } from './utils/custom-keycloak'
 import { CONSTANTS } from './utils/env'
 import { logInfo, logSuccess } from './utils/logger'
@@ -63,6 +65,7 @@ export class Server {
     this.authoringProxies()
     this.configureMiddleware()
     this.servePublicApi()
+    this.serveAdminApi()
     this.serverProtectedApi()
     this.serverProxies()
     this.authoringApi()
@@ -168,7 +171,9 @@ export class Server {
   private servePublicApi() {
     this.app.use('/public/v8', publicApiV8)
   }
-
+  private serveAdminApi() {
+    this.app.use('/admin/selfService', adminApiV8)
+  }
   private serverProtectedApi() {
     if (this.keycloak) {
       this.app.use('/protected/v8', this.keycloak.protect, protectedApiV8)
