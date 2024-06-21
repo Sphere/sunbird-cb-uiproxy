@@ -5,6 +5,7 @@ import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 export const adminApiV8 = Router()
 const API_END_POINTS = {
+    getInitialFormDetails: `${CONSTANTS.SELF_SERVICE_PORTAL_API_BASE}/v1/public/getInitialFormDetails`,
     getLeanerCompletedResourceDetails: `${CONSTANTS.SELF_SERVICE_PORTAL_API_BASE}/v1/user/getLeanerCompletedResourceDetails`,
     getLearnerDetails: `${CONSTANTS.SELF_SERVICE_PORTAL_API_BASE}/v1/user/getLearnerDetails`,
 }
@@ -77,6 +78,18 @@ adminApiV8.get('/v1/user/getLeanerCompletedResourceDetails', async (req, res) =>
             method: 'GET',
             params: req.query,
             url: API_END_POINTS.getLeanerCompletedResourceDetails,
+        })
+        res.status(200).send(response.data)
+    } catch (error) {
+        logInfo(JSON.stringify(error))
+        return res.status(403).send(errorMessage)
+    }
+})
+adminApiV8.get('/v1/public/getInitialFormDetails', async (_req, res) => {
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: API_END_POINTS.getInitialFormDetails,
         })
         res.status(200).send(response.data)
     } catch (error) {
