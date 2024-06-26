@@ -1,8 +1,10 @@
 import axios from 'axios'
 import { Router } from 'express'
 import express from 'express'
+import fs from 'fs'
 import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
+import jwt from 'jsonwebtoken'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import request from 'request'
@@ -14,9 +16,6 @@ import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
-import jwt from "jsonwebtoken";
-import fs from 'fs';
-
 
 const API_END_POINTS = {
 
@@ -51,9 +50,9 @@ const getHeaders = (req: any) => {
     'x-authenticated-user-token': req.headers[authenticatedToken],
   }
 }
-const publicKeyPath = '/keys/access_key';
-const publicKey = fs.readFileSync(publicKeyPath, 'utf8');
-logInfo(`Public key contents: ${publicKey}`);
+const publicKeyPath = '/keys/access_key'
+const publicKey = fs.readFileSync(publicKeyPath, 'utf8')
+logInfo(`Public key contents: ${publicKey}`)
 
 export const mobileAppApi = Router()
 
@@ -63,7 +62,7 @@ const verifyToken = (req: any, res: any) => {
     const accessToken = req.headers[authenticatedToken]
     // tslint:disable-next-line: no-any
     const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
-      algorithms: ['RS256']
+      algorithms: ['RS256'],
     })
     if (!authenticatedTokenResult) {
       return res.status(404).json({
@@ -71,6 +70,7 @@ const verifyToken = (req: any, res: any) => {
         redirectUrl: 'https://sphere.aastrika.org/public/home',
       })
     }
+    // tslint:disable-next-line: no-any
     const decodedToken: any = jwt_decode(accessToken.toString())
     const decodedTokenArray = decodedToken.sub.split(':')
     const userId = decodedTokenArray[decodedTokenArray.length - 1]
