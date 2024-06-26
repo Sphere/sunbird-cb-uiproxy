@@ -59,11 +59,13 @@ export const mobileAppApi = Router()
 // tslint:disable-next-line: no-any
 const verifyToken = (req: any, res: any) => {
   try {
+    logInfo("Inside verify token function")
     const accessToken = req.headers[authenticatedToken]
     // tslint:disable-next-line: no-any
     const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
       algorithms: ['RS256'],
     })
+    logInfo("Token verified")
     logInfo("Access token result", JSON.stringify(authenticatedTokenResult))
     logInfo("Public key content", publicKey)
     logInfo("New Auth unlocked")
@@ -196,8 +198,10 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
 })
 mobileAppApi.post('/getEntityById/:id', async (req, res) => {
   try {
-    const accesTokenResult = verifyToken(req, res)
+    logInfo("Inside get entity endpoint")
+    const accesTokenResult = await verifyToken(req, res)
     if (accesTokenResult.status == 200) {
+      logInfo("Token success")
       const response = await axios({
         data: req.body,
         headers: {
