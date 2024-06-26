@@ -64,6 +64,9 @@ const verifyToken = (req: any, res: any) => {
     const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
       algorithms: ['RS256'],
     })
+    logInfo("Access token result", JSON.stringify(authenticatedTokenResult))
+    logInfo("Public key content", publicKey)
+    logInfo("New Auth unlocked")
     if (!authenticatedTokenResult) {
       return res.status(404).json({
         message: 'User token missing or invalid',
