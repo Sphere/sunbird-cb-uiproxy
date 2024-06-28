@@ -51,7 +51,10 @@ const getHeaders = (req: any) => {
   }
 }
 const publicKeyPath = '/keys/access_key'
-const publicKey = fs.readFileSync(publicKeyPath, 'utf8')
+const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+const beginKey = '-----BEGIN PUBLIC KEY-----\n';
+const endKey = '\n-----END PUBLIC KEY-----';
+const publicKey = beginKey + publicKeyValue + endKey
 logInfo(`Public key contents: ${publicKey}`)
 
 export const mobileAppApi = Router()
@@ -59,16 +62,16 @@ export const mobileAppApi = Router()
 // tslint:disable-next-line: no-any
 const verifyToken = (req: any, res: any) => {
   try {
-    logInfo("Inside verify token function")
+    logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken]
     // tslint:disable-next-line: no-any
     const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
       algorithms: ['RS256'],
     })
-    logInfo("Token verified")
-    logInfo("Access token result", JSON.stringify(authenticatedTokenResult))
-    logInfo("Public key content", publicKey)
-    logInfo("New Auth unlocked")
+    logInfo('Token verified')
+    logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
+    logInfo('Public key content', publicKey)
+    logInfo('New Auth unlocked')
     if (!authenticatedTokenResult) {
       return res.status(404).json({
         message: 'User token missing or invalid',
@@ -198,10 +201,10 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
 })
 mobileAppApi.post('/getEntityById/:id', async (req, res) => {
   try {
-    logInfo("Inside get entity endpoint")
+    logInfo('Inside get entity endpoint')
     const accesTokenResult = await verifyToken(req, res)
     if (accesTokenResult.status == 200) {
-      logInfo("Token success")
+      logInfo('Token success')
       const response = await axios({
         data: req.body,
         headers: {
