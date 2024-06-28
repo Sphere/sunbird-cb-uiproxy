@@ -55,7 +55,6 @@ const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n';
 const endKey = '\n-----END PUBLIC KEY-----';
 const publicKey = beginKey + publicKeyValue + endKey
-logInfo(`Public key contents: ${publicKey}`)
 
 export const mobileAppApi = Router()
 
@@ -70,8 +69,6 @@ const verifyToken = (req: any, res: any) => {
     })
     logInfo('Token verified')
     logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
-    logInfo('Public key content', publicKey)
-    logInfo('New Auth unlocked')
     if (!authenticatedTokenResult) {
       return res.status(404).json({
         message: 'User token missing or invalid',
