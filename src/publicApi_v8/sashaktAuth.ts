@@ -2,7 +2,7 @@ import axios from 'axios'
 import cassandra from 'cassandra-driver'
 import express from 'express'
 import jwt_decode from 'jwt-decode'
-import _, { filter } from 'lodash'
+import _ from 'lodash'
 import qs from 'querystring'
 import { v4 as uuidv4 } from 'uuid'
 import { axiosRequestConfig } from '../configs/request.config'
@@ -249,7 +249,7 @@ const fetchUserBymobileorEmail = async (
 }
 const checkMandatoryUserProfileDetails = async (email, phone) => {
   try {
-    logInfo("Inside check mandatory function")
+    logInfo('Inside check mandatory function')
     const filterType = email ? 'email' : 'phone'
     const contactInfo = filterType === 'email' ? email : phone
     logInfo(filterType, contactInfo)
@@ -266,7 +266,7 @@ const checkMandatoryUserProfileDetails = async (email, phone) => {
       url: API_END_POINTS.searchSb,
     })
     const userProfileDetails = userDetails.data.result.response.content[0].profileDetails
-    logInfo("User profile details sahskat inside check", JSON.stringify(userProfileDetails))
+    logInfo('User profile details sahskat inside check', JSON.stringify(userProfileDetails))
     if (!userProfileDetails.profileReq.academics) {
       userProfileDetails.profileReq.academics = [
         {
