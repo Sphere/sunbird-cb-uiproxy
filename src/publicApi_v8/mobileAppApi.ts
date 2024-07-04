@@ -5,6 +5,7 @@ import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
+import nodeHtmlToImage from 'node-html-to-image'
 import request from 'request'
 import { axiosRequestConfig } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
@@ -14,10 +15,16 @@ import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
+const cassandra = require('cassandra-driver')
+
+const VALIDATION_FAIL =
+  'Sorry ! Download cerificate not worked . Please try again in sometime.'
+export const publicCertificateFlinkv2 = Router()
 
 const API_END_POINTS = {
 
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
+  DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
@@ -475,6 +482,132 @@ mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
         error: 'Exception occured in recommendation service',
       }
     )
+  }
+})
+mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
+  try {
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.status == 200) {
+      const userid = req.query.userid
+      const courseid = req.query.courseid
+      const secretKey = req.query.secretKey
+
+      if (!(userid || courseid || secretKey)) {
+        res.status(400).json({
+          msg: 'UserID, courseID or secretKey can not be empty',
+          status: 'error',
+          status_code: 400,
+        })
+      }
+      const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY
+      if (certificateKey !== secretKey) {
+        res.status(400).json({
+          msg: 'Invalid certificate download key',
+          status: 'error',
+          status_code: 400,
+        })
+      }
+      const client = new cassandra.Client({
+        contactPoints: [CONSTANTS.CASSANDRA_IP],
+        keyspace: 'sunbird_courses',
+        localDataCenter: 'datacenter1',
+      })
+      // tslint:disable-next-line: max-line-length
+      const query = `SELECT userid, courseid, batchid, issued_certificates FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`
+      const certificateData = await client.execute(query)
+      if (!certificateData) {
+        res.status(400).json({
+          msg: 'Certificate ID cannot be fetched',
+          status: 'error',
+          status_code: 400,
+        })
+      }
+      client.shutdown()
+      const certificateId =
+        certificateData.rows[0].issued_certificates[0].identifier
+      const certificateName = certificateData.rows[0].issued_certificates[0].name
+      const response = await axios({
+        ...axiosRequestConfig,
+        headers: {
+          Authorization: CONSTANTS.SB_API_KEY,
+        },
+        method: 'GET',
+        url: `${API_END_POINTS.DOWNLOAD_CERTIFICATE}${certificateId}`,
+      })
+      logInfo(
+        'Certificate download in progress of certificate ID',
+        certificateId
+      )
+      function getPosition(stringValue, subStringValue, index) {
+        return stringValue.split(subStringValue, index).join(subStringValue)
+          .length
+      }
+      let imageData = response.data.result.printUri
+      imageData = decodeURIComponent(imageData)
+      imageData = imageData.substring(imageData.indexOf(','))
+      let width = imageData.substring(
+        imageData.indexOf("<svg width='") + 12,
+        getPosition(imageData, "'", 2)
+      )
+      let height = imageData.substring(
+        imageData.indexOf("height='") + 8,
+        getPosition(imageData, "'", 4)
+      )
+      if (!imageData.includes("<svg width='")) {
+        width = '1400'
+        height = '950'
+      }
+      const puppeteer = {
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--headless',
+          '--no-zygote',
+          '--disable-gpu',
+        ],
+        headless: true,
+        ignoreHTTPSErrors: true,
+      }
+
+      let image = await nodeHtmlToImage({
+        html: `<html>
+    <head>
+      <style>
+        body {
+          width:${width}px;
+          height: ${height}px;
+        }
+      </style>
+    </head>
+    <body>${imageData}</body>
+  </html>`,
+        puppeteerArgs: puppeteer,
+      })
+      if (response.data.responseCode === 'OK') {
+        logInfo('Certificate printURI received :')
+        res.writeHead(200, {
+          'Content-Disposition':
+            'attachment;filename=' + `${certificateName}.png`,
+          'Content-Type': 'image/png',
+        })
+        res.end(image, 'binary')
+        image = ''
+      } else {
+        throw new Error(
+          _.get(response.data, 'params.errmsg') ||
+          _.get(response.data, 'params.err')
+        )
+      }
+    }
+  } catch (error) {
+    logError('Error in downloading certificate  >>>>>>' + error)
+    res.status(500).send({
+      message: VALIDATION_FAIL,
+      status: 'failed',
+    })
   }
 })
 mobileAppApi.get('/certificateDownload', async (req, res) => {

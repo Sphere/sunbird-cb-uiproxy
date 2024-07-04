@@ -26,13 +26,13 @@ const API_END_POINTS = {
   generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
   sashaktUserDetailsUrl: `${CONSTANTS.SASHAKT_USER_DETAILS_URL}`,
+  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
 }
 export const sashakt = express.Router()
 // tslint:disable-next-line: no-any
 sashakt.get('/login', async (req: any, res) => {
   logInfo('Entered into sashakt route')
-
   const courseId = req.query.moduleId
   const host = req.get('host')
   let resRedirectUrl = `https://sphere.aastrika.org/app/toc/${courseId}/overview?primaryCategory=Course&org=nhsrc`
@@ -47,8 +47,8 @@ sashakt.get('/login', async (req: any, res) => {
       url: API_END_POINTS.sashaktUserDetailsUrl,
     })
     const sashaktData = userDetailResponseFromShashakt.data.userDetails[0]
-    const sashaktEmail = sashaktData.email
-    const sashaktPhone = sashaktData.phone
+    const sashaktEmail = sashaktData.email || ''
+    const sashaktPhone = sashaktData.phone || ''
     const typeOfLogin = sashaktData.phone ? 'phone' : 'email'
 
     logInfo('User details from shashakt', sashaktData)
@@ -64,8 +64,13 @@ sashakt.get('/login', async (req: any, res) => {
     const resultEmail = await fetchUserBymobileorEmail(sashaktEmail, 'email')
     logInfo(resultEmail, 'resultemail')
     const resultPhone = await fetchUserBymobileorEmail(sashaktPhone, 'phone')
-    logInfo(resultPhone, 'resutPhone')
-
+    logInfo(resultPhone, 'resultPhone')
+    if (resultEmail || resultPhone) {
+      const isMandatoryFieldsPresentInUserProfile = await checkMandatoryUserProfileDetails(sashaktEmail, sashaktPhone)
+      if (!isMandatoryFieldsPresentInUserProfile) {
+        logInfo('Something went wrong while checking Sashakt user profile details', JSON.stringify(sashaktData))
+      }
+    }
     logInfo('User details sunbird', resultEmail)
     if (!resultEmail && !resultPhone) {
       const randomPassword = generateRandomPassword(8, {
@@ -115,8 +120,15 @@ sashakt.get('/login', async (req: any, res) => {
           request: {
             profileDetails: {
               profileReq: {
+                academics: [
+                  {
+                    nameOfInstitute: '',
+                    nameOfQualification: '',
+                    type: 'GRADUATE',
+                    yearOfPassing: '',
+                  },
+                ],
                 id: responseCreateUser.data.result.userId,
-
                 personalDetails: {
                   dob: '01-01-2000',
                   firstname: sashaktData.firstname,
@@ -152,6 +164,7 @@ sashakt.get('/login', async (req: any, res) => {
       })
 
     }
+
     const encodedData = qs.stringify({
       client_id: 'eShashakt',
       client_secret: `${CONSTANTS.KEYCLOAK_CLIENT_SECRET_SASHAKT}`,
@@ -233,4 +246,49 @@ const fetchUserBymobileorEmail = async (
   } catch (err) {
     logError('fetchUserByMobile  failed')
   }
+}
+const checkMandatoryUserProfileDetails = async (email, phone) => {
+  try {
+    const filterType = email ? 'email' : 'phone'
+    const contactInfo = filterType === 'email' ? email : phone
+    const userDetails = await axios({
+      ...axiosRequestConfig,
+      data: {
+        request: {
+          filters: {
+            [filterType]: contactInfo,
+          },
+        },
+      },
+      method: 'POST',
+      url: API_END_POINTS.searchSb,
+    })
+    const userProfileDetails = userDetails.data.result.response.content.profileDetails
+    if (!userProfileDetails.profileReq.academics) {
+      userProfileDetails.profileReq.academics = [
+        {
+          nameOfInstitute: '',
+          nameOfQualification: '',
+          type: 'GRADUATE',
+          yearOfPassing: '',
+        },
+      ]
+      await axios({
+        ...axiosRequestConfig,
+        data: {
+          request: {
+            profileDetails: userProfileDetails,
+            userId: userDetails.data.result.response.content.id,
+          },
+        },
+        headers: { Authorization: CONSTANTS.SB_API_KEY },
+        method: 'PATCH',
+        url: API_END_POINTS.profileUpdate,
+      })
+      return true
+    }
+  } catch (error) {
+    return false
+  }
+
 }
