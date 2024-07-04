@@ -250,7 +250,7 @@ const fetchUserBymobileorEmail = async (
 const checkMandatoryUserProfileDetails = async (email, phone) => {
   try {
     logInfo('Inside check mandatory function')
-    const filterType = email ? 'email' : 'phone'
+    const filterType = phone ? 'phone' : 'email'
     const contactInfo = filterType === 'email' ? email : phone
     logInfo(filterType, contactInfo)
     const userDetails = await axios({
