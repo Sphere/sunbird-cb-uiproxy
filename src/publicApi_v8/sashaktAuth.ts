@@ -281,7 +281,7 @@ const checkMandatoryUserProfileDetails = async (email, phone) => {
         data: {
           request: {
             profileDetails: userProfileDetails,
-            userId: userDetails.data.result.response.content.id,
+            userId: userDetails.data.result.response.content[0].id,
           },
         },
         headers: { Authorization: CONSTANTS.SB_API_KEY },
@@ -291,6 +291,7 @@ const checkMandatoryUserProfileDetails = async (email, phone) => {
       return true
     }
   } catch (error) {
+    logInfo(JSON.stringify(error))
     return false
   }
 
