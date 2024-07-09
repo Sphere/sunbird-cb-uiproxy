@@ -6,6 +6,7 @@ import fileUpload from 'express-fileupload'
 import expressSession from 'express-session'
 import helmet from 'helmet'
 import morgan from 'morgan'
+import { adminApiV8 } from './admin/selfServicePortal'
 import { authContent } from './authoring/authContent'
 import { authIapBackend } from './authoring/authIapBackend'
 import { authNotification } from './authoring/authNotification'
@@ -15,6 +16,7 @@ import { getSessionConfig } from './configs/session.config'
 import { protectedApiV8 } from './protectedApi_v8/protectedApiV8'
 import { proxiesV8 } from './proxies_v8/proxies_v8'
 import { publicApiV8 } from './publicApi_v8/publicApiV8'
+
 import { CustomKeycloak } from './utils/custom-keycloak'
 import { CONSTANTS } from './utils/env'
 import { logInfo, logSuccess } from './utils/logger'
@@ -63,6 +65,7 @@ export class Server {
     this.authoringProxies()
     this.configureMiddleware()
     this.servePublicApi()
+    this.serveAdminApi()
     this.serverProtectedApi()
     this.serverProxies()
     this.authoringApi()
@@ -168,7 +171,9 @@ export class Server {
   private servePublicApi() {
     this.app.use('/public/v8', publicApiV8)
   }
-
+  private serveAdminApi() {
+    this.app.use('/admin/selfService', adminApiV8)
+  }
   private serverProtectedApi() {
     if (this.keycloak) {
       this.app.use('/protected/v8', this.keycloak.protect, protectedApiV8)

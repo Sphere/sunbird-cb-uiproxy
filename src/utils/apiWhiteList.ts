@@ -292,7 +292,8 @@ const validateAPI = (req: Request, res: Response, next: NextFunction) => {
 
 export function apiWhiteListLogger() {
     return (req: Request, res: Response, next: NextFunction) => {
-        if (req.path === '/' || checkIsStaticRoute(req.path) || _.includes(req.path, 'public')) {
+        // tslint:disable-next-line: all
+        if (req.path === '/' || checkIsStaticRoute(req.path) || _.includes(req.path, 'public') || _.includes(req.path, '/admin/selfService')) {
             next()
             return
         }
