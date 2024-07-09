@@ -633,7 +633,7 @@ function mobileProxyCreatorSunbird(
       let url
       // tslint:disable-next-line: no-console
       console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
-      req.originalUrl = req.originalUrl.replace(/\/uid/g, "")
+      req.originalUrl = req.originalUrl.replace(/\/uid/g, '')
       if (req.originalUrl.includes('discussion/topic')) {
         const topic = req.originalUrl.toString().split('/')
         if (topic[5] === topic[6]) {
@@ -659,8 +659,7 @@ function mobileProxyCreatorSunbird(
           removePrefix('/public/v8/mobileApp', req.originalUrl) +
           '&_uid=' +
           nodebbUserId
-      }
-      else {
+      } else {
         url =
           removePrefix('/public/v8/mobileApp', req.originalUrl) +
           '?_uid=' +
@@ -675,15 +674,16 @@ function mobileProxyCreatorSunbird(
         'X-Authenticated-User-Token': req.headers[authenticatedToken],
 
       }
+      // tslint:disable-next-line: no-any
       const method = req.method as any
 
       const response = await axios({
-        method,
-        url: targetUrl + url,
-        headers: headers,
         data: req.body,
+        headers,
+        method,
         params: req.query,
-        timeout: _timeout
+        timeout: _timeout,
+        url: targetUrl + url
       })
 
       res.status(response.status).send(response.data)
