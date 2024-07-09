@@ -683,7 +683,7 @@ function mobileProxyCreatorSunbird(
         method,
         params: req.query,
         timeout: _timeout,
-        url: targetUrl + url
+        url: targetUrl + url,
       })
 
       res.status(response.status).send(response.data)
