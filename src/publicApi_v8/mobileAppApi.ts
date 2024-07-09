@@ -672,9 +672,21 @@ function mobileProxyCreatorSunbird(
         Authorization: CONSTANTS.SB_API_KEY,
         'X-Channel-Id': '0132317968766894088',
 
-        [authenticatedToken]: req.headers[authenticatedToken],
+        'X-Authenticated-User-Token': req.headers[authenticatedToken],
 
       }
+      const method = req.method as any
+
+      const response = await axios({
+        method,
+        url: targetUrl + url,
+        headers: headers,
+        data: req.body,
+        params: req.query,
+        timeout: _timeout
+      })
+
+      res.status(response.status).send(response.data)
       proxy.web(req, res, {
         changeOrigin: true,
         headers,
