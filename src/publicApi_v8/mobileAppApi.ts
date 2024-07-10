@@ -766,16 +766,14 @@ function mobileProxyCreatorSunbird(
       let url
       // tslint:disable-next-line: no-console
       console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
-      
+
       if (req.originalUrl.includes('/uid')) {
-        req.originalUrl = req.originalUrl.replace(/\/uid/g, '');
+        req.originalUrl = req.originalUrl.replace(/\/uid/g, '')
       }
       if (req.originalUrl.includes('discussion/topic')) {
-       
         const topic = req.originalUrl.toString().split('/')
-        console.log(topic)
         if (topic[6] === topic[7]) {
-          
+
           req.originalUrl =
             topic[0] +
             '/' +
@@ -804,8 +802,7 @@ function mobileProxyCreatorSunbird(
           '?_uid=' +
           nodebbUserId
       }
-      console.log('targetUrl',targetUrl)
-      console.log('url',url)
+     
       logInfo('Final Url for target >>>>>>>>>', targetUrl + url)
       // tslint:disable-next-line: no-any
       const headers: any = {
@@ -836,6 +833,7 @@ function mobileProxyCreatorSunbird(
 
       })
     } catch (error) {
+      // tslint:disable-next-line: no-console
       console.log(JSON.stringify(error))
       res.status(401).send('Unauthorized')
     }
