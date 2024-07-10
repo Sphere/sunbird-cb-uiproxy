@@ -802,7 +802,7 @@ function mobileProxyCreatorSunbird(
           '?_uid=' +
           nodebbUserId
       }
-     
+
       logInfo('Final Url for target >>>>>>>>>', targetUrl + url)
       // tslint:disable-next-line: no-any
       const headers: any = {
