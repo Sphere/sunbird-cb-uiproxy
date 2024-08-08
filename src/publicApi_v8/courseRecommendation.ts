@@ -79,14 +79,12 @@ courseRecommendation.post('/publicSearch/getcourse', async (req, res) => {
         })
         let finalConcatenatedData = []
         let courseDataPrimary = searchServiceResponse.data.results.content
-        logInfo('coursedataprimary', courseDataPrimary)
         const result = await pool.query(
             `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
             ['Competency', '%' + searchRequestBody.search_text + '%']
         )
         // tslint:disable-next-line: no-any
         const postgresResponseData = result.rows.map((val: any) => val.id)
-        logInfo('postgresResponseData', JSON.stringify(postgresResponseData))
         let courseDataSecondary = []
         if (postgresResponseData.length > 0) {
             const elasticSearchData = []
@@ -96,7 +94,6 @@ courseRecommendation.post('/publicSearch/getcourse', async (req, res) => {
                     elasticSearchData.push(`${postgresResponse}-${value}`)
                 }
             }
-            logInfo('elasticSearchData', JSON.stringify(elasticSearchData))
             const courseSearchSecondaryData = {
                 request: {
                     filters: {
@@ -117,7 +114,6 @@ courseRecommendation.post('/publicSearch/getcourse', async (req, res) => {
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        logInfo('finalConcatenatedData 1', JSON.stringify(finalConcatenatedData))
         if (finalConcatenatedData.length == 0) {
             res.status(200).json(nullResponseStatus)
             return
@@ -127,7 +123,6 @@ courseRecommendation.post('/publicSearch/getcourse', async (req, res) => {
                 finalFilteredData.push(element)
             }
         })
-        logInfo('finalFilteredData', JSON.stringify(finalFilteredData))
         const uniqueCourseData = _.uniqBy(finalFilteredData, 'identifier')
         res.status(200).json({
             responseCode: 'OK',

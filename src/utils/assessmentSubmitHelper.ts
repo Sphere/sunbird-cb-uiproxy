@@ -95,8 +95,6 @@ export async function assessmentCreator(
             userResponsedata.result,
             JSON.stringify(formatedRequest.questions),
           ]
-        logInfo('params', JSON.stringify(params))
-        logInfo('formatted request data', formatedRequest.questions)
         client.execute(query, params, { prepare: true })
       } catch (error) {
         logInfo(JSON.stringify(error))
@@ -119,7 +117,6 @@ export async function assessmentCreator(
       response.data.passPercent = passPercentage
       if (response.data.result >= passPercentage) {
         response.data.passPercent = passPercentage
-        logInfo('Came inside if condition')
         await axios({
           data: revisedData,
           headers: {
@@ -148,7 +145,6 @@ const fetchAssessment = async (artifactUrl: string) => {
     })
     logInfo('Response Data in JSON :', response.data)
     if (response.data.questions) {
-      logInfo('Response questions :', _.get(response, 'data'))
       return _.get(response, 'data')
     }
   } catch (err) {
@@ -157,11 +153,6 @@ const fetchAssessment = async (artifactUrl: string) => {
 }
 // tslint:disable-next-line: no-any
 const getFormatedRequest = (data: any, requestBody: any) => {
-  logInfo(
-    'Response of questions in in getFormated method JSON :',
-    JSON.stringify(data.questions)
-  )
-
   _.forEach(data.questions, (qkey) => {
     _.forEach(requestBody.questions, (reqKey) => {
       if (
@@ -193,6 +184,5 @@ const getFormatedRequest = (data: any, requestBody: any) => {
       }
     })
   })
-  logInfo('requestBody to submit the assessment ', JSON.stringify(requestBody))
   return requestBody
 }

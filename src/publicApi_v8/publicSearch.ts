@@ -125,7 +125,6 @@ publicSearch.post('/getCourses', async (request, response) => {
         method: 'post',
         url: API_END_POINTS.searchv1,
       })
-      logInfo('courseDataPrimary', esResponsePrimaryCourses.data.result.content)
       let courseDataPrimary = esResponsePrimaryCourses.data.result.content
       const facetsData = esResponsePrimaryCourses.data.result.facets
       try {
@@ -155,7 +154,6 @@ publicSearch.post('/getCourses', async (request, response) => {
             },
             sort: [{ lastUpdatedOn: 'desc' }],
           }
-          logInfo('Competency search postgres collection', JSON.stringify(elasticSearchData))
           courseSearchSecondaryData.request.filters.competencySearch =
             elasticSearchData
           try {
@@ -166,7 +164,6 @@ publicSearch.post('/getCourses', async (request, response) => {
               method: 'post',
               url: API_END_POINTS.searchv1,
             })
-            logInfo('elasticSearchResponseSecond', elasticSearchResponseSecond.data)
             courseDataSecondary =
               elasticSearchResponseSecond.data.result.content || []
           } catch (error) {
@@ -180,7 +177,6 @@ publicSearch.post('/getCourses', async (request, response) => {
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
         finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        logInfo('finalConcatenatedData', JSON.stringify(finalConcatenatedData))
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return

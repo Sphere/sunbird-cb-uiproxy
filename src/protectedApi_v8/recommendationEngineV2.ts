@@ -108,14 +108,12 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
     })
     let finalConcatenatedData = []
     let courseDataPrimary = searchServiceResponse.data.results.content
-    logInfo('coursedataprimary', courseDataPrimary)
     const result = await pool.query(
       `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
       ['Competency', '%' + searchRequestBody.search_text + '%']
     )
     // tslint:disable-next-line: no-any
     const postgresResponseData = result.rows.map((val: any) => val.id)
-    logInfo('postgresResponseData', JSON.stringify(postgresResponseData))
     let courseDataSecondary = []
     if (postgresResponseData.length > 0) {
       const elasticSearchData = []
@@ -125,7 +123,6 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
           elasticSearchData.push(`${postgresResponse}-${value}`)
         }
       }
-      logInfo('elasticSearchData', JSON.stringify(elasticSearchData))
       const courseSearchSecondaryData = {
         request: {
           filters: {
