@@ -245,8 +245,8 @@ ratingsSearch.post('/recommendation/publicSearch/getcourse', async (req, res) =>
             contentType: 'Course',
             course_status: 'Live',
             language,
-            pagination_Count: req.body.paginationCount,
-            pagination_Size: req.body.paginationSize,
+            offset: req.body.offset,
+            limit: req.body.limit,
             resourceType: 'Course',
             search_fieldnames: [
                 'audience',
@@ -292,8 +292,8 @@ ratingsSearch.post('/recommendation/publicSearch/getcourse', async (req, res) =>
                         competencySearch: elasticSearchData,
                         lang: language,
                     },
-                    limit: req.body.paginationSize,
-                    offset: req.body.paginationCount,
+                    limit: req.body.limit,
+                    offset: req.body.offset,
                 },
                 sort: [{ lastUpdatedOn: 'desc' }],
             }
