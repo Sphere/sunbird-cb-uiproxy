@@ -245,8 +245,8 @@ ratingsSearch.post('/recommendation/publicSearch/getcourse', async (req, res) =>
             contentType: 'Course',
             course_status: 'Live',
             language,
-            offset: req.body.offset,
             limit: req.body.limit,
+            offset: req.body.offset,
             resourceType: 'Course',
             search_fieldnames: [
                 'audience',
