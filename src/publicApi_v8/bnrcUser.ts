@@ -277,7 +277,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
             if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == 'Health (Bihar)' || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
-                userJourneyStatus.userExistingOrganisation = 'Bihar Nursing Registration Council || Health (Bihar) || Private (Bihar)'
+                userJourneyStatus.userExistingOrganisation = isUserExists.userDetails.rootOrgName
                 await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
@@ -571,10 +571,9 @@ const createUser = async (userDetails: UserDetails) => {
 }
 const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
     try {
-        const userOrgId = getDetailsAsPerRole(userDetails).orgId
         const userRoleAssignData = {
             request: {
-                organisationId: userOrgId,
+                organisationId: getDetailsAsPerRole(userDetails).orgId,
                 roles: ['PUBLIC'],
                 userId,
             },
@@ -821,7 +820,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     hrmsId: user.hrmsId,
                                     instituteName: '',
                                     instituteType: '',
-                                    name: biharOrgName,
+                                    name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
                                     orgType: 'Government',
                                     privateFacilityType: user.privateFacilityType || '',
@@ -891,7 +890,7 @@ const migrateUserToBnrc = async (userDetails, userFormDetails) => {
     try {
         const migrateUserData = {
             request: {
-                channel: biharOrgName,
+                channel: getDetailsAsPerRole(userFormDetails).orgName,
                 forceMigration: true,
                 notifyMigration: false,
                 softDeleteOldOrg: true,
