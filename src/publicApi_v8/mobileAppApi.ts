@@ -38,6 +38,7 @@ const API_END_POINTS = {
   ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
   summary: (courseId) =>
     `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
+  userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
 }
 
 const GET_ENTITY_BY_ID_FAIL =
@@ -735,6 +736,51 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
       url: API_END_POINTS.cbpCourseRecommendation,
     })
     res.status(response.status).send(response.data)
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong fetching results',
+      }
+    )
+  }
+})
+mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => {
+  try {
+    /* tslint:disable-next-line */
+    logInfo("Inside user enrollment list for Adhoc certificates")
+    logInfo('Request params', JSON.stringify(req.query))
+    const enrollmentParams = req.query
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.status != 200) {
+      return res.status(400).json({
+        message: 'Token missing or invalid',
+        status: 'FAILED',
+      })
+    }
+    const sunbirdEnrollmentApiResponse = await axios({
+      headers: getHeaders(req),
+      method: 'GET',
+      params: enrollmentParams,
+      url: `${API_END_POINTS.userEnrollmentList}/${accesTokenResult.userId}`,
+    })
+    const generalCertificatesFromSunbird = sunbirdEnrollmentApiResponse.data.result.courses.map(((courseData) => {
+      if (courseData.issuedCertificates.length > 0) {
+        courseData.issuedCertificates[0].certificateType = 'General'
+        return courseData
+      }
+      return courseData
+    }))
+    const adhocCertificatesFromSunbirdRC = [{
+      certificateDownloadUrl: 'https://aastar-app-assets.s3.ap-south-1.amazonaws.com/sunbird-rc-general-certificate.png',
+      certificateName: 'Sunbird-Rc General Certificate',
+      thumbnail: 'https://aastar-app-assets.s3.ap-south-1.amazonaws.com/sunbird-rc-general-certificate-thumbnail.png',
+    }]
+    const combinedCertificatesData = {
+      generalCertificates: generalCertificatesFromSunbird,
+      sunbirdRcCertificates: adhocCertificatesFromSunbirdRC,
+    }
+    res.status(200).send(combinedCertificatesData)
   } catch (err) {
     logInfo(JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
