@@ -773,11 +773,9 @@ mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => 
       return courseData
     }))
     const rcMapperApiResponse = await axios({
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getHeaders(req),
       method: 'GET',
-      params: {userId:accesTokenResult.userId},
+      params: {userId: accesTokenResult.userId},
       url: `${API_END_POINTS.rcMapperHost}`,
     })
     const combinedCertificatesData = {
