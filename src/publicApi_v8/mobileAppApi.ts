@@ -36,6 +36,7 @@ const API_END_POINTS = {
   ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
   ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
   ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
+  rcMapperHost: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/getUserCertificateDetails`,
   summary: (courseId) =>
     `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
@@ -771,14 +772,17 @@ mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => 
       }
       return courseData
     }))
-    const adhocCertificatesFromSunbirdRC = [{
-      certificateDownloadUrl: 'https://aastar-app-assets.s3.ap-south-1.amazonaws.com/sunbird-rc-general-certificate.png',
-      certificateName: 'Sunbird-Rc General Certificate',
-      thumbnail: 'https://aastar-app-assets.s3.ap-south-1.amazonaws.com/sunbird-rc-general-certificate-thumbnail.png',
-    }]
+    const rcMapperApiResponse = await axios({
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: 'GET',
+      params: {userId:accesTokenResult.userId},
+      url: `${API_END_POINTS.rcMapperHost}`,
+    })
     const combinedCertificatesData = {
       generalCertificates: generalCertificatesFromSunbird,
-      sunbirdRcCertificates: adhocCertificatesFromSunbirdRC,
+      sunbirdRcCertificates: rcMapperApiResponse.data.data,
     }
     res.status(200).send(combinedCertificatesData)
   } catch (err) {
