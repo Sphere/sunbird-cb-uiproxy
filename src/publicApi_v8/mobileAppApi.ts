@@ -772,15 +772,22 @@ mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => 
       }
       return courseData
     }))
-    const rcMapperApiResponse = await axios({
-      headers: getHeaders(req),
-      method: 'GET',
-      params: {userId: accesTokenResult.userId},
-      url: `${API_END_POINTS.rcMapperHost}`,
-    })
+    let sunbirdRcCertificates;
+    try {
+      const rcMapperApiResponse = await axios({
+        headers: getHeaders(req),
+        method: 'GET',
+        params: {userId: accesTokenResult.userId},
+        url: `${API_END_POINTS.rcMapperHost}`,
+      })
+      sunbirdRcCertificates=rcMapperApiResponse.data.data
+    } catch (error) {
+      sunbirdRcCertificates=[]
+      logInfo(JSON.stringify(error))
+    }
     const combinedCertificatesData = {
       generalCertificates: generalCertificatesFromSunbird,
-      sunbirdRcCertificates: rcMapperApiResponse.data.data,
+      sunbirdRcCertificates
     }
     res.status(200).send(combinedCertificatesData)
   } catch (err) {
