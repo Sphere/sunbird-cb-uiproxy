@@ -755,15 +755,15 @@ mobileAppApi.post('/acceptTnc', async (req, res) => {
     const tncRequestBody = req.body
     logInfo('tncRequestBody for tnc update', tncRequestBody)
     const userProfileDetails = await getUserDetails(tncRequestBody.userId)
-    logInfo('userProfileDetails for tnc update', userProfileDetails)
+    logInfo('userProfileDetails for tnc update', JSON.stringify(userProfileDetails))
     if (!userProfileDetails) {
       return res.status(400).json({
         message: 'User not found',
         status: 'failed',
       })
     }
-    userProfileDetails.profileReq.personalDetails.tncAccepted="true"
-    userProfileDetails.personalDetails.tncAccepted="true"
+    userProfileDetails.profileReq.personalDetails.tncAccepted = 'true'
+    userProfileDetails.personalDetails.tncAccepted = 'true'
     const userProfileUpdateBody = {
       request: {
         profileDetails: userProfileDetails,
