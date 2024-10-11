@@ -33,6 +33,7 @@ const API_END_POINTS = {
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
   kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
+  profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
   ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
   ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
   ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
@@ -40,6 +41,7 @@ const API_END_POINTS = {
   summary: (courseId) =>
     `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
+  userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
 
 const GET_ENTITY_BY_ID_FAIL =
@@ -47,6 +49,7 @@ const GET_ENTITY_BY_ID_FAIL =
 const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity"
 
 const authenticatedToken = 'x-authenticated-user-token'
+// tslint:disable-next-line: no-any
 const contentTypeHeader = { 'Content-Type': 'application/json' }
 const proxy = createProxyServer({})
 // tslint:disable-next-line: no-any
@@ -723,6 +726,72 @@ mobileAppApi.get('/ratings/summary', async (req, res) => {
   }
 }
 )
+const getUserDetails = async (userId: string) => {
+  try {
+    const userDetails = await axios({
+      data: {
+        request: {
+          filters: {
+            id: userId,
+          },
+        },
+      },
+      headers: {
+        authorization: CONSTANTS.SB_API_KEY,
+        contentTypeHeader,
+      },
+      method: 'POST',
+      url: API_END_POINTS.userSearch,
+    })
+    return userDetails.data.result.response.content[0].profileDetails
+  } catch (error) {
+    logError('Error while user search', JSON.stringify(error))
+    return ''
+  }
+
+}
+mobileAppApi.post('/acceptTnc', async (req, res) => {
+  try {
+    const tncRequestBody = req.body
+    logInfo('tncRequestBody for tnc update', tncRequestBody)
+    const userProfileDetails = await getUserDetails(tncRequestBody.userId)
+    logInfo('userProfileDetails for tnc update', userProfileDetails)
+    if (!userProfileDetails) {
+      return res.status(400).json({
+        message: 'User not found',
+        status: 'failed',
+      })
+    }
+    const userProfileUpdateBody = {
+      request: {
+        profileDetails: userProfileDetails,
+        tcStatus: 'true',
+        tncAcceptedOn: new Date().getTime(),
+        tncAcceptedVersion: tncRequestBody.tncVersion,
+        userId: tncRequestBody.userId,
+      },
+    }
+    await axios({
+      data: userProfileUpdateBody,
+      headers: {
+        authorization: CONSTANTS.SB_API_KEY,
+        contentTypeHeader,
+      },
+      method: 'PATCH',
+      url: API_END_POINTS.profileUpdate,
+    })
+    res.status(200).json({
+      message: 'TNC Accepted Successfully',
+      status: 'success',
+    })
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    res.status(400).json({
+      message: 'Something went wrong while accepting TNC',
+      status: 'failed',
+    })
+  }
+})
 
 mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
   try {
@@ -772,22 +841,22 @@ mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => 
       }
       return courseData
     }))
-    let sunbirdRcCertificates;
+    let sunbirdRcCertificates
     try {
       const rcMapperApiResponse = await axios({
         headers: getHeaders(req),
         method: 'GET',
-        params: {userId: accesTokenResult.userId},
+        params: { userId: accesTokenResult.userId },
         url: `${API_END_POINTS.rcMapperHost}`,
       })
-      sunbirdRcCertificates=rcMapperApiResponse.data.data
+      sunbirdRcCertificates = rcMapperApiResponse.data.data
     } catch (error) {
-      sunbirdRcCertificates=[]
+      sunbirdRcCertificates = []
       logInfo(JSON.stringify(error))
     }
     const combinedCertificatesData = {
       generalCertificates: generalCertificatesFromSunbird,
-      sunbirdRcCertificates
+      sunbirdRcCertificates,
     }
     res.status(200).send(combinedCertificatesData)
   } catch (err) {
