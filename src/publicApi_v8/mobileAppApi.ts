@@ -762,6 +762,8 @@ mobileAppApi.post('/acceptTnc', async (req, res) => {
         status: 'failed',
       })
     }
+    userProfileDetails.profileReq.personalDetails.tncAccepted="true"
+    userProfileDetails.personalDetails.tncAccepted="true"
     const userProfileUpdateBody = {
       request: {
         profileDetails: userProfileDetails,
