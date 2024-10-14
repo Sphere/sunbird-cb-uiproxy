@@ -76,17 +76,18 @@ const verifyToken = (req: any, res: any) => {
       logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken]
 	    // tslint:disable-next-line: no-any
-    const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
-      algorithms: ['RS256'],
-    })
-    logInfo('Token verified')
-    logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
-    if (!authenticatedTokenResult) {
-      return res.status(404).json({
-        message: 'User token missing or invalid',
-        redirectUrl: 'https://sphere.aastrika.org/public/home',
-      })
-    }
+      try {
+        const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
+          algorithms: ['RS256'],
+        })
+        logInfo('Token verified')
+        logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
+      } catch (error) {
+        return res.status(404).json({
+          message: 'User token missing or invalid',
+          redirectUrl: 'https://sphere.aastrika.org/public/home',
+        })
+      }
     // tslint:disable-next-line: no-any
     const decodedToken: any = jwt_decode(accessToken.toString())
     const decodedTokenArray = decodedToken.sub.split(':')
