@@ -65,29 +65,29 @@ const getHeaders = (req: any) => {
 }
 const publicKeyPath = '/keys/access_key'
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
-const beginKey = '-----BEGIN PUBLIC KEY-----\n';
-const endKey = '\n-----END PUBLIC KEY-----';
+const beginKey = '-----BEGIN PUBLIC KEY-----\n'
+const endKey = '\n-----END PUBLIC KEY-----'
 const publicKey = beginKey + publicKeyValue + endKey
 export const mobileAppApi = Router()
 
 // tslint:disable-next-line: no-any
 const verifyToken = (req: any, res: any) => {
   try {
-      logInfo('Inside verify token function')
+    logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken]
-	    // tslint:disable-next-line: no-any
-      try {
-        const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
-          algorithms: ['RS256'],
-        })
-        logInfo('Token verified')
-        logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
-      } catch (error) {
-        return res.status(404).json({
-          message: 'User token missing or invalid',
-          redirectUrl: 'https://sphere.aastrika.org/public/home',
-        })
-      }
+    // tslint:disable-next-line: no-any
+    try {
+      const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
+        algorithms: ['RS256'],
+      })
+      logInfo('Token verified')
+      logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
+    } catch (error) {
+      return res.status(404).json({
+        message: 'User token missing or invalid',
+        redirectUrl: 'https://sphere.aastrika.org/public/home',
+      })
+    }
     // tslint:disable-next-line: no-any
     const decodedToken: any = jwt_decode(accessToken.toString())
     const decodedTokenArray = decodedToken.sub.split(':')
