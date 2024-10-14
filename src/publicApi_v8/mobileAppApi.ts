@@ -1,4 +1,7 @@
 import axios from 'axios'
+import fs from 'fs'
+import jwt from 'jsonwebtoken'
+
 import { Router } from 'express'
 import express from 'express'
 import { createProxyServer } from 'http-proxy'
@@ -60,12 +63,30 @@ const getHeaders = (req: any) => {
     'x-authenticated-user-token': req.headers[authenticatedToken],
   }
 }
+const publicKeyPath = '/keys/access_key'
+const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+const beginKey = '-----BEGIN PUBLIC KEY-----\n';
+const endKey = '\n-----END PUBLIC KEY-----';
+const publicKey = beginKey + publicKeyValue + endKey
 export const mobileAppApi = Router()
 
 // tslint:disable-next-line: no-any
 const verifyToken = (req: any, res: any) => {
   try {
+      logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken]
+	    // tslint:disable-next-line: no-any
+    const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
+      algorithms: ['RS256'],
+    })
+    logInfo('Token verified')
+    logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
+    if (!authenticatedTokenResult) {
+      return res.status(404).json({
+        message: 'User token missing or invalid',
+        redirectUrl: 'https://sphere.aastrika.org/public/home',
+      })
+    }
     // tslint:disable-next-line: no-any
     const decodedToken: any = jwt_decode(accessToken.toString())
     const decodedTokenArray = decodedToken.sub.split(':')
