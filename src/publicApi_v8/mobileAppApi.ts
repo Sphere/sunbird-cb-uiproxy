@@ -30,9 +30,11 @@ const API_END_POINTS = {
   DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
+  GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/api/learnerpath`,
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
+  UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/api/learnerpath`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
   kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
@@ -85,7 +87,7 @@ const verifyToken = (req: any, res: any) => {
     } catch (error) {
       return res.status(404).json({
         message: 'User token missing or invalid',
-        redirectUrl: 'https://sphere.aastrika.org/public/home',
+        redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
       })
     }
     // tslint:disable-next-line: no-any
@@ -101,7 +103,7 @@ const verifyToken = (req: any, res: any) => {
   } catch (error) {
     return res.status(404).json({
       message: 'User token missing or invalid',
-      redirectUrl: 'https://sphere.aastrika.org/public/home',
+      redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
     })
   }
 }
@@ -837,6 +839,68 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
       }
     )
   }
+})
+
+mobileAppApi.post('/learnerPath', async (req, res) => {
+  try {
+    logInfo('Inside learner path api', JSON.stringify(req.body))
+    const learnerPathBody = req.body
+    const accesTokenResult = verifyToken(req, res)
+    if ( accesTokenResult.userId != learnerPathBody.userid) {
+      return res.status(400).json({
+        message: 'Invalid Token or Userid',
+        status: 'FAILED',
+      })
+    }
+    const serviceResponse = await axios({
+      data: learnerPathBody,
+      headers: contentTypeHeader,
+      method: 'POST',
+      url: `${API_END_POINTS.UPDATE_LEARNER_PATH}`,
+    })
+    res.status(200).json({
+      data: serviceResponse.data,
+      status: 'SUCCESS',
+    })
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong while updating or inserting learnerpath',
+      }
+    )
+  }
+
+})
+mobileAppApi.get('/learnerPath', async (req, res) => {
+  try {
+    const userId = req.params.userId
+    logInfo('Inside learner path api', JSON.stringify(userId))
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.userId != userId) {
+      return res.status(400).json({
+        message: 'Invalid Token or Userid',
+        status: 'FAILED',
+      })
+    }
+    const serviceResponse = await axios({
+      headers: contentTypeHeader,
+      method: 'GET',
+      url: `${API_END_POINTS.GET_LEARNER_PATH}`,
+    })
+    res.status(200).json({
+      data: serviceResponse.data,
+      status: 'SUCCESS',
+    })
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong while fetching results',
+      }
+    )
+  }
+
 })
 mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => {
   try {
