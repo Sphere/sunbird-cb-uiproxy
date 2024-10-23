@@ -886,7 +886,7 @@ mobileAppApi.get('/learnerPath', async (req, res) => {
     const serviceResponse = await axios({
       headers: contentTypeHeader,
       method: 'GET',
-      url: `${API_END_POINTS.GET_LEARNER_PATH}`,
+      url: `${API_END_POINTS.GET_LEARNER_PATH}/${userId}`,
     })
     res.status(200).json({
       data: serviceResponse.data,
