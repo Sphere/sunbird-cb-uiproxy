@@ -874,7 +874,7 @@ mobileAppApi.post('/learnerPath', async (req, res) => {
 })
 mobileAppApi.get('/learnerPath', async (req, res) => {
   try {
-    const userId = req.params.userId
+    const userId = req.query.userId
     logInfo('Inside learner path api', JSON.stringify(userId))
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.userId != userId) {
