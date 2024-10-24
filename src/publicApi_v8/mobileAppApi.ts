@@ -79,12 +79,12 @@ const verifyToken = (req: any, res: any) => {
     const accessToken = req.headers[authenticatedToken]
     // tslint:disable-next-line: no-any
     try {
-      const authenticatedTokenResult = jwt.verify(accessToken, publicKey, {
+      jwt.verify(accessToken, publicKey, {
         algorithms: ['RS256'],
       })
       logInfo('Token verified')
-      logInfo('Access token result', JSON.stringify(authenticatedTokenResult))
     } catch (error) {
+      logInfo("Token error")
       return res.status(404).json({
         message: 'User token missing or invalid',
         redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
