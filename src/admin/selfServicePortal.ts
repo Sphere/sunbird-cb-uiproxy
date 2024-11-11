@@ -85,13 +85,18 @@ adminApiV8.get('/v1/user/getLeanerCompletedResourceDetails', async (req, res) =>
         return res.status(403).send(errorMessage)
     }
 })
-adminApiV8.get('/v1/public/getInitialFormDetails', async (_req, res) => {
+adminApiV8.get('/v1/public/getInitialFormDetails', async (req, res) => {
     try {
-        const response = await axios({
+      const cognitoRequestCode = req.query.code
+      logInfo('cognitoRequestCode', cognitoRequestCode)
+      const response = await axios({
             method: 'GET',
+            params: {
+              code: cognitoRequestCode,
+            },
             url: API_END_POINTS.getInitialFormDetails,
         })
-        res.status(200).send(response.data)
+      res.status(200).send(response.data)
     } catch (error) {
         logInfo(JSON.stringify(error))
         return res.status(403).send(errorMessage)
