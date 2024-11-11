@@ -51,11 +51,6 @@ const errorMessage = `<!DOCTYPE html>
 `
 adminApiV8.get('/v1/user/getLearnerDetails', async (req, res) => {
     try {
-        const { authorizationKey } = req.query
-        const selfServiceAuthKey = CONSTANTS.SELF_SERVICE_PORTAL_AUTH_KEY
-        if (!authorizationKey || (authorizationKey != selfServiceAuthKey)) {
-            return res.status(403).send(errorMessage)
-        }
         const response = await axios({
             method: 'GET',
             params: req.query,
@@ -69,11 +64,7 @@ adminApiV8.get('/v1/user/getLearnerDetails', async (req, res) => {
 })
 adminApiV8.get('/v1/user/getLeanerCompletedResourceDetails', async (req, res) => {
     try {
-        const { authorizationKey } = req.query
-        const selfServiceAuthKey = CONSTANTS.SELF_SERVICE_PORTAL_AUTH_KEY
-        if (!authorizationKey || (authorizationKey != selfServiceAuthKey)) {
-            return res.status(403).send(errorMessage)
-        }
+       
         const response = await axios({
             method: 'GET',
             params: req.query,
