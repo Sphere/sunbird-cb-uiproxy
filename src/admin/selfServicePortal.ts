@@ -64,7 +64,7 @@ adminApiV8.get('/v1/user/getLearnerDetails', async (req, res) => {
 })
 adminApiV8.get('/v1/user/getLeanerCompletedResourceDetails', async (req, res) => {
     try {
-       
+
         const response = await axios({
             method: 'GET',
             params: req.query,
