@@ -84,7 +84,7 @@ const verifyToken = (req: any, res: any) => {
       })
       logInfo('Token verified')
     } catch (error) {
-      logInfo("Token error")
+      logInfo('Token error')
       return res.status(404).json({
         message: 'User token missing or invalid',
         redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
@@ -886,7 +886,8 @@ mobileAppApi.get('/learnerPath', async (req, res) => {
     const serviceResponse = await axios({
       headers: contentTypeHeader,
       method: 'GET',
-      url: `${API_END_POINTS.GET_LEARNER_PATH}/${userId}`,
+      params: req.query,
+      url: `${API_END_POINTS.GET_LEARNER_PATH}`,
     })
     res.status(200).json({
       data: serviceResponse.data,
