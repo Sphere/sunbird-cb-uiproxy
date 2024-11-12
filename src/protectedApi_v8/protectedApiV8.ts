@@ -47,6 +47,7 @@ import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
+import { rcCert } from './user/rc-certificate'
 export const protectedApiV8 = express.Router()
 
 protectedApiV8.get('/', (_req, res) => {
@@ -103,3 +104,5 @@ protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
 protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
 protectedApiV8.use('/ratings', ratingServiceApi)
 protectedApiV8.use('/AI', aiServiceAPI)
+protectedApiV8.use('/rcCert', rcCert)
+
