@@ -43,7 +43,6 @@ import { socialApi } from './social'
 import { trainingApi } from './training'
 import { translateApi } from './translate'
 import { updateProgressv2 } from './updateProgressv2'
-import { rcCert } from './user/rc-certificate'
 import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
 import { workAllocationApi } from './workallocation'
@@ -104,4 +103,3 @@ protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
 protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
 protectedApiV8.use('/ratings', ratingServiceApi)
 protectedApiV8.use('/AI', aiServiceAPI)
-protectedApiV8.use('/rcCert', rcCert)

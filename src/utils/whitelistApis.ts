@@ -932,11 +932,6 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/rcCert/user/enrollment/list/adhocCertificates': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
     '/protected/v8/connections/connections/requests/received': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1582,6 +1577,5 @@ export const API_LIST = {
     '/public/v8/publicTelemetry',
     '/public/v8/publicTelemetry/telemetry',
     '/protected/v8/AI/translate',
-    '/protected/v8/rcCert/user/enrollment/list/adhocCertificates',
   ],
 }
