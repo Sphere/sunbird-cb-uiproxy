@@ -101,7 +101,7 @@ adminApiV8.get('/v1/public/dashboard', async (req, res) => {
       params: req.query,
       url: API_END_POINTS.getDashboardDetails,
     })
-    res.status(200).send(response.data)
+    res.send(response.data.templateData)
   } catch (error) {
     logInfo(JSON.stringify(error))
     return res.status(403).send(errorMessage)
