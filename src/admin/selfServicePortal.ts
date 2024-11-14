@@ -94,7 +94,7 @@ adminApiV8.get('/v1/public/getInitialFormDetails', async (req, res) => {
     return res.status(403).send(errorMessage)
   }
 })
-adminApiV8.get('/v1/public/dashboard', async (_req, res) => {
+adminApiV8.get('/v1/public/dashboard', async (req, res) => {
   try {
     const response = await axios({
       method: 'GET',
