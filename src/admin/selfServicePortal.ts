@@ -88,7 +88,7 @@ adminApiV8.get('/v1/public/getInitialFormDetails', async (req, res) => {
       },
       url: API_END_POINTS.getInitialFormDetails,
     })
-    res.status(200).send(response.data)
+    res.redirect(response.data.redirectUrl)
   } catch (error) {
     logInfo(JSON.stringify(error))
     return res.status(403).send(errorMessage)
