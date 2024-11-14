@@ -98,6 +98,7 @@ adminApiV8.get('/v1/public/dashboard', async (_req, res) => {
   try {
     const response = await axios({
       method: 'GET',
+      params: req.query,
       url: API_END_POINTS.getDashboardDetails,
     })
     res.status(200).send(response.data)
