@@ -3,7 +3,7 @@ import _ from 'lodash'
 import { logInfo } from '../utils/logger'
 
 export const userFeed = Router()
-userFeed.post('/getAllUserFeed', async (req, res) => {
+userFeed.get('/getAllUserFeed', async (req, res) => {
     try {
         logInfo('Entered into getAllUserFeed >>>>>', req.query)
         if (!req.query.userId) {
