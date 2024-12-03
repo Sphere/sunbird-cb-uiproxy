@@ -45,7 +45,6 @@ import { updateProgressv2 } from './updateProgressv2'
 import { rcCert } from './user/rc-certificate'
 import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
-import {userFeed} from './userFeed'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
 export const protectedApiV8 = express.Router()
@@ -105,4 +104,3 @@ protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
 protectedApiV8.use('/ratings', ratingServiceApi)
 protectedApiV8.use('/AI', aiServiceAPI)
 protectedApiV8.use('/rcCert', rcCert)
-protectedApiV8.use('/notification', userFeed)

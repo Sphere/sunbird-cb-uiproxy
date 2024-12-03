@@ -846,7 +846,7 @@ mobileAppApi.post('/learnerPath', async (req, res) => {
     logInfo('Inside learner path api', JSON.stringify(req.body))
     const learnerPathBody = req.body
     const accesTokenResult = verifyToken(req, res)
-    if ( accesTokenResult.userId != learnerPathBody.userid) {
+    if (accesTokenResult.userId != learnerPathBody.userid) {
       return res.status(400).json({
         message: 'Invalid Token or Userid',
         status: 'FAILED',
@@ -1101,3 +1101,96 @@ const getCoursesForIhat = async () => {
     }
   })
 }
+mobileAppApi.get('/getAllUserFeed', async (req, res) => {
+  try {
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.status != 200) {
+      return res.status(400).json({
+        message: 'Token missing or invalid',
+        status: 'FAILED',
+      })
+    }
+    logInfo('Entered into getAllUserFeed >>>>>', req.query)
+    if (!req.query.userId) {
+      res.status(400).json({
+        message: 'User id can not be empty',
+        status: 'FAILED',
+      })
+    }
+    const userFeedData = [{
+      action_url: 'https://sphere.aastrika.org/app/profile-view', // URL for the user to take action (e.g., view message)
+      created_on: '2024-11-26T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      message: 'New course added: <a href="https://sphere.aastrika.org/app/toc/do_1137533766819430401136/overview" target="_blank">Post Partum Haemorrhage (PPH)</a>', // Detailed message content
+      metadata: { // Additional metadata to enrich the notification
+        related_entity_id: 'message_56979', // Associated entity (e.g., a message, post, comment)
+        source: 'system', // Source of the notification (e.g., system, user, admin)
+        tags: ['important', 'user_mention'], // Tags for categorization or filtering
+        user_mention_id: null, // ID of the user mentioned (if applicable)
+      },
+      logo: "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png",
+      notification_id: 'not_1232334', // Unique ID for the notification
+      priority: 'high', // Priority of the notification (e.g., low, medium, high)
+      read_on: null, // Timestamp of when the notification was read (null if unread)
+      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+      title: 'You have a new message!', // Short title or summary of the notification
+      type: 'new_message', // Type of notification (e.g., new message, mention, like)
+      user_id: 'user_6789', // ID of the user receiving the notification
+    },
+    {
+      // tslint:disable-next-line: max-line-length
+      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation', // URL for the user to take action (e.g., view message)
+      created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      message: '<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" target="_blank">Fernandes Foundation</a> updated a new Respetful Maternity Course', // Detailed message content
+      metadata: { // Additional metadata to enrich the notification
+        related_entity_id: 'message_56759', // Associated entity (e.g., a message, post, comment)
+        source: 'system', // Source of the notification (e.g., system, user, admin)
+        tags: ['important', 'user_mention'], // Tags for categorization or filtering
+        user_mention_id: null, // ID of the user mentioned (if applicable)
+      },
+      logo: "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1134170690099118081470/artifact/do_1134172312759009281507_1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg",
+      notification_id: 'not_64612345', // Unique ID for the notification
+      priority: 'medium', // Priority of the notification (e.g., low, medium, high)
+      read_on: null, // Timestamp of when the notification was read (null if unread)
+      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+      title: 'You have a new certificate!', // Short title or summary of the notification
+      type: 'new_message', // Type of notification (e.g., new message, mention, like)
+      user_id: 'user_6789', // ID of the user receiving the notification
+    },
+    {
+      action_url: 'https://sphere.aastrika.org/app/profile-view', // URL for the user to take action (e.g., view message)
+      created_on: '2024-11-24T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      message: 'Congratulations you have successfully completed the course: <a href="https://sphere.aastrika.org/app/profile-view" target="_blank">Respectful Maternity Care</a>', // Detailed message content
+      metadata: { // Additional metadata to enrich the notification
+        related_entity_id: 'message_56789', // Associated entity (e.g., a message, post, comment)
+        source: 'system', // Source of the notification (e.g., system, user, admin)
+        tags: ['important', 'user_mention'], // Tags for categorization or filtering
+        user_mention_id: null, // ID of the user mentioned (if applicable)
+      },
+      logo: "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png",
+      notification_id: 'not_6457612345', // Unique ID for the notification
+      priority: 'high', // Priority of the notification (e.g., low, medium, high)
+      read_on: null, // Timestamp of when the notification was read (null if unread)
+      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+      title: 'You have a new course to read!', // Short title or summary of the notification
+      type: 'new_message', // Type of notification (e.g., new message, mention, like)
+      user_id: 'user_6789', // ID of the user receiving the notification
+    },
+    ]
+    res.status(200).json({
+      message: `User feed successfully read for userId ${req.query.userId}`,
+      status: 'SUCCESS',
+      userFeed: userFeedData,
+      userId: req.query.userId,
+    })
+
+  } catch (error) {
+    logInfo('Error in user creation >>>>>>' + error)
+    res.status(500).send({
+      message: 'Something went wrong while fetching user feed',
+      status: 'failed',
+    })
+  }
+})
