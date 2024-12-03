@@ -23,7 +23,7 @@ const cassandra = require('cassandra-driver')
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const publicCertificateFlinkv2 = Router()
-
+const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
 
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
@@ -103,6 +103,7 @@ const verifyToken = (req: any, res: any) => {
   } catch (error) {
     return res.status(404).json({
       message: 'User token missing or invalid',
+            // tslint:disable-next-line: no-any
       redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
     })
   }
@@ -205,9 +206,11 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
     }
     logInfo('Success ! Entered into usertokenResponse..')
     await getCurrentUserRoles(req, accessToken)
+          // tslint:disable-next-line: no-any
     res.status(200).json({
       message: 'success',
-      redirectUrl: 'https://sphere.aastrika.org/app/profile-view',
+      // tslint:disable-next-line: no-any
+      redirectUrl: REDIRECT_URL,
     })
   }
 })
@@ -1118,8 +1121,10 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       })
     }
     const userFeedData = [{
-      action_url: 'https://sphere.aastrika.org/app/profile-view', // URL for the user to take action (e.g., view message)
+      action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
       created_on: '2024-11-26T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png',
       // tslint:disable-next-line: max-line-length
       message: 'New course added: <a href="https://sphere.aastrika.org/app/toc/do_1137533766819430401136/overview" target="_blank">Post Partum Haemorrhage (PPH)</a>', // Detailed message content
       metadata: { // Additional metadata to enrich the notification
@@ -1128,7 +1133,6 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
         tags: ['important', 'user_mention'], // Tags for categorization or filtering
         user_mention_id: null, // ID of the user mentioned (if applicable)
       },
-      logo: "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png",
       notification_id: 'not_1232334', // Unique ID for the notification
       priority: 'high', // Priority of the notification (e.g., low, medium, high)
       read_on: null, // Timestamp of when the notification was read (null if unread)
@@ -1142,6 +1146,8 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       action_url: 'https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation', // URL for the user to take action (e.g., view message)
       created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
       // tslint:disable-next-line: max-line-length
+      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1134170690099118081470/artifact/do_1134172312759009281507_1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
+      // tslint:disable-next-line: max-line-length
       message: '<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" target="_blank">Fernandes Foundation</a> updated a new Respetful Maternity Course', // Detailed message content
       metadata: { // Additional metadata to enrich the notification
         related_entity_id: 'message_56759', // Associated entity (e.g., a message, post, comment)
@@ -1149,7 +1155,6 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
         tags: ['important', 'user_mention'], // Tags for categorization or filtering
         user_mention_id: null, // ID of the user mentioned (if applicable)
       },
-      logo: "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1134170690099118081470/artifact/do_1134172312759009281507_1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg",
       notification_id: 'not_64612345', // Unique ID for the notification
       priority: 'medium', // Priority of the notification (e.g., low, medium, high)
       read_on: null, // Timestamp of when the notification was read (null if unread)
@@ -1159,8 +1164,10 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       user_id: 'user_6789', // ID of the user receiving the notification
     },
     {
-      action_url: 'https://sphere.aastrika.org/app/profile-view', // URL for the user to take action (e.g., view message)
+      action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
       created_on: '2024-11-24T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
       // tslint:disable-next-line: max-line-length
       message: 'Congratulations you have successfully completed the course: <a href="https://sphere.aastrika.org/app/profile-view" target="_blank">Respectful Maternity Care</a>', // Detailed message content
       metadata: { // Additional metadata to enrich the notification
@@ -1169,7 +1176,6 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
         tags: ['important', 'user_mention'], // Tags for categorization or filtering
         user_mention_id: null, // ID of the user mentioned (if applicable)
       },
-      logo: "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png",
       notification_id: 'not_6457612345', // Unique ID for the notification
       priority: 'high', // Priority of the notification (e.g., low, medium, high)
       read_on: null, // Timestamp of when the notification was read (null if unread)
