@@ -84,6 +84,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/notification/getAllUserFeed': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/user/details': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -932,6 +937,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/rcCert/user/enrollment/list/adhocCertificates': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/connections/connections/requests/received': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1435,6 +1445,7 @@ export const API_LIST = {
     '/protected/v8/autoCompletev2/getUserDetails',
     '/protected/v8/assessmentCompetency/v1/submitAssessment',
     '/protected/v8/autoEnrollmentv2/user',
+    '/protected/v8/notification/getAllUserFeed',
     '/protected/v8/user/rating/:contentId',
     '/protected/v8/ratings/v2/read',
     '/protected/v8/ratings/ratingLookUp',
@@ -1577,5 +1588,6 @@ export const API_LIST = {
     '/public/v8/publicTelemetry',
     '/public/v8/publicTelemetry/telemetry',
     '/protected/v8/AI/translate',
+    '/protected/v8/rcCert/user/enrollment/list/adhocCertificates',
   ],
 }

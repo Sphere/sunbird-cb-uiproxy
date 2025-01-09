@@ -1,4 +1,7 @@
 import axios from 'axios'
+import fs from 'fs'
+import jwt from 'jsonwebtoken'
+
 import { Router } from 'express'
 import express from 'express'
 import { createProxyServer } from 'http-proxy'
@@ -20,16 +23,18 @@ const cassandra = require('cassandra-driver')
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const publicCertificateFlinkv2 = Router()
-
+const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
 
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
+  GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
+  UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
   kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
@@ -60,12 +65,31 @@ const getHeaders = (req: any) => {
     'x-authenticated-user-token': req.headers[authenticatedToken],
   }
 }
+const publicKeyPath = '/keys/access_key'
+const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+const beginKey = '-----BEGIN PUBLIC KEY-----\n'
+const endKey = '\n-----END PUBLIC KEY-----'
+const publicKey = beginKey + publicKeyValue + endKey
 export const mobileAppApi = Router()
 
 // tslint:disable-next-line: no-any
 const verifyToken = (req: any, res: any) => {
   try {
+    logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken]
+    // tslint:disable-next-line: no-any
+    try {
+      jwt.verify(accessToken, publicKey, {
+        algorithms: ['RS256'],
+      })
+      logInfo('Token verified')
+    } catch (error) {
+      logInfo('Token error')
+      return res.status(404).json({
+        message: 'User token missing or invalid',
+        redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
+      })
+    }
     // tslint:disable-next-line: no-any
     const decodedToken: any = jwt_decode(accessToken.toString())
     const decodedTokenArray = decodedToken.sub.split(':')
@@ -79,7 +103,8 @@ const verifyToken = (req: any, res: any) => {
   } catch (error) {
     return res.status(404).json({
       message: 'User token missing or invalid',
-      redirectUrl: 'https://sphere.aastrika.org/public/home',
+            // tslint:disable-next-line: no-any
+      redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
     })
   }
 }
@@ -181,9 +206,11 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
     }
     logInfo('Success ! Entered into usertokenResponse..')
     await getCurrentUserRoles(req, accessToken)
+          // tslint:disable-next-line: no-any
     res.status(200).json({
       message: 'success',
-      redirectUrl: 'https://sphere.aastrika.org/app/profile-view',
+      // tslint:disable-next-line: no-any
+      redirectUrl: REDIRECT_URL,
     })
   }
 })
@@ -816,6 +843,69 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     )
   }
 })
+
+mobileAppApi.post('/learnerPath', async (req, res) => {
+  try {
+    logInfo('Inside learner path api', JSON.stringify(req.body))
+    const learnerPathBody = req.body
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.userId != learnerPathBody.userid) {
+      return res.status(400).json({
+        message: 'Invalid Token or Userid',
+        status: 'FAILED',
+      })
+    }
+    const serviceResponse = await axios({
+      data: learnerPathBody,
+      headers: contentTypeHeader,
+      method: 'POST',
+      url: `${API_END_POINTS.UPDATE_LEARNER_PATH}`,
+    })
+    res.status(200).json({
+      data: serviceResponse.data,
+      status: 'SUCCESS',
+    })
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong while updating or inserting learnerpath',
+      }
+    )
+  }
+
+})
+mobileAppApi.get('/learnerPath', async (req, res) => {
+  try {
+    const userId = req.query.userId
+    logInfo('Inside learner path api', JSON.stringify(userId))
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.userId != userId) {
+      return res.status(400).json({
+        message: 'Invalid Token or Userid',
+        status: 'FAILED',
+      })
+    }
+    const serviceResponse = await axios({
+      headers: contentTypeHeader,
+      method: 'GET',
+      params: req.query,
+      url: `${API_END_POINTS.GET_LEARNER_PATH}`,
+    })
+    res.status(200).json({
+      data: serviceResponse.data,
+      status: 'SUCCESS',
+    })
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong while fetching results',
+      }
+    )
+  }
+
+})
 mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => {
   try {
     /* tslint:disable-next-line */
@@ -1014,3 +1104,99 @@ const getCoursesForIhat = async () => {
     }
   })
 }
+mobileAppApi.get('/getAllUserFeed', async (req, res) => {
+  try {
+    const accesTokenResult = verifyToken(req, res)
+    if (accesTokenResult.status != 200) {
+      return res.status(400).json({
+        message: 'Token missing or invalid',
+        status: 'FAILED',
+      })
+    }
+    logInfo('Entered into getAllUserFeed >>>>>', req.query)
+    if (!req.query.userId) {
+      res.status(400).json({
+        message: 'User id can not be empty',
+        status: 'FAILED',
+      })
+    }
+    const userFeedData = [{
+      action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
+      created_on: '2024-11-26T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png',
+      // tslint:disable-next-line: max-line-length
+      message: 'New course added: <a href="https://sphere.aastrika.org/app/toc/do_1137533766819430401136/overview" target="_blank">Post Partum Haemorrhage (PPH)</a>', // Detailed message content
+      metadata: { // Additional metadata to enrich the notification
+        related_entity_id: 'message_56979', // Associated entity (e.g., a message, post, comment)
+        source: 'system', // Source of the notification (e.g., system, user, admin)
+        tags: ['important', 'user_mention'], // Tags for categorization or filtering
+        user_mention_id: null, // ID of the user mentioned (if applicable)
+      },
+      notification_id: 'not_1232334', // Unique ID for the notification
+      priority: 'high', // Priority of the notification (e.g., low, medium, high)
+      read_on: null, // Timestamp of when the notification was read (null if unread)
+      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+      title: 'You have a new message!', // Short title or summary of the notification
+      type: 'new_message', // Type of notification (e.g., new message, mention, like)
+      user_id: 'user_6789', // ID of the user receiving the notification
+    },
+    {
+      // tslint:disable-next-line: max-line-length
+      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation', // URL for the user to take action (e.g., view message)
+      created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1134170690099118081470/artifact/do_1134172312759009281507_1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
+      // tslint:disable-next-line: max-line-length
+      message: '<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" target="_blank">Fernandes Foundation</a> updated a new Respetful Maternity Course', // Detailed message content
+      metadata: { // Additional metadata to enrich the notification
+        related_entity_id: 'message_56759', // Associated entity (e.g., a message, post, comment)
+        source: 'system', // Source of the notification (e.g., system, user, admin)
+        tags: ['important', 'user_mention'], // Tags for categorization or filtering
+        user_mention_id: null, // ID of the user mentioned (if applicable)
+      },
+      notification_id: 'not_64612345', // Unique ID for the notification
+      priority: 'medium', // Priority of the notification (e.g., low, medium, high)
+      read_on: null, // Timestamp of when the notification was read (null if unread)
+      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+      title: 'You have a new certificate!', // Short title or summary of the notification
+      type: 'new_message', // Type of notification (e.g., new message, mention, like)
+      user_id: 'user_6789', // ID of the user receiving the notification
+    },
+    {
+      action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
+      created_on: '2024-11-24T14:32:00Z', // Timestamp of when the notification was created
+      // tslint:disable-next-line: max-line-length
+      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
+      // tslint:disable-next-line: max-line-length
+      message: 'Congratulations you have successfully completed the course: <a href="https://sphere.aastrika.org/app/profile-view" target="_blank">Respectful Maternity Care</a>', // Detailed message content
+      metadata: { // Additional metadata to enrich the notification
+        related_entity_id: 'message_56789', // Associated entity (e.g., a message, post, comment)
+        source: 'system', // Source of the notification (e.g., system, user, admin)
+        tags: ['important', 'user_mention'], // Tags for categorization or filtering
+        user_mention_id: null, // ID of the user mentioned (if applicable)
+      },
+      notification_id: 'not_6457612345', // Unique ID for the notification
+      priority: 'high', // Priority of the notification (e.g., low, medium, high)
+      read_on: null, // Timestamp of when the notification was read (null if unread)
+      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+      title: 'You have a new course to read!', // Short title or summary of the notification
+      type: 'new_message', // Type of notification (e.g., new message, mention, like)
+      user_id: 'user_6789', // ID of the user receiving the notification
+    },
+    ]
+    res.status(200).json({
+      message: `User feed successfully read for userId ${req.query.userId}`,
+      status: 'SUCCESS',
+      userFeed: userFeedData,
+      userId: req.query.userId,
+    })
+
+  } catch (error) {
+    logInfo('Error in user creation >>>>>>' + error)
+    res.status(500).send({
+      message: 'Something went wrong while fetching user feed',
+      status: 'failed',
+    })
+  }
+})
