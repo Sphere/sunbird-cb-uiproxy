@@ -39,9 +39,16 @@ function haltOnTimedOut(
 export class Server {
   // tslint:disable-next-line: no-any
   static app: any
+/*************  ✨ Codeium Command ⭐  *************/
+  /**
+   * Starts the server listening at the port specified in the PORTAL_PORT
+   * environment variable. This method should be called after all the
+   * required routes have been setup.
+   */
+/******  a1e31223-7425-4559-8a1d-c90b88ac53cf  *******/
   static bootstrap() {
     const server = new Server()
-    server.app.listen(CONSTANTS.PORTAL_PORT, '0.0.0.0', () => {
+    server.httpServer.listen(CONSTANTS.PORTAL_PORT, '0.0.0.0', () => {
       logSuccess(`${process.pid} : Server started at ${CONSTANTS.PORTAL_PORT}`)
     })
   }
