@@ -31,6 +31,7 @@ const API_END_POINTS = {
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
+  NOTIFICATION_ENGINE: `${CONSTANTS.NOTIFICATION_ENGINE_API_BASE}`,
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
@@ -1293,3 +1294,23 @@ function uuidv4() {
   throw new Error('Function not implemented.')
 }
 
+mobileAppApi.get("/getUnreadUserNotifications", async (req, res) => {
+  try {
+    const serviceResponse = await axios({
+      headers: contentTypeHeader,
+      method: 'GET',
+      url: `${API_END_POINTS.NOTIFICATION_ENGINE}/notifications/notifications/${req.query.userId}`,
+    })
+    res.status(200).json({
+      data: serviceResponse.data,
+      status: 'SUCCESS',
+    })
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong while fetching results',
+      }
+    )
+  }
+})

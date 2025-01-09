@@ -16,10 +16,12 @@ import { getSessionConfig } from './configs/session.config'
 import { protectedApiV8 } from './protectedApi_v8/protectedApiV8'
 import { proxiesV8 } from './proxies_v8/proxies_v8'
 import { publicApiV8 } from './publicApi_v8/publicApiV8'
-
+import { Server as HttpServer } from 'http';
+import { Server as SocketServer } from 'socket.io';
 import { CustomKeycloak } from './utils/custom-keycloak'
 import { CONSTANTS } from './utils/env'
 import { logError, logInfo, logSuccess } from './utils/logger'
+import { io as ClientSocket } from 'socket.io-client';
 const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
@@ -35,6 +37,7 @@ function haltOnTimedOut(
     next()
   }
 }
+
 export class Server {
   // tslint:disable-next-line: no-any
   static app: any
@@ -46,6 +49,14 @@ export class Server {
   }
 
   protected app = express()
+  protected httpServer = new HttpServer(this.app);
+  protected io = new SocketServer(this.httpServer, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST'],
+    },
+  });
+  private backendSocket: any;
   private keycloak?: CustomKeycloak
   private constructor() {
     if (CONSTANTS.CORS_ENVIRONMENT === 'dev') {
@@ -74,6 +85,43 @@ export class Server {
     this.authoringApi()
     this.resetCookies()
     this.app.use(haltOnTimedOut)
+    this.setupBackendSocket();
+    this.configureSocketIO();
+
+  }
+  private setupBackendSocket() {
+    const backendUrl = "http://notification-engine:3013"; // Backend WebSocket server URL
+    this.backendSocket = ClientSocket(backendUrl);
+
+    this.backendSocket.on('connect', () => {
+      logInfo('Connected to backend WebSocket server');
+    });
+
+    this.backendSocket.on('disconnect', () => {
+      logInfo('Disconnected from backend WebSocket server');
+    });
+
+    // Listen for events from the backend and forward to the frontend
+    this.backendSocket.onAny((eventName: string, ...args: any[]) => {
+      logInfo(`Received event from backend: ${eventName}, Data: ${JSON.stringify(args)}`);
+      this.io.emit(eventName, ...args); // Forward the same event name and data to all connected frontend clients
+    });
+  }
+  private configureSocketIO() {
+    this.io.on('connection', (socket) => {
+      logInfo(`Socket connected: ${socket.id}`);
+
+      // Listen for any events from the frontend and forward them to the backend
+      socket.onAny((eventName: string, ...args: any[]) => {
+        logInfo(`Received event from frontend: ${eventName}, Data: ${JSON.stringify(args)}`);
+        this.backendSocket.emit(eventName, ...args); // Forward to the backend
+      });
+
+      // Handle frontend disconnection
+      socket.on('disconnect', () => {
+        logInfo(`Socket disconnected: ${socket.id}`);
+      });
+    });
   }
   private setCookie() {
     this.app.use(cookieParser())
