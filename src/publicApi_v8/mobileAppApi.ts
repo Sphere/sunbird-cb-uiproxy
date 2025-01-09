@@ -1201,7 +1201,7 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
     })
   }
 })
-mobileAppApi.get("/getUnreadUserNotifications", async (req, res) => {
+mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
   try {
     const serviceResponse = await axios({
       headers: contentTypeHeader,
@@ -1212,7 +1212,7 @@ mobileAppApi.get("/getUnreadUserNotifications", async (req, res) => {
       data: serviceResponse.data,
       status: 'SUCCESS',
     })
-  } catch (error) {
+  } catch (err) {
     logInfo(JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
