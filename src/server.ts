@@ -58,9 +58,9 @@ export class Server {
   protected httpServer = new HttpServer(this.app)
   protected io = new SocketServer(this.httpServer, {
     cors: {
+      credentials: true,
       methods: ['GET', 'POST'],
       origin: `${CONSTANTS.HTTPS_HOST}`,
-      credentials: true,
     },
   })
   // tslint:disable-next-line: no-any
