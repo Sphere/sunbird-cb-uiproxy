@@ -117,7 +117,7 @@ export class Server {
   private configureSocketIO() {
     this.io.on('connection', (socket) => {
       logInfo(`Socket connected: ${socket.id}`)
-      const authorizationToken = socket.handshake.headers.authorization
+      const authorizationToken = socket.handshake.auth.token
       logInfo(`Authorization header: ${authorizationToken}`)
       if (authorizationToken) {
         try {
