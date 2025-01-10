@@ -6,6 +6,7 @@ import fileUpload from 'express-fileupload'
 import expressSession from 'express-session'
 import helmet from 'helmet'
 import { Server as HttpServer } from 'http'
+import jwt from 'jsonwebtoken'
 import morgan from 'morgan'
 import { Server as SocketServer } from 'socket.io'
 import { io as ClientSocket } from 'socket.io-client'
@@ -24,7 +25,14 @@ import { CONSTANTS } from './utils/env'
 import { logInfo, logSuccess } from './utils/logger'
 const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
+import fs from 'fs'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
+
+const publicKeyPath = '/keys/access_key'
+const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+const beginKey = '-----BEGIN PUBLIC KEY-----\n'
+const endKey = '\n-----END PUBLIC KEY-----'
+const publicKey = beginKey + publicKeyValue + endKey
 
 function haltOnTimedOut(
   req: Express.Request,
@@ -39,13 +47,6 @@ function haltOnTimedOut(
 export class Server {
   // tslint:disable-next-line: no-any
   static app: any
-/*************  ✨ Codeium Command ⭐  *************/
-  /**
-   * Starts the server listening at the port specified in the PORTAL_PORT
-   * environment variable. This method should be called after all the
-   * required routes have been setup.
-   */
-/******  a1e31223-7425-4559-8a1d-c90b88ac53cf  *******/
   static bootstrap() {
     const server = new Server()
     server.httpServer.listen(CONSTANTS.PORTAL_PORT, '0.0.0.0', () => {
@@ -106,7 +107,7 @@ export class Server {
       logInfo('Disconnected from backend WebSocket server')
     })
 
-// tslint:disable-next-line: no-any
+    // tslint:disable-next-line: no-any
     this.backendSocket.onAny((eventName: string, ...args: any[]) => {
       logInfo(`Received event from backend: ${eventName}, Data: ${JSON.stringify(args)}`)
       this.io.emit(eventName, ...args) // Forward the same event name and data to all connected frontend clients
@@ -115,7 +116,22 @@ export class Server {
   private configureSocketIO() {
     this.io.on('connection', (socket) => {
       logInfo(`Socket connected: ${socket.id}`)
-
+      const authorizationToken = socket.handshake.headers.authorization
+      logInfo(`Authorization header: ${authorizationToken}`)
+      if (authorizationToken) {
+        try {
+          jwt.verify(authorizationToken, publicKey, {
+            algorithms: ['RS256'],
+          })
+          logInfo(`Socket connected with validation: ${socket.id}}`)
+        } catch (err) {
+          logInfo(`Socket disconnected with error: ${socket.id} ${JSON.stringify(err)}`)
+          socket.disconnect() // Disconnect unauthorized users
+        }
+      } else {
+        logInfo('No Authorization header found')
+        socket.disconnect() // Disconnect if no token is provided
+      }
       // tslint:disable-next-line: no-any
       socket.onAny((eventName: string, ...args: any[]) => {
         logInfo(`Received event from frontend: ${eventName}, Data: ${JSON.stringify(args)}`)
