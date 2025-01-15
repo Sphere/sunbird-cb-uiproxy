@@ -113,7 +113,7 @@ mobileAppApi.use(async (req, res, next) => {
   if (req.url.includes('/kong')) {
     try {
       logInfo('Request URL', req.url)
-      const rewrittenUrl = req.url.replace('/apis/mobileApp/kong/', '/api/')
+      const rewrittenUrl = req.url.replace('/kong/', '/api/')
       const backendUrl = `${CONSTANTS.HTTPS_HOST}${rewrittenUrl}`
       logInfo('backendUrl', backendUrl)
       req.headers.Authorization = CONSTANTS.SB_API_KEY
