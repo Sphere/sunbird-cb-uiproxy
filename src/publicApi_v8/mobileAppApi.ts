@@ -15,6 +15,7 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
+import { extractUserTokenFromRequest } from '../utils/requestExtract'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
@@ -45,6 +46,7 @@ const API_END_POINTS = {
   rcMapperHost: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/getUserCertificateDetails`,
   summary: (courseId) =>
     `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
+  telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
   userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
@@ -76,7 +78,7 @@ export const mobileAppApi = Router()
 const verifyToken = (req: any, res: any) => {
   try {
     logInfo('Inside verify token function')
-    const accessToken = req.headers[authenticatedToken]
+    const accessToken = req.headers[authenticatedToken] || extractUserTokenFromRequest(req)
     // tslint:disable-next-line: no-any
     try {
       jwt.verify(accessToken, publicKey, {
@@ -103,7 +105,7 @@ const verifyToken = (req: any, res: any) => {
   } catch (error) {
     return res.status(404).json({
       message: 'User token missing or invalid',
-            // tslint:disable-next-line: no-any
+      // tslint:disable-next-line: no-any
       redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
     })
   }
@@ -131,6 +133,94 @@ mobileAppApi.use(
   '/discussion/*',
   mobileProxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
+mobileAppApi.post('/user/profileUpdate', async (req, res) => {
+  try {
+    const schema = Joi.object({
+      request: Joi.object({
+        profileDetails: Joi.object().required().keys({
+          profileReq: Joi.object().required().unknown(true),
+        }).unknown(true),
+        profileLocation: Joi.object().required().unknown(true),
+        userId: Joi.string().required(),
+      }).required().unknown(true),
+    })
+
+    const { error } = schema.validate(req.body)
+    if (error) {
+      return res.status(400).json({
+        result: {
+          errorSource: 'JOI',
+          errors: error.details.map((value) => value.message),
+          response: 'FAILED',
+        },
+      })
+    }
+
+    const accessTokenResult = verifyToken(req, res)
+    if (accessTokenResult.status !== 200) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+
+    try {
+      const profileUpdateResponse = await axios.patch(
+        API_END_POINTS.kongUpdateUser,
+        req.body,
+        {
+          ...axiosRequestConfig,
+          headers: {
+            Authorization: CONSTANTS.SB_API_KEY,
+          },
+        }
+      )
+      const telemetryUpdateRequestBody = {
+        ets: Date.now(),
+        events: [{
+          actor: {
+            id: req.body.request.userId,
+            type: 'User',
+          },
+          edata: {
+            data: JSON.stringify(req.body),
+            pageid: 'course-read',
+            type: 'profileUpdate',
+          },
+          eid: 'PROFILE_UPDATE',
+          ets: Date.now(),
+          mid: `PROFILE_UPDATE:${uuidv4()}`,
+          syncts: Date.now(),
+          ver: '3.0',
+        }],
+        id: 'ekstep.telemetry',
+        params: {
+          msgid: `${uuidv4()}`,
+        },
+        ver: '3.0',
+      }
+
+      await axios.post(
+        API_END_POINTS.telemetryUpdate,
+        telemetryUpdateRequestBody,
+        {
+          ...axiosRequestConfig,
+          headers: {
+            Authorization: CONSTANTS.SB_API_KEY,
+          },
+        }
+      )
+
+      res.status(profileUpdateResponse.status).send(profileUpdateResponse.data)
+    } catch (error) {
+      res.status(500).json({
+        message: 'Error occurred while updating user profile',
+      })
+    }
+
+  } catch (err) {
+    res.status(500).json({
+      message: 'Something went wrong while processing the request',
+    })
+  }
+})
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
@@ -206,7 +296,7 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
     }
     logInfo('Success ! Entered into usertokenResponse..')
     await getCurrentUserRoles(req, accessToken)
-          // tslint:disable-next-line: no-any
+    // tslint:disable-next-line: no-any
     res.status(200).json({
       message: 'success',
       // tslint:disable-next-line: no-any
@@ -1200,3 +1290,7 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
     })
   }
 })
+function uuidv4() {
+  throw new Error('Function not implemented.')
+}
+
