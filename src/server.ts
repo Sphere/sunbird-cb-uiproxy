@@ -185,7 +185,7 @@ export class Server {
     // tslint:disable-next-line: no-any
     .catch((error: any ) => logError('Error in frameworkAPI bootstrap', error))
   }
-  
+
   private servePublicApi() {
     this.app.use('/public/v8', publicApiV8)
   }
