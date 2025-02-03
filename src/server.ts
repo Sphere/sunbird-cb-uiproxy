@@ -19,10 +19,12 @@ import { publicApiV8 } from './publicApi_v8/publicApiV8'
 
 import { CustomKeycloak } from './utils/custom-keycloak'
 import { CONSTANTS } from './utils/env'
-import { logInfo, logSuccess } from './utils/logger'
+import { logError, logInfo, logSuccess } from './utils/logger'
 const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
+const { frameworkAPI } = require('@project-sunbird/ext-framework-server/api')
+const frameworkConfig = require('./configs/framework.config')
 
 function haltOnTimedOut(
   req: Express.Request,
@@ -63,6 +65,7 @@ export class Server {
     this.setCookie()
     this.setKeyCloak(sessionConfig)
     this.authoringProxies()
+    this.setExtFormsFramework()
     this.configureMiddleware()
     this.servePublicApi()
     this.serveAdminApi()
@@ -168,6 +171,21 @@ export class Server {
     this.app.use(this.keycloak.middleware)
   }
 
+  private setExtFormsFramework() {
+    this.app.post('/static/form/v1/read', (req, _, next) => {
+      logInfo('Request hit /static/form/v1/read, forwarding to /v1/form/read')
+      req.url = '/v1/form/read'
+      next()
+    })
+    logInfo('setExtFormsFramework MEthod - frameworkConfig :: ', JSON.stringify(frameworkConfig))
+    // tslint:disable-next-line: no-any
+    frameworkAPI.bootstrap(frameworkConfig, this.app).then((data: any) => {
+      logInfo('Successfuly bootstrapped frameworkAPI', data)
+    })
+    // tslint:disable-next-line: no-any
+    .catch((error: any ) => logError('Error in frameworkAPI bootstrap', error))
+  }
+  
   private servePublicApi() {
     this.app.use('/public/v8', publicApiV8)
   }
