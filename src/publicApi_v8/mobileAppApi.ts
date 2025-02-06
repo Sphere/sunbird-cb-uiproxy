@@ -1,5 +1,4 @@
 import axios from 'axios'
-import fs from 'fs'
 import jwt from 'jsonwebtoken'
 
 import { Router } from 'express'
@@ -65,8 +64,8 @@ const getHeaders = (req: any) => {
     'x-authenticated-user-token': req.headers[authenticatedToken],
   }
 }
-const publicKeyPath = '/keys/access_key'
-const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+// tslint:disable-next-line: no-any
+const publicKeyValue = `MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuwcGoL2BPXrJkVszg55p8PhbGbJh66DTZiueGnRnjScyIwhYwvxmMErFv3U8jWC+r9esR2hppjRB6V/FQRWb6z11iWfSkD3+kdKlfgDo44+Z7ExKkhBbagsH9umlpy9M31V/a0rCoMFTR/5Lw/r7jF7LxIkKm1hxbomQcU2vj3xLJbbm32u7iVY9IXHuJbNFNtYe+YW7pWo58GKH3oFpv2mQqDVxAUPaSC4YsmPpbEm5650Dxnk0JV8l8JY6f6WpAD0VCi8nmdESfb3HoIiyO51L7MHdi7K8ef/ugtDq/LgmzZG2oWwHmxXcMgpfwwjjTHwZWMsxqOjpeSPPv9oZGwIDAQAB`
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
 const publicKey = beginKey + publicKeyValue + endKey

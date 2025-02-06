@@ -14,6 +14,7 @@ const proxyCreator = (timeout = 10000) =>
   })
 const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
+const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
 
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
@@ -70,6 +71,18 @@ proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
   }
 })
 
+export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
+  route.all('/*', (req, res) => {
+    // tslint:disable-next-line: no-console
+    console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
+    let url = ''
+    url = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
+    proxy.web(req, res, {
+      target: 'http://localhost:3003/' + url,
+    })
+  })
+  return route
+}
 export function proxyCreatorRoute(
   route: Router,
   targetUrl: string,
