@@ -156,6 +156,7 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
       })
     }
 
+    // Verify access token
     const accessTokenResult = verifyToken(req, res)
     if (accessTokenResult.status !== 200) {
       return res.status(401).json({ message: 'Unauthorized' })
