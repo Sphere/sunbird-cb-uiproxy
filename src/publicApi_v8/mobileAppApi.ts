@@ -16,7 +16,7 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
-import { extractUserTokenFromRequest } from '../utils/requestExtract'
+import { extractUserToken } from '../utils/requestExtract'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
@@ -80,7 +80,7 @@ export const mobileAppApi = Router()
 const verifyToken = (req: any, res: any) => {
   try {
     logInfo('Inside verify token function')
-    const accessToken = req.headers[authenticatedToken] || extractUserTokenFromRequest(req)
+    const accessToken = req.headers[authenticatedToken] || extractUserToken(req)
     logInfo('Token via cookie', accessToken)
     // tslint:disable-next-line: no-any
     try {
