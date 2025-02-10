@@ -20,7 +20,6 @@ import { extractUserTokenFromRequest } from '../utils/requestExtract'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
-import path from "path"
 const cassandra = require('cassandra-driver')
 
 const VALIDATION_FAIL =
@@ -146,9 +145,9 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
         }).unknown(true),
         userId: Joi.string().required(),
       }).required().unknown(true),
-    });
+    })
 
-    const { error } = schema.validate(req.body);
+    const { error } = schema.validate(req.body)
     if (error) {
       return res.status(400).json({
         result: {
@@ -156,20 +155,20 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
           errors: error.details.map((value) => value.message),
           response: 'FAILED',
         },
-      });
+      })
     }
 
     // Verify access token
-    const accessTokenResult = verifyToken(req, res);
+    const accessTokenResult = verifyToken(req, res)
     if (accessTokenResult.status !== 200) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'Unauthorized' })
     }
 
     // Update user profile
     const profileUpdateResponse = await axios.patch(API_END_POINTS.profileUpdate, req.body, {
       ...axiosRequestConfig,
       headers: { Authorization: CONSTANTS.SB_API_KEY },
-    });
+    })
 
     // Telemetry update request
     const telemetryUpdateRequestBody = {
@@ -183,12 +182,12 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
       id: 'ekstep.telemetry',
       params: { msgid: `${uuidv4()}` },
       ver: '3.0',
-    };
+    }
 
     await axios.post(API_END_POINTS.telemetryUpdate, telemetryUpdateRequestBody, {
       ...axiosRequestConfig,
       headers: { Authorization: CONSTANTS.SB_API_KEY },
-    });
+    })
 
     // Cassandra database insert
     try {
@@ -196,32 +195,31 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
         contactPoints: [CONSTANTS.CASSANDRA_IP],
         keyspace: 'sunbird_courses',
         localDataCenter: 'datacenter1',
-      });
+      })
 
-      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon) VALUES (?, ?, ?, ?)';
+      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon) VALUES (?, ?, ?, ?)'
       await userCassandraClient.execute(query, [
         uuidv4(),
         req.body.request.userId,
         JSON.stringify(req.body.request),
         Date.now(),
-      ], { prepare: true });
+      ], { prepare: true })
     } catch (dbError) {
       return res.status(500).json({
         message: 'Error occurred while inserting user profile in Cassandra',
-      });
+      })
     }
 
     // Send response from profile update
-    res.status(profileUpdateResponse.status).send(profileUpdateResponse.data);
+    res.status(profileUpdateResponse.status).send(profileUpdateResponse.data)
 
   } catch (error) {
-    logInfo(JSON.stringify(error));
+    logInfo(JSON.stringify(error))
     res.status(500).json({
       message: 'Error occurred while updating user profile',
-    });
+    })
   }
-});
-
+})
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
