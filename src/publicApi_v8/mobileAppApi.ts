@@ -79,6 +79,7 @@ const verifyToken = (req: any, res: any) => {
   try {
     logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken]
+    logInfo('Token via cookie', accessToken)
     // tslint:disable-next-line: no-any
     try {
       jwt.verify(accessToken, publicKey, {
