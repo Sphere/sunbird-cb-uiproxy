@@ -5,7 +5,11 @@ import express, { NextFunction } from 'express'
 import fileUpload from 'express-fileupload'
 import expressSession from 'express-session'
 import helmet from 'helmet'
+import { Server as HttpServer } from 'http'
+import jwt from 'jsonwebtoken'
 import morgan from 'morgan'
+import { Server as SocketServer } from 'socket.io'
+import { io as ClientSocket } from 'socket.io-client'
 import { adminApiV8 } from './admin/selfServicePortal'
 import { authContent } from './authoring/authContent'
 import { authIapBackend } from './authoring/authIapBackend'
@@ -16,13 +20,19 @@ import { getSessionConfig } from './configs/session.config'
 import { protectedApiV8 } from './protectedApi_v8/protectedApiV8'
 import { proxiesV8 } from './proxies_v8/proxies_v8'
 import { publicApiV8 } from './publicApi_v8/publicApiV8'
-
 import { CustomKeycloak } from './utils/custom-keycloak'
 import { CONSTANTS } from './utils/env'
 import { logInfo, logSuccess } from './utils/logger'
 const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
+import fs from 'fs'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
+
+const publicKeyPath = '/keys/access_key'
+const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+const beginKey = '-----BEGIN PUBLIC KEY-----\n'
+const endKey = '\n-----END PUBLIC KEY-----'
+const publicKey = beginKey + publicKeyValue + endKey
 
 function haltOnTimedOut(
   req: Express.Request,
@@ -33,17 +43,28 @@ function haltOnTimedOut(
     next()
   }
 }
+
 export class Server {
   // tslint:disable-next-line: no-any
   static app: any
   static bootstrap() {
     const server = new Server()
-    server.app.listen(CONSTANTS.PORTAL_PORT, '0.0.0.0', () => {
+    server.httpServer.listen(CONSTANTS.PORTAL_PORT, '0.0.0.0', () => {
       logSuccess(`${process.pid} : Server started at ${CONSTANTS.PORTAL_PORT}`)
     })
   }
 
   protected app = express()
+  protected httpServer = new HttpServer(this.app)
+  protected io = new SocketServer(this.httpServer, {
+    cors: {
+      credentials: true,
+      methods: ['GET', 'POST', 'OPTIONS'],
+      origin: '*',
+    },
+  })
+  // tslint:disable-next-line: no-any
+  private backendSocket: any
   private keycloak?: CustomKeycloak
   private constructor() {
     if (CONSTANTS.CORS_ENVIRONMENT === 'dev') {
@@ -71,6 +92,58 @@ export class Server {
     this.authoringApi()
     this.resetCookies()
     this.app.use(haltOnTimedOut)
+    this.setupBackendSocket()
+    this.configureSocketIO()
+
+  }
+  private setupBackendSocket() {
+    const backendUrl = 'http://notification-engine:3013' // Backend WebSocket server URL
+    this.backendSocket = ClientSocket(backendUrl)
+
+    this.backendSocket.on('connect', () => {
+      logInfo('Connected to backend WebSocket server')
+    })
+
+    this.backendSocket.on('disconnect', () => {
+      logInfo('Disconnected from backend WebSocket server')
+    })
+
+    // tslint:disable-next-line: no-any
+    this.backendSocket.onAny((eventName: string, ...args: any[]) => {
+      logInfo(`Received event from backend: ${eventName}, Data: ${JSON.stringify(args)}`)
+      this.io.emit(eventName, ...args) // Forward the same event name and data to all connected frontend clients
+    })
+  }
+  private configureSocketIO() {
+    this.io.on('connection', (socket) => {
+      logInfo(`Socket connected: ${socket.id}`)
+      const authorizationToken = socket.handshake.auth.token
+      logInfo(`Authorization header: ${authorizationToken}`)
+      if (authorizationToken) {
+        try {
+          jwt.verify(authorizationToken, publicKey, {
+            algorithms: ['RS256'],
+          })
+          logInfo(`Socket connected with validation: ${socket.id}}`)
+        } catch (err) {
+          logInfo(`Socket disconnected with error: ${socket.id} ${JSON.stringify(err)}`)
+          socket.disconnect() // Disconnect unauthorized users
+        }
+      } else {
+        logInfo('No Authorization header found')
+        socket.disconnect() // Disconnect if no token is provided
+      }
+      // tslint:disable-next-line: no-any
+      socket.onAny((eventName: string, ...args: any[]) => {
+        logInfo(`Received event from frontend: ${eventName}, Data: ${JSON.stringify(args)}`)
+        this.backendSocket.emit(eventName, ...args) // Forward to the backend
+      })
+
+      // Handle frontend disconnection
+      socket.on('disconnect', () => {
+        logInfo(`Socket disconnected: ${socket.id}`)
+      })
+    })
   }
   private setCookie() {
     this.app.use(cookieParser())
