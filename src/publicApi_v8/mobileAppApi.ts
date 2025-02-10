@@ -165,8 +165,8 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     if (accessTokenResult.status !== 200) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
-    const requestUpdateLocation = req.body.request.profileLocation
-    delete req.body.request.profileLocation
+    const requestUpdateLocation = req.body.request.profileDetails.profileLocation
+    delete req.body.request.profileDetails.profileLocation
     // Update user profile
     const profileUpdateResponse = await axios.patch(API_END_POINTS.profileUpdate, req.body, {
       ...axiosRequestConfig,
