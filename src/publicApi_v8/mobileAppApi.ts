@@ -81,6 +81,7 @@ const verifyToken = (req: any, res: any) => {
   try {
     logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken] || extractUserTokenFromRequest(req)
+    logInfo("Token via cookie",accessToken)
     // tslint:disable-next-line: no-any
     try {
       jwt.verify(accessToken, publicKey, {
@@ -141,6 +142,7 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     const schema = Joi.object({
       request: Joi.object({
         profileDetails: Joi.object().required().keys({
+          profileLocation: Joi.string().required(),
           profileReq: Joi.object().required().unknown(true),
         }).unknown(true),
         userId: Joi.string().required(),
@@ -163,7 +165,8 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     if (accessTokenResult.status !== 200) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
-
+    const requestUpdateLocation=req.body.request.profileLocation
+    delete req.body.request.profileLocation
     // Update user profile
     const profileUpdateResponse = await axios.patch(API_END_POINTS.profileUpdate, req.body, {
       ...axiosRequestConfig,
@@ -197,12 +200,13 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
         localDataCenter: 'datacenter1',
       })
 
-      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon) VALUES (?, ?, ?, ?)'
+      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)'
       await userCassandraClient.execute(query, [
         uuidv4(),
         req.body.request.userId,
         JSON.stringify(req.body.request),
         Date.now(),
+        requestUpdateLocation
       ], { prepare: true })
     } catch (dbError) {
       return res.status(500).json({
