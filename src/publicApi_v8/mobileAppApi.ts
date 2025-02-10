@@ -138,6 +138,7 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     const schema = Joi.object({
       request: Joi.object({
         profileDetails: Joi.object().required().keys({
+          profileLocation: Joi.string().required(),
           profileReq: Joi.object().required().unknown(true),
         }).unknown(true),
         profileLocation: Joi.object().required().unknown(true),
@@ -161,7 +162,6 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     if (accessTokenResult.status !== 200) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
-
     try {
       const profileUpdateResponse = await axios.patch(
         API_END_POINTS.kongUpdateUser,
