@@ -1,6 +1,7 @@
 import axios from 'axios'
 import fs from 'fs'
 import jwt from 'jsonwebtoken'
+import { v4 as uuidv4 } from 'uuid'
 
 import { Router } from 'express'
 import express from 'express'
@@ -46,6 +47,7 @@ const API_END_POINTS = {
   rcMapperHost: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/getUserCertificateDetails`,
   summary: (courseId) =>
     `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
+  telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
   userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
@@ -78,6 +80,7 @@ const verifyToken = (req: any, res: any) => {
   try {
     logInfo('Inside verify token function')
     const accessToken = req.headers[authenticatedToken]
+    logInfo('Token via cookie', accessToken)
     // tslint:disable-next-line: no-any
     try {
       jwt.verify(accessToken, publicKey, {
@@ -104,7 +107,7 @@ const verifyToken = (req: any, res: any) => {
   } catch (error) {
     return res.status(404).json({
       message: 'User token missing or invalid',
-            // tslint:disable-next-line: no-any
+      // tslint:disable-next-line: no-any
       redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
     })
   }
@@ -132,6 +135,94 @@ mobileAppApi.use(
   '/discussion/*',
   mobileProxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
+mobileAppApi.post('/user/profileUpdate', async (req, res) => {
+  try {
+    // Validation Schema
+    const schema = Joi.object({
+      request: Joi.object({
+        profileDetails: Joi.object().required().keys({
+          profileLocation: Joi.string().required(),
+          profileReq: Joi.object().required().unknown(true),
+        }).unknown(true),
+        userId: Joi.string().required(),
+      }).required().unknown(true),
+    })
+
+    const { error } = schema.validate(req.body)
+    if (error) {
+      return res.status(400).json({
+        result: {
+          errorSource: 'JOI',
+          errors: error.details.map((value) => value.message),
+          response: 'FAILED',
+        },
+      })
+    }
+
+    // Verify access token
+    const accessTokenResult = verifyToken(req, res)
+    if (accessTokenResult.status !== 200) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+    const requestUpdateLocation = req.body.request.profileDetails.profileLocation
+    delete req.body.request.profileDetails.profileLocation
+    // Update user profile
+    const profileUpdateResponse = await axios.patch(API_END_POINTS.profileUpdate, req.body, {
+      ...axiosRequestConfig,
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+    })
+
+    // Telemetry update request
+    const telemetryUpdateRequestBody = {
+      ets: Date.now(),
+      events: [{
+        actor: { action: 'Profile_Update', id: req.body.request.userId, type: 'User' },
+        eid: 'IMPRESSION',
+        mid: `IMPRESSION:${uuidv4()}`,
+        ver: '3.0',
+      }],
+      id: 'ekstep.telemetry',
+      params: { msgid: `${uuidv4()}` },
+      ver: '3.0',
+    }
+
+    await axios.post(API_END_POINTS.telemetryUpdate, telemetryUpdateRequestBody, {
+      ...axiosRequestConfig,
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+    })
+
+    // Cassandra database insert
+    try {
+      const userCassandraClient = new cassandra.Client({
+        contactPoints: [CONSTANTS.CASSANDRA_IP],
+        keyspace: 'sunbird_courses',
+        localDataCenter: 'datacenter1',
+      })
+      // tslint:disable-next-line: max-line-length
+      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)'
+      await userCassandraClient.execute(query, [
+        uuidv4(),
+        req.body.request.userId,
+        JSON.stringify(req.body.request),
+        Date.now(),
+        requestUpdateLocation,
+      ], { prepare: true })
+    } catch (dbError) {
+      return res.status(500).json({
+        message: 'Error occurred while inserting user profile in Cassandra',
+      })
+    }
+
+    // Send response from profile update
+    res.status(profileUpdateResponse.status).send(profileUpdateResponse.data)
+
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    return res.status(500).json({
+      message: 'Error occurred while updating user profile',
+    })
+  }
+})
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
@@ -207,7 +298,7 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
     }
     logInfo('Success ! Entered into usertokenResponse..')
     await getCurrentUserRoles(req, accessToken)
-          // tslint:disable-next-line: no-any
+    // tslint:disable-next-line: no-any
     res.status(200).json({
       message: 'success',
       // tslint:disable-next-line: no-any
