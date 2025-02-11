@@ -218,7 +218,7 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
 
   } catch (error) {
     logInfo(JSON.stringify(error))
-    res.status(500).json({
+    return res.status(500).json({
       message: 'Error occurred while updating user profile',
     })
   }

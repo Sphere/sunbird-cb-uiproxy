@@ -21,8 +21,10 @@ import {
   extractUserIdFromRequest,
   extractUserToken,
 } from '../../utils/requestExtract'
+const cassandra = require('cassandra-driver')
 
-const uuidv1 = require('uuid/v1')
+
+import { v4 as uuidv4 } from 'uuid'
 const dateFormat = require('dateformat')
 
 const API_END_POINTS = {
@@ -51,6 +53,8 @@ const API_END_POINTS = {
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
   sendWelcomeEmail: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/notification/email`,
   setUserProfileStatus: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/setUserProfileStatus`,
+  telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
+
   updateOSUserRegistry: (userId: string) =>
     `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/update/profile?userId=${userId}`,
   userProfileStatus: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/userProfileStatus`,
@@ -299,7 +303,7 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
         // tslint:disable-next-line: object-literal-sort-keys
         ts: dateFormat(new Date(), 'yyyy-mm-dd HH:MM:ss:lo'),
         params: {
-          resmsgid: uuidv1(),
+          resmsgid: uuidv4(),
           // tslint:disable-next-line: object-literal-sort-keys
           msgid: null,
           status: 'failed',
@@ -488,6 +492,89 @@ profileDeatailsApi.patch('/updateUser', async (req, res) => {
         error: unknownError,
       }
     )
+  }
+})
+profileDeatailsApi.post('/v2/updateUser', async (req, res) => {
+  try {
+    // Validation Schema
+    const schema = Joi.object({
+      request: Joi.object({
+        profileDetails: Joi.object().required().keys({
+          profileLocation: Joi.string().required(),
+          profileReq: Joi.object().required().unknown(true),
+        }).unknown(true),
+        userId: Joi.string().required(),
+      }).required().unknown(true),
+    })
+
+    const { error } = schema.validate(req.body)
+    if (error) {
+      return res.status(400).json({
+        result: {
+          errorSource: 'JOI',
+          errors: error.details.map((value) => value.message),
+          response: 'FAILED',
+        },
+      })
+    }
+
+    const requestUpdateLocation = req.body.request.profileDetails.profileLocation
+    delete req.body.request.profileDetails.profileLocation
+    // Update user profile
+    const profileUpdateResponse = await axios.patch(API_END_POINTS.kongUpdateUser, req.body, {
+      ...axiosRequestConfig,
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+    })
+
+    // Telemetry update request
+    const telemetryUpdateRequestBody = {
+      ets: Date.now(),
+      events: [{
+        actor: { action: 'Profile_Update', id: req.body.request.userId, type: 'User' },
+        eid: 'IMPRESSION',
+        mid: `IMPRESSION:${uuidv4()}`,
+        ver: '3.0',
+      }],
+      id: 'ekstep.telemetry',
+      params: { msgid: `${uuidv4()}` },
+      ver: '3.0',
+    }
+
+    await axios.post(API_END_POINTS.telemetryUpdate, telemetryUpdateRequestBody, {
+      ...axiosRequestConfig,
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+    })
+
+    // Cassandra database insert
+    try {
+      const userCassandraClient = new cassandra.Client({
+        contactPoints: [CONSTANTS.CASSANDRA_IP],
+        keyspace: 'sunbird_courses',
+        localDataCenter: 'datacenter1',
+      })
+      // tslint:disable-next-line: max-line-length
+      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)'
+      await userCassandraClient.execute(query, [
+        uuidv4(),
+        req.body.request.userId,
+        JSON.stringify(req.body.request),
+        Date.now(),
+        requestUpdateLocation,
+      ], { prepare: true })
+    } catch (dbError) {
+      return res.status(500).json({
+        message: 'Error occurred while inserting user profile in Cassandra',
+      })
+    }
+
+    // Send response from profile update
+    res.status(profileUpdateResponse.status).send(profileUpdateResponse.data)
+
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    res.status(500).json({
+      message: 'Error occurred while updating user profile',
+    })
   }
 })
 // tslint:disable-next-line: no-identical-functions
