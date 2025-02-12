@@ -50,7 +50,7 @@ const API_END_POINTS = {
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
   userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
-
+const PROXY_SLUG_FORMS = '/public/v8/mobileApp/ext-forms'
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID."
 const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity"
@@ -134,6 +134,12 @@ mobileAppApi.use(
   '/discussion/*',
   mobileProxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
+
+mobileAppApi.use('/ext-forms/*',
+  // tslint:disable-next-line: max-line-length
+  proxyCreatorForms(express.Router())
+)
+
 mobileAppApi.post('/user/profileUpdate', async (req, res) => {
   try {
     const schema = Joi.object({
@@ -1316,3 +1322,18 @@ mobileAppApi.get("/getUnreadUserNotifications", async (req, res) => {
     )
   }
 })
+
+
+export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
+  route.all('/*', (req, res) => {
+    // tslint:disable-next-line: no-console
+    console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
+    let url = ''
+    url = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
+    console.log("url ", url)
+    proxy.web(req, res, {
+      target: 'http://localhost:3003/' + url,
+    })
+  })
+  return route
+}
