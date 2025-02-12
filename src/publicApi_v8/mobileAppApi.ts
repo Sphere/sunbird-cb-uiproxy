@@ -1323,14 +1323,13 @@ mobileAppApi.get("/getUnreadUserNotifications", async (req, res) => {
   }
 })
 
-
 export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
   route.all('/*', (req, res) => {
     // tslint:disable-next-line: no-console
-    console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
+    logInfo('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
     let url = ''
     url = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
-    console.log("url ", url)
+    logInfo('url ', url)
     proxy.web(req, res, {
       target: 'http://localhost:3003/' + url,
     })
