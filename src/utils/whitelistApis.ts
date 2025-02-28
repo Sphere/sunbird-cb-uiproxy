@@ -1244,7 +1244,18 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+
     '/protected/v8/sunbirdrRcCertificate/events/:eventId/users': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/sunbirdrRcCertificate/downloadCertificates/:eventId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/sunbirdrRcCertificate/events/generateCertificates': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1596,6 +1607,8 @@ export const API_LIST = {
     '/protected/v8/recommendationEngineV2/publicSearch/courseRecommendationCbp',
     '/protected/v8/sunbirdrRcCertificate/events',
     '/protected/v8/sunbirdrRcCertificate/events/:id',
+    '/protected/v8/sunbirdrRcCertificate/downloadCertificates/:eventId',
+    '/protected/v8/sunbirdrRcCertificate/events/generateCertificates',
     '/protected/v8/sunbirdrRcCertificate/events/:eventId/users',
     '/protected/v8/sunbirdrRcCertificate/users/:userId/events',
     '/protected/v8/userEnrolledInSource',

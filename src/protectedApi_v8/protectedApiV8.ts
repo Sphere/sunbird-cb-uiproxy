@@ -32,6 +32,7 @@ import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
 import { portalApi } from './portal-v3'
+import { sunbirdrRcCertificate } from './rcEvents'
 import { recommendationApi } from './recommendation'
 import { recommendationEngineV2 } from './recommendationEngineV2'
 import { userAuthKeyCloakApi } from './resource'
@@ -47,7 +48,6 @@ import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
-import { sunbirdrRcCertificate } from './rcEvents'
 export const protectedApiV8 = express.Router()
 
 protectedApiV8.get('/', (_req, res) => {
