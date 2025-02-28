@@ -116,6 +116,8 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
             eventPlace: event.eventplace,
             eventType: event.eventtype,
             updatedAt: event.updatedat,
+            updatedBy: event.updatedby,
+
         })
     } catch (err) {
         logInfo(JSON.stringify(err))
@@ -141,6 +143,7 @@ sunbirdrRcCertificate.get('/events', async (_req, res) => {
             eventPlace: event.eventplace,
             eventType: event.eventtype,
             updatedAt: event.updatedat,
+            updatedBy: event.updatedby,
         }))
         res.status(200).json(events)
     } catch (err) {
@@ -150,8 +153,9 @@ sunbirdrRcCertificate.get('/events', async (_req, res) => {
 })
 sunbirdrRcCertificate.post('/events/users', async (req, res) => {
     try {
-        const { eventData, users } = req.body
-
+        const { eventId, users } = req.body
+        const eventDetails = await getEventDetails(eventId)
+        const eventData = eventDetails[0]
         // Check if users array is valid
         if (!Array.isArray(users) || users.length === 0) {
             return res.status(400).json({ error: 'Please provide a list of users to link to the event' })
@@ -165,10 +169,10 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                 queryParamsLink = [
                     linkId,
                     userId,
-                    eventData.eventId,
+                    eventData.eventid,
                     firstName,
                     lastName,
-                    eventData.eventPlace || place,
+                    eventData.eventplace || place,
                     'inProgress',
                     new Date(),
                     new Date(),
@@ -177,10 +181,10 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                 queryParamsLink = [
                     linkId,
                     '',
-                    eventData.eventId,
+                    eventData.eventid,
                     firstName,
                     lastName,
-                    eventData.eventPlace || place,
+                    eventData.eventplace || place,
                     'failed',
                     new Date(),
                     new Date(),
@@ -217,6 +221,7 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
     try {
         const { eventId, templateId } = req.body
         const eventDetails = await getEventDetails(eventId)
+
         const users = await getUsersForEvent(eventId)
         if (!users || users.length === 0) {
             return res.status(404).json({ error: 'No users found for this event' })
@@ -431,6 +436,7 @@ sunbirdrRcCertificate.get('/events/:eventId/users', async (req, res) => {
             firstName: user.firstname,
             lastName: user.lastname,
             linkId: user.linkid,
+            phone: user.phone,
             place: user.place,
             templateId: user.templateid,
             updatedAt: user.updatedat,
