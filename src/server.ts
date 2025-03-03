@@ -36,6 +36,12 @@ const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
 const publicKey = beginKey + publicKeyValue + endKey
 
+const publicKeyPath = '/keys/access_key'
+const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+const beginKey = '-----BEGIN PUBLIC KEY-----\n'
+const endKey = '\n-----END PUBLIC KEY-----'
+const publicKey = beginKey + publicKeyValue + endKey
+
 function haltOnTimedOut(
   req: Express.Request,
   _: Express.Response,
