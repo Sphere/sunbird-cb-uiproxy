@@ -51,7 +51,7 @@ const API_END_POINTS = {
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
   userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
-
+const PROXY_SLUG_FORMS = '/public/v8/mobileApp/ext-forms'
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID."
 const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity"
@@ -138,6 +138,99 @@ mobileAppApi.use(
 mobileAppApi.post('/user/profileUpdate', async (req, res) => {
   try {
     // Validation Schema
+    const schema = Joi.object({
+      request: Joi.object({
+        profileDetails: Joi.object().required().keys({
+          profileLocation: Joi.string().required(),
+          profileReq: Joi.object().required().unknown(true),
+        }).unknown(true),
+        userId: Joi.string().required(),
+      }).required().unknown(true),
+    })
+
+    const { error } = schema.validate(req.body)
+    if (error) {
+      return res.status(400).json({
+        result: {
+          errorSource: 'JOI',
+          errors: error.details.map((value) => value.message),
+          response: 'FAILED',
+        },
+      })
+    }
+
+    // Verify access token
+    const accessTokenResult = verifyToken(req, res)
+    if (accessTokenResult.status !== 200) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+    const requestUpdateLocation = req.body.request.profileDetails.profileLocation
+    delete req.body.request.profileDetails.profileLocation
+    // Update user profile
+    const profileUpdateResponse = await axios.patch(API_END_POINTS.profileUpdate, req.body, {
+      ...axiosRequestConfig,
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+    })
+
+    // Telemetry update request
+    const telemetryUpdateRequestBody = {
+      ets: Date.now(),
+      events: [{
+        actor: { action: 'Profile_Update', id: req.body.request.userId, type: 'User' },
+        eid: 'IMPRESSION',
+        mid: `IMPRESSION:${uuidv4()}`,
+        ver: '3.0',
+      }],
+      id: 'ekstep.telemetry',
+      params: { msgid: `${uuidv4()}` },
+      ver: '3.0',
+    }
+
+    await axios.post(API_END_POINTS.telemetryUpdate, telemetryUpdateRequestBody, {
+      ...axiosRequestConfig,
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+    })
+
+    // Cassandra database insert
+    try {
+      const userCassandraClient = new cassandra.Client({
+        contactPoints: [CONSTANTS.CASSANDRA_IP],
+        keyspace: 'sunbird_courses',
+        localDataCenter: 'datacenter1',
+      })
+      // tslint:disable-next-line: max-line-length
+      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)'
+      await userCassandraClient.execute(query, [
+        uuidv4(),
+        req.body.request.userId,
+        JSON.stringify(req.body.request),
+        Date.now(),
+        requestUpdateLocation,
+      ], { prepare: true })
+    } catch (dbError) {
+      return res.status(500).json({
+        message: 'Error occurred while inserting user profile in Cassandra',
+      })
+    }
+
+    // Send response from profile update
+    res.status(profileUpdateResponse.status).send(profileUpdateResponse.data)
+
+  } catch (error) {
+    logInfo(JSON.stringify(error))
+    return res.status(500).json({
+      message: 'Error occurred while updating user profile',
+    })
+  }
+})
+
+mobileAppApi.use('/ext-forms/*',
+  // tslint:disable-next-line: max-line-length
+  proxyCreatorForms(express.Router())
+)
+
+mobileAppApi.post('/user/profileUpdate', async (req, res) => {
+  try {
     const schema = Joi.object({
       request: Joi.object({
         profileDetails: Joi.object().required().keys({
@@ -1312,3 +1405,17 @@ mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
     )
   }
 })
+
+export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
+  route.all('/*', (req, res) => {
+    // tslint:disable-next-line: no-console
+    logInfo('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
+    let url = ''
+    url = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
+    logInfo('url ', url)
+    proxy.web(req, res, {
+      target: 'http://localhost:3003/' + url,
+    })
+  })
+  return route
+}
