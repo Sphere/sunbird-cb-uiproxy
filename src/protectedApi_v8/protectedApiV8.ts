@@ -32,6 +32,7 @@ import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
 import { portalApi } from './portal-v3'
+import { sunbirdrRcCertificate } from './rcEvents'
 import { recommendationApi } from './recommendation'
 import { recommendationEngineV2 } from './recommendationEngineV2'
 import { userAuthKeyCloakApi } from './resource'
@@ -104,3 +105,4 @@ protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
 protectedApiV8.use('/ratings', ratingServiceApi)
 protectedApiV8.use('/AI', aiServiceAPI)
 protectedApiV8.use('/rcCert', rcCert)
+protectedApiV8.use('/sunbirdrRcCertificate', sunbirdrRcCertificate)
