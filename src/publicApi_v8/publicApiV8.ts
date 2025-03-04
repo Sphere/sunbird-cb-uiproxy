@@ -33,6 +33,7 @@ import { upsmfUserCreation } from './upsmfUser'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
+import { publicReadForm } from './publicReadForm'
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
@@ -81,3 +82,4 @@ publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
 publicApiV8.use('/ratingsSearch', ratingsSearch)
 publicApiV8.use('/upsmfUserCreation', upsmfUserCreation)
+publicApiV8.use('/publicReadForm', publicReadForm)
