@@ -6,14 +6,14 @@ const cassandra = require('cassandra-driver')
 
 export const publicReadForm = Router()
 const VALIDATION_FAIL =
-  'Sorry ! Read public form failed . Please try again in sometime.'
+  'Sorry ! Read form failed . Please try again in sometime.'
 publicReadForm.get('/readForm', async (req, res) => {
   try {
     const frameworkType = req.query.type
 
     if (!(frameworkType)) {
       res.status(400).json({
-        msg: 'UserID, courseID or secretKey can not be empty',
+        msg: 'frameworkType can not be empty',
         status: 'error',
         status_code: 400,
       })
