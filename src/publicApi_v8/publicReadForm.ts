@@ -35,7 +35,7 @@ publicReadForm.get('/readForm', async (req, res) => {
     } else {
         res.writeHead(200, {
             'Content-Type': 'application/json',
-            'data': JSON.stringify(formData)
+            data: JSON.stringify(formData),
         })
     }
     client.shutdown()

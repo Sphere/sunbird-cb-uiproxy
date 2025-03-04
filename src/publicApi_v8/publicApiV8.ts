@@ -26,6 +26,7 @@ import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
 import { bnrcUserCreation } from './bnrcUser'
 import { competencyAssets } from './competencyAssets'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
+import { publicReadForm } from './publicReadForm'
 import { ssoLogin } from './ssoLogin'
 import { tnaiAuth } from './tnaiAuth'
 import { publicTnc } from './tnc'
@@ -33,7 +34,6 @@ import { upsmfUserCreation } from './upsmfUser'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
-import { publicReadForm } from './publicReadForm'
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
