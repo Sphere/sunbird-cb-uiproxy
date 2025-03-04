@@ -1328,6 +1328,7 @@ export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
     url = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
     logInfo('url ', url)
     proxy.web(req, res, {
+      changeOrigin: true,
       target: 'http://localhost:3003/' + url,
     })
   })

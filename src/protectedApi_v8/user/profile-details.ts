@@ -23,7 +23,6 @@ import {
 } from '../../utils/requestExtract'
 const cassandra = require('cassandra-driver')
 
-
 import { v4 as uuidv4 } from 'uuid'
 const dateFormat = require('dateformat')
 

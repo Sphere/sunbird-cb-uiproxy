@@ -26,6 +26,7 @@ import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
 import { bnrcUserCreation } from './bnrcUser'
 import { competencyAssets } from './competencyAssets'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
+import { publicReadForm } from './publicReadForm'
 import { ssoLogin } from './ssoLogin'
 import { tnaiAuth } from './tnaiAuth'
 import { publicTnc } from './tnc'
@@ -81,3 +82,4 @@ publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
 publicApiV8.use('/ratingsSearch', ratingsSearch)
 publicApiV8.use('/upsmfUserCreation', upsmfUserCreation)
+publicApiV8.use('/publicReadForm', publicReadForm)
