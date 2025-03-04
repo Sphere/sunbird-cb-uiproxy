@@ -34,12 +34,12 @@ publicReadForm.get('/readForm', async (req, res) => {
       })
     } else {
         res.writeHead(200, {
-            'data': formData,
             'Content-Type': 'application/json',
+            'data': JSON.stringify(formData)
         })
     }
     client.shutdown()
-    } catch (error) {   
+    } catch (error) {
         logError('Error in validate certificate  >>>>>>' + error)
         res.status(500).send({
             message: VALIDATION_FAIL,
