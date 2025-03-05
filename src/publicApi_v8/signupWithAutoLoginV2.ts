@@ -20,13 +20,13 @@ const API_END_POINTS = {
   generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
   grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
+  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
+  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
+  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
   verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
 }
 
 const indianCountryCode = '+91'
@@ -244,7 +244,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
       res.status(400).send({ message: OTP_MISSING, status: 'error' })
       return
     }
-    let userOtpVerified = false;
+    let userOtpVerified = false
     if (mobileNumber) {
       logInfo('Validate otp for phone')
       const verifyOtpResponse = await axios({
@@ -342,8 +342,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
           }
         })
       })
-    }
-    else {
+    } else {
       res.status(400).json({
         message: 'OTP validation failed',
         status: 'failed',
