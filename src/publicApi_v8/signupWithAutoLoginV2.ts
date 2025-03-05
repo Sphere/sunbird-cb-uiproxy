@@ -250,7 +250,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
     }
     let userOtpVerified = false
     if (mobileNumber) {
-      logInfo('Validate otp for phone')
+      logInfo('Validate otp for phone',mobileNumber,validOtp)
       const verifyOtpResponse = await axios({
         headers: msg91Headers,
         method: 'GET',
@@ -261,6 +261,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
 
         url: API_END_POINTS.msg91VerifyOtp,
       })
+      logInfo("validate OTP response phone",JSON.stringify(verifyOtpResponse.data))
       if (verifyOtpResponse.data.type !== 'success') {
         return res.status(400).json({
           message: 'Phone OTP validation failed try again',
