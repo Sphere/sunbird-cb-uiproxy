@@ -46,7 +46,7 @@ sunbirdrRcCertificate.post('/events', async (req, res) => {
 
 sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
     logInfo('Edit event request body', req.body)
-    const { eventId, eventName, eventDescription, eventDate, eventPlace, eventType, updatedBy } = req.body
+    const { eventId, eventName, eventDescription, eventDate, eventPlace, eventType, templateId, updatedBy } = req.body
 
     // Check if the required eventId is provided and exists
     if (!eventId) {
@@ -67,6 +67,7 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
             eventName: eventName || result.rows[0].eventName,
             eventPlace: eventPlace || result.rows[0].eventPlace,
             eventType: eventType || result.rows[0].eventType,
+            templateId: templateId || result.rows[0].templateId,
             updatedAt: new Date(),
             updatedBy,
         }
@@ -74,7 +75,7 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
         // Construct the update query
         const updateQuery = `
             UPDATE sunbird.rc_events
-            SET eventName = ?, eventDescription = ?, eventDate = ?, eventPlace = ?, eventType = ?, updatedBy = ?, updatedAt = ?
+            SET eventName = ?, eventDescription = ?, eventDate = ?, eventPlace = ?, eventType = ?, updatedBy = ?, updatedAt = ?,templateId = ?
             WHERE eventId = ?
         `
         const updateParams = [
@@ -85,6 +86,7 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
             updatedFields.eventType,
             updatedFields.updatedBy,
             updatedFields.updatedAt,
+            updatedFields.templateId,
             eventId,
         ]
 
