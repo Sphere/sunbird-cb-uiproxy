@@ -227,6 +227,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
   }
 })
 const getUserDetails = async (userEmail: string, userPhone: string) => {
+  logInfo('Entered into getUserDetails >>>>>>', userEmail, userPhone)
   const typeOfAccount = userEmail ? 'email' : 'phone'
   return axios({
     ...axiosRequestConfig,
@@ -252,13 +253,13 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         status: 'success',
       })
     }
-    logInfo('Entered into /validateOtp ', req.body)
+    logInfo('Entered into /validateOtp ', JSON.stringify(req.body))
     const mobileNumber = req.body.mobileNumber || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
     const userDetails = await getUserDetails(email, mobileNumber)
-    logInfo("userDetails", JSON.stringify(userDetails))
     const userUUId = userDetails.data.result.response.content[0].id
+    logInfo("userDetails", JSON.stringify(userDetails.data.result))
 
     let userOtpVerified = false
     if (mobileNumber) {
@@ -342,6 +343,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       }
     }
   } catch (error) {
+    logInfo('Error in /validateOtp ', JSON.stringify(error))
     res.status(500).send({
       message: VALIDATION_FAIL,
       status: 'failed',
