@@ -1,6 +1,5 @@
 import axios from 'axios'
 import { Router } from 'express'
-import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
 import {
@@ -11,7 +10,6 @@ import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
-import { getCurrentUserRoles } from './rolePermission'
 
 const API_END_POINTS = {
   createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
@@ -25,8 +23,6 @@ const API_END_POINTS = {
   msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  searchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
   verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
 }
@@ -209,6 +205,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
           message: 'User successfully created',
           status: 200,
           userId,
+          userUUId:userId
         })
       } catch (error) {
         logError('Error while sending email OTP', JSON.stringify(error))
@@ -226,23 +223,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
     })
   }
 })
-const getUserDetails = async (userEmail: string, userPhone: string) => {
-  logInfo('Entered into getUserDetails >>>>>>', userEmail, userPhone)
-  const typeOfAccount = userEmail ? 'email' : 'phone'
-  return axios({
-    ...axiosRequestConfig,
-    data: {
-      request: {
-        filters: {
-          [typeOfAccount]: typeOfAccount == 'email' ? userEmail : userPhone,
-        },
-      },
-    },
-    method: 'POST',
-    url: API_END_POINTS.searchUser,
-  })
 
-}
 // validate  otp for  register's the user
 // tslint:disable-next-line: no-any
 appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
@@ -253,13 +234,11 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         status: 'success',
       })
     }
-    logInfo('Entered into /validateOtp ', JSON.stringify(req.body))
+    logInfo('Entered into /validateOtp ', req.body)
     const mobileNumber = req.body.mobileNumber || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
-    const userDetails = await getUserDetails(email, mobileNumber)
-    const userUUId = userDetails.data.result.response.content[0].id
-    logInfo("userDetails", JSON.stringify(userDetails.data.result))
+    const userUUId = req.body.userId || req.body.userUUID
 
     let userOtpVerified = false
     if (mobileNumber) {
@@ -317,23 +296,6 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
           method: 'POST',
           url: API_END_POINTS.grantAccessToken,
         })
-        const accessToken = authTokenResponse.data.access_token
-        // tslint:disable-next-line: no-any
-        const decodedToken: any = jwt_decode(accessToken)
-        req.session.userId = userUUId
-        req.kauth = {
-          grant: {
-            access_token: {
-              content: decodedToken,
-              token: accessToken,
-            },
-          },
-        }
-        req.session.grant = {
-          access_token: { content: decodedToken, token: accessToken },
-        }
-        logInfo('Success ! Entered into usertokenResponse..')
-        await getCurrentUserRoles(req, accessToken)
         authTokenResponse.data.status = 200
         res.status(200).json(authTokenResponse.data)
       } catch (error) {
@@ -343,7 +305,6 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       }
     }
   } catch (error) {
-    logInfo('Error in /validateOtp ', JSON.stringify(error))
     res.status(500).send({
       message: VALIDATION_FAIL,
       status: 'failed',
