@@ -25,6 +25,8 @@ const API_END_POINTS = {
   msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
+  searchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
+
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
   verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
 }
@@ -224,7 +226,22 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
     })
   }
 })
+const getUserDetails = async (userEmail: string, userPhone: string) => {
+  const typeOfAccount = userEmail ? 'email' : 'phone'
+  return axios({
+    ...axiosRequestConfig,
+    data: {
+      request: {
+        filters: {
+          [typeOfAccount]: typeOfAccount == 'email' ? userEmail : userPhone,
+        },
+      },
+    },
+    method: 'POST',
+    url: API_END_POINTS.searchUser,
+  })
 
+}
 // validate  otp for  register's the user
 // tslint:disable-next-line: no-any
 appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
@@ -239,7 +256,9 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
     const mobileNumber = req.body.mobileNumber || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
-    const userUUId = req.body.userId || req.body.userUUID
+    const userDetails = await getUserDetails(email, mobileNumber)
+    logInfo("userDetails", JSON.stringify(userDetails))
+    const userUUId = userDetails.data.result.response.content[0].id
 
     let userOtpVerified = false
     if (mobileNumber) {
