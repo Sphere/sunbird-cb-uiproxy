@@ -184,7 +184,9 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
           url: API_END_POINTS.msg91SendOtp,
         })
         return res.status(200).json({
-          message: `OTP successfully sent on phone ${userPhone}`,
+          data: `OTP successfully sent on email ${userPhone}`,
+          message: 'User successfully created',
+          status: 200,
           userId,
         })
       } catch (error) {
@@ -205,7 +207,9 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
           'email'
         )
         res.status(200).json({
-          message: `OTP successfully sent on email ${userEmail}`,
+          data: `OTP successfully sent on email ${userEmail}`,
+          message: 'User successfully created',
+          status: 200,
           userId,
         })
       } catch (error) {
