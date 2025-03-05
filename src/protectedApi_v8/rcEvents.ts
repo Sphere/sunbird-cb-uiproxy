@@ -72,12 +72,8 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
             updatedBy,
         }
 
-        // Construct the update query
-        const updateQuery = `
-            UPDATE sunbird.rc_events
-            SET eventName = ?, eventDescription = ?, eventDate = ?, eventPlace = ?, eventType = ?, updatedBy = ?, updatedAt = ?,templateId = ?
-            WHERE eventId = ?
-        `
+    // tslint:disable-next-line: max-line-length
+        const updateQuery = `UPDATE sunbird.rc_events SET eventName = ?, eventDescription = ?, eventDate = ?, eventPlace = ?, eventType = ?, updatedBy = ?, updatedAt = ?,templateId = ? WHERE eventId = ?`
         const updateParams = [
             updatedFields.eventName,
             updatedFields.eventDescription,
