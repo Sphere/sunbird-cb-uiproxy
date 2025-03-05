@@ -182,6 +182,8 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
           message: 'User successfully created',
           status: 200,
           userId,
+          userUUId:userId
+
         })
       } catch (error) {
         logError('Error while sending mobile OTP', JSON.stringify(error))
