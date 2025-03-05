@@ -21,19 +21,22 @@ const API_END_POINTS = {
   generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
   generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
+  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
+
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
+  searchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
+
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
   verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
 }
+const indianCountryCode = '+91'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
-const OTP_GENERATE_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
 const VALIDATION_SUCCESS = 'Otp is successfully validated.'
 const OTP_MISSING = 'Otp cannnot be blank'
 const EMAIL_OR_MOBILE_ERROR_MSG = 'Mobile no. or Email Id can not be empty'
-const NOT_USER_FOUND = 'User not found.'
 const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
@@ -122,65 +125,99 @@ emailOrMobileLogin.post('/signup', async (req, res) => {
     })
   }
 })
+const getUserDetails = async (userEmail: string, userPhone: string) => {
+  const typeOfAccount = userEmail ? 'email' : 'phone'
+  return axios({
+      ...axiosRequestConfig,
+      data: {
+          request: {
+              filters: {
+                  [typeOfAccount]: typeOfAccount == 'email' ? userEmail : userPhone,
+              },
+          },
+      },
+      method: 'POST',
+      url: API_END_POINTS.searchUser,
+  })
 
+}
+const msg91Headers = {
+  accept: 'application/json',
+  authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+  'content-type': 'application/json',
+}
 // generate otp for  register's user
 emailOrMobileLogin.post('/generateOtp', async (req, res) => {
   try {
-    if (req.body.mobileNumber || req.body.email) {
-      logInfo('Entered into /generateOtp ')
-      const mobileNumber = req.body.mobileNumber
-      const email = req.body.email
-      // tslint:disable-next-line: no-any
-      // let userSearch: any = {}
-      const userSearch = await axios({
-        ...axiosRequestConfig,
-        data: {
-          request: {
-            filters: mobileNumber
-              ? { phone: mobileNumber.toLowerCase() }
-              : { email: email.toLowerCase() },
-            query: '',
-          },
-        },
-        method: 'POST',
-        url: API_END_POINTS.searchSb,
-      })
-      logInfo('userSearch response' + userSearch)
-      if (userSearch.data.result.response) {
-        if (userSearch.data.result.response.count > 0) {
-          const userUUId = _.get(
-            _.find(userSearch.data.result.response.content, 'userId'),
-            'userId'
-          )
-          const response = await getOTP(
-            userUUId,
-            email ? email : mobileNumber,
-            email ? 'email' : 'phone'
-          )
-          // tslint:disable-next-line: no-console
-          console.log('2 response form getOTP : ' + response)
-          if (response.data.result.response === 'SUCCESS') {
-            res.status(200).send({
-              message: 'Success ! Please verify the OTP .',
-              status: 200,
-            })
-          }
-        }
-      } else {
-        res.status(400).send({ message: NOT_USER_FOUND })
-      }
-    } else if (!req.body.mobileNumber || !req.body.email) {
-      res.status(400).json({
-        msg: EMAIL_OR_MOBILE_ERROR_MSG,
-        status: 'error',
-        status_code: 400,
+    const userPhone = req.body.mobileNumber || req.body.phone || ''
+    let userEmail = req.body.email || ''
+    userEmail = userEmail.toLowerCase()
+    logInfo('SSO login resend OTP route request body', req.body)
+    if (!userPhone && !userEmail) {
+      return res.status(400).json({
+        message: 'Mandatory parameters email/phone missing',
       })
     }
+    const userDetails = await getUserDetails(userEmail, userPhone)
+    if (userDetails.data.result.response.count <= 0) {
+      logInfo("SSO re-sendotp: User doesn't exists please signup and try again")
+      return res.status(400).json({
+        msg: "User Doesn't exists please signup and try again",
+        status: 'error',
+      })
+    }
+    const userId = userDetails.data.result.response.content[0].id
+    // User OTP send through MSG91 for phone
+    if (userPhone) {
+      try {
+        logInfo('SSO Resend OTP through phone', userPhone)
+        await axios({
+          headers: msg91Headers,
+          params: {
+            mobile: `${indianCountryCode}${userPhone}`,
+            retrytype: 'text',
+          },
+
+          method: 'POST',
+          url: API_END_POINTS.msg91ResendOtp,
+        })
+        return res.status(200).json({
+          message: `OTP successfully re-sent on phone ${userPhone}`,
+          status: 200,
+          userId,
+        })
+      } catch (error) {
+        return res.status(500).send({
+          message: `OTP generation fail for phone ${userPhone}`,
+          status: 'failed',
+        })
+      }
+
+    }
+    // User otp send through learner service for email users
+    if (userEmail) {
+      try {
+        logInfo('SSO Resend OTP through email', userEmail)
+        await getOTP(
+          userId,
+          userEmail,
+          'email'
+        )
+        res.status(200).json({
+          message: `OTP successfully re-sent on email ${userEmail}`,
+          status: 200,
+          userId,
+        })
+      } catch (error) {
+        res.status(500).send({
+          message: `OTP generation fail for email ${userEmail}`,
+          status: 'failed',
+        })
+      }
+    }
   } catch (error) {
-    logInfo('Generate otp  error >> ' + error)
     res.status(500).send({
-      message: OTP_GENERATE_FAIL,
-      status: 'failed',
+      message: 'OTP regeneration failed',
     })
   }
 })
@@ -405,7 +442,7 @@ const createuserWithmobileOrEmail = async (accountDetails: any) => {
     } else {
       throw new Error(
         _.get(response.data, 'params.errmsg') ||
-          _.get(response.data, 'params.err')
+        _.get(response.data, 'params.err')
       )
     }
   } catch (err) {
