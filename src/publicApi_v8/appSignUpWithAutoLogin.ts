@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { Router } from 'express'
+import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
 import {
@@ -10,6 +11,7 @@ import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
+import { getCurrentUserRoles } from './rolePermission'
 
 const API_END_POINTS = {
   createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
@@ -295,6 +297,23 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
           method: 'POST',
           url: API_END_POINTS.grantAccessToken,
         })
+        const accessToken = authTokenResponse.data.access_token
+        // tslint:disable-next-line: no-any
+        const decodedToken: any = jwt_decode(accessToken)
+        req.session.userId = userUUId
+        req.kauth = {
+          grant: {
+            access_token: {
+              content: decodedToken,
+              token: accessToken,
+            },
+          },
+        }
+        req.session.grant = {
+          access_token: { content: decodedToken, token: accessToken },
+        }
+        logInfo('Success ! Entered into usertokenResponse..')
+        await getCurrentUserRoles(req, accessToken)
         authTokenResponse.data.status = 200
         res.status(200).json(authTokenResponse.data)
       } catch (error) {
