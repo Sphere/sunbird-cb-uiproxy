@@ -113,6 +113,7 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
             eventName: event.eventname,
             eventPlace: event.eventplace,
             eventType: event.eventtype,
+            templateId: event.templateid,
             updatedAt: event.updatedat,
             updatedBy: event.updatedby,
 
@@ -140,6 +141,7 @@ sunbirdrRcCertificate.get('/events', async (_req, res) => {
             eventName: event.eventname,
             eventPlace: event.eventplace,
             eventType: event.eventtype,
+            templateId: event.templateid,
             updatedAt: event.updatedat,
             updatedBy: event.updatedby,
         }))
