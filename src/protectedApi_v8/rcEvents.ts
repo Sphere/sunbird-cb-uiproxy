@@ -46,7 +46,7 @@ sunbirdrRcCertificate.post('/events', async (req, res) => {
 
 sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
     logInfo('Edit event request body', req.body)
-    const { eventId, eventName, eventDescription, eventDate, eventPlace, eventType, updatedBy } = req.body
+    const { eventId, eventName, eventDescription, eventDate, eventPlace, eventType, templateId, updatedBy } = req.body
 
     // Check if the required eventId is provided and exists
     if (!eventId) {
@@ -67,16 +67,13 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
             eventName: eventName || result.rows[0].eventName,
             eventPlace: eventPlace || result.rows[0].eventPlace,
             eventType: eventType || result.rows[0].eventType,
+            templateId: templateId || result.rows[0].templateId,
             updatedAt: new Date(),
             updatedBy,
         }
 
-        // Construct the update query
-        const updateQuery = `
-            UPDATE sunbird.rc_events
-            SET eventName = ?, eventDescription = ?, eventDate = ?, eventPlace = ?, eventType = ?, updatedBy = ?, updatedAt = ?
-            WHERE eventId = ?
-        `
+    // tslint:disable-next-line: max-line-length
+        const updateQuery = `UPDATE sunbird.rc_events SET eventName = ?, eventDescription = ?, eventDate = ?, eventPlace = ?, eventType = ?, updatedBy = ?, updatedAt = ?,templateId = ? WHERE eventId = ?`
         const updateParams = [
             updatedFields.eventName,
             updatedFields.eventDescription,
@@ -85,6 +82,7 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
             updatedFields.eventType,
             updatedFields.updatedBy,
             updatedFields.updatedAt,
+            updatedFields.templateId,
             eventId,
         ]
 
@@ -115,6 +113,7 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
             eventName: event.eventname,
             eventPlace: event.eventplace,
             eventType: event.eventtype,
+            templateId: event.templateid,
             updatedAt: event.updatedat,
             updatedBy: event.updatedby,
 
@@ -142,6 +141,7 @@ sunbirdrRcCertificate.get('/events', async (_req, res) => {
             eventName: event.eventname,
             eventPlace: event.eventplace,
             eventType: event.eventtype,
+            templateId: event.templateid,
             updatedAt: event.updatedat,
             updatedBy: event.updatedby,
         }))

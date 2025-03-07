@@ -17,6 +17,9 @@ const API_END_POINTS = {
   generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
   grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
+  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
+  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
+  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
@@ -42,6 +45,14 @@ const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 //     decipher.final("utf8")
 //   ); // Decrypts data and converts to utf8
 // }
+// tslint:disable-next-line: no-any
+const indianCountryCode = '+91'
+
+const msg91Headers = {
+  accept: 'application/json',
+  authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+  'content-type': 'application/json',
+}
 // tslint:disable-next-line: no-any
 const createAccount = async (profileData: any) => {
   try {
@@ -153,24 +164,57 @@ signupWithAutoLogin.post('/register', async (req, res) => {
       phone: userPhone,
     }
     const newUserDetail = await createAccount(profileData)
-
     const userId = newUserDetail.data.result.userId
     await profileUpdate(profileData, userId)
-    try {
-      await getOTP(
-        userId,
-        userEmail ? userEmail : userPhone,
-        userEmail ? 'email' : 'phone'
-      )
-      res.status(200).json({
-        message: 'User successfully created',
-        userId,
-      })
-    } catch (error) {
-      res.status(500).send({
-        message: 'OTP generation fail',
-        status: 'failed',
-      })
+    if (userPhone) {
+      try {
+        logInfo('Autologin send otp through phone', userPhone)
+        await axios({
+          headers: msg91Headers,
+          params: {
+            mobile: `${indianCountryCode}${userPhone}`,
+            template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
+          },
+
+          method: 'POST',
+          url: API_END_POINTS.msg91SendOtp,
+        })
+        return res.status(200).json({
+          data: `OTP successfully sent on email ${userPhone}`,
+          message: 'User successfully created',
+          status: 200,
+          userId,
+        })
+      } catch (error) {
+        logError('Error while sending mobile OTP', JSON.stringify(error))
+        return res.status(500).send({
+          message: `OTP generation fail for phone ${userPhone}`,
+          status: 'failed',
+        })
+      }
+
+    }
+    if (userEmail) {
+      try {
+        logInfo('Autologin send otp through email', userEmail)
+        await getOTP(
+          userId,
+          userEmail,
+          'email'
+        )
+        res.status(200).json({
+          data: `OTP successfully sent on email ${userEmail}`,
+          message: 'User successfully created',
+          status: 200,
+          userId,
+        })
+      } catch (error) {
+        logError('Error while sending email OTP', JSON.stringify(error))
+        res.status(500).send({
+          message: `OTP generation fail for email ${userEmail}`,
+          status: 'failed',
+        })
+      }
     }
   } catch (error) {
     logInfo('Error in user creation >>>>>>' + error)
@@ -202,13 +246,42 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         res.status(400).send({ message: OTP_MISSING, status: 'error' })
         return
       }
-      const verifyOtpResponse = await validateOTP(
-        userUUId,
-        mobileNumber ? mobileNumber : email,
-        email ? 'email' : 'phone',
-        validOtp
-      )
-      if (verifyOtpResponse.data.result.response === 'SUCCESS') {
+      let userOtpVerified = false
+      if (mobileNumber) {
+        logInfo('Validate otp for phone', mobileNumber, validOtp)
+        const verifyOtpResponse = await axios({
+          headers: msg91Headers,
+          method: 'GET',
+          params: {
+            mobile: `${indianCountryCode}${mobileNumber}`,
+            otp: validOtp,
+          },
+          url: API_END_POINTS.msg91VerifyOtp,
+        })
+        logInfo('validate OTP response phone', JSON.stringify(verifyOtpResponse.data))
+        if (verifyOtpResponse.data.type !== 'success') {
+          return res.status(400).json({
+            message: 'Phone OTP validation failed try again',
+          })
+        }
+        userOtpVerified = true
+      }
+      if (email) {
+        logInfo('Validate otp for email')
+        const verifyOtpResponse = await validateOTP(
+          userUUId,
+          email,
+          'email',
+          validOtp
+        )
+        if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
+          return res.status(400).json({
+            message: 'Email OTP validation failed try again',
+          })
+        }
+        userOtpVerified = true
+      }
+      if (userOtpVerified) {
         logInfo('Otp is verified. Now autologin started.')
         await updateRoles(userUUId)
         res.clearCookie('connect.sid')
