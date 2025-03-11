@@ -1322,6 +1322,7 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
     })
   }
 })
+// tslint:disable-next-line: max-line-length
 mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
   try {
     const serviceResponse = await axios({
@@ -1342,12 +1343,14 @@ mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
     )
   }
 })
-// tslint:disable-next-line: max-len
- /**
- * User consent API whats opt in end point
+// tslint:disable-next-line: max-line-length
+// tslint:disable-next-line: jsdoc-format
+/**
+ * User consent API WhatsApp opt-in endpoint.
  *
  * @author Aman Kumar Sharma <amankumar.sharma@tarento.com>
  */
+// **POST - Record User Consent**
 
 mobileAppApi.post('/user/consent', async (req, res) => {
   try {
@@ -1360,6 +1363,7 @@ mobileAppApi.post('/user/consent', async (req, res) => {
 
     const { error } = schema.validate(req.body)
     if (error) {
+      // tslint:disable-next-line: no-console
       console.error('Error while validating user consent:', error)
       return res.status(400).json({ error: error.details })
     }
@@ -1430,7 +1434,7 @@ mobileAppApi.post('/user/consent', async (req, res) => {
       is_new_record: checkResult.rowLength === 0,
     })
   } catch (err) {
-    console.log('Error recording user consent:', err)
+    logInfo('Error recording user consent:', JSON.stringify(err))
     return res.status(500).json({
       message: 'Error occurred while inserting user consent in Cassandra',
     })
@@ -1463,7 +1467,7 @@ mobileAppApi.get('/user/consent', async (req, res) => {
     }
     return res.status(200).json(result.rows[0])
   } catch (err) {
-    console.log('Error fetching user consent:', err)
+    logInfo('Error recording user consent:', JSON.stringify(err))
     return res.status(500).json({
       message: 'Error occurred while getting user consent in Cassandra',
     })
