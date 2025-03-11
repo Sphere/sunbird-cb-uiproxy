@@ -1353,6 +1353,7 @@ const getCoursesForIhat = async () => {
 }
 // tslint:disable-next-line: max-line-length
 /* tslint:disable:max-len */
+
 mobileAppApi.get('/getAllUserFeed', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
@@ -1377,7 +1378,9 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
         logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png',
         // tslint:disable-next-line: max-line-length
         message:
-          'New course added: <a href="https://sphere.aastrika.org/app/toc/do_1137533766819430401136/overview" target="_blank">Post Partum Haemorrhage (PPH)</a>', // Detailed message content
+        'New course added: <a href="https://sphere.aastrika.org/app/toc/' +
+        'do_1137533766819430401136/overview" target="_blank">Post Partum ' +
+        'Haemorrhage (PPH)</a>',
         metadata: {
           // Additional metadata to enrich the notification
           related_entity_id: 'message_56979', // Associated entity (e.g., a message, post, comment)
@@ -1399,8 +1402,11 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
           'https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation', // URL for the user to take action (e.g., view message)
         created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
         // tslint:disable-next-line: max-line-length
-        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1134170690099118081470/artifact/do_1134172312759009281507_1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
         // tslint:disable-next-line: max-line-length
+        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' + 
+      'do_1134170690099118081470/artifact/do_1134172312759009281507_' + 
+      '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
+
         message:
           '<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" target="_blank">Fernandes Foundation</a> updated a new Respetful Maternity Course', // Detailed message content
         metadata: {
