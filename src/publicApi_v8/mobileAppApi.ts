@@ -1208,7 +1208,7 @@ mobileAppApi.post('/user/consent', async (req, res) => {
     if (accessTokenResult.status !== 200) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
-
+    
     const userId = accessTokenResult.userId
     const currentDate = new Date()
     // Create this once at application startup, not inside the route handler
@@ -1218,14 +1218,15 @@ mobileAppApi.post('/user/consent', async (req, res) => {
       localDataCenter: 'datacenter1',
     })
     // First check if a record exists for this user
-    const checkQuery = 'SELECT user_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
+    const checkQuery = 'SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
     const checkResult = await cassandraClient.execute(checkQuery, [userId], { prepare: true })
 
     let query
     let params
     let consentId
-
+    logInfo(JSON.stringify(checkResult.rows[0]))
     if (checkResult.rowLength === 0) {
+     
       // No existing record - perform an insert
       consentId = uuidv4()
       query = `
@@ -1250,14 +1251,14 @@ mobileAppApi.post('/user/consent', async (req, res) => {
             opt_in_channel = ?,
             last_updated = ?,
             is_whats_up_opted_in = ?
-        WHERE user_id = ?
+        WHERE consent_id = ?
       `
       params = [
         req.body.is_opted_in,
         req.body.opt_in_channel,
         currentDate,
         req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
-        userId,
+        checkResult.rows[0].consent_id,
       ]
     }
 
@@ -1277,7 +1278,7 @@ mobileAppApi.post('/user/consent', async (req, res) => {
 })
 
 // **GET - Retrieve User Consent**
-mobileAppApi.get('/user/consent', async (req, res) => {
+mobileAppApi.get('/user/getWhatsappConsent', async (req:any, res) => {
   try {
     // Verify authentication
     const accessTokenResult = verifyToken(req, res)
@@ -1398,17 +1399,19 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       },
       {
         // tslint:disable-next-line: max-line-length
-        action_url:
-          'https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation', // URL for the user to take action (e.g., view message)
+      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=' + 
+        'Fernandez%20Foundation',
+      // URL for the user to take action (e.g., view message)
         created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
         // tslint:disable-next-line: max-line-length
         // tslint:disable-next-line: max-line-length
-        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' + 
-      'do_1134170690099118081470/artifact/do_1134172312759009281507_' + 
+        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' +
+      'do_1134170690099118081470/artifact/do_1134172312759009281507_' +
       '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
 
-        message:
-          '<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" target="_blank">Fernandes Foundation</a> updated a new Respetful Maternity Course', // Detailed message content
+      message: `<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" 
+      target="_blank">Fernandez Foundation</a> updated a new Respectful Maternity Course`,
+
         metadata: {
           // Additional metadata to enrich the notification
           related_entity_id: 'message_56759', // Associated entity (e.g., a message, post, comment)
