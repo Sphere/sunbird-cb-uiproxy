@@ -1187,7 +1187,7 @@ function mobileProxyCreatorSunbird(
  */
 // **POST - Record User Consent**
 
-mobileAppApi.post('/user/consent', async (req, res) => {
+mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
   try {
     // Validate request body
     const schema = Joi.object({
@@ -1208,7 +1208,7 @@ mobileAppApi.post('/user/consent', async (req, res) => {
     if (accessTokenResult.status !== 200) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
-    
+
     const userId = accessTokenResult.userId
     const currentDate = new Date()
     // Create this once at application startup, not inside the route handler
@@ -1226,43 +1226,42 @@ mobileAppApi.post('/user/consent', async (req, res) => {
     let consentId
     logInfo(JSON.stringify(checkResult.rows[0]))
     if (checkResult.rowLength === 0) {
-     
+
       // No existing record - perform an insert
       consentId = uuidv4()
       query = `
         INSERT INTO sunbird_courses.user_whatsup_opt_in_consent
-        (consent_id, user_id, is_opted_in, consent_timestamp, opt_in_channel, last_updated, is_whats_up_opted_in)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `
+        (consent_id, consent_timestamp, is_opted_in, is_whats_up_opted_in, last_updated, opt_in_channel, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`
       params = [
-        consentId,
-        userId,
-        req.body.is_opted_in,
-        currentDate,
-        req.body.opt_in_channel,
-        currentDate,
-        req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+          consentId,
+          currentDate,
+          req.body.is_opted_in,
+          req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+          currentDate,
+          req.body.opt_in_channel,
+          userId,
       ]
+  
     } else {
       // Existing record - perform an update
       query = `
-        UPDATE sunbird_courses.user_whatsup_opt_in_consent
-        SET is_opted_in = ?,
-            opt_in_channel = ?,
-            last_updated = ?,
-            is_whats_up_opted_in = ?
-        WHERE consent_id = ?
+          UPDATE sunbird_courses.user_whatsup_opt_in_consent
+          SET is_opted_in = ?,
+              is_whats_up_opted_in = ?,
+              last_updated = ?,
+              opt_in_channel = ?
+          WHERE consent_id = ?
       `
       params = [
-        req.body.is_opted_in,
-        req.body.opt_in_channel,
-        currentDate,
-        req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
-        checkResult.rows[0].consent_id,
+          req.body.is_opted_in,
+          req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+          currentDate,
+          req.body.opt_in_channel,
+          checkResult.rows[0].consent_id
       ]
-    }
-
-    await cassandraClient.execute(query, params, { prepare: true })
+  }
+  await cassandraClient.execute(query, params, { prepare: true })
     return res.status(201).json({
       message: 'Consent recorded successfully',
       consent_id: consentId,
@@ -1278,7 +1277,7 @@ mobileAppApi.post('/user/consent', async (req, res) => {
 })
 
 // **GET - Retrieve User Consent**
-mobileAppApi.get('/user/getWhatsappConsent', async (req:any, res) => {
+mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
   try {
     // Verify authentication
     const accessTokenResult = verifyToken(req, res)
@@ -1399,7 +1398,7 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       },
       {
         // tslint:disable-next-line: max-line-length
-      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=' + 
+      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=' +
         'Fernandez%20Foundation',
       // URL for the user to take action (e.g., view message)
         created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
@@ -1409,7 +1408,7 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       'do_1134170690099118081470/artifact/do_1134172312759009281507_' +
       '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
 
-      message: `<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" 
+      message: `<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation"
       target="_blank">Fernandez Foundation</a> updated a new Respectful Maternity Course`,
 
         metadata: {
