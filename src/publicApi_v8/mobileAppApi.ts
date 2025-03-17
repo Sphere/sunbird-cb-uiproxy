@@ -1192,10 +1192,9 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
     // Validate request body
     const schema = Joi.object({
       is_opted_in: Joi.boolean().required(),
-      opt_in_channel: Joi.string().required(),
       is_whats_up_opted_in: Joi.boolean().optional(),
+      opt_in_channel: Joi.string().required()
     })
-
     const { error } = schema.validate(req.body)
     if (error) {
       // tslint:disable-next-line: no-console
@@ -1242,7 +1241,7 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
           req.body.opt_in_channel,
           userId,
       ]
-  
+
     } else {
       // Existing record - perform an update
       query = `
@@ -1258,16 +1257,17 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
           req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
           currentDate,
           req.body.opt_in_channel,
-          checkResult.rows[0].consent_id
+          checkResult.rows[0].consent_id,
       ]
   }
-  await cassandraClient.execute(query, params, { prepare: true })
-    return res.status(201).json({
-      message: 'Consent recorded successfully',
+    await cassandraClient.execute(query, params, { prepare: true })
+    return res.status(200).json({
       consent_id: consentId,
-      user_id: userId,
       is_new_record: checkResult.rowLength === 0,
+      message: 'Consent recorded successfully',
+      user_id: userId
     })
+  
   } catch (err) {
     logInfo('Error recording user consent:', JSON.stringify(err))
     return res.status(500).json({
@@ -1429,11 +1429,15 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       {
         action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
         created_on: '2024-11-24T14:32:00Z', // Timestamp of when the notification was created
-        // tslint:disable-next-line: max-line-length
-        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
-        // tslint:disable-next-line: max-line-length
+        logo:
+          'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/' +
+          'artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
+
         message:
-          'Congratulations you have successfully completed the course: <a href="https://sphere.aastrika.org/app/profile-view" target="_blank">Respectful Maternity Care</a>', // Detailed message content
+        'Congratulations you have successfully completed the course: ' +
+        '<a href="https://sphere.aastrika.org/app/profile-view" target="_blank">' +
+        'Respectful Maternity Care</a>', // Detailed message content
+
         metadata: {
           // Additional metadata to enrich the notification
           related_entity_id: 'message_56789', // Associated entity (e.g., a message, post, comment)
