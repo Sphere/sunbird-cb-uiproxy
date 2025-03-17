@@ -111,6 +111,15 @@ const verifyToken = (req: any, res: any) => {
     })
   }
 }
+
+// tslint:disable-next-line: no-any
+const cassandraClient = new cassandra.Client({
+  contactPoints: [CONSTANTS.CASSANDRA_IP],
+  keyspace: 'sunbird_courses',
+  localDataCenter: 'datacenter1',
+});
+
+
 mobileAppApi.get('/getContents/*', (req, res) => {
   try {
     const path = removePrefix(
@@ -1193,7 +1202,7 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
     const schema = Joi.object({
       is_opted_in: Joi.boolean().required(),
       is_whats_up_opted_in: Joi.boolean().optional(),
-      opt_in_channel: Joi.string().required()
+      opt_in_channel: Joi.string().required(),
     })
     const { error } = schema.validate(req.body)
     if (error) {
@@ -1210,12 +1219,8 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
 
     const userId = accessTokenResult.userId
     const currentDate = new Date()
-    // Create this once at application startup, not inside the route handler
-    const cassandraClient = new cassandra.Client({
-      contactPoints: [CONSTANTS.CASSANDRA_IP],
-      keyspace: 'sunbird_courses',
-      localDataCenter: 'datacenter1',
-    })
+   
+  
     // First check if a record exists for this user
     const checkQuery = 'SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
     const checkResult = await cassandraClient.execute(checkQuery, [userId], { prepare: true })
@@ -1265,9 +1270,9 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
       consent_id: consentId,
       is_new_record: checkResult.rowLength === 0,
       message: 'Consent recorded successfully',
-      user_id: userId
+      user_id: userId,
     })
-  
+
   } catch (err) {
     logInfo('Error recording user consent:', JSON.stringify(err))
     return res.status(500).json({
@@ -1286,11 +1291,6 @@ mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
     }
 
     const userId = accessTokenResult.userId
-    const cassandraClient = new cassandra.Client({
-      contactPoints: [CONSTANTS.CASSANDRA_IP],
-      keyspace: 'sunbird_courses',
-      localDataCenter: 'datacenter1',
-    })
     // Query Cassandra
     const query = 'SELECT * FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
     const result = await cassandraClient.execute(query, [userId], {
