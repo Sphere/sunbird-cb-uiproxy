@@ -26,7 +26,6 @@ const VALIDATION_FAIL =
 export const publicCertificateFlinkv2 = Router()
 const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
-
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
@@ -112,6 +111,15 @@ const verifyToken = (req: any, res: any) => {
     })
   }
 }
+
+// tslint:disable-next-line: no-any
+const cassandraClient = new cassandra.Client({
+  contactPoints: [CONSTANTS.CASSANDRA_IP],
+  keyspace: 'sunbird_courses',
+  localDataCenter: 'datacenter1',
+});
+
+
 mobileAppApi.get('/getContents/*', (req, res) => {
   try {
     const path = removePrefix(
@@ -135,17 +143,23 @@ mobileAppApi.use(
   '/discussion/*',
   mobileProxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
+
 mobileAppApi.post('/user/profileUpdate', async (req, res) => {
   try {
     // Validation Schema
     const schema = Joi.object({
       request: Joi.object({
-        profileDetails: Joi.object().required().keys({
-          profileLocation: Joi.string().required(),
-          profileReq: Joi.object().required().unknown(true),
-        }).unknown(true),
+        profileDetails: Joi.object()
+          .required()
+          .keys({
+            profileLocation: Joi.string().required(),
+            profileReq: Joi.object().required().unknown(true),
+          })
+          .unknown(true),
         userId: Joi.string().required(),
-      }).required().unknown(true),
+      })
+        .required()
+        .unknown(true),
     })
 
     const { error } = schema.validate(req.body)
@@ -164,32 +178,47 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     if (accessTokenResult.status !== 200) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
-    const requestUpdateLocation = req.body.request.profileDetails.profileLocation
+    const requestUpdateLocation =
+      req.body.request.profileDetails.profileLocation
     delete req.body.request.profileDetails.profileLocation
     // Update user profile
-    const profileUpdateResponse = await axios.patch(API_END_POINTS.profileUpdate, req.body, {
-      ...axiosRequestConfig,
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
-    })
+    const profileUpdateResponse = await axios.patch(
+      API_END_POINTS.profileUpdate,
+      req.body,
+      {
+        ...axiosRequestConfig,
+        headers: { Authorization: CONSTANTS.SB_API_KEY },
+      }
+    )
 
     // Telemetry update request
     const telemetryUpdateRequestBody = {
       ets: Date.now(),
-      events: [{
-        actor: { action: 'Profile_Update', id: req.body.request.userId, type: 'User' },
-        eid: 'IMPRESSION',
-        mid: `IMPRESSION:${uuidv4()}`,
-        ver: '3.0',
-      }],
+      events: [
+        {
+          actor: {
+            action: 'Profile_Update',
+            id: req.body.request.userId,
+            type: 'User',
+          },
+          eid: 'IMPRESSION',
+          mid: `IMPRESSION:${uuidv4()}`,
+          ver: '3.0',
+        },
+      ],
       id: 'ekstep.telemetry',
       params: { msgid: `${uuidv4()}` },
       ver: '3.0',
     }
 
-    await axios.post(API_END_POINTS.telemetryUpdate, telemetryUpdateRequestBody, {
-      ...axiosRequestConfig,
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
-    })
+    await axios.post(
+      API_END_POINTS.telemetryUpdate,
+      telemetryUpdateRequestBody,
+      {
+        ...axiosRequestConfig,
+        headers: { Authorization: CONSTANTS.SB_API_KEY },
+      }
+    )
 
     // Cassandra database insert
     try {
@@ -199,14 +228,19 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
         localDataCenter: 'datacenter1',
       })
       // tslint:disable-next-line: max-line-length
-      const query = 'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)'
-      await userCassandraClient.execute(query, [
-        uuidv4(),
-        req.body.request.userId,
-        JSON.stringify(req.body.request),
-        Date.now(),
-        requestUpdateLocation,
-      ], { prepare: true })
+      const query =
+        'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)'
+      await userCassandraClient.execute(
+        query,
+        [
+          uuidv4(),
+          req.body.request.userId,
+          JSON.stringify(req.body.request),
+          Date.now(),
+          requestUpdateLocation,
+        ],
+        { prepare: true }
+      )
     } catch (dbError) {
       return res.status(500).json({
         message: 'Error occurred while inserting user profile in Cassandra',
@@ -215,7 +249,6 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
 
     // Send response from profile update
     res.status(profileUpdateResponse.status).send(profileUpdateResponse.data)
-
   } catch (error) {
     logInfo(JSON.stringify(error))
     return res.status(500).json({
@@ -369,19 +402,15 @@ mobileAppApi.post('/cmi5/getAuthorization', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
     res.status(200).json(accesTokenResult)
-
   } catch (error) {
     res.status(500).send({
       message: 'Something went wrong',
       status: 'failed',
     })
-
   }
-
 })
 mobileAppApi.post('/cmi5/updateProgress', async (req, res) => {
   try {
-
     const accesTokenResult = verifyToken(req, res)
     const userId = accesTokenResult.userId
     req.body.request.userId = userId
@@ -436,7 +465,6 @@ mobileAppApi.post('/cmi5/readProgress', async (req, res) => {
       url: API_END_POINTS.READ_PROGRESS,
     })
     res.status(200).json(responseProgressRead.data)
-
   } catch (error) {
     logError('Error in reading cmi5  >>>>>>' + error)
     res.status(500).send({
@@ -444,16 +472,20 @@ mobileAppApi.post('/cmi5/readProgress', async (req, res) => {
       status: 'failed',
     })
   }
-
 })
 mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
-    logInfo('Check req body of update progress v2 for mobile before fix >> ' + JSON.stringify(req.body))
+    logInfo(
+      'Check req body of update progress v2 for mobile before fix >> ' +
+        JSON.stringify(req.body)
+    )
     const accesTokenResult = verifyToken(req, res)
     const userId = accesTokenResult.userId
     req.body.request.userId = userId
-    logInfo('Check req body of update progress v2 for mobile after fix >> ' + req.body)
+    logInfo(
+      'Check req body of update progress v2 for mobile after fix >> ' + req.body
+    )
     if (requestValidator(['userId', 'contents'], req.body.request, res)) return
     if (accesTokenResult.status == 200) {
       await axios({
@@ -510,15 +542,21 @@ mobileAppApi.get('/version', async (_req, res) => {
 })
 mobileAppApi.patch('/updateUserProfile', async (req, res) => {
   try {
-    logInfo('Check req body of mobile app profile update API', JSON.stringify(req.body))
+    logInfo(
+      'Check req body of mobile app profile update API',
+      JSON.stringify(req.body)
+    )
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.status == 200) {
       try {
         const schema = Joi.object({
           request: Joi.object({
-            profileDetails: Joi.object().required().keys({
-              profileReq: Joi.object().required().unknown(true),
-            }).unknown(true),
+            profileDetails: Joi.object()
+              .required()
+              .keys({
+                profileReq: Joi.object().required().unknown(true),
+              })
+              .unknown(true),
             userId: Joi.string().required(),
           }).required(),
         }).unknown(true)
@@ -534,11 +572,13 @@ mobileAppApi.patch('/updateUserProfile', async (req, res) => {
         }
       } catch (err) {
         logError('Something went wrong while updating user' + err)
-        return res.status((err && err.response && err.response.status) || 500).send(
-          (err && err.response && err.response.data) || {
-            error: 'Something went wrong during profile update',
-          }
-        )
+        return res
+          .status((err && err.response && err.response.status) || 500)
+          .send(
+            (err && err.response && err.response.data) || {
+              error: 'Something went wrong during profile update',
+            }
+          )
       }
 
       // tslint:disable-next-line: max-line-length
@@ -577,13 +617,12 @@ mobileAppApi.patch('/updateUserProfile', async (req, res) => {
       }
     )
   }
-
 })
 
 mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    let appId = req.query.appId || ""
+    let appId = req.query.appId || "";
     if (appId == 'app.aastrika.ekhamata') {
       const filteredCourses = await getCoursesForIhat()
       return res.status(200).send(filteredCourses)
@@ -656,7 +695,8 @@ mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
       client.shutdown()
       const certificateId =
         certificateData.rows[0].issued_certificates[0].identifier
-      const certificateName = certificateData.rows[0].issued_certificates[0].name
+      const certificateName =
+        certificateData.rows[0].issued_certificates[0].name
       const response = await axios({
         ...axiosRequestConfig,
         headers: {
@@ -729,7 +769,7 @@ mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
       } else {
         throw new Error(
           _.get(response.data, 'params.errmsg') ||
-          _.get(response.data, 'params.err')
+            _.get(response.data, 'params.err')
         )
       }
     }
@@ -784,10 +824,8 @@ mobileAppApi.post('/ratings/upsert', async (req, res) => {
     res.status(400).json({
       message: 'Something went wrong while ratings upsert',
     })
-
   }
-}
-)
+})
 mobileAppApi.post('/ratings/v2/read', async (req, res) => {
   try {
     logInfo('Inside ratings read API')
@@ -804,10 +842,8 @@ mobileAppApi.post('/ratings/v2/read', async (req, res) => {
     res.status(400).json({
       message: 'Something went wrong while reading ratings',
     })
-
   }
-}
-)
+})
 mobileAppApi.post('/ratings/ratingLookUp', async (req, res) => {
   try {
     logInfo('Inside ratings lookup API')
@@ -824,10 +860,8 @@ mobileAppApi.post('/ratings/ratingLookUp', async (req, res) => {
     res.status(400).json({
       message: 'Something went wrong while rating lookup',
     })
-
   }
-}
-)
+})
 mobileAppApi.get('/ratings/summary', async (req, res) => {
   try {
     logInfo('Inside ratings summary API')
@@ -850,8 +884,7 @@ mobileAppApi.get('/ratings/summary', async (req, res) => {
       message: 'Something went wrong getting summary results',
     })
   }
-}
-)
+})
 const getUserDetails = async (userId: string) => {
   try {
     const userDetails = await axios({
@@ -874,14 +907,16 @@ const getUserDetails = async (userId: string) => {
     logError('Error while user search', JSON.stringify(error))
     return ''
   }
-
 }
 mobileAppApi.post('/acceptTnc', async (req, res) => {
   try {
     const tncRequestBody = req.body
     logInfo('tncRequestBody for tnc update', tncRequestBody)
     const userProfileDetails = await getUserDetails(tncRequestBody.userId)
-    logInfo('userProfileDetails for tnc update', JSON.stringify(userProfileDetails))
+    logInfo(
+      'userProfileDetails for tnc update',
+      JSON.stringify(userProfileDetails)
+    )
     if (!userProfileDetails) {
       return res.status(400).json({
         message: 'User not found',
@@ -923,7 +958,7 @@ mobileAppApi.post('/acceptTnc', async (req, res) => {
 mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo("Inside CBP course recommendation route")
+    logInfo("Inside CBP course recommendation route");
     logInfo('Request body', JSON.stringify(req.body))
     const searchRequestBody = req.body
     const response = await axios({
@@ -972,7 +1007,6 @@ mobileAppApi.post('/learnerPath', async (req, res) => {
       }
     )
   }
-
 })
 mobileAppApi.get('/learnerPath', async (req, res) => {
   try {
@@ -1003,61 +1037,64 @@ mobileAppApi.get('/learnerPath', async (req, res) => {
       }
     )
   }
-
 })
-mobileAppApi.get('/user/enrollment/list/adhocCertificates', async (req, res) => {
-  try {
-    /* tslint:disable-next-line */
-    logInfo("Inside user enrollment list for Adhoc certificates")
-    logInfo('Request params', JSON.stringify(req.query))
-    const enrollmentParams = req.query
-    const accesTokenResult = verifyToken(req, res)
-    if (accesTokenResult.status != 200) {
-      return res.status(400).json({
-        message: 'Token missing or invalid',
-        status: 'FAILED',
-      })
-    }
-    const sunbirdEnrollmentApiResponse = await axios({
-      headers: getHeaders(req),
-      method: 'GET',
-      params: enrollmentParams,
-      url: `${API_END_POINTS.userEnrollmentList}/${accesTokenResult.userId}`,
-    })
-    const generalCertificatesFromSunbird = sunbirdEnrollmentApiResponse.data.result.courses.map(((courseData) => {
-      if (courseData.issuedCertificates.length > 0) {
-        courseData.issuedCertificates[0].certificateType = 'General'
-        return courseData
-      }
-      return courseData
-    }))
-    let sunbirdRcCertificates
+mobileAppApi.get(
+  '/user/enrollment/list/adhocCertificates',
+  async (req, res) => {
     try {
-      const rcMapperApiResponse = await axios({
+      /* tslint:disable-next-line */
+      logInfo("Inside user enrollment list for Adhoc certificates");
+      logInfo('Request params', JSON.stringify(req.query))
+      const enrollmentParams = req.query
+      const accesTokenResult = verifyToken(req, res)
+      if (accesTokenResult.status != 200) {
+        return res.status(400).json({
+          message: 'Token missing or invalid',
+          status: 'FAILED',
+        })
+      }
+      const sunbirdEnrollmentApiResponse = await axios({
         headers: getHeaders(req),
         method: 'GET',
-        params: { userId: accesTokenResult.userId },
-        url: `${API_END_POINTS.rcMapperHost}`,
+        params: enrollmentParams,
+        url: `${API_END_POINTS.userEnrollmentList}/${accesTokenResult.userId}`,
       })
-      sunbirdRcCertificates = rcMapperApiResponse.data.data
-    } catch (error) {
-      sunbirdRcCertificates = []
-      logInfo(JSON.stringify(error))
-    }
-    const combinedCertificatesData = {
-      generalCertificates: generalCertificatesFromSunbird,
-      sunbirdRcCertificates,
-    }
-    res.status(200).send(combinedCertificatesData)
-  } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: 'Something went wrong fetching results',
+      const generalCertificatesFromSunbird =
+        sunbirdEnrollmentApiResponse.data.result.courses.map((courseData) => {
+          if (courseData.issuedCertificates.length > 0) {
+            courseData.issuedCertificates[0].certificateType = 'General'
+            return courseData
+          }
+          return courseData
+        })
+      let sunbirdRcCertificates
+      try {
+        const rcMapperApiResponse = await axios({
+          headers: getHeaders(req),
+          method: 'GET',
+          params: { userId: accesTokenResult.userId },
+          url: `${API_END_POINTS.rcMapperHost}`,
+        })
+        sunbirdRcCertificates = rcMapperApiResponse.data.data
+      } catch (error) {
+        sunbirdRcCertificates = []
+        logInfo(JSON.stringify(error))
       }
-    )
+      const combinedCertificatesData = {
+        generalCertificates: generalCertificatesFromSunbird,
+        sunbirdRcCertificates,
+      }
+      res.status(200).send(combinedCertificatesData)
+    } catch (err) {
+      logInfo(JSON.stringify(err))
+      res.status((err && err.response && err.response.status) || 500).send(
+        (err && err.response && err.response.data) || {
+          error: 'Something went wrong fetching results',
+        }
+      )
+    }
   }
-})
+)
 function mobileProxyCreatorSunbird(
   route: Router,
   targetUrl: string,
@@ -1074,7 +1111,12 @@ function mobileProxyCreatorSunbird(
       const decodedTokenArray = decodedToken.sub.split(':')
       const userId = decodedTokenArray[decodedTokenArray.length - 1]
 
-      const nodebbUserId = await fetchnodebbUserDetails(userId, decodedToken.preferred_username, decodedToken.name, decodedToken)
+      const nodebbUserId = await fetchnodebbUserDetails(
+        userId,
+        decodedToken.preferred_username,
+        decodedToken.name,
+        decodedToken
+      )
       // tslint:disable-next-line: no-console
       console.log('discussion response---', nodebbUserId)
       let url
@@ -1087,7 +1129,6 @@ function mobileProxyCreatorSunbird(
       if (req.originalUrl.includes('discussion/topic')) {
         const topic = req.originalUrl.toString().split('/')
         if (topic[6] === topic[7]) {
-
           req.originalUrl =
             topic[0] +
             '/' +
@@ -1124,7 +1165,6 @@ function mobileProxyCreatorSunbird(
         'X-Channel-Id': '0132317968766894088',
 
         'X-Authenticated-User-Token': req.headers[authenticatedToken],
-
       }
       // tslint:disable-next-line: no-any
       const method = req.method as any
@@ -1144,7 +1184,6 @@ function mobileProxyCreatorSunbird(
         headers,
         ignorePath: true,
         target: targetUrl + url,
-
       })
     } catch (error) {
       // tslint:disable-next-line: no-console
@@ -1154,21 +1193,137 @@ function mobileProxyCreatorSunbird(
   })
   return route
 }
+
+// tslint:disable-next-line: max-line-length
+// tslint:disable-next-line: jsdoc-format
+/**
+ * User consent API WhatsApp opt-in endpoint.
+ *
+ * @author Aman Kumar Sharma <amankumar.sharma@tarento.com>
+ */
+// **POST - Record User Consent**
+
+mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
+  try {
+    // Validate request body
+    const schema = Joi.object({
+      is_opted_in: Joi.boolean().required(),
+      is_whats_up_opted_in: Joi.boolean().optional(),
+      opt_in_channel: Joi.string().required(),
+    })
+    const { error } = schema.validate(req.body)
+    if (error) {
+      // tslint:disable-next-line: no-console
+      console.error('Error while validating user consent:', error)
+      return res.status(400).json({ error: error.details })
+    }
+
+    // Verify authentication
+    const accessTokenResult = verifyToken(req, res)
+    if (accessTokenResult.status !== 200) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+
+    const userId = accessTokenResult.userId
+    const currentDate = new Date()
+   
+  
+    // First check if a record exists for this user
+    const checkQuery = 'SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
+    const checkResult = await cassandraClient.execute(checkQuery, [userId], { prepare: true })
+
+    let query
+    let params
+    let consentId
+    logInfo(JSON.stringify(checkResult.rows[0]))
+    if (checkResult.rowLength === 0) {
+
+      // No existing record - perform an insert
+      consentId = uuidv4()
+      query = `
+        INSERT INTO sunbird_courses.user_whatsup_opt_in_consent
+        (consent_id, consent_timestamp, is_opted_in, is_whats_up_opted_in, last_updated, opt_in_channel, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`
+      params = [
+          consentId,
+          currentDate,
+          req.body.is_opted_in,
+          req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+          currentDate,
+          req.body.opt_in_channel,
+          userId,
+      ]
+
+    } else {
+      // Existing record - perform an update
+      query = `
+          UPDATE sunbird_courses.user_whatsup_opt_in_consent
+          SET is_opted_in = ?,
+              is_whats_up_opted_in = ?,
+              last_updated = ?,
+              opt_in_channel = ?
+          WHERE consent_id = ?
+      `
+      params = [
+          req.body.is_opted_in,
+          req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+          currentDate,
+          req.body.opt_in_channel,
+          checkResult.rows[0].consent_id,
+      ]
+  }
+    await cassandraClient.execute(query, params, { prepare: true })
+    return res.status(200).json({
+      consent_id: consentId,
+      is_new_record: checkResult.rowLength === 0,
+      message: 'Consent recorded successfully',
+      user_id: userId,
+    })
+
+  } catch (err) {
+    logInfo('Error recording user consent:', JSON.stringify(err))
+    return res.status(500).json({
+      message: 'Error occurred while inserting user consent in Cassandra',
+    })
+  }
+})
+
+// **GET - Retrieve User Consent**
+mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
+  try {
+    // Verify authentication
+    const accessTokenResult = verifyToken(req, res)
+    if (accessTokenResult.status !== 200) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+
+    const userId = accessTokenResult.userId
+    // Query Cassandra
+    const query = 'SELECT * FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
+    const result = await cassandraClient.execute(query, [userId], {
+      prepare: true,
+    })
+
+    if (result.rowLength === 0) {
+      return res.status(404).json({ message: 'Consent record not found' })
+    }
+    return res.status(200).json(result.rows[0])
+  } catch (err) {
+    logInfo('Error recording user consent:', JSON.stringify(err))
+    return res.status(500).json({
+      message: 'Error occurred while getting user consent in Cassandra',
+    })
+  }
+})
+
 const getCoursesForIhat = async () => {
   const requestFilterForIhat = {
     request: {
       filters: {
-        contentType: [
-          'Course',
-        ],
-        primaryCategory: [
-          'Course',
-        ],
+        contentType: ['Course'],
+        primaryCategory: ['Course'],
         sourceName: 'IHAT',
-        status: [
-          'Live',
-        ],
-
+        status: ['Live'],
       },
       limit: 15,
 
@@ -1203,6 +1358,9 @@ const getCoursesForIhat = async () => {
     }
   })
 }
+// tslint:disable-next-line: max-line-length
+/* tslint:disable:max-len */
+
 mobileAppApi.get('/getAllUserFeed', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
@@ -1219,70 +1377,89 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
         status: 'FAILED',
       })
     }
-    const userFeedData = [{
-      action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
-      created_on: '2024-11-26T14:32:00Z', // Timestamp of when the notification was created
-      // tslint:disable-next-line: max-line-length
-      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png',
-      // tslint:disable-next-line: max-line-length
-      message: 'New course added: <a href="https://sphere.aastrika.org/app/toc/do_1137533766819430401136/overview" target="_blank">Post Partum Haemorrhage (PPH)</a>', // Detailed message content
-      metadata: { // Additional metadata to enrich the notification
-        related_entity_id: 'message_56979', // Associated entity (e.g., a message, post, comment)
-        source: 'system', // Source of the notification (e.g., system, user, admin)
-        tags: ['important', 'user_mention'], // Tags for categorization or filtering
-        user_mention_id: null, // ID of the user mentioned (if applicable)
+    const userFeedData = [
+      {
+        action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
+        created_on: '2024-11-26T14:32:00Z', // Timestamp of when the notification was created
+        // tslint:disable-next-line: max-line-length
+        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png',
+        // tslint:disable-next-line: max-line-length
+        message:
+        'New course added: <a href="https://sphere.aastrika.org/app/toc/' +
+        'do_1137533766819430401136/overview" target="_blank">Post Partum ' +
+        'Haemorrhage (PPH)</a>',
+        metadata: {
+          // Additional metadata to enrich the notification
+          related_entity_id: 'message_56979', // Associated entity (e.g., a message, post, comment)
+          source: 'system', // Source of the notification (e.g., system, user, admin)
+          tags: ['important', 'user_mention'], // Tags for categorization or filtering
+          user_mention_id: null, // ID of the user mentioned (if applicable)
+        },
+        notification_id: 'not_1232334', // Unique ID for the notification
+        priority: 'high', // Priority of the notification (e.g., low, medium, high)
+        read_on: null, // Timestamp of when the notification was read (null if unread)
+        status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+        title: 'You have a new message!', // Short title or summary of the notification
+        type: 'new_message', // Type of notification (e.g., new message, mention, like)
+        user_id: 'user_6789', // ID of the user receiving the notification
       },
-      notification_id: 'not_1232334', // Unique ID for the notification
-      priority: 'high', // Priority of the notification (e.g., low, medium, high)
-      read_on: null, // Timestamp of when the notification was read (null if unread)
-      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
-      title: 'You have a new message!', // Short title or summary of the notification
-      type: 'new_message', // Type of notification (e.g., new message, mention, like)
-      user_id: 'user_6789', // ID of the user receiving the notification
-    },
-    {
-      // tslint:disable-next-line: max-line-length
-      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation', // URL for the user to take action (e.g., view message)
-      created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
-      // tslint:disable-next-line: max-line-length
-      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1134170690099118081470/artifact/do_1134172312759009281507_1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
-      // tslint:disable-next-line: max-line-length
-      message: '<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation" target="_blank">Fernandes Foundation</a> updated a new Respetful Maternity Course', // Detailed message content
-      metadata: { // Additional metadata to enrich the notification
-        related_entity_id: 'message_56759', // Associated entity (e.g., a message, post, comment)
-        source: 'system', // Source of the notification (e.g., system, user, admin)
-        tags: ['important', 'user_mention'], // Tags for categorization or filtering
-        user_mention_id: null, // ID of the user mentioned (if applicable)
+      {
+        // tslint:disable-next-line: max-line-length
+      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=' +
+        'Fernandez%20Foundation',
+      // URL for the user to take action (e.g., view message)
+        created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
+        // tslint:disable-next-line: max-line-length
+        // tslint:disable-next-line: max-line-length
+        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' +
+      'do_1134170690099118081470/artifact/do_1134172312759009281507_' +
+      '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
+
+      message: `<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation"
+      target="_blank">Fernandez Foundation</a> updated a new Respectful Maternity Course`,
+
+        metadata: {
+          // Additional metadata to enrich the notification
+          related_entity_id: 'message_56759', // Associated entity (e.g., a message, post, comment)
+          source: 'system', // Source of the notification (e.g., system, user, admin)
+          tags: ['important', 'user_mention'], // Tags for categorization or filtering
+          user_mention_id: null, // ID of the user mentioned (if applicable)
+        },
+        notification_id: 'not_64612345', // Unique ID for the notification
+        priority: 'medium', // Priority of the notification (e.g., low, medium, high)
+        read_on: null, // Timestamp of when the notification was read (null if unread)
+        status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+        title: 'You have a new certificate!', // Short title or summary of the notification
+        type: 'new_message', // Type of notification (e.g., new message, mention, like)
+        user_id: 'user_6789', // ID of the user receiving the notification
       },
-      notification_id: 'not_64612345', // Unique ID for the notification
-      priority: 'medium', // Priority of the notification (e.g., low, medium, high)
-      read_on: null, // Timestamp of when the notification was read (null if unread)
-      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
-      title: 'You have a new certificate!', // Short title or summary of the notification
-      type: 'new_message', // Type of notification (e.g., new message, mention, like)
-      user_id: 'user_6789', // ID of the user receiving the notification
-    },
-    {
-      action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
-      created_on: '2024-11-24T14:32:00Z', // Timestamp of when the notification was created
-      // tslint:disable-next-line: max-line-length
-      logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
-      // tslint:disable-next-line: max-line-length
-      message: 'Congratulations you have successfully completed the course: <a href="https://sphere.aastrika.org/app/profile-view" target="_blank">Respectful Maternity Care</a>', // Detailed message content
-      metadata: { // Additional metadata to enrich the notification
-        related_entity_id: 'message_56789', // Associated entity (e.g., a message, post, comment)
-        source: 'system', // Source of the notification (e.g., system, user, admin)
-        tags: ['important', 'user_mention'], // Tags for categorization or filtering
-        user_mention_id: null, // ID of the user mentioned (if applicable)
+      {
+        action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
+        created_on: '2024-11-24T14:32:00Z', // Timestamp of when the notification was created
+        logo:
+          'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/' +
+          'artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
+
+        message:
+        'Congratulations you have successfully completed the course: ' +
+        '<a href="https://sphere.aastrika.org/app/profile-view" target="_blank">' +
+        'Respectful Maternity Care</a>', // Detailed message content
+
+        metadata: {
+          // Additional metadata to enrich the notification
+          related_entity_id: 'message_56789', // Associated entity (e.g., a message, post, comment)
+          source: 'system', // Source of the notification (e.g., system, user, admin)
+          tags: ['important', 'user_mention'], // Tags for categorization or filtering
+          user_mention_id: null, // ID of the user mentioned (if applicable)
+        },
+        notification_id: 'not_6457612345', // Unique ID for the notification
+        priority: 'high', // Priority of the notification (e.g., low, medium, high)
+        read_on: null, // Timestamp of when the notification was read (null if unread)
+        status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+        title: 'You have a new course to read!', // Short title or summary of the notification
+        type: 'new_message', // Type of notification (e.g., new message, mention, like)
+        user_id: 'user_6789', // ID of the user receiving the notification
       },
-      notification_id: 'not_6457612345', // Unique ID for the notification
-      priority: 'high', // Priority of the notification (e.g., low, medium, high)
-      read_on: null, // Timestamp of when the notification was read (null if unread)
-      status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
-      title: 'You have a new course to read!', // Short title or summary of the notification
-      type: 'new_message', // Type of notification (e.g., new message, mention, like)
-      user_id: 'user_6789', // ID of the user receiving the notification
-    },
     ]
     res.status(200).json({
       message: `User feed successfully read for userId ${req.query.userId}`,
@@ -1290,7 +1467,6 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       userFeed: userFeedData,
       userId: req.query.userId,
     })
-
   } catch (error) {
     logInfo('Error in user creation >>>>>>' + error)
     res.status(500).send({
@@ -1299,6 +1475,7 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
     })
   }
 })
+// tslint:disable-next-line: max-line-length
 mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
   try {
     const serviceResponse = await axios({
