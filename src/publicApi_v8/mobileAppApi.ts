@@ -28,6 +28,7 @@ const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
+  formHomeConfig: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/homepageconfig`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
@@ -44,7 +45,6 @@ const API_END_POINTS = {
   ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
   ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
   rcMapperHost: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/getUserCertificateDetails`,
-  formHomeConfig: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/homepageconfig`,
   summary: (courseId) =>
     `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
   telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
@@ -118,8 +118,7 @@ const cassandraClient = new cassandra.Client({
   contactPoints: [CONSTANTS.CASSANDRA_IP],
   keyspace: 'sunbird_courses',
   localDataCenter: 'datacenter1',
-});
-
+})
 
 mobileAppApi.get('/getContents/*', (req, res) => {
   try {
@@ -262,8 +261,6 @@ mobileAppApi.use('/ext-forms/*',
   // tslint:disable-next-line: max-line-length
   proxyCreatorForms(express.Router())
 )
-
-
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
@@ -993,11 +990,11 @@ mobileAppApi.post('/create/homepageconfig', async (req, res) => {
       },
       method: 'POST',
       url: API_END_POINTS.formHomeConfig,
-    });
+    })
     logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo("error", JSON.stringify(err))
+    logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: 'Something went wrong fetching results',
@@ -1018,11 +1015,11 @@ mobileAppApi.get('/read/homepageconfig', async (req, res) => {
       },
       method: 'GET',
       url: API_END_POINTS.formHomeConfig,
-    });
+    })
     logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo("error", JSON.stringify(err))
+    logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: 'Something went wrong fetching results',
@@ -1036,7 +1033,7 @@ mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo("Inside CBP course recommendation route ",  API_END_POINTS.formHomeConfig + '/' + id,);
+    logInfo('Inside CBP course recommendation route ',  API_END_POINTS.formHomeConfig + '/' + id, )
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -1044,11 +1041,11 @@ mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
       },
       method: 'GET',
       url: API_END_POINTS.formHomeConfig + '/' + id,
-    });
+    })
     logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo("error", JSON.stringify(err))
+    logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: 'Something went wrong fetching results',
@@ -1057,12 +1054,12 @@ mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
   }
 })
 
-mobileAppApi.put('/getById/homepageconfig/*', async (req, res) => {
+mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo("Inside CBP course recommendation route ",  API_END_POINTS.formHomeConfig + '/' + id,);
+    logInfo('Inside CBP course recommendation route ',  API_END_POINTS.formHomeConfig + '/' + id, )
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1072,11 +1069,11 @@ mobileAppApi.put('/getById/homepageconfig/*', async (req, res) => {
       },
       method: 'PUT',
       url: API_END_POINTS.formHomeConfig + '/' + id,
-    });
+    })
     logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo("error", JSON.stringify(err))
+    logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: 'Something went wrong fetching results',
@@ -1085,12 +1082,12 @@ mobileAppApi.put('/getById/homepageconfig/*', async (req, res) => {
   }
 })
 
-mobileAppApi.delete('/getById/homepageconfig/*', async (req, res) => {
+mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo("Inside CBP course recommendation route ",  API_END_POINTS.formHomeConfig + '/' + id,);
+    logInfo('Inside CBP course recommendation route ',  API_END_POINTS.formHomeConfig + '/' + id, )
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -1098,11 +1095,11 @@ mobileAppApi.delete('/getById/homepageconfig/*', async (req, res) => {
       },
       method: 'DELETE',
       url: API_END_POINTS.formHomeConfig + '/' + id,
-    });
+    })
     logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo("error", JSON.stringify(err))
+    logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: 'Something went wrong fetching results',
@@ -1359,8 +1356,7 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
 
     const userId = accessTokenResult.userId
     const currentDate = new Date()
-   
-  
+
     // First check if a record exists for this user
     const checkQuery = 'SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
     const checkResult = await cassandraClient.execute(checkQuery, [userId], { prepare: true })
