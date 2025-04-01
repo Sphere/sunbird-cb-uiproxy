@@ -981,7 +981,7 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
 mobileAppApi.post('/create/homepageconfig', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo("Inside CBP course recommendation route");
+    logInfo("Inside home config route");
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1005,8 +1005,7 @@ mobileAppApi.post('/create/homepageconfig', async (req, res) => {
 
 mobileAppApi.get('/read/homepageconfig', async (req, res) => {
   try {
-    /* tslint:disable-next-line */
-    logInfo("Inside CBP course recommendation route /read/homepageconfig ");
+    logInfo('Inside home config route /read/homepageconfig ', JSON.stringify(req.params))
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -1029,7 +1028,7 @@ mobileAppApi.get('/read/homepageconfig', async (req, res) => {
 mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo('Request body', JSON.stringify(req.params), req.params[0])
+    logInfo('Inside home config read by id', JSON.stringify(req.params))
     const id = req.params[0]
     const response = await axios({
       headers: {
@@ -1051,7 +1050,7 @@ mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
 mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo('Request body', JSON.stringify(req.params), req.params[0])
+    logInfo('Inside home config update', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
     logInfo('Inside CBP course recommendation route ',  API_END_POINTS.formHomeConfig + '/' + id, )
     const searchRequestBody = req.body
