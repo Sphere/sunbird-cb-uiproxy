@@ -28,7 +28,6 @@ const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
-  formHomeConfig: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/homepageconfig`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
@@ -39,6 +38,7 @@ const API_END_POINTS = {
   UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
+  formHomeConfig: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/homepageconfig`,
   kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
   profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
   ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
@@ -68,6 +68,9 @@ const getHeaders = (req: any) => {
     'x-authenticated-user-token': req.headers[authenticatedToken],
   }
 }
+const DEFAULT_ERROR_STATUS = 500
+const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
+
 const publicKeyPath = '/keys/access_key'
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
@@ -957,7 +960,6 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
   try {
     /* tslint:disable-next-line */
     logInfo("Inside CBP course recommendation route");
-    logInfo('Request body', JSON.stringify(req.body))
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -970,7 +972,7 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     logInfo(JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong fetching results',
+        error: DEFAULT_ERROR_MSG,
       }
     )
   }
@@ -980,24 +982,22 @@ mobileAppApi.post('/create/homepageconfig', async (req, res) => {
   try {
     /* tslint:disable-next-line */
     logInfo("Inside CBP course recommendation route");
-    logInfo('Request body', JSON.stringify(req.body))
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
-        'Content-Type': 'application/json',
+        contentTypeHeader,
       },
       method: 'POST',
       url: API_END_POINTS.formHomeConfig,
     })
-    logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
     logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong fetching results',
+        error: DEFAULT_ERROR_MSG,
       }
     )
   }
@@ -1007,22 +1007,20 @@ mobileAppApi.get('/read/homepageconfig', async (req, res) => {
   try {
     /* tslint:disable-next-line */
     logInfo("Inside CBP course recommendation route /read/homepageconfig ");
-    logInfo('Request body', req.body)
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
-        'Content-Type': 'application/json',
+        contentTypeHeader,
       },
       method: 'GET',
       url: API_END_POINTS.formHomeConfig,
     })
-    logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
     logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong fetching results',
+        error: DEFAULT_ERROR_MSG,
       }
     )
   }
@@ -1033,23 +1031,19 @@ mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ',  API_END_POINTS.formHomeConfig + '/' + id, )
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
-        'Content-Type': 'application/json',
+        contentTypeHeader,
       },
       method: 'GET',
       url: API_END_POINTS.formHomeConfig + '/' + id,
     })
-    logInfo('Response from homepageconfig', JSON.stringify(response.data))
     res.status(response.status).send(response.data)
   } catch (err) {
     logInfo('error', JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: 'Something went wrong fetching results',
-      }
+    res.status(err?.response?.status || DEFAULT_ERROR_STATUS).send(
+      err?.response?.data || { error: DEFAULT_ERROR_MSG }
     )
   }
 })
@@ -1065,7 +1059,7 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
       data: searchRequestBody,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
-        'Content-Type': 'application/json',
+        contentTypeHeader,
       },
       method: 'PUT',
       url: API_END_POINTS.formHomeConfig + '/' + id,
@@ -1076,7 +1070,7 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
     logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong fetching results',
+        error: DEFAULT_ERROR_MSG,
       }
     )
   }
@@ -1091,7 +1085,7 @@ mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
-        'Content-Type': 'application/json',
+        contentTypeHeader,
       },
       method: 'DELETE',
       url: API_END_POINTS.formHomeConfig + '/' + id,
@@ -1102,7 +1096,7 @@ mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
     logInfo('error', JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong fetching results',
+        error: DEFAULT_ERROR_MSG,
       }
     )
   }
@@ -1219,7 +1213,7 @@ mobileAppApi.get(
       logInfo(JSON.stringify(err))
       res.status((err && err.response && err.response.status) || 500).send(
         (err && err.response && err.response.data) || {
-          error: 'Something went wrong fetching results',
+          error: DEFAULT_ERROR_MSG,
         }
       )
     }
