@@ -262,7 +262,7 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
 
 mobileAppApi.use('/ext-forms/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorForms(express.Router())
+  proxyCreatorForms(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
@@ -1619,7 +1619,7 @@ mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
   }
 })
 
-export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
+export function proxyCreatorForms(route: Router, targetUrl: string, _timeout = 10000): Router {
   route.all('/*', (req, res) => {
     // tslint:disable-next-line: no-console
     logInfo('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
@@ -1628,7 +1628,7 @@ export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
     logInfo('url ', url)
     proxy.web(req, res, {
       changeOrigin: true,
-      target: 'http://localhost:3003/' + url,
+      target: targetUrl + url,
     })
   })
   return route

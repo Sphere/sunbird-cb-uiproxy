@@ -521,7 +521,7 @@ proxiesV8.use('/forms/*',
 
 proxiesV8.use('/ext-forms/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorForms(express.Router())
+  proxyCreatorForms(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
 function removePrefix(prefix: string, s: string) {
