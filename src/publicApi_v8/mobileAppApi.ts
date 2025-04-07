@@ -56,6 +56,7 @@ const PROXY_SLUG_FORMS = '/public/v8/mobileApp/ext-forms'
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID."
 const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity"
+const SERVER_ERROR_MSG = 'Something went wrong while fetching results'
 
 const authenticatedToken = 'x-authenticated-user-token'
 // tslint:disable-next-line: no-any
@@ -260,11 +261,6 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     })
   }
 })
-
-mobileAppApi.use('/ext-forms/*',
-  // tslint:disable-next-line: max-line-length
-  proxyCreatorForms(express.Router())
-)
 
 mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
@@ -1157,7 +1153,7 @@ mobileAppApi.get('/learnerPath', async (req, res) => {
     logInfo(JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong while fetching results',
+        error: SERVER_ERROR_MSG,
       }
     )
   }
@@ -1614,23 +1610,23 @@ mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
     logInfo(JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong while fetching results',
+        error: SERVER_ERROR_MSG,
       }
     )
   }
 })
 
 mobileAppApi.post('/ext-forms/*', async (req, res) => {
-  let endpoint = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
-  console.log("req.originalUrl ", req.body, endpoint)
+  const endpoint = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
+  logInfo('req.originalUrl ', req.body, endpoint)
   try {
     const serviceResponse = await axios({
+      data: req.body,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
       method: 'POST',
-      data: req.body,
       url: `${API_END_POINTS.FORM_API}${endpoint}`,
     })
     res.status(200).json({
@@ -1641,7 +1637,7 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
     logInfo(JSON.stringify(err))
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: 'Something went wrong while fetching results',
+        error: SERVER_ERROR_MSG,
       }
     )
   }
