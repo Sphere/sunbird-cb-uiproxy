@@ -28,6 +28,7 @@ const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
+  FORM_API: `${CONSTANTS.FORM_API_BASE}`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
   GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
@@ -1619,17 +1620,29 @@ mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
   }
 })
 
-export function proxyCreatorForms(route: Router, _timeout = 10000): Router {
-  route.all('/*', (req, res) => {
-    // tslint:disable-next-line: no-console
-    logInfo('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl)
-    let url = ''
-    url = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
-    logInfo('url ', url)
-    proxy.web(req, res, {
-      changeOrigin: true,
-      target: 'http://localhost:3003/' + url,
+mobileAppApi.post('/ext-forms/*', async (req, res) => {
+  let endpoint = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl)
+  console.log("req.originalUrl ", req.body, endpoint)
+  try {
+    const serviceResponse = await axios({
+      headers: {
+        Authorization: CONSTANTS.SB_API_KEY,
+        contentTypeHeader,
+      },
+      method: 'POST',
+      data: req.body,
+      url: `${API_END_POINTS.FORM_API}${endpoint}`,
     })
-  })
-  return route
-}
+    res.status(200).json({
+      data: serviceResponse.data,
+      status: 'SUCCESS',
+    })
+  } catch (err) {
+    logInfo(JSON.stringify(err))
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
+        error: 'Something went wrong while fetching results',
+      }
+    )
+  }
+})
