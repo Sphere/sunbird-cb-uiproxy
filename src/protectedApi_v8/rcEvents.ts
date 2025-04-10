@@ -282,7 +282,7 @@ const generateCertificateFromRcMapper = async (user: any, eventDataFromCassandra
                 certificateName: eventData.eventname,
                 eventId: eventData.eventid,
                 rcCertificateGenerationBody: {
-                    date: new Date(eventData.eventdate).toLocaleDateString('en-GB').replace(/\//g, '-'),
+                    date: new Date(eventData.eventdate).toLocaleDateString('en-IN').replace(/\//g, '-'),
                     name: `${user.firstname} ${user.lastname || ''}`,
                     place: eventData.eventplace,
                     'workshop-name': eventData.eventname,
