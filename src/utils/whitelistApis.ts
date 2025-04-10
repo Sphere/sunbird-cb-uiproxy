@@ -19,6 +19,7 @@ const ROLE = {
   FRAC_REVIEWER_TWO: 'FRAC_REVIEWER_L2',
   IFU_MEMBER: 'IFU_MEMBER',
   MDO_ADMIN: 'MDO_ADMIN',
+  MDO_LEADER: 'MDO_LEADER',
   PUBLIC: 'PUBLIC',
   SPV_ADMIN: 'SPV_ADMIN',
   WAT_MEMBER: 'WAT_MEMBER',
@@ -1365,6 +1366,166 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/ext-forms/v1/form/create': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/v1/form/create': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/ext-forms/v1/form/read': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/v1/form/read': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/ext-forms/v1/form/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/v1/form/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/ext-forms/v1/form/list': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/v1/form/list': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+          ROLE.MDO_ADMIN,
+          ROLE.MDO_LEADER,
+          ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/ext-forms/v1/form/fetchAll': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/v1/form/fetchAll': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/createForm': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/getFormById': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/getCollectiveAggregation': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/getAllForms': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/v1/saveFormSubmit': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/tagFormToCourse': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/untagFormToCourse': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/getAllApplications': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/searchForms': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
+        '/proxies/v8/forms/getCourseListForSurveys': {
+            checksNeeded: [CHECK.ROLE],
+            // tslint:disable-next-line: object-literal-sort-keys
+            ROLE_CHECK: [
+                ROLE.PUBLIC,
+            ],
+        },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -1632,5 +1793,15 @@ export const API_LIST = {
     '/public/v8/publicTelemetry/telemetry',
     '/protected/v8/AI/translate',
     '/protected/v8/rcCert/user/enrollment/list/adhocCertificates',
+    '/proxies/v8/ext-forms/v1/form/create',
+    '/v1/form/create',
+    '/proxies/v8/ext-forms/v1/form/read',
+    '/v1/form/read',
+    '/proxies/v8/ext-forms/v1/form/update',
+    '/v1/form/update',
+    '/proxies/v8/ext-forms/v1/form/list',
+    '/v1/form/list',
+    '/proxies/v8/ext-forms/v1/form/fetchAll',
+    '/v1/form/fetchAll',
   ],
 }

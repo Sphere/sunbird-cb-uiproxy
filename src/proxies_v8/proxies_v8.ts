@@ -14,6 +14,7 @@ import {
   proxyContent,
   proxyContentLearnerVM,
   proxyCreatorDownloadCertificate,
+  proxyCreatorForms,
   proxyCreatorKnowledge,
   proxyCreatorLearner,
   proxyCreatorQML,
@@ -511,6 +512,16 @@ proxiesV8.use(
   '/discussion/*',
   // tslint:disable-next-line: max-line-length
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
+)
+
+proxiesV8.use('/forms/*',
+  // tslint:disable-next-line: max-line-length
+  proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
+)
+
+proxiesV8.use('/ext-forms/*',
+  // tslint:disable-next-line: max-line-length
+  proxyCreatorForms(express.Router())
 )
 
 function removePrefix(prefix: string, s: string) {

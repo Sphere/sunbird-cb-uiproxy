@@ -182,7 +182,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
           message: 'User successfully created',
           status: 200,
           userId,
-          userUUId:userId
+          userUUId: userId,
 
         })
       } catch (error) {
@@ -207,7 +207,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
           message: 'User successfully created',
           status: 200,
           userId,
-          userUUId:userId
+          userUUId: userId,
         })
       } catch (error) {
         logError('Error while sending email OTP', JSON.stringify(error))

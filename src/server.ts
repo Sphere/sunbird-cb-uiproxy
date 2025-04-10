@@ -22,11 +22,13 @@ import { proxiesV8 } from './proxies_v8/proxies_v8'
 import { publicApiV8 } from './publicApi_v8/publicApiV8'
 import { CustomKeycloak } from './utils/custom-keycloak'
 import { CONSTANTS } from './utils/env'
-import { logInfo, logSuccess } from './utils/logger'
+import { logError, logInfo, logSuccess } from './utils/logger'
 const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
 import fs from 'fs'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
+const { frameworkAPI } = require('@project-sunbird/ext-framework-server/api')
+const frameworkConfig = require('./configs/framework.config')
 
 const publicKeyPath = '/keys/access_key'
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
@@ -84,6 +86,7 @@ export class Server {
     this.setCookie()
     this.setKeyCloak(sessionConfig)
     this.authoringProxies()
+    this.setExtFormsFramework()
     this.configureMiddleware()
     this.servePublicApi()
     this.serveAdminApi()
@@ -239,6 +242,23 @@ export class Server {
     this.keycloak = new CustomKeycloak(sessionConfig)
     logInfo('Entered into Setkeycloak...')
     this.app.use(this.keycloak.middleware)
+  }
+
+  private setExtFormsFramework() {
+    this.app.post('/static/form/v1/read', (req, _, next) => {
+      logInfo('Request hit /static/form/v1/read, forwarding to /v1/form/read')
+      req.url = '/v1/form/read'
+      next()
+    })
+    logInfo('setExtFormsFramework MEthod - frameworkConfig :: ', JSON.stringify(frameworkConfig))
+    logInfo('setExtFormsFramework MEthod - frameworkAPI :: ', JSON.stringify(frameworkAPI))
+
+    // tslint:disable-next-line: no-any
+    frameworkAPI.bootstrap(frameworkConfig, this.app).then((data: any) => {
+      logInfo('Successfuly bootstrapped frameworkAPI', data)
+    })
+    // tslint:disable-next-line: no-any
+    .catch((error: any ) => logError('Error in frameworkAPI bootstrap', error))
   }
 
   private servePublicApi() {
