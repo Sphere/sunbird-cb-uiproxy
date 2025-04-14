@@ -124,7 +124,36 @@ const cassandraClient = new cassandra.Client({
   keyspace: 'sunbird_courses',
   localDataCenter: 'datacenter1',
 })
-
+mobileAppApi.use(async (req, res, next) => {
+  if (req.url.includes('/kong')) {
+    try {
+      logInfo('Request URL', req.url)
+      const rewrittenUrl = req.url.replace('/kong/', '/api/')
+      const backendUrl = `${CONSTANTS.HTTPS_HOST}${rewrittenUrl}`
+      logInfo('backendUrl', backendUrl)
+      req.headers.Authorization = CONSTANTS.SB_API_KEY
+      // tslint:disable-next-line: no-any
+      const axiosOptions: any = {
+        headers: req.headers,
+        method: req.method,
+        url: backendUrl,
+      }
+      logInfo('Req Headers', JSON.stringify(req.headers))
+      if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        axiosOptions.data = req.body
+      }
+      const response = await axios(axiosOptions)
+      res.status(response.status).send(response.data)
+      // tslint:disable-next-line: no-any
+    } catch (error) {
+      logInfo('Error forwarding request:', JSON.stringify(error))
+      res.status(500).send('Internal Server Error')
+    }
+  } else {
+    // If "/kong" is not in the URL, pass to the next route
+    next()
+  }
+})
 mobileAppApi.get('/getContents/*', (req, res) => {
   try {
     const path = removePrefix(
