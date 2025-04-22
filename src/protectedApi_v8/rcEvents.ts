@@ -221,37 +221,67 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
     try {
         const { eventId, templateId } = req.body
         const eventDetails = await getEventDetails(eventId)
-
         const users = await getUsersForEvent(eventId)
         if (!users || users.length === 0) {
             return res.status(404).json({ error: 'No users found for this event' })
         }
-        for (const user of users) {
-            const { userid } = user
-            if (!userid || user.certificateGenerationStatus == 'failed') {
-                continue
+        const eventStatusUpdate = [
+            "inProgress",
+            new Date(),
+            eventId,
+        ]
+        await updateEventStatus(eventStatusUpdate)
+        res.status(200).json({ message: 'Certificate generation started', eventId });
+        const promises = users.map(async (user) => {
+            const { userid } = user;
+            if (!userid || user.certificateGenerationStatus === 'failed') {
+                return { success: false };
             }
-            const certificateGenerationStatus = await generateCertificateFromRcMapper(user, eventDetails, userid, templateId)
-            const status = certificateGenerationStatus ? 'success' : 'failed'
-            const queryParams = [
-                status,
-                new Date(),
-                templateId,
-                userid,
-                eventId,
-                user.linkid,
-            ]
-            await updateCertificateStatus(queryParams)
-        }
+            try {
+                const certificateGenerationStatus = await generateCertificateFromRcMapper(user, eventDetails, userid, templateId);
+                const status = certificateGenerationStatus ? 'success' : 'failed';
+                const queryParams = [
+                    status,
+                    new Date(),
+                    templateId,
+                    userid,
+                    eventId,
+                    user.linkid,
+                ];
+                await updateCertificateStatus(queryParams);
+                return { success: certificateGenerationStatus };
+            } catch (err) {
+                logInfo(`Error generating certificate for userId ${userid}: ${JSON.stringify(err)}`);
+                return { success: false };
+            }
+        });
 
-        // Step 4: Return response
-        res.status(200).json({ message: 'Certificate generation process completed' })
+        const results = await Promise.allSettled(promises);
+        let successCount = 0;
+        let failedCount = 0;
+        results.forEach(result => {
+            if (result.status === 'fulfilled' && result.value?.success) {
+                successCount++;
+            } else {
+                failedCount++;
+            }
+        });
+        const finalStatus = failedCount > 0 ? 'partial_failed' : 'completed';
+        await updateEventStatus([finalStatus, new Date(), eventId]);
+        logInfo(`Certificate generation job ${eventId} finished: ${successCount} success, ${failedCount} failed`);
     } catch (error) {
         logInfo(JSON.stringify(error))
         res.status(500).json({ error: 'Error generating certificates' })
     }
 })
-
+async function updateEventStatus(queryParams: any): Promise<void> {
+    const updateQuery = `
+        UPDATE sunbird.rc_events
+        SET status = ?, updatedAt = ?
+        WHERE eventId = ?
+    `
+    await client.execute(updateQuery, queryParams, { prepare: true })
+}
 // tslint:disable-next-line: no-any
 async function getUsersForEvent(eventId: string): Promise<any[]> {
     const query = 'SELECT * FROM sunbird.rc_events_users WHERE eventId = ?'
