@@ -275,6 +275,7 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
         res.status(500).json({ error: 'Error generating certificates' })
     }
 })
+// tslint:disable-next-line: no-any
 async function updateEventStatus(queryParams: any): Promise<void> {
     const updateQuery = `
         UPDATE sunbird.rc_events
