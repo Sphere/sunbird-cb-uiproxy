@@ -220,24 +220,33 @@ async function insertUserEventLink(queryParamsLink: any) {
 
 sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
     try {
-        const { eventId, templateId } = req.body
-        const eventDetails = await getEventDetails(eventId)
-        const users = await getUsersForEvent(eventId)
+        const { eventId, templateId } = req.body;
+        const eventDetails = await getEventDetails(eventId);
+        const users = await getUsersForEvent(eventId);
+
         if (!users || users.length === 0) {
-            return res.status(404).json({ error: 'No users found for this event' })
+            return res.status(404).json({ error: 'No users found for this event' });
         }
+
         const eventStatusUpdate = [
             "inProgress",
             new Date(),
             eventId,
-        ]
-        await updateEventStatus(eventStatusUpdate)
+        ];
+        await updateEventStatus(eventStatusUpdate);
+
         res.status(200).json({ message: 'Certificate generation started', eventId });
-        const promises = users.map(async (user) => {
+
+        let successCount = 0;
+        let failedCount = 0;
+
+        for (const user of users) {
             const { userid } = user;
             if (!userid || user.certificateGenerationStatus === 'failed') {
-                return { success: false };
+                failedCount++;
+                continue;
             }
+
             try {
                 const certificateGenerationStatus = await generateCertificateFromRcMapper(user, eventDetails, userid, templateId);
                 const status = certificateGenerationStatus ? 'success' : 'failed';
@@ -250,31 +259,30 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
                     user.linkid,
                 ];
                 await updateCertificateStatus(queryParams);
-                return { success: certificateGenerationStatus };
+
+                if (certificateGenerationStatus) {
+                    successCount++;
+                } else {
+                    failedCount++;
+                }
             } catch (err) {
                 logInfo(`Error generating certificate for userId ${userid}: ${JSON.stringify(err)}`);
-                return { success: false };
-            }
-        });
-
-        const results = await Promise.allSettled(promises);
-        let successCount = 0;
-        let failedCount = 0;
-        results.forEach(result => {
-            if (result.status === 'fulfilled' && result.value?.success) {
-                successCount++;
-            } else {
                 failedCount++;
             }
-        });
+        }
+
         const finalStatus = failedCount > 0 ? 'partial_failed' : 'completed';
         await updateEventStatus([finalStatus, new Date(), eventId]);
         logInfo(`Certificate generation job ${eventId} finished: ${successCount} success, ${failedCount} failed`);
+
     } catch (error) {
-        logInfo(JSON.stringify(error))
-        res.status(500).json({ error: 'Error generating certificates' })
+        logInfo(JSON.stringify(error));
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Error generating certificates' });
+        }
     }
-})
+});
+
 // tslint:disable-next-line: no-any
 async function updateEventStatus(queryParams: any): Promise<void> {
     const updateQuery = `
