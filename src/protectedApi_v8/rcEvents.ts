@@ -379,7 +379,7 @@ const createUserIfNotExists = async (userData: any) => {
                 firstName: userData.firstName,
                 lastName: userData.lastName || `${userData.firstName}`,
                 password: encryptData(userData.phone),
-                phone: JSON.stringify(userData.phone),
+                phone: userData.phone,
             },
         }
         const userCreationResponse = await axios({
