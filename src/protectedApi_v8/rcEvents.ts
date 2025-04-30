@@ -209,8 +209,7 @@ async function getUserDetailsFromSunbird(phone: string, user: any) {
     if (isUserExists.status && isUserExists.userId) {
         return isUserExists
     }
-    const createUserResponse = await createUserIfNotExists(user)
-    return createUserResponse
+    return await createUserIfNotExists(user)
 }
 // tslint:disable-next-line: no-any
 async function insertUserEventLink(queryParamsLink: any) {
@@ -221,36 +220,36 @@ async function insertUserEventLink(queryParamsLink: any) {
 
 sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
     try {
-        const { eventId, templateId } = req.body;
-        const eventDetails = await getEventDetails(eventId);
-        const users = await getUsersForEvent(eventId);
+        const { eventId, templateId } = req.body
+        const eventDetails = await getEventDetails(eventId)
+        const users = await getUsersForEvent(eventId)
 
         if (!users || users.length === 0) {
-            return res.status(404).json({ error: 'No users found for this event' });
+            return res.status(404).json({ error: 'No users found for this event' })
         }
 
         const eventStatusUpdate = [
-            "inProgress",
+            'inProgress',
             new Date(),
             eventId,
-        ];
-        await updateEventStatus(eventStatusUpdate);
+        ]
+        await updateEventStatus(eventStatusUpdate)
 
-        res.status(200).json({ message: 'Certificate generation started', eventId });
+        res.status(200).json({ message: 'Certificate generation started', eventId })
 
-        let successCount = 0;
-        let failedCount = 0;
+        let successCount = 0
+        let failedCount = 0
 
         for (const user of users) {
-            const { userid } = user;
+            const { userid } = user
             if (!userid || user.certificateGenerationStatus === 'failed') {
-                failedCount++;
-                continue;
+                failedCount++
+                continue
             }
 
             try {
-                const certificateGenerationStatus = await generateCertificateFromRcMapper(user, eventDetails, userid, templateId);
-                const status = certificateGenerationStatus ? 'success' : 'failed';
+                const certificateGenerationStatus = await generateCertificateFromRcMapper(user, eventDetails, userid, templateId)
+                const status = certificateGenerationStatus ? 'success' : 'failed'
                 const queryParams = [
                     status,
                     new Date(),
@@ -258,31 +257,31 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
                     userid,
                     eventId,
                     user.linkid,
-                ];
-                await updateCertificateStatus(queryParams);
+                ]
+                await updateCertificateStatus(queryParams)
 
                 if (certificateGenerationStatus) {
-                    successCount++;
+                    successCount++
                 } else {
-                    failedCount++;
+                    failedCount++
                 }
             } catch (err) {
-                logInfo(`Error generating certificate for userId ${userid}: ${JSON.stringify(err)}`);
-                failedCount++;
+                logInfo(`Error generating certificate for userId ${userid}: ${JSON.stringify(err)}`)
+                failedCount++
             }
         }
 
-        const finalStatus = failedCount > 0 ? 'partial_failed' : 'completed';
-        await updateEventStatus([finalStatus, new Date(), eventId]);
-        logInfo(`Certificate generation job ${eventId} finished: ${successCount} success, ${failedCount} failed`);
+        const finalStatus = failedCount > 0 ? 'partial_failed' : 'completed'
+        await updateEventStatus([finalStatus, new Date(), eventId])
+        logInfo(`Certificate generation job ${eventId} finished: ${successCount} success, ${failedCount} failed`)
 
     } catch (error) {
-        logInfo(JSON.stringify(error));
+        logInfo(JSON.stringify(error))
         if (!res.headersSent) {
-            res.status(500).json({ error: 'Error generating certificates' });
+            res.status(500).json({ error: 'Error generating certificates' })
         }
     }
-});
+})
 
 // tslint:disable-next-line: no-any
 async function updateEventStatus(queryParams: any): Promise<void> {
@@ -364,18 +363,18 @@ const checkIfuserExists = async (phone: string) => {
         })
 
         if (userSearch.data.result.response.count > 0) {
-            let userData=userSearch.data.result.response.content[0]
+            const userData=userSearch.data.result.response.content[0]
             return {
-                status: true, 
-                userId: userData.id,
                 firstName: userData.firstName,
-                lastName: userData.lastName || userData.firstName
+                lastName: userData.lastName || userData.firstName,
+                status: true,
+                userId: userData.id,
             }
         }
-        return { status: false, userId: '', firstName: "", lastName: "" }
+        return { status: false, userId: '', firstName: '', lastName: '' }
 
     } catch (error) {
-        return { status: false, userId: '', firstName: "", lastName: "" }
+        return { status: false, userId: '', firstName: '', lastName: '' }
     }
 }
 // tslint:disable-next-line: no-any
@@ -453,17 +452,17 @@ const createUserIfNotExists = async (userData: any) => {
             url: `https://sphere.aastrika.org/api/user/private/v1/update`,
         })
         return {
-            status: true, 
-            userId,
             firstName: userData.firstName,
-            lastName: userData.lastName || userData.firstName
+            lastName: userData.lastName || userData.firstName,
+            status: true,
+            userId,
         }
     } catch (error) {
         return {
+            firstName: '',
+            lastName: '',
             status: false,
             userId: '',
-            firstName: "",
-            lastName: ""
         }
     }
 }
