@@ -72,7 +72,7 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
             updatedBy,
         }
 
-    // tslint:disable-next-line: max-line-length
+        // tslint:disable-next-line: max-line-length
         const updateQuery = `UPDATE sunbird.rc_events SET eventName = ?, eventDescription = ?, eventDate = ?, eventPlace = ?, eventType = ?, updatedBy = ?, updatedAt = ?,templateId = ? WHERE eventId = ?`
         const updateParams = [
             updatedFields.eventName,
@@ -162,9 +162,10 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
             return res.status(400).json({ error: 'Please provide a list of users to link to the event' })
         }
         for (const user of users) {
-            const { firstName, lastName, phone, place } = user
+            const { phone, place } = user
             const linkId = uuid.v4()
-            const userId = await getUserId(phone, user)
+            const userDetails = await getUserDetailsFromSunbird(phone, user)
+            const {userId,firstName,lastName}=userDetails
             let queryParamsLink
             if (userId) {
                 queryParamsLink = [
@@ -202,14 +203,14 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
 })
 
 // tslint:disable-next-line: no-any
-async function getUserId(phone: string, user: any): Promise<string> {
+async function getUserDetailsFromSunbird(phone: string, user: any) {
     const isUserExists = await checkIfuserExists(phone)
 
     if (isUserExists.status && isUserExists.userId) {
-        return isUserExists.userId
+        return isUserExists
     }
     const createUserResponse = await createUserIfNotExists(user)
-    return createUserResponse.status && createUserResponse.userId ? createUserResponse.userId : ''
+    return createUserResponse
 }
 // tslint:disable-next-line: no-any
 async function insertUserEventLink(queryParamsLink: any) {
@@ -363,12 +364,18 @@ const checkIfuserExists = async (phone: string) => {
         })
 
         if (userSearch.data.result.response.count > 0) {
-            return { status: true, userId: userSearch.data.result.response.content[0].id }
+            let userData=userSearch.data.result.response.content[0]
+            return {
+                status: true, 
+                userId: userData.id,
+                firstName: userData.firstName,
+                lastName: userData.lastName || userData.firstName
+            }
         }
-        return { status: false, userId: '' }
+        return { status: false, userId: '', firstName: "", lastName: "" }
 
     } catch (error) {
-        return { status: false, userId: '' }
+        return { status: false, userId: '', firstName: "", lastName: "" }
     }
 }
 // tslint:disable-next-line: no-any
@@ -446,13 +453,17 @@ const createUserIfNotExists = async (userData: any) => {
             url: `https://sphere.aastrika.org/api/user/private/v1/update`,
         })
         return {
-            status: true,
+            status: true, 
             userId,
+            firstName: userData.firstName,
+            lastName: userData.lastName || userData.firstName
         }
     } catch (error) {
         return {
             status: false,
             userId: '',
+            firstName: "",
+            lastName: ""
         }
     }
 }
