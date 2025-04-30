@@ -165,7 +165,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
             const { phone, place } = user
             const linkId = uuid.v4()
             const userDetails = await getUserDetailsFromSunbird(phone, user)
-            const {userId,firstName,lastName}=userDetails
+            const {userId, firstName, lastName} = userDetails
             let queryParamsLink
             if (userId) {
                 queryParamsLink = [
@@ -187,7 +187,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                     firstName,
                     lastName,
                     eventData.eventplace || place,
-                    'failed',
+                    'failed during user creation',
                     new Date(),
                     new Date(),
                 ]
@@ -217,6 +217,25 @@ async function insertUserEventLink(queryParamsLink: any) {
     const queryLink = 'INSERT INTO sunbird.rc_events_users (linkid, userid, eventid, firstname, lastname, place, certificateGenerationStatus, createdat, updatedat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     await client.execute(queryLink, queryParamsLink, { prepare: true })
 }
+// tslint:disable-next-line: no-any
+
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+}
+// tslint:disable-next-line: no-any
+
+async function tryGenerateCertificateWithRetry(user, eventDetails, templateId, retries = 2) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const result = await generateCertificateFromRcMapper(user, eventDetails, user.userid, templateId)
+            if (result) return true
+        } catch (e) {
+            logInfo(`Attempt ${attempt} failed for user ${user.userid}: ${e.message}`)
+        }
+        await delay(200)
+    }
+    return false
+}
 
 sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
     try {
@@ -242,14 +261,14 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
 
         for (const user of users) {
             const { userid } = user
-            if (!userid || user.certificateGenerationStatus === 'failed') {
+            if (!userid || user.certificateGenerationStatus === 'failed during user creation') {
                 failedCount++
                 continue
             }
 
             try {
-                const certificateGenerationStatus = await generateCertificateFromRcMapper(user, eventDetails, userid, templateId)
-                const status = certificateGenerationStatus ? 'success' : 'failed'
+                const certificateGenerationStatus = await tryGenerateCertificateWithRetry(user, eventDetails, templateId)
+                const status = certificateGenerationStatus ? 'success' : 'failed during certificate generation'
                 const queryParams = [
                     status,
                     new Date(),
@@ -259,7 +278,6 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
                     user.linkid,
                 ]
                 await updateCertificateStatus(queryParams)
-
                 if (certificateGenerationStatus) {
                     successCount++
                 } else {
@@ -363,7 +381,7 @@ const checkIfuserExists = async (phone: string) => {
         })
 
         if (userSearch.data.result.response.count > 0) {
-            const userData=userSearch.data.result.response.content[0]
+            const userData = userSearch.data.result.response.content[0]
             return {
                 firstName: userData.firstName,
                 lastName: userData.lastName || userData.firstName,
