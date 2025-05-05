@@ -164,8 +164,20 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
         for (const user of users) {
             const { phone, place } = user
             const linkId = uuid.v4()
-            const userDetails = await getUserDetailsFromSunbird(phone, user)
-            const {userId, firstName, lastName} = userDetails
+            let firstName = ''
+            let lastName = ''
+            let userId = ''
+            if (eventData.eventtype == 'registred with sphere') {
+                const userDetails = await getUserDetailsFromSunbird(phone, user)
+                firstName = userDetails.firstName
+                lastName = userDetails.lastName
+                userId = userDetails.userId
+            } else if (eventData.eventtype == 'registred without sphere') {
+                firstName = user.firstName
+                lastName = user.lastName
+                userId = 'Non-QR-User'
+            }
+
             let queryParamsLink
             if (userId) {
                 queryParamsLink = [
