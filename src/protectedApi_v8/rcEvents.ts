@@ -395,8 +395,8 @@ const checkIfuserExists = async (phone: string) => {
         if (userSearch.data.result.response.count > 0) {
             const userData = userSearch.data.result.response.content[0]
             return {
-                firstName: userData.firstName,
-                lastName: userData.lastName || userData.firstName,
+                firstName: userData.profileDetails.profileReq.personalDetails.firstname,
+                lastName: userData.profileDetails.profileReq.personalDetails.surname || userData.profileDetails.profileReq.personalDetails.firstname,
                 status: true,
                 userId: userData.id,
             }
