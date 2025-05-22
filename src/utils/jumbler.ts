@@ -12,6 +12,7 @@ export async function jumbler(path: string) {
   }).then((response) => {
     const randomCount =
       response.data.randomCount || response.data.questions.length
+    const passPercentage = response.data.passPercentage
     logInfo('Success IN Getting Assessment JSON >>>>>>>>>>>' + response)
     const questionArray = _.sampleSize(
       response.data.questions,
@@ -19,6 +20,7 @@ export async function jumbler(path: string) {
     ).map(falseCreator)
     const questionObject = {
       isAssessment: true,
+      passPercentage,
       questions: questionArray,
       randomCount,
       timeLimit: response.data.timeLimit,
