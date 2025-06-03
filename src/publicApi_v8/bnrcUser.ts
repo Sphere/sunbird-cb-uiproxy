@@ -594,6 +594,13 @@ const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
         return false
     }
 }
+const getUserDesignationForInservice = (userDetails: UserDetails) => {
+    if (userDetails.privateFacilityType === 'GNM-Bihar' || userDetails.publicFacilityType === 'GNM-Bihar') {
+        return 'GNM-Bihar'
+    } else {
+        return 'ANM-Bihar'
+    }
+}
 // tslint:disable-next-line: all
 const userProfileUpdate = async (user: UserDetails, userId: string) => {
     try {
@@ -778,6 +785,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
+        
         // tslint:disable-next-line: all
         if (user.role == "In Service") {
             userProfileUpdateData = {
@@ -813,7 +821,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
-                                    designation: 'ANM-Bihar',
+                                    designation: getUserDesignationForInservice(user),
                                     doj: '',
                                     facilityName: user.facilityName || '',
                                     facultyType: '',
