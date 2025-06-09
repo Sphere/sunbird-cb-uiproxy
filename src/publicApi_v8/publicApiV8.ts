@@ -29,6 +29,7 @@ import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { publicReadForm } from './publicReadForm'
 import { ssoLogin } from './ssoLogin'
 import { tnaiAuth } from './tnaiAuth'
+import { tnnmcAuth } from './tnnmcAuth'
 import { publicTnc } from './tnc'
 import { upsmfUserCreation } from './upsmfUser'
 import { deactivateUser } from './userDeactivation'
@@ -78,6 +79,7 @@ publicApiV8.use('/deactivateUser', deactivateUser)
 publicApiV8.use('/testUserOtp', userOtp)
 publicApiV8.use('/ssoLogin', ssoLogin)
 publicApiV8.use('/tnai', tnaiAuth)
+publicApiV8.use('/tnnmc', tnnmcAuth)
 publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
 publicApiV8.use('/ratingsSearch', ratingsSearch)
