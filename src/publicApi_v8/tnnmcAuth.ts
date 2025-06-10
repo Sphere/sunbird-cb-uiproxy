@@ -203,7 +203,7 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
             client_secret:  CONSTANTS.KEYCLOAK_CLIENT_SECRET_TNNMC,
             grant_type: 'password',
             scope: 'offline_access',
-            username: tnnmcUserPhone || tnnmcUserEmail,
+            username: tnnmcUserEmail || tnnmcUserPhone,
         })
         logInfo('Entered into authorization part.' + encodedData)
 
