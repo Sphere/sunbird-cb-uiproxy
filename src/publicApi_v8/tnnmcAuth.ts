@@ -1,3 +1,5 @@
+/* tslint:disable */
+/* tslint:disable:no-console no-any function-length */
 import axios from 'axios'
 import crypto from 'crypto'
 import express, { Response } from 'express'
@@ -23,15 +25,15 @@ const API_END_POINTS = {
     userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
 }
 
-const tnnmcApiKey=CONSTANTS.TNNMC_API_KEY
-const tnmcApiSecret=CONSTANTS.TNNMC_API_SECRET
+const tnnmcApiKey = CONSTANTS.TNNMC_API_KEY
+const tnmcApiSecret = CONSTANTS.TNNMC_API_SECRET
 
 // Signature generation function
 function generateSignature(data, secret) {
     return crypto
         .createHmac('sha256', secret)
         .update(data)
-        .digest('hex');
+        .digest('hex')
 }
 export const tnnmcAuth = express.Router()
 // Endpoint to create TNAI foundation SSO
@@ -40,23 +42,23 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
     logInfo('Entered into tnnmc route')
     try {
         const tnnmcAccessToken = decodeURIComponent(req.body.token)
-        const requestTime = new Date().toISOString(); // ISO 8601 UTC
-        const verb = 'POST';
-        const uri = 'IsValidUser'; // Used for signature generation only
-        const stringToSign = `${requestTime}${verb}${uri}`;
-        const signature = generateSignature(stringToSign, tnmcApiSecret);
-        logInfo('Signature generated:', signature);
-        logInfo('Request Time:', requestTime);
+        const requestTime = new Date().toISOString() // ISO 8601 UTC
+        const verb = 'POST'
+        const uri = 'IsValidUser' // Used for signature generation only
+        const stringToSign = `${requestTime}${verb}${uri}`
+        const signature = generateSignature(stringToSign, tnmcApiSecret)
+        logInfo('Signature generated:', signature)
+        logInfo('Request Time:', requestTime)
         const headers = {
             'Content-Type': 'application/json',
             'Request-Time': requestTime,
             APIKey: tnnmcApiKey,
             Signature: signature,
-            'Cache-Control': 'no-cache'
-        };
+            'Cache-Control': 'no-cache',
+        }
         const body = {
-            Token: tnnmcAccessToken
-        };
+            Token: tnnmcAccessToken,
+        }
         let userDetailResponseFromTnnmc
         // Validating user details from TNNMC endpoints
         try {
@@ -64,7 +66,7 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
                 API_END_POINTS.tnnmcUserDetailsUrl,
                 body,
                 { headers }
-            );
+            )
             logInfo('User details from TNNMC', JSON.stringify(userDetailResponseFromTnnmc.data))
             if (userDetailResponseFromTnnmc.data.success != true) {
                 return res.status(400).json({
@@ -84,9 +86,9 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
 
         const tnnmcUserData =
             userDetailResponseFromTnnmc.data.data
-        const tnnmcUserEmail = tnnmcUserData.email || ""
-        const tnnmcUserPhone = tnnmcUserData.mobile || ""
-        logInfo("tnnmcuseremail", tnnmcUserEmail, "tnnmcuserphone", tnnmcUserPhone)
+        const tnnmcUserEmail = tnnmcUserData.email || ''
+        const tnnmcUserPhone = tnnmcUserData.mobile || ''
+        logInfo('tnnmcuseremail', tnnmcUserEmail, 'tnnmcuserphone', tnnmcUserPhone)
         const typeOfLogin = tnnmcUserEmail ? 'email' : 'phone'
         const tnnmcLoginType = tnnmcUserEmail ? 'email' : 'mobile'
         logInfo(
@@ -113,15 +115,15 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
                 symbols: true,
                 uppercase: true,
             })
-            const trimmedName = tnnmcUserData.name.trim();
-            const parts = trimmedName.split(' ');
+            const trimmedName = tnnmcUserData.name.trim()
+            const parts = trimmedName.split(' ')
             let firstName: string, lastName: string
 
             if (parts.length > 1) {
-                firstName = parts[0];
-                lastName = parts.slice(1).join(' '); // Handles middle names too
+                firstName = parts[0]
+                lastName = parts.slice(1).join(' ') // Handles middle names too
             } else {
-                firstName = lastName = trimmedName;
+                firstName = lastName = trimmedName
             }
             logInfo('First Name:', firstName, 'Last Name:', lastName)
             const responseCreateUser = await axios({
@@ -181,7 +183,7 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
                                     firstname: firstName,
                                     surname: lastName,
                                     tnncno: tnnmcUserData.tnncno,
-                                    tnnmcGender:tnnmcUserData.gender,
+                                    tnnmcGender: tnnmcUserData.gender,
                                     tnnmcCategory: tnnmcUserData.category,
                                 },
                                 userId: responseCreateUser.data.result.userId,
