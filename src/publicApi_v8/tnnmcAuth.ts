@@ -200,11 +200,12 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
         }
         const encodedData = qs.stringify({
             client_id: 'TNNMC',
-            client_secret:  CONSTANTS.KEYCLOAK_CLIENT_SECRET_TNNMC,
+            client_secret: CONSTANTS.KEYCLOAK_CLIENT_SECRET_TNNMC,
             grant_type: 'password',
             scope: 'offline_access',
             username: tnnmcUserEmail || tnnmcUserPhone,
         })
+
         logInfo('Entered into authorization part.' + encodedData)
 
         const authTokenResponse = await axios({
