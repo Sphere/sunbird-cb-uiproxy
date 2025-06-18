@@ -111,7 +111,9 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
             'phone'
         )
         logInfo(resultPhone, 'resultPhone')
+        let newAccount = false
         if (!resultEmail && !resultPhone) {
+            newAccount = true
             logInfo("User doesn't exists user creation process begins")
             const randomPassword = generateRandomPassword(8, {
                 digits: true,
@@ -210,12 +212,19 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
             })
             logInfo('Data after profile update', userProfileUpdate.data)
         }
+        let userData = ""
+        if (!newAccount) {
+            userData = resultEmail ? tnnmcUserEmail : tnnmcUserPhone
+        } else {
+            logInfo('Using TNNMC user email for userData:', tnnmcUserEmail)
+            userData = tnnmcUserEmail || tnnmcUserPhone
+        }
         const encodedData = qs.stringify({
             client_id: 'TNNMC',
             client_secret: CONSTANTS.KEYCLOAK_CLIENT_SECRET_TNNMC,
             grant_type: 'password',
             scope: 'offline_access',
-            username: tnnmcUserEmail || tnnmcUserPhone,
+            username: userData
         })
 
         logInfo('Entered into authorization part.' + encodedData)
