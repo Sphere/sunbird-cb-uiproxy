@@ -27,7 +27,11 @@ const API_END_POINTS = {
 
 const tnnmcApiKey = CONSTANTS.TNNMC_API_KEY
 const tnmcApiSecret = CONSTANTS.TNNMC_API_SECRET
-
+const getUserDesignationFromRole = {
+    "RANM": "Registered Auxiliary Nurse Midwife",
+    "RHV": "Registered Health Visitor",
+    "RNM": "Registered Nurse Midwife"
+}
 // Signature generation function
 function generateSignature(data, secret) {
     return crypto
@@ -182,10 +186,18 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
                                     phone: tnnmcUserPhone,
                                     firstname: firstName,
                                     surname: lastName,
-                                    tnncno: tnnmcUserData.tnncno,
-                                    tnnmcGender: tnnmcUserData.gender,
-                                    tnnmcCategory: tnnmcUserData.category,
+                                    regNurseRegMidwifeNumber: tnnmcUserData.tnncno,
+                                    gender: tnnmcUserData.gender,
+                                    postalAddress: 'India,Tamil Nadu,Chennai',
+                                    dob: "01/01/2000"
                                 },
+                                professionalDetails: [
+                                    {
+                                        profession: "Healthcare Worker",
+                                        designation: getUserDesignationFromRole[tnnmcUserData.category],
+                                        orgType: "Public/Government Sector",
+                                    }
+                                ],
                                 userId: responseCreateUser.data.result.userId,
                             },
                         },
