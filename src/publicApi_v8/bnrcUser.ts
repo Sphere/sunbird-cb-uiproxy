@@ -279,13 +279,13 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == 'Health (Bihar)' || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
                 userJourneyStatus.userExistingOrganisation = isUserExists.userDetails.rootOrgName
                 const newUserOrg = getDetailsAsPerRole(userFormDetails).orgName
-                if (isUserExists.userDetails.rootOrgName !== newUserOrg){
+                if (isUserExists.userDetails.rootOrgName !== newUserOrg) {
                     await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
-                    const assignRoleResponse = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
-                    userJourneyStatus.roleAssign = assignRoleResponse ? 'success' : 'failed'
+                    const roleAssignResponse = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
+                    userJourneyStatus.roleAssign = roleAssignResponse ? 'success' : 'failed'
 
                 }
-                    
+
                 const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
                 userJourneyStatus.profileUpdate = profileUpdateResponse ? 'success' : 'failed'
                 await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
