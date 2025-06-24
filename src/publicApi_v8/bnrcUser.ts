@@ -233,7 +233,7 @@ const userSuccessRegistrationMessage = `Registration Successful! Kindly download
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 logInfo('Mongodb connection URL', mongodbConnectionUri)
 const databaseName = 'bnrc'
-const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true })
+const client = new MongoClient(mongodbConnectionUri)
 let db: Db | null = null
 async function connectToDatabase() {
     try {
@@ -278,6 +278,16 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             // tslint:disable-next-line: all
             if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == 'Health (Bihar)' || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
                 userJourneyStatus.userExistingOrganisation = isUserExists.userDetails.rootOrgName
+                const newUserOrg = getDetailsAsPerRole(userFormDetails).orgName
+                if (isUserExists.userDetails.rootOrgName !== newUserOrg){
+                    await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
+                    const assignRoleResponse = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
+                    userJourneyStatus.roleAssign = assignRoleResponse ? 'success' : 'failed'
+
+                }
+                    
+                const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
+                userJourneyStatus.profileUpdate = profileUpdateResponse ? 'success' : 'failed'
                 await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
                 return res.status(200).json({
                     message: userSuccessRegistrationMessage,
@@ -286,6 +296,9 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             } else if (isUserExists.userDetails.rootOrgName == 'aastrika' || isUserExists.userDetails.rootOrgName == 'SPhere Team 1') {
                 const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
+                const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
+                userJourneyStatus.profileUpdate = profileUpdateResponse ? 'success' : 'failed'
+
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
                     userJourneyStatus.userExistingOrganisation = 'aastrika || SPhere Team 1'
                     await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
@@ -785,7 +798,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
-        
+
         // tslint:disable-next-line: all
         if (user.role == "In Service") {
             userProfileUpdateData = {
