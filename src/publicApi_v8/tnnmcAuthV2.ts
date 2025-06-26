@@ -337,7 +337,7 @@ const getUserDetails = async (email: string) => {
             data: {
                 request: {
                     filters: {
-                        email: email.toString(),
+                        email: email,
                     },
                 },
             },
