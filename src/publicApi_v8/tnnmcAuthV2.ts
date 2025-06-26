@@ -75,7 +75,7 @@ const handleNewUserRegistration = async (tnnmcUserData) => {
     const trimmedName = tnnmcUserData.name.trim()
     const [firstName, ...rest] = trimmedName.split(' ')
     const lastName = rest.length ? rest.join(' ') : firstName
-
+    logInfo('Creating new user with firstName:', firstName, 'lastName:', lastName)
     const responseCreateUser = await axios({
         ...axiosRequestConfig,
         data: {
@@ -92,7 +92,7 @@ const handleNewUserRegistration = async (tnnmcUserData) => {
         method: 'POST',
         url: API_END_POINTS.createUser,
     })
-
+    logInfo('Response from user creation:', JSON.stringify(responseCreateUser.data))
     await assignRoleToUser(responseCreateUser.data.result.userId)
     await userProfileUpdate(axiosRequestConfig, responseCreateUser.data.result.userId, tnnmcUserData)
 }
@@ -100,8 +100,11 @@ const handleNewUserRegistration = async (tnnmcUserData) => {
 // Helper: Migrate Existing User
 const handleExistingUserMigration = async (existingUser, tnnmcUserData) => {
     const existingUserResult = existingUser.userDetails
+    logInfo('Existing user found:', JSON.stringify(existingUserResult))
     const org = existingUserResult.userDetails.rootOrgName
+    logInfo('Migrating existing user with email:', tnnmcUserData.email, 'and organization:', org)
     if (['aastrika', 'SPhere Team 1'].includes(org)) {
+
         await migrateUserToTnnmc(existingUser)
         await assignRoleToUser(existingUser.id)
     }
@@ -117,16 +120,20 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
         const tnnmcToken = decodeURIComponent(req.body.token)
         const tnnmcUserData = await validateTnnmcToken(tnnmcToken)
         const email = tnnmcUserData.email
+        logInfo('Using TNNMC user email for userData:', email)
 
         if (!email) {
             return res.status(400).json({ message: 'Email is required for login.', status: 'error' })
         }
+        logInfo('TNNMC user data:', JSON.stringify(tnnmcUserData))
 
         const resultEmail = await fetchUserBymobileorEmail(email, 'email')
+        logInfo('Fetched user by email:', resultEmail)
         const existingUserResult = await getUserDetails(email)
-
+        logInfo('Fetched existing user details:', JSON.stringify(existingUserResult))
         if (existingUserResult.message === 'success' && existingUserResult.userDetails) {
             const org = existingUserResult.userDetails.rootOrgName
+            logInfo('Existing user organization:', org)
             if (!['Tamil nadu Nurses & Midwives Council', 'aastrika', 'SPhere Team 1'].includes(org)) {
                 return res.status(400).json({ message: userOtherText, status: 'FAILED' })
             }
@@ -159,6 +166,7 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
             method: 'POST',
             url: API_END_POINTS.generateToken,
         })
+        logInfo('Authorization response:', JSON.stringify(authTokenResponse.data))
         if (authTokenResponse.data) {
             const accessToken = authTokenResponse.data.access_token
             // tslint:disable-next-line: no-any
@@ -267,6 +275,7 @@ const userProfileUpdate = async (axiosRequestConfig, userId, tnnmcUserData) => {
             method: 'PATCH',
             url: API_END_POINTS.profileUpdate,
         })
+        logInfo('User profile update response:', JSON.stringify(result.data))
         if (result.data.result.response === 'SUCCESS') {
             logInfo('User profile updated successfully')
             return result.data
@@ -348,6 +357,8 @@ const getUserDetails = async (email: string) => {
             method: 'POST',
             url: API_END_POINTS.userSearch,
         })
+        logInfo('User search response:', JSON.stringify(userDetails.data))
+        logInfo('User search response code:', userDetails.data.responseCode)
         // tslint:disable-next-line: all
         if (userDetails.data.result.response.content.length > 0) return { message: 'success', userDetails: userDetails.data.result.response.content[0] }
         return { message: 'success', userDetails: '' }
