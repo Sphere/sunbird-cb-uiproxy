@@ -101,7 +101,7 @@ const handleNewUserRegistration = async (tnnmcUserData) => {
 const handleExistingUserMigration = async (existingUser, tnnmcUserData) => {
     const existingUserResult = existingUser.userDetails
     logInfo('Existing user found:', JSON.stringify(existingUserResult))
-    const org = existingUserResult.userDetails.rootOrgName
+    const org = existingUserResult.rootOrgName
     logInfo('Migrating existing user with email:', tnnmcUserData.email, 'and organization:', org)
     if (['aastrika', 'SPhere Team 1'].includes(org)) {
 
