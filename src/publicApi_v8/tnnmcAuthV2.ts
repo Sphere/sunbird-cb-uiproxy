@@ -138,27 +138,51 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
             await handleExistingUserMigration(existingUserResult, tnnmcUserData)
         }
 
+
+
         const encodedData = qs.stringify({
             client_id: 'TNNMC',
             client_secret: CONSTANTS.KEYCLOAK_CLIENT_SECRET_TNNMC,
             grant_type: 'password',
             scope: 'offline_access',
-            username: email,
+            username: tnnmcUserData.email,
         })
+
+        logInfo('Entered into authorization part.' + encodedData)
+
         const authTokenResponse = await axios({
             ...axiosRequestConfig,
             data: encodedData,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
             method: 'POST',
             url: API_END_POINTS.generateToken,
         })
-        const accessToken = authTokenResponse.data.access_token
-        const decodedToken: any = jwt_decode(accessToken)
-        const userId = decodedToken.sub.split(':').pop()
-        req.session.userId = userId
-        req.kauth = { grant: { access_token: { content: decodedToken, token: accessToken } } }
-        req.session.grant = { access_token: { content: decodedToken, token: accessToken } }
-        await getCurrentUserRoles(req, accessToken)
+        if (authTokenResponse.data) {
+            const accessToken = authTokenResponse.data.access_token
+            // tslint:disable-next-line: no-any
+            const decodedToken: any = jwt_decode(accessToken)
+            const decodedTokenArray = decodedToken.sub.split(':')
+            const userId = decodedTokenArray[decodedTokenArray.length - 1]
+            req.session.userId = userId
+            logInfo(userId, 'userid......................')
+            req.kauth = {
+                grant: {
+                    access_token: { content: decodedToken, token: accessToken },
+                },
+            }
+            req.session.grant = {
+                access_token: { content: decodedToken, token: accessToken },
+            }
+            logInfo('Success ! Entered into usertokenResponse..')
+            await getCurrentUserRoles(req, accessToken)
+        } else {
+            res.status(302).json({
+                msg: AUTH_FAIL,
+                status: 'error',
+            })
+        }
         res.status(200).json({ message: 'success' })
     } catch (error) {
         logError('TNNMC login failed: ' + error.message)
