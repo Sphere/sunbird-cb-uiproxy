@@ -261,7 +261,9 @@ const userProfileUpdate = async (axiosRequestConfig, userId, tnnmcUserData) => {
                             id: userId,
                             personalDetails: {
                                 email: tnnmcUserData.email,
+                                primaryEmail: tnnmcUserData.email,
                                 phone: tnnmcUserData.phone,
+                                mobile: tnnmcUserData.phone,
                                 firstname: firstName,
                                 surname: lastName,
                                 regNurseRegMidwifeNumber: tnnmcUserData.tnncno,
