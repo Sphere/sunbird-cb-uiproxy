@@ -266,6 +266,7 @@ const userProfileUpdate = async (axiosRequestConfig, userId, tnnmcUserData) => {
                                 surname: lastName,
                                 regNurseRegMidwifeNumber: tnnmcUserData.tnncno,
                                 postalAddress: 'India,Tamil Nadu,Chennai',
+                                dob: tnnmcUserData.dob || "01/01/2000",
                             },
                             professionalDetails: [
                                 {
