@@ -105,11 +105,11 @@ const handleExistingUserMigration = async (existingUser, tnnmcUserData) => {
     logInfo('Migrating existing user with email:', tnnmcUserData.email, 'and organization:', org)
     if (['aastrika', 'SPhere Team 1'].includes(org)) {
 
-        await migrateUserToTnnmc(existingUser)
-        await assignRoleToUser(existingUser.id)
+        await migrateUserToTnnmc(existingUserResult)
+        await assignRoleToUser(existingUserResult.id)
     }
 
-    await userProfileUpdate(axiosRequestConfig, existingUser.userId, tnnmcUserData)
+    await userProfileUpdate(axiosRequestConfig, existingUserResult.userId, tnnmcUserData)
 }
 
 // Route: TNNMC Login
