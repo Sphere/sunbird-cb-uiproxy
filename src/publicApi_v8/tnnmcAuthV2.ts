@@ -135,7 +135,7 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
             const org = existingUserResult.userDetails.rootOrgName
             logInfo('Existing user organization:', org)
             if (!['Tamil nadu Nurses & Midwives Council', 'aastrika', 'SPhere Team 1'].includes(org)) {
-                return res.status(400).json({ message: userOtherText, status: 'FAILED' })
+                return res.status(400).json({ message: userOtherText, status: 'FAILURE' })
             }
         }
 
