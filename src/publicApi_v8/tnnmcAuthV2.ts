@@ -229,6 +229,17 @@ const fetchUserBymobileorEmail = async (
     }
 }
 const userProfileUpdate = async (axiosRequestConfig, userId, tnnmcUserData) => {
+    const trimmedName = tnnmcUserData.name.trim()
+    const parts = trimmedName.split(' ')
+    let firstName: string, lastName: string
+
+    if (parts.length > 1) {
+        firstName = parts[0]
+        lastName = parts.slice(1).join(' ') // Handles middle names too
+    } else {
+        firstName = lastName = trimmedName
+    }
+    logInfo('First Name:', firstName, 'Last Name:', lastName)
     try {
         const result = await axios({
             ...axiosRequestConfig,
@@ -251,12 +262,10 @@ const userProfileUpdate = async (axiosRequestConfig, userId, tnnmcUserData) => {
                             personalDetails: {
                                 email: tnnmcUserData.email,
                                 phone: tnnmcUserData.phone,
-                                firstname: tnnmcUserData.firstname,
-                                surname: tnnmcUserData.surname,
+                                firstname: firstName,
+                                surname: lastName,
                                 regNurseRegMidwifeNumber: tnnmcUserData.tnncno,
-                                gender: tnnmcUserData.gender,
                                 postalAddress: 'India,Tamil Nadu,Chennai',
-                                dob: tnnmcUserData
                             },
                             professionalDetails: [
                                 {
