@@ -180,6 +180,7 @@ recommendationEngineV2.post('/publicSearch/courseRecommendationCbp', async (req,
     logInfo("Inside CBP course recommendation route")
     logInfo('Request body', JSON.stringify(req.body))
     const searchRequestBody = req.body
+    searchRequestBody['authToken'] = req.headers['x-authenticated-user-token'] || ''
     const response = await axios({
       data: searchRequestBody,
       headers,
