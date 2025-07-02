@@ -196,11 +196,19 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
             break
         case 'In Service':
             if (userDetails.roleForInService === 'Public Health Facility') {
-                designation = 'ANM-Bihar'
+                if (userDetails.publicFacilityType === 'GNM-Bihar' || userDetails.privateFacilityType === 'GNM-Bihar') {
+                    designation = 'GNM-Bihar'
+                } else {
+                    designation = 'ANM-Bihar'
+                }
                 orgId = '01403709013603123234776'
                 orgName = 'Health (Bihar)'
             } else if (userDetails.roleForInService === 'Private Health Facility') {
-                designation = 'ANM-Bihar'
+                if (userDetails.publicFacilityType === 'GNM-Bihar' || userDetails.privateFacilityType === 'GNM-Bihar') {
+                    designation = 'GNM-Bihar'
+                } else {
+                    designation = 'ANM-Bihar'
+                }
                 orgId = '01403708858877542434777'
                 orgName = 'Private (Bihar)'
             }
@@ -255,6 +263,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         userExistingOrganisation: 'NA',
         validationStatus: 'success',
         validationStatusFailedReason: 'NA',
+        isUserMigrated: false,
     }
     const userFormDetails = req.body.value.request.formValues
     try {
@@ -273,7 +282,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             })
         }
         const isUserExists = await getUserDetails(phone)
-        if (isUserExists.message = 'success' && isUserExists.userDetails) {
+        if (isUserExists.message === 'success' && isUserExists.userDetails) {
             userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
             if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == 'Health (Bihar)' || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
@@ -283,7 +292,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                     await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
                     const roleAssignResponse = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                     userJourneyStatus.roleAssign = roleAssignResponse ? 'success' : 'failed'
-
+                    userJourneyStatus.isUserMigrated = true
                 }
 
                 const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
@@ -298,6 +307,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                 const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
                 userJourneyStatus.profileUpdate = profileUpdateResponse ? 'success' : 'failed'
+                userJourneyStatus.isUserMigrated = true
 
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
                     userJourneyStatus.userExistingOrganisation = 'aastrika || SPhere Team 1'
@@ -607,13 +617,6 @@ const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
         return false
     }
 }
-const getUserDesignationForInservice = (userDetails: UserDetails) => {
-    if (userDetails.privateFacilityType === 'GNM-Bihar' || userDetails.publicFacilityType === 'GNM-Bihar') {
-        return 'GNM-Bihar'
-    } else {
-        return 'ANM-Bihar'
-    }
-}
 // tslint:disable-next-line: all
 const userProfileUpdate = async (user: UserDetails, userId: string) => {
     try {
@@ -650,7 +653,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             {
                                 bnrcRegistrationNumber: '',
                                 completePostalAddress: '',
-                                designation: 'ANM-Bihar',
+                                designation: getDetailsAsPerRole(user).designation,
                                 doj: '',
                                 facilityName: '',
                                 facultyType: '',
@@ -711,7 +714,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
-                                    designation: 'ANM-Student-Bihar',
+                                    designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
                                     facilityName: '',
                                     facultyType: '',
@@ -834,7 +837,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
-                                    designation: getUserDesignationForInservice(user),
+                                    designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
                                     facilityName: user.facilityName || '',
                                     facultyType: '',
@@ -888,12 +891,13 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         instituteName: userDetails.instituteName || '',
         instituteType: userDetails.instituteType || '',
         lastName: userDetails.lastName || '',
+        designation: getDetailsAsPerRole(userDetails).designation || '',
         organisationId: getDetailsAsPerRole(userDetails).orgId || '',
         organisationName: getDetailsAsPerRole(userDetails).orgName || '',
         phone: userDetails.phone || '',
         privateFacilityType: userDetails.privateFacilityType || '',
         publicFacilityType: userDetails.publicFacilityType || '',
-        registrationSource: 'Self Registration' || '',
+        registrationSource: 'Self Registration',
         role: userDetails.role || '',
         roleForInService: userDetails.roleForInService || '',
         serviceType: userDetails.serviceType || '',
