@@ -256,6 +256,7 @@ connectToDatabase()
 bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {
         createAccount: 'failed',
+        isUserMigrated: false,
         profileUpdate: 'failed',
         registrationSuccessMessage: 'failed',
         roleAssign: 'failed',
@@ -263,7 +264,6 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         userExistingOrganisation: 'NA',
         validationStatus: 'success',
         validationStatusFailedReason: 'NA',
-        isUserMigrated: false,
     }
     const userFormDetails = req.body.value.request.formValues
     try {
@@ -882,6 +882,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
+        designation: getDetailsAsPerRole(userDetails).designation || '',
         district: userDetails.district || '',
         email: userDetails.email || '',
         facilityName: userDetails.facilityName || '',
@@ -891,7 +892,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         instituteName: userDetails.instituteName || '',
         instituteType: userDetails.instituteType || '',
         lastName: userDetails.lastName || '',
-        designation: getDetailsAsPerRole(userDetails).designation || '',
         organisationId: getDetailsAsPerRole(userDetails).orgId || '',
         organisationName: getDetailsAsPerRole(userDetails).orgName || '',
         phone: userDetails.phone || '',
