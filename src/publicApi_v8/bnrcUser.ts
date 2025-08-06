@@ -34,11 +34,22 @@ interface UserDetails {
 }
 
 const shortHands = {
+    cho: 'CHO',
     privateHealthFacility: 'Private Health Facility',
     publicHealthFacility: 'Public Health Facility',
-    cho: 'CHO'
 }
+const healthBihar = 'Health (Bihar)'
 const serviceSchemaJoi = Joi.object({
+    block: Joi.string()
+        .when('roleForInService', {
+            is: shortHands.cho,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Block is required',
+        }),
     bnrcRegistrationNumber: Joi.string().allow('', null).optional(),
     district: Joi.string()
         .required()
@@ -150,17 +161,6 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'Public Facility Type is required for Public Health Facility role',
         }),
-    block: Joi.string()
-        .when('roleForInService', {
-            is: shortHands.cho,
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Block is required',
-        }),
-
 
     facilityName: Joi.string().when('roleForInService', {
         is: shortHands.cho,
@@ -227,7 +227,7 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
                     designation = 'ANM-Bihar'
                 }
                 orgId = '01403709013603123234776'
-                orgName = 'Health (Bihar)'
+                orgName = healthBihar
             } else if (userDetails.roleForInService === 'Private Health Facility') {
                 if (userDetails.publicFacilityType === 'GNM-Bihar' || userDetails.privateFacilityType === 'GNM-Bihar') {
                     designation = 'GNM-Bihar'
@@ -239,7 +239,7 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
             } else if (userDetails.roleForInService === 'CHO') {
                 designation = 'CHO-Bihar'
                 orgId = '01403709013603123234776'
-                orgName = 'Health (Bihar)'
+                orgName = healthBihar
             }
             break
         default:
@@ -314,7 +314,7 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         if (isUserExists.message === 'success' && isUserExists.userDetails) {
             userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
-            if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == 'Health (Bihar)' || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
+            if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == healthBihar || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
                 userJourneyStatus.userExistingOrganisation = isUserExists.userDetails.rootOrgName
                 const newUserOrg = getDetailsAsPerRole(userFormDetails).orgName
                 if (isUserExists.userDetails.rootOrgName !== newUserOrg) {
