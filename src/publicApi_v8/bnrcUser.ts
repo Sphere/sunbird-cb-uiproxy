@@ -10,6 +10,7 @@ import { logInfo } from '../utils/logger'
 export const bnrcUserCreation = express.Router()
 
 interface UserDetails {
+    block?: string
     bnrcRegistrationNumber: string
     courseSelection?: string
     district: string
@@ -21,6 +22,7 @@ interface UserDetails {
     instituteName?: string
     instituteType?: string
     lastName: string
+    nin?: string
     phone: number
     privateFacilityType?: string
     publicFacilityType?: string
@@ -34,6 +36,7 @@ interface UserDetails {
 const shortHands = {
     privateHealthFacility: 'Private Health Facility',
     publicHealthFacility: 'Public Health Facility',
+    cho: 'CHO'
 }
 const serviceSchemaJoi = Joi.object({
     bnrcRegistrationNumber: Joi.string().allow('', null).optional(),
@@ -125,14 +128,14 @@ const serviceSchemaJoi = Joi.object({
         }),
 
     roleForInService: Joi.string()
-        .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility)
+        .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility, shortHands.cho)
         .when('role', {
             is: Joi.not('Student', 'Faculty'),
             otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().optional(),
         })
         .messages({
-            'any.only': 'Role for In Service must be either Public Health Facility or Private Health Facility',
+            'any.only': 'Role for In Service must be either Public Health Facility, CHO or Private Health Facility',
             // tslint:disable-next-line: all
             'any.required': 'Role for In Service is required',
         }),
@@ -147,8 +150,30 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'Public Facility Type is required for Public Health Facility role',
         }),
+    block: Joi.string()
+        .when('roleForInService', {
+            is: shortHands.cho,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Block is required',
+        }),
 
-    facilityName: Joi.string().allow('', null).optional(),
+
+    facilityName: Joi.string().when('roleForInService', {
+        is: shortHands.cho,
+        otherwise: Joi.string().allow('', null).optional(),
+        then: Joi.string().required(),
+    }).allow('', null).optional(),
+
+    nin: Joi.string().when('roleForInService', {
+        is: shortHands.cho,
+        otherwise: Joi.string().allow('', null).optional(),
+        then: Joi.string().required(),
+    }).allow('', null).optional(),
+
     privateFacilityType: Joi.string()
         .when('roleForInService', {
             is: shortHands.privateHealthFacility,
@@ -211,6 +236,10 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
                 }
                 orgId = '01403708858877542434777'
                 orgName = 'Private (Bihar)'
+            } else if (userDetails.roleForInService === 'CHO') {
+                designation = 'CHO-Bihar'
+                orgId = '01403709013603123234776'
+                orgName = 'Health (Bihar)'
             }
             break
         default:
@@ -651,6 +680,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         },
                         professionalDetails: [
                             {
+                                block: user.block || '',
                                 bnrcRegistrationNumber: '',
                                 completePostalAddress: '',
                                 designation: getDetailsAsPerRole(user).designation,
@@ -662,6 +692,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 instituteType: '',
                                 name: biharOrgName,
                                 nameOther: '',
+                                nin: user.nin || '',
                                 orgType: 'Government',
                                 privateFacilityType: '',
                                 profession: 'Nurse',
@@ -712,6 +743,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                             professionalDetails: [
                                 {
+                                    block: user.block || '',
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
                                     designation: getDetailsAsPerRole(user).designation,
@@ -724,6 +756,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
 
                                     name: biharOrgName,
                                     nameOther: '',
+                                    nin: user.nin || '',
                                     orgType: 'Government',
                                     privateFacilityType: '',
                                     profession: 'Student',
@@ -773,6 +806,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                             professionalDetails: [
                                 {
+                                    block: user.block || '',
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-Bihar',
@@ -784,6 +818,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     instituteType: user.instituteType,
                                     name: biharOrgName,
                                     nameOther: '',
+                                    nin: user.nin || '',
                                     orgType: 'Government',
                                     privateFacilityType: '',
                                     profession: 'Faculty',
@@ -835,6 +870,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                             professionalDetails: [
                                 {
+                                    block: user.block || '',
                                     bnrcRegistrationNumber: user.bnrcRegistrationNumber,
                                     completePostalAddress: '',
                                     designation: getDetailsAsPerRole(user).designation,
@@ -846,6 +882,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     instituteType: '',
                                     name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
+                                    nin: user.nin || '',
                                     orgType: 'Government',
                                     privateFacilityType: user.privateFacilityType || '',
                                     profession: 'Nurse',
@@ -879,6 +916,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
 }
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
+        block: userDetails.block || '',
         bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
@@ -892,6 +930,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         instituteName: userDetails.instituteName || '',
         instituteType: userDetails.instituteType || '',
         lastName: userDetails.lastName || '',
+        nin: userDetails.nin || '',
         organisationId: getDetailsAsPerRole(userDetails).orgId || '',
         organisationName: getDetailsAsPerRole(userDetails).orgName || '',
         phone: userDetails.phone || '',
