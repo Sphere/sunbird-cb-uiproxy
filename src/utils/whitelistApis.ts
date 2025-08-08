@@ -512,6 +512,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/fractv1': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/admin/userRegistration/bulkUpload': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1614,6 +1619,7 @@ export const API_LIST = {
     '/proxies/v8/learner/course/v1/enrol',
     '/proxies/v8/learnervm/private/content/v3/retire/',
     '/proxies/v8/private/content/v3/update/:do_id',
+    "/proxies/v8/fractv1",
     '/protected/v8/user/profileDetails/test',
     '/protected/v8/resource/',
     '/protected/v8/user/details',

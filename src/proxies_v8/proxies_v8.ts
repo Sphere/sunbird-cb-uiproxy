@@ -14,6 +14,7 @@ import {
   proxyContent,
   proxyContentLearnerVM,
   proxyCreatorDownloadCertificate,
+  proxyCreatorEtlFrac,
   proxyCreatorForms,
   proxyCreatorKnowledge,
   proxyCreatorLearner,
@@ -201,6 +202,10 @@ proxiesV8.post('/private/upload/*', (_req, _res) => {
 proxiesV8.use(
   '/content',
   proxyCreatorRoute(express.Router(), CONSTANTS.CONTENT_API_BASE + '/content')
+)
+proxiesV8.use(
+  '/fractv1',
+  proxyCreatorEtlFrac(express.Router(), CONSTANTS.FRAC_ETL_API_BASE)
 )
 proxiesV8.use(
   '/registry',
