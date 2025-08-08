@@ -35,7 +35,6 @@ export const CONSTANTS = {
   COMPETENCY_ROLES_DATA_PATH: env.COMPETENCY_ROLES_WISE_DATA_PATH || '',
   COMPETENCY_ROLES_MAPPING_PATH: env.COMPETENCY_ROLES_MAPPING_PATH || '',
   CONTENT_API_BASE: env.CONTENT_API_BASE || 'http://localhost:5903',
-  FRAC_ETL_API_BASE: env.FRAC_ETL_API_BASE || 'http://frac-etl-service:8083',
   CONTENT_HIERARCHY: env.CONTENT_HIERARCHY || 'http://localhost:5903/hierarchy',
   CONTENT_META_FETCH_API_BASE:
     env.CONTENT_META_FETCH_API_BASE || 'http://localhost:5906',
@@ -53,6 +52,7 @@ export const CONSTANTS = {
   ES_PASSWORD: env.ES_PASSWORD || 'iGOT@123+',
   ES_USERNAME: env.ES_USERNAME || 'elastic',
   FEEDBACK_API_BASE: env.FEEDBACK_API_BASE || env.SB_EXT_API_BASE_2,
+  FRAC_ETL_API_BASE: env.FRAC_ETL_API_BASE || 'http://frac-etl-service:8083',
   GAMIFICATION_API_BASE:
     env.GAMIFICATION_API_BASE || 'http://localhost:port-number',
   GOALS_API_BASE: env.GOALS_API_BASE || env.SB_EXT_API_BASE_2,
