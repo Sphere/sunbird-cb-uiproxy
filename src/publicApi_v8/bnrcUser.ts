@@ -1,9 +1,9 @@
 /* eslint-disable */
 import axios from 'axios'
+import cassandra from 'cassandra-driver'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
-import { Collection, Db } from 'mongodb'
-import { MongoClient } from 'mongodb'
+import { v4 as uuidv4 } from 'uuid'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
@@ -32,7 +32,11 @@ interface UserDetails {
     role: 'Student' | 'Faculty' | 'In Service',
     serviceType?: string
 }
-
+const client = new cassandra.Client({
+    contactPoints: [CONSTANTS.CASSANDRA_IP],
+    keyspace: 'sunbird',
+    localDataCenter: 'datacenter1',
+})
 const shortHands = {
     cho: 'CHO',
     privateHealthFacility: 'Private Health Facility',
@@ -269,19 +273,6 @@ const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshama
 const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 logInfo('Mongodb connection URL', mongodbConnectionUri)
-const databaseName = 'bnrc'
-const client = new MongoClient(mongodbConnectionUri)
-let db: Db | null = null
-async function connectToDatabase() {
-    try {
-        await client.connect()
-        db = client.db(databaseName)
-        logInfo('Successfully connected to mongodb')
-    } catch (error) {
-        logError('Error while connecting mongodb', JSON.stringify(error))
-    }
-}
-connectToDatabase()
 bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {
         createAccount: 'failed',
@@ -941,15 +932,67 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         roleForInService: userDetails.roleForInService || '',
         serviceType: userDetails.serviceType || '',
     }
+
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
+
     try {
-        const collection: Collection = db.collection('user')
-        await collection.insertOne(userFinalStatus)
+        const query = `
+            INSERT INTO sunbird.bnrc_registration_data (
+                unique_id, block, bnrc_registration_number, course_selection, created_on, designation, district,
+                email, facility_name, faculty_type, first_name, hrms_id, institute_name, institute_type,
+                last_name, nin, organisation_id, organisation_name, phone, private_facility_type,
+                public_facility_type, registration_source, role, role_for_in_service, service_type,
+                create_account, is_user_migrated, profile_update, registration_success_message,
+                role_assign, user_already_exists, user_existing_organisation, validation_status,
+                validation_status_failed_reason
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+
+        const params = [
+            uuidv4(), // unique_id
+            userFinalStatus.block,
+            userFinalStatus.bnrcRegistrationNumber,
+            userFinalStatus.courseSelection,
+            userFinalStatus.createdOn,
+            userFinalStatus.designation,
+            userFinalStatus.district,
+            userFinalStatus.email,
+            userFinalStatus.facilityName,
+            userFinalStatus.facultyType,
+            userFinalStatus.firstName,
+            userFinalStatus.hrmsId,
+            userFinalStatus.instituteName,
+            userFinalStatus.instituteType,
+            userFinalStatus.lastName,
+            userFinalStatus.nin,
+            userFinalStatus.organisationId,
+            userFinalStatus.organisationName,
+            userFinalStatus.phone,
+            userFinalStatus.privateFacilityType,
+            userFinalStatus.publicFacilityType,
+            userFinalStatus.registrationSource,
+            userFinalStatus.role,
+            userFinalStatus.roleForInService,
+            userFinalStatus.serviceType,
+            userFinalStatus.createAccount,
+            userFinalStatus.isUserMigrated,
+            userFinalStatus.profileUpdate,
+            userFinalStatus.registrationSuccessMessage,
+            userFinalStatus.roleAssign,
+            userFinalStatus.userAlreadyExists,
+            userFinalStatus.userExistingOrganisation,
+            userFinalStatus.validationStatus,
+            userFinalStatus.validationStatusFailedReason,
+        ]
+
+        await client.execute(query, params, { prepare: true })
         return true
     } catch (error) {
+        logError('Error inserting into Cassandra', JSON.stringify(error))
         return false
     }
 }
+
 const migrateUserToBnrc = async (userDetails, userFormDetails) => {
     try {
         const migrateUserData = {

@@ -1,9 +1,9 @@
 /* eslint-disable */
 import axios from 'axios'
+import cassandra from 'cassandra-driver'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
-import { Collection, Db } from 'mongodb'
-import { MongoClient } from 'mongodb'
+import { v4 as uuidv4 } from 'uuid'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
@@ -25,7 +25,11 @@ interface UserDetails {
     role: 'Student' | 'Faculty',
 
 }
-
+const client = new cassandra.Client({
+    contactPoints: [CONSTANTS.CASSANDRA_IP],
+    keyspace: 'sunbird',
+    localDataCenter: 'datacenter1',
+})
 const serviceSchemaJoi = Joi.object({
     courseSelection: Joi.string()
         .when('role', {
@@ -167,7 +171,7 @@ const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshama
 const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
 const mongodbConnectionUri = CONSTANTS.MONGODB_URL
 logInfo('Mongodb connection URL', mongodbConnectionUri)
-const databaseName = 'upsmf'
+
 const indianCountryCode = '+91'
 const msg91Headers = {
     // tslint:disable-next-line: all
@@ -175,18 +179,7 @@ const msg91Headers = {
     authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
     'content-type': 'application/json',
 }
-const client = new MongoClient(mongodbConnectionUri, { useNewUrlParser: true, useUnifiedTopology: true })
-let db: Db | null = null
-async function connectToDatabase() {
-    try {
-        await client.connect()
-        db = client.db(databaseName)
-        logInfo('Successfully connected to mongodb')
-    } catch (error) {
-        logError('Error while connecting mongodb', JSON.stringify(error))
-    }
-}
-connectToDatabase()
+
 upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {
         createAccount: 'failed',
@@ -215,7 +208,7 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
             })
         }
         const isUserExists = await getUserDetails(phone)
-        if (isUserExists.message = 'success' && isUserExists.userDetails) {
+        if (isUserExists.message === 'success' && isUserExists.userDetails) {
             userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
             if (isUserExists.userDetails.rootOrgName == 'Department of Medical Education Education and Training') {
@@ -691,13 +684,51 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         phone: userDetails.phone || '',
         registrationSource: 'Self Registration',
         upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || '',
+        ...userJourneyStatus,
     }
-    const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
+
+    const query = `
+    INSERT INTO sunbird.upsmf_registration_data (
+     unique_id, phone, courseSelection, createdOn, district, email, facultyType, firstName, hrmsId,
+      instituteName, instituteType, lastName, organisationId, organisationName,
+      registrationSource, upsmfRegistrationNumber,
+      createAccount, profileUpdate, registrationSuccessMessage, roleAssign,
+      userAlreadyExists, userExistingOrganisation, validationStatus, validationStatusFailedReason
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `
+
+    const params = [
+        uuidv4(), // unique_id
+        userDetailedStructure.phone,
+        userDetailedStructure.courseSelection,
+        userDetailedStructure.createdOn,
+        userDetailedStructure.district,
+        userDetailedStructure.email,
+        userDetailedStructure.facultyType,
+        userDetailedStructure.firstName,
+        userDetailedStructure.hrmsId,
+        userDetailedStructure.instituteName,
+        userDetailedStructure.instituteType,
+        userDetailedStructure.lastName,
+        userDetailedStructure.organisationId,
+        userDetailedStructure.organisationName,
+        userDetailedStructure.registrationSource,
+        userDetailedStructure.upsmfRegistrationNumber,
+        userDetailedStructure.createAccount,
+        userDetailedStructure.profileUpdate,
+        userDetailedStructure.registrationSuccessMessage,
+        userDetailedStructure.roleAssign,
+        userDetailedStructure.userAlreadyExists,
+        userDetailedStructure.userExistingOrganisation,
+        userDetailedStructure.validationStatus,
+        userDetailedStructure.validationStatusFailedReason,
+    ]
+
     try {
-        const collection: Collection = db.collection('user')
-        await collection.insertOne(userFinalStatus)
+        await client.execute(query, params, { prepare: true })
         return true
     } catch (error) {
+        logError('Cassandra insert error:', error)
         return false
     }
 }
