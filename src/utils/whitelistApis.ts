@@ -90,6 +90,31 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/profileupdatev2/updatePersonalDetails': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/profileupdatev2/updateLanguage': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/profileupdatev2/updateProfessionalDetails': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/profileupdatev2/updateAcademics': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/profileupdatev2/updateTnc': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/user/details': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1433,9 +1458,9 @@ export const API_LIST = {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [
-          ROLE.MDO_ADMIN,
-          ROLE.MDO_LEADER,
-          ROLE.PUBLIC,
+        ROLE.MDO_ADMIN,
+        ROLE.MDO_LEADER,
+        ROLE.PUBLIC,
       ],
     },
     '/proxies/v8/ext-forms/v1/form/fetchAll': {
@@ -1457,75 +1482,75 @@ export const API_LIST = {
       ],
     },
     '/proxies/v8/forms/createForm': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/getFormById': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/getCollectiveAggregation': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/getAllForms': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/v1/saveFormSubmit': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/tagFormToCourse': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/untagFormToCourse': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/getAllApplications': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/searchForms': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
-        '/proxies/v8/forms/getCourseListForSurveys': {
-            checksNeeded: [CHECK.ROLE],
-            // tslint:disable-next-line: object-literal-sort-keys
-            ROLE_CHECK: [
-                ROLE.PUBLIC,
-            ],
-        },
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/getFormById': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/getCollectiveAggregation': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/getAllForms': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/v1/saveFormSubmit': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/tagFormToCourse': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/untagFormToCourse': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/getAllApplications': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/searchForms': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
+    '/proxies/v8/forms/getCourseListForSurveys': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [
+        ROLE.PUBLIC,
+      ],
+    },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -1643,6 +1668,11 @@ export const API_LIST = {
     '/protected/v8/assessmentCompetency/v1/submitAssessment',
     '/protected/v8/autoEnrollmentv2/user',
     '/protected/v8/notification/getAllUserFeed',
+    "/protected/v8/profileupdatev2/updatePersonalDetails",
+    "/protected/v8/profileupdatev2/updateAcademics",
+    "/protected/v8/profileupdatev2/updateLanguage",
+    "/protected/v8/profileupdatev2/updateTnc",
+    "/protected/v8/profileupdatev2/updateProfessionalDetails",
     '/protected/v8/user/rating/:contentId',
     '/protected/v8/ratings/v2/read',
     '/protected/v8/ratings/ratingLookUp',
