@@ -4,6 +4,8 @@ import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
+import { extractUserToken } from '../utils/requestExtract'
+
 
 const API_END_POINTS = {
   // tslint:disable-next-line: no-any
@@ -180,7 +182,7 @@ recommendationEngineV2.post('/publicSearch/courseRecommendationCbp', async (req,
     logInfo("Inside CBP course recommendation route")
     logInfo('Request body', JSON.stringify(req.body))
     const searchRequestBody = req.body
-    searchRequestBody['authToken'] = req.headers['x-authenticated-user-token'] || ''
+    searchRequestBody.authToken = req.headers['x-authenticated-user-token'] || extractUserToken(req)
     const response = await axios({
       data: searchRequestBody,
       headers,
