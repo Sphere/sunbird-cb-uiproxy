@@ -8,6 +8,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 export const upsmfUserCreation = express.Router()
+const { types } = cassandra
 
 interface UserDetails {
     courseSelection?: string
@@ -681,57 +682,61 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         lastName: userDetails.lastName || '',
         organisationId: getDetailsAsPerRole(userDetails).orgId,
         organisationName: getDetailsAsPerRole(userDetails).orgName,
-        phone: userDetails.phone || '',
+        phone: String(userDetails.phone || ''),
         registrationSource: 'Self Registration',
         upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || '',
         ...userJourneyStatus,
     }
 
     const query = `
-    INSERT INTO sunbird.upsmf_registration_data (
-     unique_id, phone, courseSelection, createdOn, district, email, facultyType, firstName, hrmsId,
-      instituteName, instituteType, lastName, organisationId, organisationName,
-      registrationSource, upsmfRegistrationNumber,
-      createAccount, profileUpdate, registrationSuccessMessage, roleAssign,
-      userAlreadyExists, userExistingOrganisation, validationStatus, validationStatusFailedReason
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `
+        INSERT INTO sunbird.upsmf_registration_data (
+            unique_id, course_selection, create_account, created_on, district, email,
+            faculty_type, first_name, hrms_id, institute_name, institute_type, last_name,
+            organisation_id, organisation_name, phone, profile_update, registration_source,
+            registration_success_message, role_assign, upsmf_registration_number,
+            user_already_exists, user_existing_organisation, validation_status,
+            validation_status_failed_reason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
 
     const params = [
-        uuidv4(), // unique_id
-        userDetailedStructure.phone,
-        userDetailedStructure.courseSelection,
-        userDetailedStructure.createdOn,
-        userDetailedStructure.district,
-        userDetailedStructure.email,
-        userDetailedStructure.facultyType,
-        userDetailedStructure.firstName,
-        userDetailedStructure.hrmsId,
-        userDetailedStructure.instituteName,
-        userDetailedStructure.instituteType,
-        userDetailedStructure.lastName,
+        types.Uuid.fromString(uuidv4()),
+
+        String(userDetailedStructure.courseSelection || ''),   // course_selection
+        String(userDetailedStructure.createAccount || ''),     // create_account
+        userDetailedStructure.createdOn,                       // created_on
+        String(userDetailedStructure.district || ''),          // district
+        String(userDetailedStructure.email || ''),             // email
+        String(userDetailedStructure.facultyType || ''),       // faculty_type
+        String(userDetailedStructure.firstName || ''),         // first_name
+        String(userDetailedStructure.hrmsId || ''),            // hrms_id
+        String(userDetailedStructure.instituteName || ''),     // institute_name
+        String(userDetailedStructure.instituteType || ''),     // institute_type
+        String(userDetailedStructure.lastName || ''),          // last_name
         userDetailedStructure.organisationId,
         userDetailedStructure.organisationName,
-        userDetailedStructure.registrationSource,
-        userDetailedStructure.upsmfRegistrationNumber,
-        userDetailedStructure.createAccount,
-        userDetailedStructure.profileUpdate,
-        userDetailedStructure.registrationSuccessMessage,
-        userDetailedStructure.roleAssign,
-        userDetailedStructure.userAlreadyExists,
-        userDetailedStructure.userExistingOrganisation,
-        userDetailedStructure.validationStatus,
-        userDetailedStructure.validationStatusFailedReason,
+
+        String(userDetailedStructure.phone || ''),             // phone
+        String(userDetailedStructure.profileUpdate || ''),     // profile_update
+        String(userDetailedStructure.registrationSource || ''), // registration_source
+        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
+        String(userDetailedStructure.roleAssign || ''),        // role_assign
+        String(userDetailedStructure.upsmfRegistrationNumber || ''), // upsmf_registration_number
+        Boolean(userDetailedStructure.userAlreadyExists || false), // user_already_exists
+        String(userDetailedStructure.userExistingOrganisation || ''), // user_existing_organisation
+        String(userDetailedStructure.validationStatus || ''),  // validation_status
+        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
     ]
 
     try {
         await client.execute(query, params, { prepare: true })
         return true
     } catch (error) {
-        logError('Cassandra insert error:', error)
+        logError('Cassandra insert error', JSON.stringify(error))
         return false
     }
 }
+
 const migrateUserToUpsmf = async (userDetails, userFormDetails) => {
     try {
         const migrateUserData = {

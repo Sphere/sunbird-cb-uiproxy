@@ -8,6 +8,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 export const bnrcUserCreation = express.Router()
+const { types } = cassandra
 
 interface UserDetails {
     block?: string
@@ -936,62 +937,81 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
 
     try {
-        const query = `
-            INSERT INTO sunbird.bnrc_registration_data (
-                unique_id, block, bnrc_registration_number, course_selection, created_on, designation, district,
-                email, facility_name, faculty_type, first_name, hrms_id, institute_name, institute_type,
-                last_name, nin, organisation_id, organisation_name, phone, private_facility_type,
-                public_facility_type, registration_source, role, role_for_in_service, service_type,
-                create_account, is_user_migrated, profile_update, registration_success_message,
-                role_assign, user_already_exists, user_existing_organisation, validation_status,
-                validation_status_failed_reason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `
+        const query = `INSERT INTO sunbird.bnrc_registration_data (
+            unique_id, block, bnrc_registration_number, course_selection, create_account, created_on,
+            designation, district, email, facility_name, faculty_type, first_name, hrms_id,
+            institute_name, institute_type, is_user_migrated, last_name, nin, organisation_id,
+            organisation_name, phone, private_facility_type, profile_update, public_facility_type,
+            registration_source, registration_success_message, role, role_assign, role_for_in_service,
+            service_type, user_already_exists, user_existing_organisation, validation_status,
+            validation_status_failed_reason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
         const params = [
-            uuidv4(), // unique_id
+            types.Uuid.fromString(uuidv4()),
             userFinalStatus.block,
             userFinalStatus.bnrcRegistrationNumber,
             userFinalStatus.courseSelection,
+            userFinalStatus.createAccount || '',
             userFinalStatus.createdOn,
             userFinalStatus.designation,
             userFinalStatus.district,
             userFinalStatus.email,
-            userFinalStatus.facilityName,
+
+            // ✅ handle facilityName (stringify if object, else keep string)
+            userFinalStatus.facilityName
+                ? (typeof userFinalStatus.facilityName === 'object'
+                    ? (userFinalStatus.facilityName.name
+                        ? String(userFinalStatus.facilityName.name)
+                        : JSON.stringify(userFinalStatus.facilityName))
+                    : String(userFinalStatus.facilityName))
+                : '',
+
             userFinalStatus.facultyType,
             userFinalStatus.firstName,
             userFinalStatus.hrmsId,
             userFinalStatus.instituteName,
             userFinalStatus.instituteType,
+            Boolean(userFinalStatus.isUserMigrated),
             userFinalStatus.lastName,
-            userFinalStatus.nin,
+
+            // ✅ handle nin (convert object/number to string)
+            userFinalStatus.nin
+                ? (typeof userFinalStatus.nin === 'object'
+                    ? (userFinalStatus.nin.nin
+                        ? String(userFinalStatus.nin.nin)
+                        : JSON.stringify(userFinalStatus.nin))
+                    : String(userFinalStatus.nin))
+                : '',
+
             userFinalStatus.organisationId,
             userFinalStatus.organisationName,
-            userFinalStatus.phone,
+            String(userFinalStatus.phone || ''),   // ✅ always string
             userFinalStatus.privateFacilityType,
+            userFinalStatus.profileUpdate || '',
             userFinalStatus.publicFacilityType,
             userFinalStatus.registrationSource,
+            userFinalStatus.registrationSuccessMessage || '',
             userFinalStatus.role,
+            userFinalStatus.roleAssign || '',
             userFinalStatus.roleForInService,
             userFinalStatus.serviceType,
-            userFinalStatus.createAccount,
-            userFinalStatus.isUserMigrated,
-            userFinalStatus.profileUpdate,
-            userFinalStatus.registrationSuccessMessage,
-            userFinalStatus.roleAssign,
-            userFinalStatus.userAlreadyExists,
-            userFinalStatus.userExistingOrganisation,
-            userFinalStatus.validationStatus,
-            userFinalStatus.validationStatusFailedReason,
+            Boolean(userFinalStatus.userAlreadyExists),
+            userFinalStatus.userExistingOrganisation || '',
+            userFinalStatus.validationStatus || '',
+            userFinalStatus.validationStatusFailedReason || '',
         ]
 
+        logInfo('Cassandra insert data', JSON.stringify(params))
         await client.execute(query, params, { prepare: true })
         return true
     } catch (error) {
+        // ✅ full log for debugging
         logError('Error inserting into Cassandra', JSON.stringify(error))
         return false
     }
 }
+
 
 const migrateUserToBnrc = async (userDetails, userFormDetails) => {
     try {
