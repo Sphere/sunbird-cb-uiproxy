@@ -90,7 +90,7 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/profileupdatev2/updatePersonalDetails': {
+    '/protected/v8/profileupdatev2/updateAcademics': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -100,16 +100,17 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/profileupdatev2/updatePersonalDetails': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/profileupdatev2/updateProfessionalDetails': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/profileupdatev2/updateAcademics': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+
     '/protected/v8/profileupdatev2/updateTnc': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1668,11 +1669,11 @@ export const API_LIST = {
     '/protected/v8/assessmentCompetency/v1/submitAssessment',
     '/protected/v8/autoEnrollmentv2/user',
     '/protected/v8/notification/getAllUserFeed',
-    "/protected/v8/profileupdatev2/updatePersonalDetails",
-    "/protected/v8/profileupdatev2/updateAcademics",
-    "/protected/v8/profileupdatev2/updateLanguage",
-    "/protected/v8/profileupdatev2/updateTnc",
-    "/protected/v8/profileupdatev2/updateProfessionalDetails",
+    '/protected/v8/profileupdatev2/updatePersonalDetails',
+    '/protected/v8/profileupdatev2/updateAcademics',
+    '/protected/v8/profileupdatev2/updateLanguage',
+    '/protected/v8/profileupdatev2/updateTnc',
+    '/protected/v8/profileupdatev2/updateProfessionalDetails',
     '/protected/v8/user/rating/:contentId',
     '/protected/v8/ratings/v2/read',
     '/protected/v8/ratings/ratingLookUp',

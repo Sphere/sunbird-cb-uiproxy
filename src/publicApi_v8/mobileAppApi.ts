@@ -10,6 +10,7 @@ import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import nodeHtmlToImage from 'node-html-to-image'
+import path from 'path'
 import request from 'request'
 import { axiosRequestConfig } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
@@ -73,7 +74,7 @@ const getHeaders = (req: any) => {
 const DEFAULT_ERROR_STATUS = 500
 const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
 
-const publicKeyPath = '/keys/access_key'
+const publicKeyPath = path.join(__dirname, '../keys/access_key')
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
@@ -156,11 +157,11 @@ mobileAppApi.use(async (req, res, next) => {
 })
 mobileAppApi.get('/getContents/*', (req, res) => {
   try {
-    const path = removePrefix(
+    const contentPath = removePrefix(
       '/public/v8/mobileApp/getContents/',
       req.originalUrl
     )
-    const sunbirdUrl = CONSTANTS.S3_BUCKET_URL + path
+    const sunbirdUrl = CONSTANTS.S3_BUCKET_URL + contentPath
     logInfo(
       'New getcontents sunbird URL for Mobile APP >>>>>>>>>>> ',
       sunbirdUrl
@@ -314,14 +315,14 @@ mobileAppApi.post('/submitAssessment', async (req, res) => {
 })
 mobileAppApi.get('/v1/assessment/*', async (req, res) => {
   try {
-    const path = removePrefix(
+    const contentPath = removePrefix(
       '/public/v8/mobileApp/v1/assessment/',
       req.originalUrl
     )
-    jumbler(path).then((response) => {
+    jumbler(contentPath).then((response) => {
       return res.send(response)
     })
-    logInfo('New getAssessments competency mobile APP >>>>>>>>>>> ', path)
+    logInfo('New getAssessments competency mobile APP >>>>>>>>>>> ', contentPath)
   } catch (err) {
     res.status(404).json({
       message: 'Error occured while get assessment',
@@ -505,7 +506,7 @@ mobileAppApi.post('/v2/updateProgress', async (req, res) => {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
     logInfo(
       'Check req body of update progress v2 for mobile before fix >> ' +
-        JSON.stringify(req.body)
+      JSON.stringify(req.body)
     )
     const accesTokenResult = verifyToken(req, res)
     const userId = accesTokenResult.userId
@@ -796,7 +797,7 @@ mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
       } else {
         throw new Error(
           _.get(response.data, 'params.errmsg') ||
-            _.get(response.data, 'params.err')
+          _.get(response.data, 'params.err')
         )
       }
     }
@@ -1078,7 +1079,7 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Inside home config update', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ',  API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1106,7 +1107,7 @@ mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ',  API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -1393,13 +1394,13 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
         (consent_id, consent_timestamp, is_opted_in, is_whats_up_opted_in, last_updated, opt_in_channel, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?)`
       params = [
-          consentId,
-          currentDate,
-          req.body.is_opted_in,
-          req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
-          currentDate,
-          req.body.opt_in_channel,
-          userId,
+        consentId,
+        currentDate,
+        req.body.is_opted_in,
+        req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+        currentDate,
+        req.body.opt_in_channel,
+        userId,
       ]
 
     } else {
@@ -1413,13 +1414,13 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
           WHERE consent_id = ?
       `
       params = [
-          req.body.is_opted_in,
-          req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
-          currentDate,
-          req.body.opt_in_channel,
-          checkResult.rows[0].consent_id,
+        req.body.is_opted_in,
+        req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+        currentDate,
+        req.body.opt_in_channel,
+        checkResult.rows[0].consent_id,
       ]
-  }
+    }
     await cassandraClient.execute(query, params, { prepare: true })
     return res.status(200).json({
       consent_id: consentId,
@@ -1533,9 +1534,9 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
         logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png',
         // tslint:disable-next-line: max-line-length
         message:
-        'New course added: <a href="https://sphere.aastrika.org/app/toc/' +
-        'do_1137533766819430401136/overview" target="_blank">Post Partum ' +
-        'Haemorrhage (PPH)</a>',
+          'New course added: <a href="https://sphere.aastrika.org/app/toc/' +
+          'do_1137533766819430401136/overview" target="_blank">Post Partum ' +
+          'Haemorrhage (PPH)</a>',
         metadata: {
           // Additional metadata to enrich the notification
           related_entity_id: 'message_56979', // Associated entity (e.g., a message, post, comment)
@@ -1553,17 +1554,17 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       },
       {
         // tslint:disable-next-line: max-line-length
-      action_url: 'https://sphere.aastrika.org/app/org-details?orgId=' +
-        'Fernandez%20Foundation',
-      // URL for the user to take action (e.g., view message)
+        action_url: 'https://sphere.aastrika.org/app/org-details?orgId=' +
+          'Fernandez%20Foundation',
+        // URL for the user to take action (e.g., view message)
         created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
         // tslint:disable-next-line: max-line-length
         // tslint:disable-next-line: max-line-length
         logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' +
-      'do_1134170690099118081470/artifact/do_1134172312759009281507_' +
-      '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
+          'do_1134170690099118081470/artifact/do_1134172312759009281507_' +
+          '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
 
-      message: `<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation"
+        message: `<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation"
       target="_blank">Fernandez Foundation</a> updated a new Respectful Maternity Course`,
 
         metadata: {
@@ -1589,9 +1590,9 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
           'artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
 
         message:
-        'Congratulations you have successfully completed the course: ' +
-        '<a href="https://sphere.aastrika.org/app/profile-view" target="_blank">' +
-        'Respectful Maternity Care</a>', // Detailed message content
+          'Congratulations you have successfully completed the course: ' +
+          '<a href="https://sphere.aastrika.org/app/profile-view" target="_blank">' +
+          'Respectful Maternity Care</a>', // Detailed message content
 
         metadata: {
           // Additional metadata to enrich the notification
