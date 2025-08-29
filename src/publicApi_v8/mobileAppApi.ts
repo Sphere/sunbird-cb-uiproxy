@@ -74,7 +74,7 @@ const getHeaders = (req: any) => {
 const DEFAULT_ERROR_STATUS = 500
 const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
 
-const publicKeyPath = path.join(__dirname, '../keys/access_key')
+const publicKeyPath = '/keys/access_key'
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
@@ -1079,7 +1079,7 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Inside home config update', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1107,7 +1107,7 @@ mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
