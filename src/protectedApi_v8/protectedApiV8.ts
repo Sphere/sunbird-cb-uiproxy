@@ -48,6 +48,7 @@ import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
 import { workAllocationApi } from './workallocation'
 import { workflowHandlerApi } from './workflow-handler'
+import {profileupdatev2} from './profileupdatev2'
 export const protectedApiV8 = express.Router()
 
 protectedApiV8.get('/', (_req, res) => {
@@ -106,3 +107,4 @@ protectedApiV8.use('/ratings', ratingServiceApi)
 protectedApiV8.use('/AI', aiServiceAPI)
 protectedApiV8.use('/rcCert', rcCert)
 protectedApiV8.use('/sunbirdrRcCertificate', sunbirdrRcCertificate)
+protectedApiV8.use('/profileupdatev2', profileupdatev2)
