@@ -10,7 +10,6 @@ import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import nodeHtmlToImage from 'node-html-to-image'
-import path from 'path'
 import request from 'request'
 import { axiosRequestConfig } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
@@ -1079,7 +1078,7 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Inside home config update', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1107,7 +1106,7 @@ mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
