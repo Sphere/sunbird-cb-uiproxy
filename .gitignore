@@ -33,3 +33,4 @@ coverage
 .DS_Store
 Thumbs.db
 /nodemon/nodemon-aastar-dev.json
+/src/keys
