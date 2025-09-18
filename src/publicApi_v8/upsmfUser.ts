@@ -886,8 +886,8 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         String(userDetailedStructure.courseSelection || ''),   // course_selection
         String(userDetailedStructure.createAccount || ''),     // create_account
         userDetailedStructure.createdOn,                       // created_on
-        String(userDetailedStructure.district || ''),          // district
         String(userDetailedStructure.designation || ''),       // designation
+        String(userDetailedStructure.district || ''),          // district
         String(userDetailedStructure.dob || ''),               // dob
         String(userDetailedStructure.email || ''),             // email
         String(userDetailedStructure.facilityName || ''),      // facility_name
