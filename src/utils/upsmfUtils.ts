@@ -4,6 +4,11 @@ interface UserDetails {
     serviceType?: string
 }
 
+/**
+ * This function takes a UserDetails object and returns an object containing the designation, orgId, and orgName based on the role and serviceType of the user.
+ * @param {UserDetails} userDetails - The UserDetails object containing the role and serviceType of the user.
+ * @returns {Object} - An object containing the designation, orgId, and orgName based on the role and serviceType of the user.
+ */
 export const getDetailsAsPerRole = (userDetails: UserDetails) => {
     const DOMEET = 'Department of Medical Education Education and Training'
     const DOMEET_ORG_ID = '0138708679576535041037'

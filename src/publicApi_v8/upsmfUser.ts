@@ -28,13 +28,14 @@ interface UserDetails {
         code?: string,
         name: string,
     }
-    privateFacilityType?: string
-    publicFacilityType?: string
-    nin?: string
     block?: string
     ehrmsNumber?: string
     // tslint:disable-next-line: all
     role: 'Student' | 'Faculty' | 'ANM-UP',
+    regNurseRegMidwifeNumber?: string
+    employmentType?: string
+    dob?: string
+    facilityType?: string
 
 }
 const client = new cassandra.Client({
@@ -80,7 +81,6 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'First name is required',
         }),
-    hrmsId: Joi.string().allow('', null).optional(),
 
     instituteName: Joi.string()
         .when('role', {
@@ -146,7 +146,7 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'Service type is required',
         }),
 
-    ehrmsNumber: Joi.string()
+    hrmsId: Joi.string()
         .pattern(/^\d{5,8}$/)
         .required()
         .messages({
@@ -164,6 +164,12 @@ const serviceSchemaJoi = Joi.object({
 
     facilityName: Joi.object().optional().messages({
         'any.required': 'Facility name is required',
+    }),
+    regNurseRegMidwifeNumber: Joi.string().optional().messages({
+        'any.required': 'RNRM Number is required',
+    }),
+    roleForInService: Joi.string().optional().messages({
+        'any.required': 'Role for In-Service is required',
     }),
 
 })
@@ -570,24 +576,21 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 completePostalAddress: '',
                                 designation: 'ANM-Student-UP',
                                 doj: '',
-                                ehrmsCode: user?.ehrmsNumber || '',
-                                facilityCode: user?.facilityName?.code || '',
-                                facilityName: user?.facilityName?.name || '',
+                                facilityCode:  '',
+                                facilityName: '',
+                                facilityType:  '',
                                 facultyType: '',
                                 hrmsId: '',
                                 instituteName: '',
                                 instituteType: '',
                                 name: getDetailsAsPerRole(user).orgName,
                                 nameOther: '',
-                                nin: user.nin || '',
                                 orgType: 'Government',
-                                privateFacilityType: user?.privateFacilityType || '',
                                 profession: 'Nurse',
                                 professionOtherSpecify: '',
-                                publicFacilityType: '',
                                 qualification: '',
                                 serviceType: user?.serviceType || '',
-                                upsmfRegistrationNumber: user?.upsmfRegistrationNumber,
+                                upsmfRegistrationNumber:  '',
                             },
                         ],
                         userId,
@@ -614,14 +617,14 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             id: userId,
                             personalDetails: {
-                                dob: standardDob,
+                                dob: user?.dob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
                                 postalAddress: `India, Uttar Pradesh, ${user.district}`,
-                                regNurseRegMidwifeNumber: 'NA',
+                                regNurseRegMidwifeNumber: user?.regNurseRegMidwifeNumber || 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
                             },
@@ -631,21 +634,18 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     completePostalAddress: '',
                                     designation: 'ANM-Student-UP',
                                     doj: '',
-                                    ehrmsCode: user?.ehrmsNumber || '',
                                     facilityCode: user?.facilityName?.code || '',
                                     facilityName: user?.facilityName?.name || '',
+                                    facilityType: user?.facilityType || '',
                                     facultyType: '',
-                                    hrmsId: user.hrmsId,
+                                    hrmsId: user?.hrmsId,
                                     instituteName: user?.instituteName || '',
                                     instituteType: user?.instituteType || '',
                                     name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
-                                    nin: user.nin || '',
                                     orgType: 'Government',
-                                    privateFacilityType: user?.privateFacilityType || '',
                                     profession: 'Student',
                                     professionOtherSpecify: '',
-                                    publicFacilityType: '',
                                     qualification: user?.courseSelection,
                                     serviceType: user?.serviceType || '',
                                     upsmfRegistrationNumber: user?.upsmfRegistrationNumber,
@@ -677,14 +677,14 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             id: `${userId}`,
                             personalDetails: {
-                                dob: standardDob,
+                                dob: user?.dob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
                                 postalAddress: `India, Uttar Pradesh, ${user.district}`,
-                                regNurseRegMidwifeNumber: 'NA',
+                                regNurseRegMidwifeNumber: user?.regNurseRegMidwifeNumber || 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
 
@@ -695,21 +695,18 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-UP',
                                     doj: '',
-                                    ehrmsCode: user?.ehrmsNumber || '',
                                     facilityCode: user?.facilityName?.code || '',
                                     facilityName: user?.facilityName?.name || '',
+                                    facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType,
-                                    hrmsId: user.hrmsId,
+                                    hrmsId: user?.hrmsId || '',
                                     instituteName: user?.instituteName || '',
                                     instituteType: user?.instituteType || '',
                                     name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
-                                    nin: user.nin || '',
                                     orgType: 'Government',
-                                    privateFacilityType: '',
                                     profession: 'Faculty',
                                     professionOtherSpecify: '',
-                                    publicFacilityType: '',
                                     qualification: user.courseSelection,
                                     serviceType: user?.serviceType || '',
                                     upsmfRegistrationNumber: user?.upsmfRegistrationNumber,
@@ -740,14 +737,14 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             id: userId,
                             personalDetails: {
-                                dob: standardDob,
+                                dob: user?.dob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
                                 postalAddress: `India, Uttar Pradesh, ${user.district}`,
-                                regNurseRegMidwifeNumber: 'NA',
+                                regNurseRegMidwifeNumber: user?.regNurseRegMidwifeNumber || 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
                             },
@@ -757,21 +754,18 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     completePostalAddress: '',
                                     designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
-                                    ehrmsCode: user?.ehrmsNumber || '',
                                     facilityCode: user?.facilityName?.code || '',
                                     facilityName: user?.facilityName?.name || '',
+                                    facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType || '',
-                                    hrmsId: user?.hrmsId,
+                                    hrmsId: user?.hrmsId || '',
                                     instituteName: '',
                                     instituteType: '',
                                     name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
-                                    nin: user?.nin || '',
                                     orgType: 'Government',
-                                    privateFacilityType: user?.privateFacilityType || '',
                                     profession: 'ANM-UP',
                                     professionOtherSpecify: '',
-                                    publicFacilityType: user?.publicFacilityType || '',
                                     qualification: '',
                                     serviceType: user?.serviceType || '',
                                     upsmfRegistrationNumber: user?.upsmfRegistrationNumber,
