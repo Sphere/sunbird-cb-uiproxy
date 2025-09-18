@@ -9,6 +9,7 @@ import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/upsmfUtils'
 export const upsmfUserCreation = express.Router()
+const dayjs = require('dayjs')
 const { types } = cassandra
 
 interface UserDetails {
@@ -23,11 +24,8 @@ interface UserDetails {
     lastName: string
     phone: number
     upsmfRegistrationNumber?: string
-    serviceType?: string
-    facilityName?: {
-        code?: string,
-        name: string,
-    }
+    facilityName?: string
+    facilityCode?: string
     block?: string
     ehrmsNumber?: string
     // tslint:disable-next-line: all
@@ -36,6 +34,8 @@ interface UserDetails {
     employmentType?: string
     dob?: string
     facilityType?: string
+    roleForInService?: 'Government' | 'Private'
+    serviceType?: 'Regular' | 'Contractual' | 'Private'
 
 }
 const client = new cassandra.Client({
@@ -43,6 +43,7 @@ const client = new cassandra.Client({
     keyspace: 'sunbird',
     localDataCenter: 'datacenter1',
 })
+const ERHMS_CODE_KEY = 'ERHMS-code'
 const serviceSchemaJoi = Joi.object({
     courseSelection: Joi.string()
         .when('role', {
@@ -60,10 +61,15 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'District is required',
         }),
-    dob: Joi.date().required().messages({
-        'any.required': 'Date of Birth is required',
-        'date.base': 'Date of Birth must be a valid date',
-    }),
+    dob: Joi.string()
+        .when('role', {
+            is: Joi.valid('ANM-UP'),
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required().messages({
+                'any.required': 'Date of Birth is required for ANM-UP role',
+                'string.base': 'Date of Birth must be a string',
+            }),
+        }),
     email: Joi.string().allow('', null).email().optional(),
     facultyType: Joi.string()
         .when('role', {
@@ -157,12 +163,15 @@ const serviceSchemaJoi = Joi.object({
     block: Joi.string().optional().messages({
         'any.required': 'Block is required',
     }),
+    facilityCode: Joi.string().optional().messages({
+        'any.required': 'Facility code is required',
+    }),
 
     facilityType: Joi.string().optional().messages({
         'any.required': 'Facility type is required',
     }),
 
-    facilityName: Joi.object().optional().messages({
+    facilityName: Joi.string().optional().messages({
         'any.required': 'Facility name is required',
     }),
     regNurseRegMidwifeNumber: Joi.string().optional().messages({
@@ -572,15 +581,15 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         },
                         professionalDetails: [
                             {
+                                [ERHMS_CODE_KEY]: '',
                                 block: user?.block || '',
                                 completePostalAddress: '',
                                 designation: 'ANM-Student-UP',
                                 doj: '',
-                                facilityCode:  '',
+                                facilityCode: '',
                                 facilityName: '',
-                                facilityType:  '',
+                                facilityType: '',
                                 facultyType: '',
-                                hrmsId: '',
                                 instituteName: '',
                                 instituteType: '',
                                 name: getDetailsAsPerRole(user).orgName,
@@ -589,9 +598,11 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 profession: 'Nurse',
                                 professionOtherSpecify: '',
                                 qualification: '',
+                                roleForInService: '',
                                 serviceType: user?.serviceType || '',
-                                upsmfRegistrationNumber:  '',
+                                upsmfRegistrationNumber: '',
                             },
+
                         ],
                         userId,
                     },
@@ -630,15 +641,15 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                             professionalDetails: [
                                 {
+                                    [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
                                     completePostalAddress: '',
                                     designation: 'ANM-Student-UP',
                                     doj: '',
-                                    facilityCode: user?.facilityName?.code || '',
-                                    facilityName: user?.facilityName?.name || '',
+                                    facilityCode: user?.facilityCode || '',
+                                    facilityName: user?.facilityName || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: '',
-                                    hrmsId: user?.hrmsId,
                                     instituteName: user?.instituteName || '',
                                     instituteType: user?.instituteType || '',
                                     name: getDetailsAsPerRole(user).orgName,
@@ -647,6 +658,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     profession: 'Student',
                                     professionOtherSpecify: '',
                                     qualification: user?.courseSelection,
+                                    roleForInService: user?.roleForInService || '',
                                     serviceType: user?.serviceType || '',
                                     upsmfRegistrationNumber: user?.upsmfRegistrationNumber,
                                 },
@@ -691,15 +703,15 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                             professionalDetails: [
                                 {
+                                    [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-UP',
                                     doj: '',
-                                    facilityCode: user?.facilityName?.code || '',
-                                    facilityName: user?.facilityName?.name || '',
+                                    facilityCode: user?.facilityCode || '',
+                                    facilityName: user?.facilityName || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType,
-                                    hrmsId: user?.hrmsId || '',
                                     instituteName: user?.instituteName || '',
                                     instituteType: user?.instituteType || '',
                                     name: getDetailsAsPerRole(user).orgName,
@@ -708,9 +720,11 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     profession: 'Faculty',
                                     professionOtherSpecify: '',
                                     qualification: user.courseSelection,
+                                    roleForInService: user?.roleForInService || '',
                                     serviceType: user?.serviceType || '',
                                     upsmfRegistrationNumber: user?.upsmfRegistrationNumber,
                                 },
+
                             ],
                             userId: `${userId}`,
                         },
@@ -750,15 +764,15 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             },
                             professionalDetails: [
                                 {
+                                    [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
                                     completePostalAddress: '',
                                     designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
-                                    facilityCode: user?.facilityName?.code || '',
-                                    facilityName: user?.facilityName?.name || '',
+                                    facilityCode: user?.facilityCode || '',
+                                    facilityName: user?.facilityName || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType || '',
-                                    hrmsId: user?.hrmsId || '',
                                     instituteName: '',
                                     instituteType: '',
                                     name: getDetailsAsPerRole(user).orgName,
@@ -767,6 +781,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     profession: 'ANM-UP',
                                     professionOtherSpecify: '',
                                     qualification: '',
+                                    roleForInService: user?.roleForInService || '',
                                     serviceType: user?.serviceType || '',
                                     upsmfRegistrationNumber: user?.upsmfRegistrationNumber,
                                 },
@@ -795,33 +810,45 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
 }
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
+        [ERHMS_CODE_KEY]: userDetails.hrmsId || '',
+        block: userDetails?.block || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
+        designation: getDetailsAsPerRole(userDetails).designation || '',
         district: userDetails.district || '',
+        dob: userDetails?.dob
+            ? types.LocalDate.fromString(dayjs(userDetails.dob).format('YYYY-MM-DD'))
+            : null,
         email: userDetails.email || '',
+        facilityCode: userDetails?.facilityCode || '',
+        facilityName: userDetails?.facilityName || '',
+        facilityType: userDetails.facilityType || '',
         facultyType: userDetails.facultyType || '',
         firstName: userDetails.firstName || '',
-        hrmsId: userDetails.hrmsId || '',
         instituteName: userDetails.instituteName || '',
         instituteType: userDetails.instituteType || '',
         lastName: userDetails.lastName || '',
         organisationId: getDetailsAsPerRole(userDetails).orgId,
         organisationName: getDetailsAsPerRole(userDetails).orgName,
         phone: String(userDetails.phone || ''),
+        regNurseRegMidwifeNumber: userDetails?.regNurseRegMidwifeNumber || 'NA',
         registrationSource: 'Self Registration',
+        role: userDetails.role || '',
+        roleForInService: userDetails?.roleForInService || '',
+        serviceType: userDetails?.serviceType || '',
         upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || '',
         ...userJourneyStatus,
     }
-
+    logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
     const query = `
         INSERT INTO sunbird.upsmf_registration_data (
-            unique_id, course_selection, create_account, created_on, district, email,
-            faculty_type, first_name, hrms_id, institute_name, institute_type, last_name,
-            organisation_id, organisation_name, phone, profile_update, registration_source,
+            unique_id, course_selection, create_account, created_on, designation, district, dob, email, facility_name, facility_code, facility_type,
+            faculty_type, first_name, erhms_code, institute_name, institute_type, last_name,
+            organisation_id, organisation_name, phone, regNurseRegMidwifeNumber, role, roleForInService, service_type, block, profile_update, registration_source,
             registration_success_message, role_assign, upsmf_registration_number,
             user_already_exists, user_existing_organisation, validation_status,
             validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
     const params = [
@@ -831,10 +858,15 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         String(userDetailedStructure.createAccount || ''),     // create_account
         userDetailedStructure.createdOn,                       // created_on
         String(userDetailedStructure.district || ''),          // district
+        String(userDetailedStructure.designation || ''),       // designation
+        String(userDetailedStructure.dob || ''),               // dob
         String(userDetailedStructure.email || ''),             // email
+        String(userDetailedStructure.facilityName || ''),      // facility_name
+        String(userDetailedStructure.facilityCode || ''),      // facility_code
+        String(userDetailedStructure.facilityType || ''),      // facility_type
         String(userDetailedStructure.facultyType || ''),       // faculty_type
         String(userDetailedStructure.firstName || ''),         // first_name
-        String(userDetailedStructure.hrmsId || ''),            // hrms_id
+        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),     // ERHMS-code
         String(userDetailedStructure.instituteName || ''),     // institute_name
         String(userDetailedStructure.instituteType || ''),     // institute_type
         String(userDetailedStructure.lastName || ''),          // last_name
@@ -842,6 +874,11 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         userDetailedStructure.organisationName,
 
         String(userDetailedStructure.phone || ''),             // phone
+        String(userDetailedStructure.regNurseRegMidwifeNumber || ''), // regNurseRegMidwifeNumber
+        String(userDetailedStructure.role || ''),              // role
+        String(userDetailedStructure.roleForInService || ''),  // roleForInService
+        String(userDetailedStructure.serviceType || ''),       // serviceType
+        String(userDetailedStructure.block || ''),             // block
         String(userDetailedStructure.profileUpdate || ''),     // profile_update
         String(userDetailedStructure.registrationSource || ''), // registration_source
         String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
