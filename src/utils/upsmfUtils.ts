@@ -43,8 +43,8 @@ export const getDetailsAsPerRole = (userDetails: UserDetails) => {
                 if (userDetails?.serviceType === 'Contractual') {
                     return {
                         designation,
-                        orgId: '0144024313254133763751',
-                        orgName: 'National Health Mission (Uttar Pradesh)',
+                        orgId: '014017257506177024441',
+                        orgName: 'National Health Mission (UP)',
                     }
                 }
             }
@@ -81,6 +81,5 @@ export const validRootOrgs = [
     'UP State Ministry of Health and Family Welfare',
     'State Institute of Health and Family Welfare, Department of Health & Family Welfare, UP',
     'Department of Medical Health & Family Welfare (Uttar Pradesh)',
-    'National Health Mission (Uttar Pradesh)',
     'Private (Uttar Pradesh)',
 ]

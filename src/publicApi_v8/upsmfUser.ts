@@ -44,6 +44,7 @@ const client = new cassandra.Client({
     localDataCenter: 'datacenter1',
 })
 const ERHMS_CODE_KEY = 'ERHMS-code'
+const GOV_KEY = 'Government'
 const serviceSchemaJoi = Joi.object({
     courseSelection: Joi.string()
         .when('role', {
@@ -153,6 +154,11 @@ const serviceSchemaJoi = Joi.object({
         }),
 
     hrmsId: Joi.string()
+        .when('roleForInService', {
+            is: GOV_KEY,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
         .pattern(/^\d{5,8}$/)
         .required()
         .messages({
@@ -160,20 +166,40 @@ const serviceSchemaJoi = Joi.object({
             'string.pattern.base': 'EHRMS Number must be 5–8 digits',
         }),
 
-    block: Joi.string().optional().messages({
-        'any.required': 'Block is required',
-    }),
-    facilityCode: Joi.string().optional().messages({
-        'any.required': 'Facility code is required',
-    }),
+    block: Joi.string()
+        .when('roleForInService', {
+            is: GOV_KEY,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'block is required',
+        }),
 
-    facilityType: Joi.string().optional().messages({
-        'any.required': 'Facility type is required',
-    }),
-
+    facilityCode: Joi.string()
+        .when('roleForInService', {
+            is: GOV_KEY,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Facility Code is required',
+        }),
     facilityName: Joi.string().optional().messages({
         'any.required': 'Facility name is required',
     }),
+    facilityType: Joi.string()
+        .when('roleForInService', {
+            is: GOV_KEY,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Facility Type is required',
+        }),
     regNurseRegMidwifeNumber: Joi.string().optional().messages({
         'any.required': 'RNRM Number is required',
     }),
@@ -274,6 +300,9 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
             } else if (isUserExists.userDetails.rootOrgName == 'aastrika' || isUserExists.userDetails.rootOrgName == 'SPhere Team 1') {
                 const userMigrationStatus = await migrateUserToUpsmf(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
+                const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
+                userJourneyStatus.profileUpdate = profileUpdateResponse ? 'success' : 'failed'
+                userJourneyStatus.isUserMigrated = true
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
                     userJourneyStatus.userExistingOrganisation = 'aastrika || SPhere Team 1'
                     await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
@@ -843,12 +872,12 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
     const query = `
         INSERT INTO sunbird.upsmf_registration_data (
             unique_id, course_selection, create_account, created_on, designation, district, dob, email, facility_name, facility_code, facility_type,
-            faculty_type, first_name, erhms_code, institute_name, institute_type, last_name,
+            faculty_type, first_name, erhms_code, institute_name, institute_type, is_user_migrated, last_name,
             organisation_id, organisation_name, phone, regNurseRegMidwifeNumber, role, roleForInService, service_type, block, profile_update, registration_source,
             registration_success_message, role_assign, upsmf_registration_number,
             user_already_exists, user_existing_organisation, validation_status,
             validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
     const params = [
@@ -869,6 +898,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         String(userDetailedStructure[ERHMS_CODE_KEY] || ''),     // ERHMS-code
         String(userDetailedStructure.instituteName || ''),     // institute_name
         String(userDetailedStructure.instituteType || ''),     // institute_type
+        Boolean(userDetailedStructure.isUserMigrated || false), // migrate_user
         String(userDetailedStructure.lastName || ''),          // last_name
         userDetailedStructure.organisationId,
         userDetailedStructure.organisationName,
