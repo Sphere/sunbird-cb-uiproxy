@@ -43,7 +43,7 @@ const shortHands = {
     privateHealthFacility: 'Private Health Facility',
     publicHealthFacility: 'Public Health Facility',
 }
-const healthBihar = 'Health (Bihar)'
+const healthBihar = 'State Health Society Bihar'
 const serviceSchemaJoi = Joi.object({
     block: Joi.string()
         .when('roleForInService', {
@@ -1011,7 +1011,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         return false
     }
 }
-
 
 const migrateUserToBnrc = async (userDetails, userFormDetails) => {
     try {
