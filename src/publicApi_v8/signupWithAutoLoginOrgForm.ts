@@ -129,9 +129,9 @@ const profileUpdate = async (profileData: any, userId: any) => {
                 firstname: profileData.firstName,
                 mobile: profileData.phone,
                 phone: profileData.phone,
+                postalAddress: `India, Bihar, ${profileData.district ?? ''}`,
                 primaryEmail: profileData.email,
                 surname: profileData.lastName,
-                postalAddress: `India, Bihar, ${profileData.district ?? ''}`,
               },
               professionalDetails: [
                 {
