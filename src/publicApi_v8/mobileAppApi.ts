@@ -16,6 +16,7 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
+import { extractUserToken } from '../utils/requestExtract'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
@@ -987,6 +988,12 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo("Inside CBP course recommendation route");
     const searchRequestBody = req.body
+    const rawToken =
+      (req.headers['x-authenticated-user-token'] as string)?.replace(/^Bearer\s+/i, '') ||
+      extractUserToken(req)
+
+    searchRequestBody.authToken = rawToken
+    logInfo('Inside CBP course recommendation route request body', JSON.stringify(searchRequestBody))
     const response = await axios({
       data: searchRequestBody,
       headers: contentTypeHeader,
