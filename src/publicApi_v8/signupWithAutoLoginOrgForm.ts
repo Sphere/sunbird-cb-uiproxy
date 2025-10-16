@@ -124,21 +124,21 @@ const profileUpdate = async (profileData: any, userId: any) => {
               ],
               id: userId,
               personalDetails: {
-                email: profileData.email,
-                primaryEmail: profileData.email,
-                phone: profileData.phone,
-                mobile: profileData.phone,
-                firstname: profileData.firstName,
-                surname: profileData.lastName,
-                postalAddress: 'India,Tamil Nadu,Chennai',
                 dob: profileData.dob || '01/01/2000',
+                email: profileData.email,
+                firstname: profileData.firstName,
+                mobile: profileData.phone,
+                phone: profileData.phone,
+                primaryEmail: profileData.email,
+                surname: profileData.lastName,
+                postalAddress: `India, Bihar, ${profileData.district ?? ''}`,
               },
               professionalDetails: [
                 {
-                  name: profileData.channelName || '',
-                  profession: 'Healthcare Worker',
                   designation: profileData.role || '',
+                  name: profileData.channelName || '',
                   orgType: 'Public/Government Sector',
+                  profession: 'Healthcare Worker',
                 },
               ],
               userId,
@@ -186,14 +186,14 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       })
     }
     const profileData = {
+      channelName,
       email: userEmail,
       firstName,
       lastName,
+      organisationId,
       password,
       phone: userPhone,
-      organisationId,
       role,
-      channelName,
     }
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail?.data.result.userId
