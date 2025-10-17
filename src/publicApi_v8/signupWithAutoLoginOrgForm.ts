@@ -64,11 +64,11 @@ const createAccount = async (profileData: any) => {
       ...axiosRequestConfig,
       data: {
         request: {
+          channel: profileData.channelName || 'aastrika',
           firstName: profileData.firstName,
           lastName: profileData.lastName,
           password: profileData.password,
           [typeOfAccount]: profileData[typeOfAccount],
-          channel: profileData.channelName || 'aastrika',
         },
       },
       headers: {
