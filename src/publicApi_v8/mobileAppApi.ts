@@ -990,16 +990,9 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     if (req.session?.grant) {
       logInfo('Entered into if statement to set kauth session ', JSON.stringify(req.session))
       logInfo('Entered into if statement to set kauth grant ', JSON.stringify(req.session?.grant))
-
     }
-    const webToken = req.session?.grant?.access_token.token || ''
-
-    if (req.session?.grant) {
-      logInfo('Entered into if statement to set kauth session ', JSON.stringify(req.session))
-      logInfo('Entered into if statement to set kauth grant ', JSON.stringify(req.session?.grant))
-    }
-
-    searchRequestBody.authToken = webToken
+    const token = req.session?.grant?.access_token?.token || ''
+    searchRequestBody.authToken = token
     logInfo('Inside CBP course recommendation route request body', JSON.stringify(searchRequestBody))
     const response = await axios({
       data: searchRequestBody,

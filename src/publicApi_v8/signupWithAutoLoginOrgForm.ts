@@ -68,6 +68,7 @@ const createAccount = async (profileData: any) => {
           lastName: profileData.lastName,
           password: profileData.password,
           [typeOfAccount]: profileData[typeOfAccount],
+          channel: profileData.channelName || 'aastrika',
         },
       },
       headers: {
