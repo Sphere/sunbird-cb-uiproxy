@@ -195,7 +195,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       password,
       phone: userPhone,
       role,
-      state
+      state,
     }
     logInfo('Profile Data before creation >>>>>' + profileData)
 
