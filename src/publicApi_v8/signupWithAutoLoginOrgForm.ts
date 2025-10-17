@@ -83,7 +83,7 @@ const createAccount = async (profileData: any) => {
 const updateRoles = async (userUUId: string, organisationId?: string) => {
   try {
     const orgId = organisationId || '0132317968766894088' // Default org ID
-
+    logInfo('Updating roles for user: ' + userUUId + ' in org: ' + orgId)
     return await axios({
       ...axiosRequestConfigLong,
       data: {
@@ -129,7 +129,7 @@ const profileUpdate = async (profileData: any, userId: any) => {
                 firstname: profileData.firstName,
                 mobile: profileData.phone,
                 phone: profileData.phone,
-                postalAddress: `India, Bihar, ${profileData.district ?? ''}`,
+                postalAddress: `India, ${profileData.state ?? ''}, ${profileData.district ?? ''}`,
                 primaryEmail: profileData.email,
                 surname: profileData.lastName,
               },
@@ -167,7 +167,8 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       })
     }
     const userData = req.body
-    const { organisationId, role, channelName } = userData
+    logInfo('User Data >>>>>' + userData)
+    const { organisationId, role, channelName, state } = userData
 
     const firstName = userData.firstName
     const lastName = userData.lastName
@@ -194,7 +195,10 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       password,
       phone: userPhone,
       role,
+      state
     }
+    logInfo('Profile Data before creation >>>>>' + profileData)
+
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail?.data.result.userId
     await updateRoles(userId, organisationId)
