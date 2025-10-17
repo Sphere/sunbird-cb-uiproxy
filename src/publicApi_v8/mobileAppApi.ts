@@ -989,7 +989,7 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     logInfo("Inside CBP course recommendation route");
     const searchRequestBody = req.body
     const rawToken =
-      (req.headers['x-authenticated-user-token'] as string)?.replace(/^Bearer\s+/i, '') ||
+      (req.headers[authenticatedToken] as string)?.replace(/^Bearer\s+/i, '') ||
       extractUserToken(req)
 
     searchRequestBody.authToken = rawToken
