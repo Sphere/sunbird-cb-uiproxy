@@ -16,7 +16,6 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
-import { extractUserToken } from '../utils/requestExtract'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
@@ -1093,7 +1092,7 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Inside home config update', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1121,7 +1120,7 @@ mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
