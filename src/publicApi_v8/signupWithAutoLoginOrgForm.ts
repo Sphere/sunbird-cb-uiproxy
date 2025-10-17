@@ -167,7 +167,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       })
     }
     const userData = req.body
-    logInfo('User Data >>>>>' + userData)
+    logInfo('User Data >>>>>' + JSON.stringify(userData))
     const { organisationId, role, channelName, state } = userData
 
     const firstName = userData.firstName
@@ -197,7 +197,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       role,
       state,
     }
-    logInfo('Profile Data before creation >>>>>' + profileData)
+    logInfo('Profile Data before creation >>>>>' + JSON.stringify(profileData))
 
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail?.data.result.userId
@@ -272,7 +272,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
         status: 'success',
       })
     }
-    logInfo('Entered into /validateOtp ', req.body)
+    logInfo('Entered into /validateOtp ', JSON.stringify(req.body))
     const mobileNumber = req.body.phone || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
