@@ -169,7 +169,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     }
     const userData = req.body
     logInfo('User Data >>>>>' + JSON.stringify(userData))
-    const { organisationId, role, channelName, state } = userData
+    const { organisationId, role, channelName, state, district } = userData
 
     const firstName = userData.firstName
     const lastName = userData.lastName
@@ -189,6 +189,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     }
     const profileData = {
       channelName,
+      district,
       email: userEmail,
       firstName,
       lastName,
