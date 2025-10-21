@@ -82,15 +82,16 @@ const createAccount = async (profileData: any) => {
   }
 }
 const updateRoles = async (userUUId: string, organisationId?: string) => {
+  const orgId = organisationId || '0132317968766894088' // Default org ID
   try {
-    const orgId = organisationId || '0132317968766894088' // Default org ID
-    logInfo('Updating roles for user: ' + userUUId + ' in org: ' + orgId)
-    return await axios({
+    logInfo(`Updating roles for user: ${userUUId} in org: ${orgId}`)
+
+    const response = await axios({
       ...axiosRequestConfigLong,
       data: {
         request: {
           organisationId: orgId,
-          roles: ['PUBLIC'],
+          roles: ['PUBLIC'], // Make sure this matches the exact role in Sunbird
           userId: userUUId,
         },
       },
@@ -98,11 +99,31 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       method: 'POST',
       url: API_END_POINTS.userRoles,
     })
+
+    logInfo('Role assignment response: ' + JSON.stringify(response.data))
+
+    // Check if role assignment succeeded
+    if (
+      response.data.responseCode !== 'OK' ||
+      !response.data.result ||
+      !response.data.result.rolesAssigned
+    ) {
+      logError(
+        `Role assignment failed for user: ${userUUId} in org: ${orgId}. Response: ${JSON.stringify(
+          response.data
+        )}`
+      )
+      return false
+    }
+
+    logInfo(`Role PUBLIC successfully assigned to user: ${userUUId}`)
+    return true
   } catch (err) {
-    logError('update roles failed ' + err)
-    return 'false'
+    logError(`Update roles failed for user: ${userUUId}. Error: ${err}`)
+    return false
   }
 }
+
 // tslint:disable-next-line: no-any
 const profileUpdate = async (profileData: any, userId: any) => {
   try {
