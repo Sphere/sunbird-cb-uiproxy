@@ -23,7 +23,6 @@ interface UserDetails {
     instituteType?: string
     lastName: string
     phone: number
-    mpRegistrationNumber?: string
     facilityName?: string
     facilityCode?: string
     block?: string
@@ -136,7 +135,6 @@ const serviceSchemaJoi = Joi.object({
             'any.only': 'Role must be either Student, Faculty, ANM-MP, or CHO-MP',
             'any.required': 'Role is required',
         }),
-    mpRegistrationNumber: Joi.string().allow('', null).optional(),
     // ✅ Newly Added Fields
 
     nursingRegistrationNumber: Joi.string().optional().messages({
@@ -629,7 +627,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 qualification: '',
                                 roleForInService: '',
                                 serviceType: user?.serviceType || '',
-                                mpRegistrationNumber: '',
                             },
 
                         ],
@@ -689,7 +686,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     qualification: user?.courseSelection,
                                     roleForInService: user?.roleForInService || '',
                                     serviceType: user?.serviceType || '',
-                                    mpRegistrationNumber: user?.mpRegistrationNumber,
                                 },
 
                             ],
@@ -751,7 +747,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     qualification: user.courseSelection,
                                     roleForInService: user?.roleForInService || '',
                                     serviceType: user?.serviceType || '',
-                                    mpRegistrationNumber: user?.mpRegistrationNumber,
                                 },
 
                             ],
@@ -812,7 +807,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     qualification: '',
                                     roleForInService: user?.roleForInService || '',
                                     serviceType: user?.serviceType || '',
-                                    mpRegistrationNumber: user?.mpRegistrationNumber,
                                 },
 
                             ],
@@ -865,7 +859,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         role: userDetails.role || '',
         roleForInService: userDetails?.roleForInService || '',
         serviceType: userDetails?.serviceType || '',
-        mpRegistrationNumber: userDetails.mpRegistrationNumber || '',
         ...userJourneyStatus,
     }
     logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
@@ -874,7 +867,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             unique_id, course_selection, create_account, created_on, designation, district, dob, email, facility_name, facility_code, facility_type,
             faculty_type, first_name, erhms_code, institute_name, institute_type, is_user_migrated, last_name,
             organisation_id, organisation_name, phone, regNurseRegMidwifeNumber, role, roleForInService, service_type, block, profile_update, registration_source,
-            registration_success_message, role_assign, mp_registration_number,
+            registration_success_message, role_assign,
             user_already_exists, user_existing_organisation, validation_status,
             validation_status_failed_reason
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -913,7 +906,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         String(userDetailedStructure.registrationSource || ''), // registration_source
         String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
         String(userDetailedStructure.roleAssign || ''),        // role_assign
-        String(userDetailedStructure.mpRegistrationNumber || ''), // mp_registration_number
         Boolean(userDetailedStructure.userAlreadyExists || false), // user_already_exists
         String(userDetailedStructure.userExistingOrganisation || ''), // user_existing_organisation
         String(userDetailedStructure.validationStatus || ''),  // validation_status
