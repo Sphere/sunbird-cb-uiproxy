@@ -62,14 +62,12 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'District is required',
         }),
     dob: Joi.string()
-        .when('role', {
-            is: Joi.valid('ANM-MP', 'CHO-MP'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required().messages({
-                'any.required': 'Date of Birth is required for ANM-MP and CHO-MP roles',
-                'string.base': 'Date of Birth must be a string',
-            }),
+        .allow('', null)
+        .optional()
+        .messages({
+            'string.base': 'Date of Birth must be a string',
         }),
+
     email: Joi.string().allow('', null).email().optional(),
     facultyType: Joi.string()
         .when('role', {
@@ -144,12 +142,12 @@ const serviceSchemaJoi = Joi.object({
     employmentType: Joi.string().allow('', null).optional(),
 
     serviceType: Joi.string()
-        .valid('Regular', 'Contractual', 'Private')
-        .required()
+        .allow('', null)
+        .optional()
         .messages({
-            'any.only': 'Service type must be Regular, Contractual, or Private',
-            'any.required': 'Service type is required',
+            'string.base': 'Service type must be a string',
         }),
+
 
     hrmsId: Joi.string()
         .when('roleForInService', {
