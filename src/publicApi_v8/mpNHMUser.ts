@@ -353,6 +353,11 @@ mpNHMUserCreation.post('/createUser', async (req: Request, res: Response) => {
         if (userProfileUpdateResponse) {
             userJourneyStatus.profileUpdate = 'success'
         }
+        // Step 4 Send Success Response Message
+        const sendMessageResponse = await sendRegistrationMessage(phone)
+        if (sendMessageResponse) {
+            userJourneyStatus.registrationSuccessMessage = 'success'
+        }
         // Step 4 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
         logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
@@ -482,6 +487,35 @@ mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
         })
     }
 })
+const sendRegistrationMessage = async (phone: number) => {
+    try {
+        const messageBody = {
+            recipients: [
+                {
+                    mobiles: `91${phone}`,
+                },
+            ],
+            template_id: CONSTANTS.BNRC_MSG91_TEMPLATE_ID,
+
+        }
+        const sendMessageResponse = await axios({
+            data: messageBody,
+            headers: {
+                authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+                'content-type': 'application/JSON',
+            },
+            method: 'post',
+            url: 'https://control.msg91.com/api/v5/flow/',
+        })
+        if (sendMessageResponse.data.type == 'success') {
+            return true
+        }
+        return false
+    } catch (error) {
+        logError('Error while sending message to user', JSON.stringify(error))
+        return false
+    }
+}
 const getUserDetails = async (phone: number) => {
     try {
         const userDetails = await axios({
