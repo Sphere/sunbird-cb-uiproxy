@@ -651,7 +651,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             id: userId,
                             personalDetails: {
-                                dob: user?.dob,
+                                dob: standardDob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
@@ -711,7 +711,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             id: `${userId}`,
                             personalDetails: {
-                                dob: user?.dob,
+                                dob: standardDob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
@@ -772,7 +772,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             ],
                             id: userId,
                             personalDetails: {
-                                dob: user?.dob,
+                                dob: standardDob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
@@ -925,7 +925,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         String(userDetailedStructure.phone || ''),                     // phone
         String(userDetailedStructure.profileUpdate || ''),             // profile_update
         String(userDetailedStructure.registrationSource || ''),        // registration_source
-        String(userDetailedStructure.registrationSuccessMessage || ''),// registration_success_message
+        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
         String(userDetailedStructure.regNurseRegMidwifeNumber || ''),  // regnurseregmidwifenumber
         String(userDetailedStructure.role || ''),                      // role
         String(userDetailedStructure.roleAssign || ''),                // role_assign
@@ -934,7 +934,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         Boolean(userDetailedStructure.userAlreadyExists || false),     // user_already_exists
         String(userDetailedStructure.userExistingOrganisation || ''),  // user_existing_organisation
         String(userDetailedStructure.validationStatus || ''),          // validation_status
-        String(userDetailedStructure.validationStatusFailedReason || '') // validation_status_failed_reason
+        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
     ]
 
     try {
@@ -945,7 +945,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         return false
     }
 }
-
 
 const migrateUserToMp = async (userDetails, userFormDetails) => {
     try {
