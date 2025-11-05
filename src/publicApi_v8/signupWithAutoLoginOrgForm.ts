@@ -213,7 +213,6 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
   }
 }
 
-
 // Migrate User
 const migrateUserToOrg = async (
   userDetails: UserDetails,
@@ -248,10 +247,9 @@ const migrateUserToOrg = async (
   }
 }
 
-
 // Audit Trail Logging
 const updateUserStatusInDatabase = async (
-  userDetails: UserDetails,
+  userDetails: ProfileData,
   userJourneyStatus: UserJourneyStatus
 ): Promise<void> => {
   try {
@@ -290,7 +288,6 @@ const updateUserStatusInDatabase = async (
     logError('Error inserting user journey status', JSON.stringify(error))
   }
 }
-
 
 // =======================================================
 // MAIN ROUTES
