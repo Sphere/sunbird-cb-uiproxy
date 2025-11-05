@@ -1,9 +1,9 @@
 import axios from 'axios'
+import cassandra from 'cassandra-driver'
 import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
-import cassandra from 'cassandra-driver'
 import { v4 as uuidv4 } from 'uuid'
 import {
   axiosRequestConfig,
@@ -14,6 +14,44 @@ import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
+// Type Interfaces for better safety
+interface ProfileData {
+  channelName?: string
+  district?: string
+  email?: string
+  firstName: string
+  lastName: string
+  organisationId?: string
+  password: string
+  phone?: string
+  role?: string
+  state?: string
+  dob?: string
+}
+
+interface UserDetails {
+  userId: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  phone?: string
+  organisationId?: string
+  channelName?: string
+  rootOrgName?: string
+  identifier?: string
+}
+
+interface UserJourneyStatus {
+  createAccount?: string
+  isUserMigrated?: boolean
+  profileUpdate?: string
+  registrationSuccessMessage?: string
+  roleAssign?: string
+  userAlreadyExists?: boolean
+  userExistingOrganisation?: string
+  validationStatus?: string
+  validationStatusFailedReason?: string
+}
 
 const API_END_POINTS = {
   createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
@@ -59,7 +97,7 @@ const client = new cassandra.Client({
 // =======================================================
 
 // Create Account
-const createAccount = async (profileData: any) => {
+const createAccount = async (profileData: ProfileData) => {
   try {
     const typeOfAccount = profileData.email ? 'email' : 'phone'
     return await axios({
@@ -124,7 +162,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
 }
 
 //  Update Profile
-const profileUpdate = async (profileData: any, userId: any) => {
+const profileUpdate = async (profileData: ProfileData, userId: any) => {
   try {
     return await axios({
       ...axiosRequestConfig,
@@ -177,7 +215,7 @@ const profileUpdate = async (profileData: any, userId: any) => {
 }
 
 // Migrate User
-const migrateUserToOrg = async (userDetails: any, profileData: any) => {
+const migrateUserToOrg = async (userDetails: UserDetails, profileData: ProfileData) => {
   try {
     const migrateData = {
       request: {
@@ -209,7 +247,7 @@ const migrateUserToOrg = async (userDetails: any, profileData: any) => {
 }
 
 // Audit Trail Logging
-const updateUserStatusInDatabase = async (userDetails: any, userJourneyStatus: any) => {
+const updateUserStatusInDatabase = async (userDetails: any, userJourneyStatus: UserJourneyStatus) => {
   try {
     const record = {
       unique_id: types.Uuid.fromString(uuidv4()),
