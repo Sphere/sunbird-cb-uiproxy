@@ -406,11 +406,11 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
         logInfo('Autologin send otp through phone', userPhone)
         await axios({
           headers: msg91Headers,
+          method: 'POST',
           params: {
             mobile: `${indianCountryCode}${userPhone}`,
             template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
           },
-          method: 'POST',
           url: API_END_POINTS.msg91SendOtp,
         })
         return res.status(200).json({
@@ -458,7 +458,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
 // =======================================================
 // VALIDATE OTP + AUTO LOGIN
 // =======================================================
-
+// tslint:disable-next-line: all
 signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) => {
   try {
     if (!req.body.otp) {
@@ -537,6 +537,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
             })
             if (authTokenResponse.data) {
               const accessToken = authTokenResponse.data.access_token
+              // tslint:disable-next-line: all
               const decodedToken: any = jwt_decode(accessToken)
               const decodedTokenArray = decodedToken.sub.split(':')
               const userId = decodedTokenArray[decodedTokenArray.length - 1]
