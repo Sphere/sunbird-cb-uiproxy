@@ -3,6 +3,8 @@ import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
+import cassandra from 'cassandra-driver'
+import { v4 as uuidv4 } from 'uuid'
 import {
   axiosRequestConfig,
   axiosRequestConfigLong,
@@ -44,19 +46,19 @@ const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
-// function decryptData(encryptedData) {
-//   const buff = Buffer.from(encryptedData, "base64");
-//   const decipher = crypto.createDecipheriv(
-//     aesData.ecnryption_method,
-//     key,
-//     encryptionIV
-//   );
-//   return (
-//     decipher.update(buff.toString("utf8"), "hex", "utf8") +
-//     decipher.final("utf8")
-//   ); // Decrypts data and converts to utf8
-// }
-// tslint:disable-next-line: no-any
+// Cassandra client setup
+const { types } = cassandra
+const client = new cassandra.Client({
+  contactPoints: [CONSTANTS.CASSANDRA_IP],
+  keyspace: 'sunbird',
+  localDataCenter: 'datacenter1',
+})
+
+// =======================================================
+// HELPER FUNCTIONS
+// =======================================================
+
+// Create Account
 const createAccount = async (profileData: any) => {
   try {
     const typeOfAccount = profileData.email ? 'email' : 'phone'
@@ -81,17 +83,18 @@ const createAccount = async (profileData: any) => {
     logInfo(JSON.stringify(error))
   }
 }
+
+// Assign Roles
 const updateRoles = async (userUUId: string, organisationId?: string) => {
-  const orgId = organisationId || '0132317968766894088' // Default org ID
+  const orgId = organisationId || '0132317968766894088'
   try {
     logInfo(`Updating roles for user: ${userUUId} in org: ${orgId}`)
-
     const response = await axios({
       ...axiosRequestConfigLong,
       data: {
         request: {
           organisationId: orgId,
-          roles: ['PUBLIC'], // Make sure this matches the exact role in Sunbird
+          roles: ['PUBLIC'],
           userId: userUUId,
         },
       },
@@ -99,10 +102,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       method: 'POST',
       url: API_END_POINTS.userRoles,
     })
-
     logInfo('Role assignment response: ' + JSON.stringify(response.data))
-
-    // Check if role assignment succeeded
     if (
       response.data.responseCode !== 'OK' ||
       !response.data.result ||
@@ -115,7 +115,6 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       )
       return false
     }
-
     logInfo(`Role PUBLIC successfully assigned to user: ${userUUId}`)
     return true
   } catch (err) {
@@ -124,7 +123,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
   }
 }
 
-// tslint:disable-next-line: no-any
+//  Update Profile
 const profileUpdate = async (profileData: any, userId: any) => {
   try {
     return await axios({
@@ -132,9 +131,7 @@ const profileUpdate = async (profileData: any, userId: any) => {
       data: {
         request: {
           profileDetails: {
-            preferences: {
-              language: 'en',
-            },
+            preferences: { language: 'en' },
             profileReq: {
               academics: [
                 {
@@ -151,7 +148,8 @@ const profileUpdate = async (profileData: any, userId: any) => {
                 firstname: profileData.firstName,
                 mobile: profileData.phone,
                 phone: profileData.phone,
-                postalAddress: `India, ${profileData.state ?? ''}, ${profileData.district ?? ''}`,
+                postalAddress: `India, ${profileData.state ?? ''}, ${profileData.district ?? ''
+                  }`,
                 primaryEmail: profileData.email,
                 surname: profileData.lastName,
               },
@@ -177,17 +175,96 @@ const profileUpdate = async (profileData: any, userId: any) => {
     logInfo(JSON.stringify(error))
   }
 }
+
+// Migrate User
+const migrateUserToOrg = async (userDetails: any, profileData: any) => {
+  try {
+    const migrateData = {
+      request: {
+        channel: profileData.channelName,
+        forceMigration: true,
+        notifyMigration: false,
+        softDeleteOldOrg: true,
+        userId: userDetails.userId,
+      },
+    }
+    logInfo(`Migrating user ${userDetails.userId} to ${profileData.channelName}`)
+    const migrateResponse = await axios({
+      data: migrateData,
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+      method: 'PATCH',
+      url: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
+    })
+    if (migrateResponse.data?.result?.response === 'SUCCESS') {
+      logInfo(`User ${userDetails.userId} migrated successfully`)
+      return true
+    } else {
+      logError(`Migration failed: ${JSON.stringify(migrateResponse.data)}`)
+      return false
+    }
+  } catch (error) {
+    logError(`Error migrating user ${userDetails.userId}: ${JSON.stringify(error)}`)
+    return false
+  }
+}
+
+// Audit Trail Logging
+const updateUserStatusInDatabase = async (userDetails: any, userJourneyStatus: any) => {
+  try {
+    const record = {
+      unique_id: types.Uuid.fromString(uuidv4()),
+      first_name: userDetails.firstName || '',
+      last_name: userDetails.lastName || '',
+      email: userDetails.email || '',
+      phone: String(userDetails.phone || ''),
+      organisation_id: userDetails.organisationId || '',
+      organisation_name: userDetails.channelName || '',
+      create_account: userJourneyStatus.createAccount || '',
+      is_user_migrated: Boolean(userJourneyStatus.isUserMigrated),
+      role_assign: userJourneyStatus.roleAssign || '',
+      profile_update: userJourneyStatus.profileUpdate || '',
+      registration_success_message: userJourneyStatus.registrationSuccessMessage || '',
+      user_already_exists: Boolean(userJourneyStatus.userAlreadyExists),
+      user_existing_organisation: userJourneyStatus.userExistingOrganisation || '',
+      validation_status: userJourneyStatus.validationStatus || 'success',
+      validation_status_failed_reason: userJourneyStatus.validationStatusFailedReason || '',
+      created_on: new Date(),
+    }
+
+    const query = `
+      INSERT INTO sunbird.user_registration_audit (
+        unique_id, first_name, last_name, email, phone, organisation_id, organisation_name,
+        create_account, is_user_migrated, role_assign, profile_update,
+        registration_success_message, user_already_exists, user_existing_organisation,
+        validation_status, validation_status_failed_reason, created_on
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
+    const params = Object.values(record)
+    await client.execute(query, params, { prepare: true })
+    logInfo('User journey status inserted successfully into audit log')
+  } catch (error) {
+    logError('Error inserting user journey status', JSON.stringify(error))
+  }
+}
+
+// =======================================================
+// MAIN ROUTES
+// =======================================================
+
 export const signupWithAutoLoginOrgForm = Router()
+
+// REGISTER
 signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
   try {
     logInfo('Entered into Register >>>>>', req.body.email)
     if (!req.body.email && !req.body.phone) {
-      res.status(400).json({
+      return res.status(400).json({
         msg: 'Email id or phone both can not be empty',
         status: 'error',
         status_code: 400,
       })
     }
+
     const userData = req.body
     logInfo('User Data >>>>>' + JSON.stringify(userData))
     const { organisationId, role, channelName, state, district } = userData
@@ -197,17 +274,60 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     const userEmail = userData.email || ''
     const userPhone = userData.phone || ''
     const password = userData.password || encryptData(userEmail || userPhone)
+
     const resultEmail = await fetchUserBymobileorEmail(userEmail, 'email')
-    logInfo(resultEmail, 'resultemail')
     const resultPhone = await fetchUserBymobileorEmail(userPhone, 'phone')
-    logInfo(resultPhone, 'resutPhone')
+
     if (resultEmail || resultPhone) {
+      // Migration Logic if user already exists in Aastrika/SPhere
+      const existingUserResponse = await axios({
+        ...axiosRequestConfig,
+        data: { request: { filters: { phone: userPhone } } },
+        headers: { Authorization: CONSTANTS.SB_API_KEY },
+        method: 'POST',
+        url: API_END_POINTS.searchSb,
+      })
+      const existingUser = existingUserResponse.data.result.response.content[0]
+      logInfo('Existing user found: ' + JSON.stringify(existingUser))
+
+      if (
+        existingUser &&
+        (existingUser.rootOrgName === 'aastrika' ||
+          existingUser.rootOrgName === 'SPhere Team 1')
+      ) {
+        logInfo(`Migrating user ${existingUser.identifier}`)
+        const migrated = await migrateUserToOrg(existingUser, userData)
+        const roleAssigned = await updateRoles(existingUser.identifier, organisationId)
+        const profileUpdated = await profileUpdate(userData, existingUser.identifier)
+
+        const userJourneyStatus = {
+          createAccount: 'skipped',
+          isUserMigrated: migrated,
+          profileUpdate: profileUpdated ? 'success' : 'failed',
+          registrationSuccessMessage: 'User migrated successfully',
+          roleAssign: roleAssigned ? 'success' : 'failed',
+          userAlreadyExists: true,
+          userExistingOrganisation: existingUser.rootOrgName,
+          validationStatus: 'success',
+          validationStatusFailedReason: '',
+        }
+
+        await updateUserStatusInDatabase(userData, userJourneyStatus)
+
+        return res.status(200).json({
+          message: 'User migrated successfully',
+          status: 'success',
+          userId: existingUser.identifier,
+        })
+      }
+
       return res.status(400).json({
         msg: 'User already exists',
         status: 'error',
         status_code: 400,
       })
     }
+
     const profileData = {
       channelName,
       district,
@@ -226,6 +346,19 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     const userId = newUserDetail?.data.result.userId
     await updateRoles(userId, organisationId)
     await profileUpdate(profileData, userId)
+
+    await updateUserStatusInDatabase(profileData, {
+      createAccount: 'success',
+      isUserMigrated: false,
+      profileUpdate: 'success',
+      registrationSuccessMessage: 'User created successfully',
+      roleAssign: 'success',
+      userAlreadyExists: false,
+      userExistingOrganisation: '',
+      validationStatus: 'success',
+      validationStatusFailedReason: '',
+    })
+
     if (userPhone) {
       try {
         logInfo('Autologin send otp through phone', userPhone)
@@ -235,12 +368,11 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
             mobile: `${indianCountryCode}${userPhone}`,
             template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
           },
-
           method: 'POST',
           url: API_END_POINTS.msg91SendOtp,
         })
         return res.status(200).json({
-          data: `OTP successfully sent on email ${userPhone}`,
+          data: `OTP successfully sent on phone ${userPhone}`,
           message: 'User successfully created',
           status: 200,
           userId,
@@ -252,16 +384,12 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
           status: 'failed',
         })
       }
-
     }
+
     if (userEmail) {
       try {
         logInfo('Autologin send otp through email', userEmail)
-        await getOTP(
-          userId,
-          userEmail,
-          'email'
-        )
+        await getOTP(userId, userEmail, 'email')
         res.status(200).json({
           data: `OTP successfully sent on email ${userEmail}`,
           message: 'User successfully created',
@@ -285,8 +413,10 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
   }
 })
 
-// validate  otp for  register's the user
-// tslint:disable-next-line: no-any
+// =======================================================
+// VALIDATE OTP + AUTO LOGIN
+// =======================================================
+
 signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) => {
   try {
     if (!req.body.otp) {
@@ -345,10 +475,8 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
       await updateRoles(userUUId, organisationId)
       res.clearCookie('connect.sid')
       req.session.user = null
-      // tslint:disable-next-line: no-any
       req.session.save(async () => {
         req.session.regenerate(async () => {
-          // A new session and cookie will be generated from here
           try {
             const transformedData = qs.stringify({
               client_id: 'aastrika-sso-login',
@@ -361,16 +489,12 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
             const authTokenResponse = await axios({
               ...axiosRequestConfig,
               data: transformedData,
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
               method: 'POST',
               url: API_END_POINTS.grantAccessToken,
             })
-            logInfo('Entered into authTokenResponsev2 :' + authTokenResponse)
             if (authTokenResponse.data) {
               const accessToken = authTokenResponse.data.access_token
-              // tslint:disable-next-line: no-any
               const decodedToken: any = jwt_decode(accessToken)
               const decodedTokenArray = decodedToken.sub.split(':')
               const userId = decodedTokenArray[decodedTokenArray.length - 1]
@@ -417,20 +541,15 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
   }
 })
 
-const fetchUserBymobileorEmail = async (
-  searchValue: string,
-  searchType: string
-) => {
-  logInfo(
-    'Checking Fetch Mobile no : ',
-    API_END_POINTS.fetchUserByMobileNo + searchValue
-  )
+// =======================================================
+// FETCH USER BY EMAIL / PHONE
+// =======================================================
+const fetchUserBymobileorEmail = async (searchValue: string, searchType: string) => {
+  logInfo('Checking Fetch Mobile no : ', API_END_POINTS.fetchUserByMobileNo + searchValue)
   try {
     const response = await axios({
       ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
       method: 'GET',
       url:
         searchType === 'email'
@@ -440,13 +559,9 @@ const fetchUserBymobileorEmail = async (
     logInfo('Response Data in JSON :', JSON.stringify(response.data))
     logInfo('Response Data in Success :', response.data.responseCode)
     if (response.data.responseCode === 'OK') {
-      logInfo(
-        'Response result.exists :',
-        _.get(response, 'data.result.exists')
-      )
       return _.get(response, 'data.result.exists')
     }
   } catch (err) {
-    logError('fetchUserByMobile  failed')
+    logError('fetchUserByMobile failed')
   }
 }
