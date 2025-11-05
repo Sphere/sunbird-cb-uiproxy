@@ -162,7 +162,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
 }
 
 //  Update Profile
-const profileUpdate = async (profileData: ProfileData, userId: any) => {
+const profileUpdate = async (profileData: ProfileData, userId: string): Promise<unknown> => {
   try {
     return await axios({
       ...axiosRequestConfig,
@@ -186,8 +186,7 @@ const profileUpdate = async (profileData: ProfileData, userId: any) => {
                 firstname: profileData.firstName,
                 mobile: profileData.phone,
                 phone: profileData.phone,
-                postalAddress: `India, ${profileData.state ?? ''}, ${profileData.district ?? ''
-                  }`,
+                postalAddress: `India, ${profileData.state ?? ''}, ${profileData.district ?? ''}`,
                 primaryEmail: profileData.email,
                 surname: profileData.lastName,
               },
@@ -214,8 +213,12 @@ const profileUpdate = async (profileData: ProfileData, userId: any) => {
   }
 }
 
+
 // Migrate User
-const migrateUserToOrg = async (userDetails: UserDetails, profileData: ProfileData) => {
+const migrateUserToOrg = async (
+  userDetails: UserDetails,
+  profileData: ProfileData
+): Promise<boolean> => {
   try {
     const migrateData = {
       request: {
@@ -236,45 +239,48 @@ const migrateUserToOrg = async (userDetails: UserDetails, profileData: ProfileDa
     if (migrateResponse.data?.result?.response === 'SUCCESS') {
       logInfo(`User ${userDetails.userId} migrated successfully`)
       return true
-    } else {
-      logError(`Migration failed: ${JSON.stringify(migrateResponse.data)}`)
-      return false
     }
+    logError(`Migration failed: ${JSON.stringify(migrateResponse.data)}`)
+    return false
   } catch (error) {
     logError(`Error migrating user ${userDetails.userId}: ${JSON.stringify(error)}`)
     return false
   }
 }
 
+
 // Audit Trail Logging
-const updateUserStatusInDatabase = async (userDetails: any, userJourneyStatus: UserJourneyStatus) => {
+const updateUserStatusInDatabase = async (
+  userDetails: UserDetails,
+  userJourneyStatus: UserJourneyStatus
+): Promise<void> => {
   try {
     const record = {
-      unique_id: types.Uuid.fromString(uuidv4()),
-      first_name: userDetails.firstName || '',
-      last_name: userDetails.lastName || '',
+      create_account: userJourneyStatus.createAccount || '',
+      created_on: new Date(),
       email: userDetails.email || '',
-      phone: String(userDetails.phone || ''),
+      first_name: userDetails.firstName || '',
+      is_user_migrated: Boolean(userJourneyStatus.isUserMigrated),
+      last_name: userDetails.lastName || '',
       organisation_id: userDetails.organisationId || '',
       organisation_name: userDetails.channelName || '',
-      create_account: userJourneyStatus.createAccount || '',
-      is_user_migrated: Boolean(userJourneyStatus.isUserMigrated),
-      role_assign: userJourneyStatus.roleAssign || '',
+      phone: String(userDetails.phone || ''),
       profile_update: userJourneyStatus.profileUpdate || '',
       registration_success_message: userJourneyStatus.registrationSuccessMessage || '',
+      role_assign: userJourneyStatus.roleAssign || '',
+      unique_id: types.Uuid.fromString(uuidv4()),
       user_already_exists: Boolean(userJourneyStatus.userAlreadyExists),
       user_existing_organisation: userJourneyStatus.userExistingOrganisation || '',
       validation_status: userJourneyStatus.validationStatus || 'success',
       validation_status_failed_reason: userJourneyStatus.validationStatusFailedReason || '',
-      created_on: new Date(),
     }
 
     const query = `
       INSERT INTO sunbird.user_registration_audit (
-        unique_id, first_name, last_name, email, phone, organisation_id, organisation_name,
-        create_account, is_user_migrated, role_assign, profile_update,
-        registration_success_message, user_already_exists, user_existing_organisation,
-        validation_status, validation_status_failed_reason, created_on
+        create_account, created_on, email, first_name, is_user_migrated,
+        last_name, organisation_id, organisation_name, phone, profile_update,
+        registration_success_message, role_assign, unique_id, user_already_exists,
+        user_existing_organisation, validation_status, validation_status_failed_reason
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     const params = Object.values(record)
@@ -284,6 +290,7 @@ const updateUserStatusInDatabase = async (userDetails: any, userJourneyStatus: U
     logError('Error inserting user journey status', JSON.stringify(error))
   }
 }
+
 
 // =======================================================
 // MAIN ROUTES
