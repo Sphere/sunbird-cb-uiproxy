@@ -167,7 +167,9 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       )}`
     )
     return false
-  } catch (err: any) {
+
+  } // tslint:disable-next-line: no-any
+  catch (err: any) {
     logError(
       `Update roles failed for user: ${userUUId}. Error: ${JSON.stringify(
         err?.response?.data || err.message || err
@@ -500,6 +502,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
 })
 
 // VALIDATE OTP + AUTO LOGIN
+// tslint:disable-next-line: no-any
 signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) => {
   try {
     if (!req.body.otp) {
@@ -599,6 +602,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
             })
             if (authTokenResponse.data?.access_token) {
               const accessToken = authTokenResponse.data.access_token
+              // tslint:disable-next-line: no-any
               const decodedToken: any = jwt_decode(accessToken)
               const decodedTokenArray = decodedToken.sub.split(':')
               const userId = decodedTokenArray[decodedTokenArray.length - 1]
