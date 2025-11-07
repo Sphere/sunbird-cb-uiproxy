@@ -14,7 +14,8 @@ import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
-// Type Interfaces for better safety
+
+// Type Interfaces
 interface ProfileData {
   channelName?: string
   district?: string
@@ -99,8 +100,9 @@ const client = new cassandra.Client({
 // Create Account
 const createAccount = async (profileData: ProfileData) => {
   try {
+    logInfo('Creating account with data:', JSON.stringify(profileData))
     const typeOfAccount = profileData.email ? 'email' : 'phone'
-    return await axios({
+    const response = await axios({
       ...axiosRequestConfig,
       data: {
         request: {
@@ -117,12 +119,15 @@ const createAccount = async (profileData: ProfileData) => {
       method: 'POST',
       url: API_END_POINTS.createUserWithMobileNo,
     })
+    logInfo('Account created successfully:', JSON.stringify(response.data))
+    return response
   } catch (error) {
-    logInfo(JSON.stringify(error))
+    logError('Error creating account:', JSON.stringify(error))
+    throw error
   }
 }
 
-// Assign Roles
+// ✅ FIXED: Assign Roles with proper response checking
 const updateRoles = async (userUUId: string, organisationId?: string) => {
   const orgId = organisationId || '0132317968766894088'
   try {
@@ -144,6 +149,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
 
     logInfo('Role assignment response: ' + JSON.stringify(response.data))
 
+    // FIXED: Check for both possible success responses
     const ok =
       response.data?.responseCode === 'OK' &&
       (response.data?.result?.rolesAssigned ||
@@ -170,8 +176,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
   }
 }
 
-
-//  Update Profile
+// Update Profile
 const profileUpdate = async (profileData: ProfileData, userId: string): Promise<unknown> => {
   try {
     return await axios({
@@ -219,7 +224,8 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
       url: API_END_POINTS.profileUpdate,
     })
   } catch (error) {
-    logInfo(JSON.stringify(error))
+    logError('Error updating profile:', JSON.stringify(error))
+    return false
   }
 }
 
@@ -257,7 +263,7 @@ const migrateUserToOrg = async (
   }
 }
 
-// Audit Trail Logging
+// ✅  Audit Trail Logging with better error handling
 const updateUserStatusInDatabase = async (
   userDetails: ProfileData,
   userJourneyStatus: UserJourneyStatus
@@ -296,6 +302,7 @@ const updateUserStatusInDatabase = async (
     logInfo('User journey status inserted successfully into audit log')
   } catch (error) {
     logError('Error inserting user journey status', JSON.stringify(error))
+    // Don't throw - logging failure shouldn't stop registration
   }
 }
 
@@ -331,46 +338,50 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     const resultPhone = await fetchUserBymobileorEmail(userPhone, 'phone')
 
     if (resultEmail || resultPhone) {
-      // Migration Logic if user already exists in Aastrika/SPhere
-      const existingUserResponse = await axios({
-        ...axiosRequestConfig,
-        data: { request: { filters: { phone: userPhone } } },
-        headers: { Authorization: CONSTANTS.SB_API_KEY },
-        method: 'POST',
-        url: API_END_POINTS.searchSb,
-      })
-      const existingUser = existingUserResponse.data.result.response.content[0]
-      logInfo('Existing user found: ' + JSON.stringify(existingUser))
-
-      if (
-        existingUser &&
-        (existingUser.rootOrgName === 'aastrika' ||
-          existingUser.rootOrgName === 'SPhere Team 1')
-      ) {
-        logInfo(`Migrating user ${existingUser.identifier}`)
-        const migrated = await migrateUserToOrg(existingUser, userData)
-        const roleAssigned = await updateRoles(existingUser.identifier, organisationId)
-        const profileUpdated = await profileUpdate(userData, existingUser.identifier)
-
-        const userJourneyStatus = {
-          createAccount: 'skipped',
-          isUserMigrated: migrated,
-          profileUpdate: profileUpdated ? 'success' : 'failed',
-          registrationSuccessMessage: 'User migrated successfully',
-          roleAssign: roleAssigned ? 'success' : 'failed',
-          userAlreadyExists: true,
-          userExistingOrganisation: existingUser.rootOrgName,
-          validationStatus: 'success',
-          validationStatusFailedReason: '',
-        }
-
-        await updateUserStatusInDatabase(userData, userJourneyStatus)
-
-        return res.status(200).json({
-          message: 'User migrated successfully',
-          status: 'success',
-          userId: existingUser.identifier,
+      // Migration Logic if user already exists
+      try {
+        const existingUserResponse = await axios({
+          ...axiosRequestConfig,
+          data: { request: { filters: { phone: userPhone || userEmail } } },
+          headers: { Authorization: CONSTANTS.SB_API_KEY },
+          method: 'POST',
+          url: API_END_POINTS.searchSb,
         })
+        const existingUser = existingUserResponse.data.result.response.content[0]
+        logInfo('Existing user found: ' + JSON.stringify(existingUser))
+
+        if (
+          existingUser &&
+          (existingUser.rootOrgName === 'aastrika' ||
+            existingUser.rootOrgName === 'SPhere Team 1')
+        ) {
+          logInfo(`Migrating user ${existingUser.identifier}`)
+          const migrated = await migrateUserToOrg(existingUser, userData)
+          const roleAssigned = await updateRoles(existingUser.identifier, organisationId)
+          const profileUpdated = await profileUpdate(userData, existingUser.identifier)
+
+          const userJourneyStatus = {
+            createAccount: 'skipped',
+            isUserMigrated: migrated,
+            profileUpdate: profileUpdated ? 'success' : 'failed',
+            registrationSuccessMessage: 'User migrated successfully',
+            roleAssign: roleAssigned ? 'success' : 'failed',
+            userAlreadyExists: true,
+            userExistingOrganisation: existingUser.rootOrgName,
+            validationStatus: 'success',
+            validationStatusFailedReason: '',
+          }
+
+          await updateUserStatusInDatabase(userData, userJourneyStatus)
+
+          return res.status(200).json({
+            message: 'User migrated successfully',
+            status: 'success',
+            userId: existingUser.identifier,
+          })
+        }
+      } catch (migrationError) {
+        logError('Error during migration:', JSON.stringify(migrationError))
       }
 
       return res.status(400).json({
@@ -394,17 +405,38 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     }
     logInfo('Profile Data before creation >>>>>' + JSON.stringify(profileData))
 
-    const newUserDetail = await createAccount(profileData)
-    const userId = newUserDetail?.data.result.userId
-    await updateRoles(userId, organisationId)
-    await profileUpdate(profileData, userId)
+    // FIXED: Better error handling
+    let newUserDetail
+    try {
+      newUserDetail = await createAccount(profileData)
+    } catch (error) {
+      logError('Account creation failed:', JSON.stringify(error))
+      return res.status(500).json({
+        message: CREATION_FAIL,
+        status: 'failed',
+      })
+    }
+
+    const userId = newUserDetail?.data?.result?.userId
+    if (!userId) {
+      logError('No userId returned from account creation')
+      return res.status(500).json({
+        message: CREATION_FAIL,
+        status: 'failed',
+      })
+    }
+
+    logInfo(`User created successfully with ID: ${userId}`)
+
+    const roleAssigned = await updateRoles(userId, organisationId)
+    const profileUpdated = await profileUpdate(profileData, userId)
 
     await updateUserStatusInDatabase(profileData, {
       createAccount: 'success',
       isUserMigrated: false,
-      profileUpdate: 'success',
+      profileUpdate: profileUpdated ? 'success' : 'failed',
       registrationSuccessMessage: 'User created successfully',
-      roleAssign: 'success',
+      roleAssign: roleAssigned ? 'success' : 'failed',
       userAlreadyExists: false,
       userExistingOrganisation: '',
       validationStatus: 'success',
@@ -442,7 +474,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       try {
         logInfo('Autologin send otp through email', userEmail)
         await getOTP(userId, userEmail, 'email')
-        res.status(200).json({
+        return res.status(200).json({
           data: `OTP successfully sent on email ${userEmail}`,
           message: 'User successfully created',
           status: 200,
@@ -450,14 +482,14 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
         })
       } catch (error) {
         logError('Error while sending email OTP', JSON.stringify(error))
-        res.status(500).send({
+        return res.status(500).send({
           message: `OTP generation fail for email ${userEmail}`,
           status: 'failed',
         })
       }
     }
   } catch (error) {
-    logInfo('Error in user creation >>>>>>' + error)
+    logError('Error in user creation >>>>>>' + JSON.stringify(error))
     res.status(500).send({
       message: CREATION_FAIL,
       status: 'failed',
@@ -465,63 +497,81 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
   }
 })
 
-// =======================================================
 // VALIDATE OTP + AUTO LOGIN
-// =======================================================
-// tslint:disable-next-line: all
 signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) => {
   try {
     if (!req.body.otp) {
-      res.status(400).json({
+      return res.status(400).json({
         msg: 'OTP is required',
-        status: 'success',
+        status: 'error',
       })
     }
+
     logInfo('Entered into /validateOtp ', JSON.stringify(req.body))
     const mobileNumber = req.body.phone || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
     const userUUId = req.body.userId
     const { organisationId } = req.body
+
     if (!validOtp) {
-      res.status(400).send({ message: OTP_MISSING, status: 'error' })
-      return
+      return res.status(400).send({ message: OTP_MISSING, status: 'error' })
     }
+
     let userOtpVerified = false
+
     if (mobileNumber) {
       logInfo('Validate otp for phone', mobileNumber, validOtp)
-      const verifyOtpResponse = await axios({
-        headers: msg91Headers,
-        method: 'GET',
-        params: {
-          mobile: `${indianCountryCode}${mobileNumber}`,
-          otp: validOtp,
-        },
-        url: API_END_POINTS.msg91VerifyOtp,
-      })
-      logInfo('validate OTP response phone', JSON.stringify(verifyOtpResponse.data))
-      if (verifyOtpResponse.data.type !== 'success') {
+      try {
+        const verifyOtpResponse = await axios({
+          headers: msg91Headers,
+          method: 'GET',
+          params: {
+            mobile: `${indianCountryCode}${mobileNumber}`,
+            otp: validOtp,
+          },
+          url: API_END_POINTS.msg91VerifyOtp,
+        })
+        logInfo('validate OTP response phone', JSON.stringify(verifyOtpResponse.data))
+        if (verifyOtpResponse.data.type === 'success') {
+          userOtpVerified = true
+        } else {
+          return res.status(400).json({
+            message: 'Phone OTP validation failed try again',
+          })
+        }
+      } catch (error) {
+        logError('Phone OTP error:', JSON.stringify(error))
         return res.status(400).json({
-          message: 'Phone OTP validation failed try again',
+          message: 'Phone OTP validation failed',
         })
       }
-      userOtpVerified = true
     }
-    if (email) {
+
+    if (email && !userOtpVerified) {
       logInfo('Validate otp for email')
-      const verifyOtpResponse = await validateOTP(
-        userUUId,
-        email,
-        'email',
-        validOtp
-      )
-      if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
+      try {
+        const verifyOtpResponse = await validateOTP(
+          userUUId,
+          email,
+          'email',
+          validOtp
+        )
+        if (verifyOtpResponse.data.result.response === 'SUCCESS') {
+          userOtpVerified = true
+        } else {
+          return res.status(400).json({
+            message: 'Email OTP validation failed try again',
+          })
+        }
+      } catch (error) {
+        logError('Email OTP error:', JSON.stringify(error))
         return res.status(400).json({
-          message: 'Email OTP validation failed try again',
+          message: 'Email OTP validation failed',
         })
       }
-      userOtpVerified = true
     }
+
     if (userOtpVerified) {
       logInfo('Otp is verified. Now autologin started.')
       await updateRoles(userUUId, organisationId)
@@ -545,9 +595,8 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
               method: 'POST',
               url: API_END_POINTS.grantAccessToken,
             })
-            if (authTokenResponse.data) {
+            if (authTokenResponse.data?.access_token) {
               const accessToken = authTokenResponse.data.access_token
-              // tslint:disable-next-line: all
               const decodedToken: any = jwt_decode(accessToken)
               const decodedTokenArray = decodedToken.sub.split(':')
               const userId = decodedTokenArray[decodedTokenArray.length - 1]
@@ -572,7 +621,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
               res.end()
             }
           } catch (e) {
-            logInfo('Error throwing Cookie inside auth route : ' + e)
+            logError('Error throwing Cookie inside auth route : ' + JSON.stringify(e))
             res.status(400).send({
               error: AUTH_FAIL,
               status: 'failed',
@@ -587,6 +636,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
       })
     }
   } catch (error) {
+    logError('Validation error:', JSON.stringify(error))
     res.status(500).send({
       message: VALIDATION_FAIL,
       status: 'failed',
@@ -594,11 +644,12 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
   }
 })
 
-// =======================================================
 // FETCH USER BY EMAIL / PHONE
-// =======================================================
 const fetchUserBymobileorEmail = async (searchValue: string, searchType: string) => {
-  logInfo('Checking Fetch Mobile no : ', API_END_POINTS.fetchUserByMobileNo + searchValue)
+  logInfo(
+    'Checking Fetch Mobile no : ',
+    API_END_POINTS.fetchUserByMobileNo + searchValue
+  )
   try {
     const response = await axios({
       ...axiosRequestConfig,
@@ -616,5 +667,6 @@ const fetchUserBymobileorEmail = async (searchValue: string, searchType: string)
     }
   } catch (err) {
     logError('fetchUserByMobile failed')
+    return false
   }
 }
