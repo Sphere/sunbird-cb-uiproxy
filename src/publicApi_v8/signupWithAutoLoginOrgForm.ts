@@ -128,6 +128,7 @@ const createAccount = async (profileData: ProfileData) => {
 }
 
 // ✅ FIXED: Assign Roles with proper response checking
+// tslint:disable-next-line: no-any
 const updateRoles = async (userUUId: string, organisationId?: string) => {
   const orgId = organisationId || '0132317968766894088'
   try {
@@ -356,6 +357,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
             existingUser.rootOrgName === 'SPhere Team 1')
         ) {
           logInfo(`Migrating user ${existingUser.identifier}`)
+          // tslint:disable-next-line: no-any
           const migrated = await migrateUserToOrg(existingUser, userData)
           const roleAssigned = await updateRoles(existingUser.identifier, organisationId)
           const profileUpdated = await profileUpdate(userData, existingUser.identifier)
