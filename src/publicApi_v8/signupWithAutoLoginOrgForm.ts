@@ -167,15 +167,23 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       )}`
     )
     return false
-  } // tslint:disable-next-line: no-any
-  catch (err: any) {
-    logError(
-      `Update roles failed for user: ${userUUId}. Error: ${JSON.stringify(
-        err?.response?.data || err.message || err
-      )}`
-    )
+  } catch (err: unknown) {
+    let errorMessage = ''
+
+    if (typeof err === 'object' && err !== null && 'response' in err) {
+      // Likely an AxiosError
+      const axiosErr = err as { response?: { data?: any }; message?: string }
+      errorMessage = JSON.stringify(axiosErr.response?.data || axiosErr.message || axiosErr)
+    } else if (err instanceof Error) {
+      errorMessage = err.message
+    } else {
+      errorMessage = JSON.stringify(err)
+    }
+
+    logError(`Update roles failed for user: ${userUUId}. Error: ${errorMessage}`)
     return false
   }
+
 }
 
 // Update Profile
