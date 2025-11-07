@@ -127,6 +127,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
   const orgId = organisationId || '0132317968766894088'
   try {
     logInfo(`Updating roles for user: ${userUUId} in org: ${orgId}`)
+
     const response = await axios({
       ...axiosRequestConfigLong,
       data: {
@@ -140,26 +141,35 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       method: 'POST',
       url: API_END_POINTS.userRoles,
     })
+
     logInfo('Role assignment response: ' + JSON.stringify(response.data))
-    if (
-      response.data.responseCode !== 'OK' ||
-      !response.data.result ||
-      !response.data.result.rolesAssigned
-    ) {
-      logError(
-        `Role assignment failed for user: ${userUUId} in org: ${orgId}. Response: ${JSON.stringify(
-          response.data
-        )}`
-      )
-      return false
+
+    const ok =
+      response.data?.responseCode === 'OK' &&
+      (response.data?.result?.rolesAssigned ||
+        response.data?.result?.response === 'SUCCESS')
+
+    if (ok) {
+      logInfo(`Role PUBLIC successfully assigned to user: ${userUUId}`)
+      return true
     }
-    logInfo(`Role PUBLIC successfully assigned to user: ${userUUId}`)
-    return true
-  } catch (err) {
-    logError(`Update roles failed for user: ${userUUId}. Error: ${err}`)
+
+    logError(
+      `Role assignment failed for user: ${userUUId} in org: ${orgId}. Response: ${JSON.stringify(
+        response.data
+      )}`
+    )
+    return false
+  } catch (err: any) {
+    logError(
+      `Update roles failed for user: ${userUUId}. Error: ${JSON.stringify(
+        err?.response?.data || err.message || err
+      )}`
+    )
     return false
   }
 }
+
 
 //  Update Profile
 const profileUpdate = async (profileData: ProfileData, userId: string): Promise<unknown> => {
