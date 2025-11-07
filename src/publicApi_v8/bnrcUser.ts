@@ -440,12 +440,13 @@ bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
             method: 'POST',
             url: API_END_POINTS.msg91SendOtp,
         })
+        logInfo('SEND_OTP: OTP sent successfully for BNRC', JSON.stringify(req.body))
         return res.status(200).json({
             message: `OTP successfully sent on phone ${phone}`,
             status: 'success',
         })
     } catch (error) {
-        logInfo('Error in sending user OTP' + error)
+        logError('SEND_OTP: Error while send OTP for BNRC', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP generation fail for phone ${phone}`,
             status: 'failed',
@@ -455,14 +456,14 @@ bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
 bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
     const phone = req.body.phone || ''
     try {
-        logInfo('Entered into Re-Send OTP for BNRC >>>>>', req.body)
+        logInfo('RESEND_OTP: Entered into Re-Send OTP for BNRC >>>>>', JSON.stringify(req.body))
         if (!phone) {
             return res.status(400).json({
                 message: 'Mandatory parameters phone missing',
                 status: 'error',
             })
         }
-        logInfo('SSO Resend OTP through phone', phone)
+        logInfo('RESEND_OTP: SSO Resend OTP through phone', phone)
         await axios({
             headers: msg91Headers,
             params: {
@@ -473,11 +474,13 @@ bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
             method: 'POST',
             url: API_END_POINTS.msg91ResendOtp,
         })
+
         return res.status(200).json({
             message: `OTP successfully re-sent on phone ${phone}`,
             status: 'success',
         })
     } catch (error) {
+        logError('RESEND_OTP: Error while resend OTP for BNRC', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP generation fail for phone ${phone}`,
             status: 'failed',
@@ -487,7 +490,7 @@ bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
 bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
     const { phone, otp } = req.body
     try {
-        logInfo('Entered into validate OTP for BNRC >>>>>', req.body)
+        logInfo('VALIDATE_OTP: Entered into validate OTP for BNRC >>>>>', JSON.stringify(req.body))
         if (!phone || !otp) {
             res.status(400).json({
                 message: 'Mandatory parameters phone or otp missing',
@@ -504,6 +507,7 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
 
             url: API_END_POINTS.msg91VerifyOtp,
         })
+        logInfo('VALIDATE_OTP: Verify OTP response BNRC', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
                 message: 'Phone OTP validation failed try again',
@@ -515,6 +519,7 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
             status: 'success',
         })
     } catch (error) {
+        logError('VALIDATE_OTP: Error while validate OTP for BNRC', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP validation failed for phone ${phone}`,
             status: 'failed',

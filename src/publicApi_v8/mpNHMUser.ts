@@ -388,7 +388,7 @@ mpNHMUserCreation.post('/createUser', async (req: Request, res: Response) => {
 mpNHMUserCreation.post('/otp/sendOtp', async (req, res) => {
     const phone = req.body.phone || ''
     try {
-        logInfo('Entered into Send OTP for BNRC >>>>>')
+        logInfo('Entered into Send OTP for MP-NHM >>>>>')
         logInfo('User request body send otp', JSON.stringify(req.body))
         if (!phone) {
             res.status(400).json({
@@ -421,7 +421,8 @@ mpNHMUserCreation.post('/otp/sendOtp', async (req, res) => {
 mpNHMUserCreation.post('/otp/resendOtp', async (req, res) => {
     const phone = req.body.phone || ''
     try {
-        logInfo('Entered into Re-Send OTP for BNRC >>>>>', req.body)
+        logInfo('User request body resend otp', JSON.stringify(req.body))
+
         if (!phone) {
             return res.status(400).json({
                 message: 'Mandatory parameters phone missing',
@@ -444,6 +445,7 @@ mpNHMUserCreation.post('/otp/resendOtp', async (req, res) => {
             status: 'success',
         })
     } catch (error) {
+        logInfo('Error in resending user OTP' + error)
         return res.status(500).send({
             message: `OTP generation fail for phone ${phone}`,
             status: 'failed',
@@ -453,7 +455,7 @@ mpNHMUserCreation.post('/otp/resendOtp', async (req, res) => {
 mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
     const { phone, otp } = req.body
     try {
-        logInfo('Entered into validate OTP for BNRC >>>>>', req.body)
+        logInfo('VERIFY_OTP: User request body validate otp', JSON.stringify(req.body))
         if (!phone || !otp) {
             res.status(400).json({
                 message: 'Mandatory parameters phone or otp missing',
@@ -470,6 +472,7 @@ mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
 
             url: API_END_POINTS.msg91VerifyOtp,
         })
+        logInfo('VERIFY_OTP: OTP verification response for MP-NHM', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
                 message: 'Phone OTP validation failed try again',
@@ -481,6 +484,7 @@ mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
             status: 'success',
         })
     } catch (error) {
+        logError('VERIFY_OTP: Error while validate OTP for MP-NHM', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP validation failed for phone ${phone}`,
             status: 'failed',
@@ -495,7 +499,7 @@ mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
 //                     mobiles: `91${phone}`,
 //                 },
 //             ],
-//             template_id: CONSTANTS.BNRC_MSG91_TEMPLATE_ID,
+//             template_id: CONSTANTS.MPNMH_MSG91_TEMPLATE_ID,
 
 //         }
 //         const sendMessageResponse = await axios({

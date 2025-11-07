@@ -411,12 +411,13 @@ upsmfUserCreation.post('/otp/sendOtp', async (req, res) => {
             method: 'POST',
             url: API_END_POINTS.msg91SendOtp,
         })
+        logInfo('SEND_OTP: OTP sent successfully for UPSMF', JSON.stringify(req.body))
         return res.status(200).json({
             message: `OTP successfully sent on phone ${phone}`,
             status: 'success',
         })
     } catch (error) {
-        logInfo('Error in sending user OTP' + error)
+        logError('SEND_OTP: Error while send OTP for UPSMF', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP generation fail for phone ${phone}`,
             status: 'failed',
@@ -426,7 +427,7 @@ upsmfUserCreation.post('/otp/sendOtp', async (req, res) => {
 upsmfUserCreation.post('/otp/resendOtp', async (req, res) => {
     const phone = req.body.phone || ''
     try {
-        logInfo('Entered into Re-Send OTP for BNRC >>>>>', req.body)
+        logInfo('Entered into Re-Send OTP for UPSMF >>>>>', req.body)
         if (!phone) {
             return res.status(400).json({
                 message: 'Mandatory parameters phone missing',
@@ -458,7 +459,7 @@ upsmfUserCreation.post('/otp/resendOtp', async (req, res) => {
 upsmfUserCreation.post('/otp/validateOtp', async (req, res) => {
     const { phone, otp } = req.body
     try {
-        logInfo('Entered into validate OTP for BNRC >>>>>', req.body)
+        logInfo('VALIDATE_OTP: User request body validate otp', JSON.stringify(req.body))
         if (!phone || !otp) {
             res.status(400).json({
                 message: 'Mandatory parameters phone or otp missing',
@@ -475,17 +476,20 @@ upsmfUserCreation.post('/otp/validateOtp', async (req, res) => {
 
             url: API_END_POINTS.msg91VerifyOtp,
         })
+
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
                 message: 'Phone OTP validation failed try again',
                 status: 'failed',
             })
         }
+        logInfo('VALIDATE_OTP: OTP validated successfully for UPSMF', JSON.stringify(req.body))
         return res.status(200).json({
             message: verifyOtpResponse.data,
             status: 'success',
         })
     } catch (error) {
+        logError('VALIDATE_OTP: Error while validate OTP for UPSMF', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP validation failed for phone ${phone}`,
             status: 'failed',
