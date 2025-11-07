@@ -172,7 +172,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
 
     if (typeof err === 'object' && err !== null && 'response' in err) {
       // Likely an AxiosError
-      const axiosErr = err as { response?: { data?: any }; message?: string }
+      const axiosErr = err as { response?: { data?: unknown }; message?: string }
       errorMessage = JSON.stringify(axiosErr.response?.data || axiosErr.message || axiosErr)
     } else if (err instanceof Error) {
       errorMessage = err.message
