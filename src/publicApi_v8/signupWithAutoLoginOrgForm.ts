@@ -167,8 +167,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       )}`
     )
     return false
-
-  } // tslint:disable-next-line: no-any
+  }// tslint:disable-next-line: no-any
   catch (err: any) {
     logError(
       `Update roles failed for user: ${userUUId}. Error: ${JSON.stringify(
