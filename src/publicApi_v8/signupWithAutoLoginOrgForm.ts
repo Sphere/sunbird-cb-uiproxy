@@ -167,7 +167,7 @@ const updateRoles = async (userUUId: string, organisationId?: string) => {
       )}`
     )
     return false
-  }// tslint:disable-next-line: no-any
+  } // tslint:disable-next-line: no-any
   catch (err: any) {
     logError(
       `Update roles failed for user: ${userUUId}. Error: ${JSON.stringify(
@@ -360,15 +360,15 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
           logInfo(`Migrating user ${existingUser.identifier}`)
           // tslint:disable-next-line: no-any
           const migrated = await migrateUserToOrg(existingUser, userData)
-          const roleAssigned = await updateRoles(existingUser.identifier, organisationId)
-          const profileUpdated = await profileUpdate(userData, existingUser.identifier)
+          const roleAssign = await updateRoles(existingUser.identifier, organisationId)
+          const profileUpdatedData = await profileUpdate(userData, existingUser.identifier)
 
           const userJourneyStatus = {
             createAccount: 'skipped',
             isUserMigrated: migrated,
-            profileUpdate: profileUpdated ? 'success' : 'failed',
+            profileUpdate: profileUpdatedData ? 'success' : 'failed',
             registrationSuccessMessage: 'User migrated successfully',
-            roleAssign: roleAssigned ? 'success' : 'failed',
+            roleAssign: roleAssign ? 'success' : 'failed',
             userAlreadyExists: true,
             userExistingOrganisation: existingUser.rootOrgName,
             validationStatus: 'success',
