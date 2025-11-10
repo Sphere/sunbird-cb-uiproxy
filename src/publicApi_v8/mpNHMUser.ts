@@ -356,7 +356,7 @@ mpNHMUserCreation.post('/createUser', async (req: Request, res: Response) => {
         // Step 4 Send Success Response Message
         // const sendMessageResponse = await sendRegistrationMessage(phone)
         // if (sendMessageResponse) {
-        //     userJourneyStatus.registrationSuccessMessage = 'success'
+        userJourneyStatus.registrationSuccessMessage = 'success'
         // }
         // Step 4 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
@@ -455,7 +455,7 @@ mpNHMUserCreation.post('/otp/resendOtp', async (req, res) => {
 mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
     const { phone, otp } = req.body
     try {
-        logInfo('VERIFY_OTP: User request body validate otp', JSON.stringify(req.body))
+        logInfo('VALIDATE_OTP: Entered into validate OTP for BNRC >>>>>', JSON.stringify(req.body))
         if (!phone || !otp) {
             res.status(400).json({
                 message: 'Mandatory parameters phone or otp missing',
@@ -472,7 +472,7 @@ mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
 
             url: API_END_POINTS.msg91VerifyOtp,
         })
-        logInfo('VERIFY_OTP: OTP verification response for MP-NHM', JSON.stringify(verifyOtpResponse.data))
+        logInfo('VALIDATE_OTP: Verify OTP response BNRC', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
                 message: 'Phone OTP validation failed try again',
@@ -484,7 +484,7 @@ mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
             status: 'success',
         })
     } catch (error) {
-        logError('VERIFY_OTP: Error while validate OTP for MP-NHM', JSON.stringify(error))
+        logError('VALIDATE_OTP: Error while validate OTP for BNRC', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP validation failed for phone ${phone}`,
             status: 'failed',
