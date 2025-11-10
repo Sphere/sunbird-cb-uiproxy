@@ -206,7 +206,7 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
               ],
               id: userId,
               personalDetails: {
-                dob: profileData.dob || '01/01/2000',
+                // dob: profileData.dob || '01/01/2000',
                 email: profileData.email,
                 firstname: profileData.firstName,
                 mobile: profileData.phone,
