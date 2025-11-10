@@ -361,7 +361,7 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
         // Step 4 Send Success Response Message
         // const sendMessageResponse = await sendRegistrationMessage(phone)
         // if (sendMessageResponse) {
-        userJourneyStatus.registrationSuccessMessage = 'success'
+        //     userJourneyStatus.registrationSuccessMessage = 'success'
         // }
         // Step 4 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
