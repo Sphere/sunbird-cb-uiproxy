@@ -21,6 +21,7 @@ interface ProfileData {
   district?: string
   email?: string
   firstName: string
+  instituteName?: string
   lastName: string
   organisationId?: string
   password: string
@@ -198,7 +199,7 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
             profileReq: {
               academics: [
                 {
-                  nameOfInstitute: '',
+                  nameOfInstitute: profileData.instituteName || '',
                   nameOfQualification: '',
                   type: 'GRADUATE',
                   yearOfPassing: '',
@@ -386,7 +387,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
           await updateUserStatusInDatabase(userData, userJourneyStatus)
 
           return res.status(200).json({
-            message: 'User migrated successfully',
+            message: 'User successfully created',
             status: 'success',
             userId: existingUser.identifier,
           })
@@ -519,7 +520,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
       })
     }
 
-    logInfo('Entered into /validateOtp ', JSON.stringify(req.body))
+    logInfo('VALIDATE_OTP:Entered into /validateOtp ', JSON.stringify(req.body))
     const mobileNumber = req.body.phone || ''
     const email = req.body.email || ''
     const validOtp = req.body.otp
@@ -533,7 +534,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
     let userOtpVerified = false
 
     if (mobileNumber) {
-      logInfo('Validate otp for phone', mobileNumber, validOtp)
+      logInfo('VALIDATE_OTP: for phone', mobileNumber, validOtp)
       try {
         const verifyOtpResponse = await axios({
           headers: msg91Headers,
@@ -544,7 +545,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
           },
           url: API_END_POINTS.msg91VerifyOtp,
         })
-        logInfo('validate OTP response phone', JSON.stringify(verifyOtpResponse.data))
+        logInfo('VALIDATE_OTP: response phone', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.type === 'success') {
           userOtpVerified = true
         } else {
@@ -561,7 +562,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
     }
 
     if (email && !userOtpVerified) {
-      logInfo('Validate otp for email')
+      logInfo('VALIDATE_OTP: for email')
       try {
         const verifyOtpResponse = await validateOTP(
           userUUId,
