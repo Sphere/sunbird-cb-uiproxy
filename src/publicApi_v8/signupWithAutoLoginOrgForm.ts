@@ -78,7 +78,7 @@ const msg91Headers = {
   authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
   'content-type': 'application/json',
 }
-
+const SUCCESS_MESSAGE = 'User successfully created'
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
 const OTP_MISSING = 'Otp cannnot be blank'
@@ -387,7 +387,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
           await updateUserStatusInDatabase(userData, userJourneyStatus)
 
           return res.status(200).json({
-            message: 'User successfully created',
+            message: SUCCESS_MESSAGE,
             status: 'success',
             userId: existingUser.identifier,
           })
@@ -469,7 +469,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
         })
         return res.status(200).json({
           data: `OTP successfully sent on phone ${userPhone}`,
-          message: 'User successfully created',
+          message: SUCCESS_MESSAGE,
           status: 200,
           userId,
         })
@@ -488,7 +488,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
         await getOTP(userId, userEmail, 'email')
         return res.status(200).json({
           data: `OTP successfully sent on email ${userEmail}`,
-          message: 'User successfully created',
+          message: SUCCESS_MESSAGE,
           status: 200,
           userId,
         })
