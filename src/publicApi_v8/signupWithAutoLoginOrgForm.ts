@@ -376,7 +376,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
             createAccount: 'skipped',
             isUserMigrated: migrated,
             profileUpdate: profileUpdatedData ? 'success' : 'failed',
-            registrationSuccessMessage: 'User migrated successfully',
+            registrationSuccessMessage: 'User created successfully',
             roleAssign: roleAssign ? 'success' : 'failed',
             userAlreadyExists: true,
             userExistingOrganisation: existingUser.rootOrgName,
