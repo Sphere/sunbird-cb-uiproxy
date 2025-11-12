@@ -12,15 +12,15 @@ import _ from "lodash";
 import nodeHtmlToImage from "node-html-to-image";
 import request from "request";
 import { axiosRequestConfig } from "../configs/request.config";
+import { axiosRequestConfigLong } from "../configs/request.config";
 import { assessmentCreator } from "../utils/assessmentSubmitHelper";
 import { CONSTANTS } from "../utils/env";
 import { jumbler } from "../utils/jumbler";
 import { logError, logInfo } from "../utils/logger";
 import { requestValidator } from "../utils/requestValidator";
 import { fetchnodebbUserDetails } from "./nodebbUser";
-import { getCurrentUserRoles } from "./rolePermission";
-import { axiosRequestConfigLong } from "../configs/request.config";
 import { getRatingSummaries } from "./ratingSummary";
+import { getCurrentUserRoles } from "./rolePermission";
 
 // ... other imports ...
 const cassandra = require("cassandra-driver");
@@ -40,6 +40,7 @@ const API_END_POINTS = {
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
+  searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
   UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
@@ -55,7 +56,6 @@ const API_END_POINTS = {
   telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
   userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
 };
 const PROXY_SLUG_FORMS = "/public/v8/mobileApp/ext-forms";
 const GET_ENTITY_BY_ID_FAIL =
@@ -1537,6 +1537,7 @@ mobileAppApi.post("/contentSearch", async (req, res) => {
 
     // If rating=true, fetch ratings and merge with results
     if (rating === "true") {
+      // tslint:disable-next-line: no-any
       const activityIds = searchResults.map((item: any) => item.identifier);
 
       // Call the function directly
