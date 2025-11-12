@@ -40,7 +40,7 @@ const API_END_POINTS = {
   READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
   RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
   SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
-  searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
+  CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
   UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
   UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
@@ -1525,7 +1525,7 @@ mobileAppApi.post("/contentSearch", async (req, res) => {
       data: requestBodyForSearch,
       headers,
       method: "post",
-      url: API_END_POINTS.searchv1,
+      url: API_END_POINTS.CONTENT_SEARCH_PROXY,
     });
 
     const searchResult = searchResponseES.data.result;
@@ -1547,6 +1547,7 @@ mobileAppApi.post("/contentSearch", async (req, res) => {
       // Merge logic
       // tslint:disable-next-line: no-any
       const enrichedResults = searchResults.map((course: any) => {
+        // tslint:disable-next-line: no-any
         const matchingRating: any = ratingMap.get(course.identifier);
         return {
           ...course,
