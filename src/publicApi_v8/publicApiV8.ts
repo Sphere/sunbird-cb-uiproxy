@@ -3,7 +3,9 @@ import { CONSTANTS } from '../utils/env'
 import { proxyCreatorRoute } from '../utils/proxyCreator'
 import { appCertificateDownload } from './appCertificateDownload'
 import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
+import { bnrcUserCreation } from './bnrcUser'
 import { validateCertificate } from './certificateValidate'
+import { competencyAssets } from './competencyAssets'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
 import { courseRecommendation } from './courseRecommendation'
@@ -12,21 +14,19 @@ import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
 import { googleAuth } from './googleSignInRoutes'
 import { homePage } from './home'
+import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { mobileAppApi } from './mobileAppApi'
 import { publicCertificateFlinkv2 } from './publicCertifcateFlinkv2'
 import { publicContentApi } from './publicContent'
+import { publicReadForm } from './publicReadForm'
 import { publicSearch } from './publicSearch'
 import { publicTelemetry } from './publicTelemetry'
 import { ratingsSearch } from './ratingsSearch'
 import { sashakt } from './sashaktAuth'
 import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
+import { signupWithAutoLoginOrgForm } from './signupWithAutoLoginOrgForm'
 import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
-
-import { bnrcUserCreation } from './bnrcUser'
-import { competencyAssets } from './competencyAssets'
-import { maternityFoundationAuth } from './maternityFoundationAuth'
-import { publicReadForm } from './publicReadForm'
 import { ssoLogin } from './ssoLogin'
 import { tnaiAuth } from './tnaiAuth'
 import { publicTnc } from './tnc'
@@ -35,6 +35,7 @@ import { upsmfUserCreation } from './upsmfUser'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
+import { mpNHMUserCreation } from './mpNHMUser'
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
@@ -55,7 +56,7 @@ publicApiV8.use('/tnc', publicTnc)
 publicApiV8.use('/signup', signup)
 publicApiV8.use('/signupWithAutoLogin', signupWithAutoLogin)
 publicApiV8.use('/signupWithAutoLoginV2', signupWithAutoLoginV2)
-
+publicApiV8.use('/signupWithAutoLoginOrgForm', signupWithAutoLoginOrgForm)
 publicApiV8.use('/homePage', homePage)
 publicApiV8.use('/register/', customSignUp)
 publicApiV8.use('/emailMobile/', emailOrMobileLogin)
@@ -84,4 +85,5 @@ publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
 publicApiV8.use('/ratingsSearch', ratingsSearch)
 publicApiV8.use('/upsmfUserCreation', upsmfUserCreation)
+publicApiV8.use('/mpNHMUserCreation', mpNHMUserCreation)
 publicApiV8.use('/publicReadForm', publicReadForm)

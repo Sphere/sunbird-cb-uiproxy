@@ -358,6 +358,11 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
         if (userProfileUpdateResponse) {
             userJourneyStatus.profileUpdate = 'success'
         }
+        // Step 4 Send Success Response Message
+        // const sendMessageResponse = await sendRegistrationMessage(phone)
+        // if (sendMessageResponse) {
+        //     userJourneyStatus.registrationSuccessMessage = 'success'
+        // }
         // Step 4 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
         logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
@@ -406,12 +411,13 @@ upsmfUserCreation.post('/otp/sendOtp', async (req, res) => {
             method: 'POST',
             url: API_END_POINTS.msg91SendOtp,
         })
+        logInfo('SEND_OTP: OTP sent successfully for UPSMF', JSON.stringify(req.body))
         return res.status(200).json({
             message: `OTP successfully sent on phone ${phone}`,
             status: 'success',
         })
     } catch (error) {
-        logInfo('Error in sending user OTP' + error)
+        logError('SEND_OTP: Error while send OTP for UPSMF', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP generation fail for phone ${phone}`,
             status: 'failed',
@@ -421,7 +427,7 @@ upsmfUserCreation.post('/otp/sendOtp', async (req, res) => {
 upsmfUserCreation.post('/otp/resendOtp', async (req, res) => {
     const phone = req.body.phone || ''
     try {
-        logInfo('Entered into Re-Send OTP for BNRC >>>>>', req.body)
+        logInfo('Entered into Re-Send OTP for UPSMF >>>>>', req.body)
         if (!phone) {
             return res.status(400).json({
                 message: 'Mandatory parameters phone missing',
@@ -453,7 +459,7 @@ upsmfUserCreation.post('/otp/resendOtp', async (req, res) => {
 upsmfUserCreation.post('/otp/validateOtp', async (req, res) => {
     const { phone, otp } = req.body
     try {
-        logInfo('Entered into validate OTP for BNRC >>>>>', req.body)
+        logInfo('VALIDATE_OTP: User request body validate otp', JSON.stringify(req.body))
         if (!phone || !otp) {
             res.status(400).json({
                 message: 'Mandatory parameters phone or otp missing',
@@ -470,23 +476,55 @@ upsmfUserCreation.post('/otp/validateOtp', async (req, res) => {
 
             url: API_END_POINTS.msg91VerifyOtp,
         })
+
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
                 message: 'Phone OTP validation failed try again',
                 status: 'failed',
             })
         }
+        logInfo('VALIDATE_OTP: OTP validated successfully for UPSMF', JSON.stringify(req.body))
         return res.status(200).json({
             message: verifyOtpResponse.data,
             status: 'success',
         })
     } catch (error) {
+        logError('VALIDATE_OTP: Error while validate OTP for UPSMF', JSON.stringify(error))
         return res.status(500).send({
             message: `OTP validation failed for phone ${phone}`,
             status: 'failed',
         })
     }
 })
+// const sendRegistrationMessage = async (phone: number) => {
+//     try {
+//         const messageBody = {
+//             recipients: [
+//                 {
+//                     mobiles: `91${phone}`,
+//                 },
+//             ],
+//             template_id: CONSTANTS.BNRC_MSG91_TEMPLATE_ID,
+
+//         }
+//         const sendMessageResponse = await axios({
+//             data: messageBody,
+//             headers: {
+//                 authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+//                 'content-type': 'application/JSON',
+//             },
+//             method: 'post',
+//             url: 'https://control.msg91.com/api/v5/flow/',
+//         })
+//         if (sendMessageResponse.data.type == 'success') {
+//             return true
+//         }
+//         return false
+//     } catch (error) {
+//         logError('Error while sending message to user', JSON.stringify(error))
+//         return false
+//     }
+// }
 const getUserDetails = async (phone: number) => {
     try {
         const userDetails = await axios({
@@ -854,6 +892,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         facilityType: userDetails.facilityType || '',
         facultyType: userDetails.facultyType || '',
         firstName: userDetails.firstName || '',
+        hrmsId: userDetails.hrmsId || '',
         instituteName: userDetails.instituteName || '',
         instituteType: userDetails.instituteType || '',
         lastName: userDetails.lastName || '',
@@ -868,55 +907,57 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || '',
         ...userJourneyStatus,
     }
+
     logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
+
     const query = `
-        INSERT INTO sunbird.upsmf_registration_data (
-            unique_id, course_selection, create_account, created_on, designation, district, dob, email, facility_name, facility_code, facility_type,
-            faculty_type, first_name, erhms_code, institute_name, institute_type, is_user_migrated, last_name,
-            organisation_id, organisation_name, phone, regNurseRegMidwifeNumber, role, roleForInService, service_type, block, profile_update, registration_source,
-            registration_success_message, role_assign, upsmf_registration_number,
-            user_already_exists, user_existing_organisation, validation_status,
-            validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
+    INSERT INTO sunbird.upsmf_registration_data (
+      unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
+      erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
+      institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
+      phone, profile_update, registration_source, registration_success_message,
+      regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
+      upsmf_registration_number, user_already_exists, user_existing_organisation,
+      validation_status, validation_status_failed_reason
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `
 
     const params = [
-        types.Uuid.fromString(uuidv4()),
-
-        String(userDetailedStructure.courseSelection || ''),   // course_selection
-        String(userDetailedStructure.createAccount || ''),     // create_account
-        userDetailedStructure.createdOn,                       // created_on
-        String(userDetailedStructure.designation || ''),       // designation
-        String(userDetailedStructure.district || ''),          // district
-        String(userDetailedStructure.dob || ''),               // dob
-        String(userDetailedStructure.email || ''),             // email
-        String(userDetailedStructure.facilityName || ''),      // facility_name
-        String(userDetailedStructure.facilityCode || ''),      // facility_code
-        String(userDetailedStructure.facilityType || ''),      // facility_type
-        String(userDetailedStructure.facultyType || ''),       // faculty_type
-        String(userDetailedStructure.firstName || ''),         // first_name
-        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),     // ERHMS-code
-        String(userDetailedStructure.instituteName || ''),     // institute_name
-        String(userDetailedStructure.instituteType || ''),     // institute_type
-        Boolean(userDetailedStructure.isUserMigrated || false), // migrate_user
-        String(userDetailedStructure.lastName || ''),          // last_name
-        userDetailedStructure.organisationId,
-        userDetailedStructure.organisationName,
-
-        String(userDetailedStructure.phone || ''),             // phone
-        String(userDetailedStructure.regNurseRegMidwifeNumber || ''), // regNurseRegMidwifeNumber
-        String(userDetailedStructure.role || ''),              // role
-        String(userDetailedStructure.roleForInService || ''),  // roleForInService
-        String(userDetailedStructure.serviceType || ''),       // serviceType
-        String(userDetailedStructure.block || ''),             // block
-        String(userDetailedStructure.profileUpdate || ''),     // profile_update
+        types.Uuid.fromString(uuidv4()),                      // unique_id
+        String(userDetailedStructure.block || ''),            // block
+        String(userDetailedStructure.courseSelection || ''),  // course_selection
+        String(userDetailedStructure.createAccount || ''),    // create_account
+        userDetailedStructure.createdOn,                      // created_on
+        String(userDetailedStructure.designation || ''),      // designation
+        String(userDetailedStructure.district || ''),         // district
+        userDetailedStructure.dob,                            // dob (LocalDate or null)
+        String(userDetailedStructure.email || ''),            // email
+        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),  // erhms_code
+        String(userDetailedStructure.facilityCode || ''),     // facility_code
+        String(userDetailedStructure.facilityName || ''),     // facility_name
+        String(userDetailedStructure.facilityType || ''),     // facility_type
+        String(userDetailedStructure.facultyType || ''),      // faculty_type
+        String(userDetailedStructure.firstName || ''),        // first_name
+        String(userDetailedStructure.hrmsId || ''),           // hrms_id
+        String(userDetailedStructure.instituteName || ''),    // institute_name
+        String(userDetailedStructure.instituteType || ''),    // institute_type
+        Boolean(userDetailedStructure.isUserMigrated || false), // is_user_migrated
+        String(userDetailedStructure.lastName || ''),         // last_name
+        String(userDetailedStructure.organisationId || ''),   // organisation_id
+        String(userDetailedStructure.organisationName || ''), // organisation_name
+        String(userDetailedStructure.phone || ''),            // phone
+        String(userDetailedStructure.profileUpdate || ''),    // profile_update
         String(userDetailedStructure.registrationSource || ''), // registration_source
         String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
-        String(userDetailedStructure.roleAssign || ''),        // role_assign
+        String(userDetailedStructure.regNurseRegMidwifeNumber || ''), // regnurseregmidwifenumber
+        String(userDetailedStructure.role || ''),             // role
+        String(userDetailedStructure.roleAssign || ''),       // role_assign
+        String(userDetailedStructure.roleForInService || ''), // roleforinservice
+        String(userDetailedStructure.serviceType || ''),      // service_type
         String(userDetailedStructure.upsmfRegistrationNumber || ''), // upsmf_registration_number
         Boolean(userDetailedStructure.userAlreadyExists || false), // user_already_exists
         String(userDetailedStructure.userExistingOrganisation || ''), // user_existing_organisation
-        String(userDetailedStructure.validationStatus || ''),  // validation_status
+        String(userDetailedStructure.validationStatus || ''), // validation_status
         String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
     ]
 
