@@ -7,60 +7,77 @@ import { v4 as uuidv4 } from 'uuid'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
-export const bnrcUserCreation = express.Router()
+import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
+export const mpNHMUserCreation = express.Router()
+const dayjs = require('dayjs')
 const { types } = cassandra
 
 interface UserDetails {
-    block?: string
-    bnrcRegistrationNumber: string
     courseSelection?: string
     district: string
     email: string
     firstName: string
     facultyType?: string
-    facilityName?: string
     hrmsId: string
     instituteName?: string
     instituteType?: string
     lastName: string
-    nin?: string
     phone: number
-    privateFacilityType?: string
-    publicFacilityType?: string
+    facilityName?: string
+    facilityCode?: string
+    block?: string
+    ehrmsNumber?: string
     // tslint:disable-next-line: all
-    roleForInService?: 'Public Health Facility' | 'Private Health Facility'
-    // tslint:disable-next-line: all
-    role: 'Student' | 'Faculty' | 'In Service',
-    serviceType?: string
+    role: 'Student' | 'Faculty' | 'ANM-MP' | 'CHO-MP',
+    regNurseRegMidwifeNumber?: string
+    employmentType?: string
+    dob?: string
+    facilityType?: string
+    roleForInService?: 'Government' | 'Private'
+    serviceType?: 'Regular' | 'Contractual' | 'Private'
+
 }
 const client = new cassandra.Client({
     contactPoints: [CONSTANTS.CASSANDRA_IP],
     keyspace: 'sunbird',
     localDataCenter: 'datacenter1',
 })
-const shortHands = {
-    cho: 'CHO',
-    privateHealthFacility: 'Private Health Facility',
-    publicHealthFacility: 'Public Health Facility',
-}
-const healthBihar = 'State Health Society Bihar'
+const ERHMS_CODE_KEY = 'ERHMS-code'
+const GOV_KEY = 'Government'
 const serviceSchemaJoi = Joi.object({
-    block: Joi.string()
-        .when('roleForInService', {
-            is: shortHands.cho,
+    courseSelection: Joi.string()
+        .when('role', {
+            is: Joi.valid('Student'),
             otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'Block is required',
+            'any.required': 'Course selection is required for Student and Faculty roles',
         }),
-    bnrcRegistrationNumber: Joi.string().allow('', null).optional(),
     district: Joi.string()
         .required()
         .messages({
             // tslint:disable-next-line: all
             'any.required': 'District is required',
+        }),
+    dob: Joi.string()
+        .allow('', null)
+        .optional()
+        .messages({
+            'string.base': 'Date of Birth must be a string',
+        }),
+
+    email: Joi.string().allow('', null).email().optional(),
+    facultyType: Joi.string()
+        .when('role', {
+            is: 'Faculty',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Faculty type is required for Faculty role',
         }),
     firstName: Joi.string()
         .required()
@@ -69,6 +86,27 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'First name is required',
         }),
 
+    instituteName: Joi.string()
+        .when('role', {
+            is: Joi.valid('Student', 'Faculty'),
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Institute name is required for Student and Faculty roles',
+        }),
+    instituteType: Joi.string()
+        .when('role', {
+            // tslint:disable-next-line: all
+            is: Joi.valid('Student', 'Faculty'),
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Institute type is required for Student and Faculty roles',
+        }),
     lastName: Joi.string()
         .required()
         .messages({
@@ -87,105 +125,83 @@ const serviceSchemaJoi = Joi.object({
             'number.integer': 'Phone number must be an integer',
             'number.positive': 'Phone number must be a positive integer',
         }),
-
-    email: Joi.string().allow('', null).email().optional(),
-    hrmsId: Joi.string().allow('', null).optional(),
     role: Joi.string()
-        .valid('Student', 'Faculty', 'In Service')
+        .valid('Student', 'Faculty', 'ANM-MP', 'CHO-MP')
         .required()
         .messages({
             // tslint:disable-next-line: all
-            'any.only': 'Role must be either Student, Faculty, or In Service',
+            'any.only': 'Role must be either Student, Faculty, ANM-MP, or CHO-MP',
             'any.required': 'Role is required',
         }),
+    // ✅ Newly Added Fields
 
-    courseSelection: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
+    nursingRegistrationNumber: Joi.string().optional().messages({
+        'any.required': 'Nursing Registration Number is required',
+    }),
+
+    employmentType: Joi.string().allow('', null).optional(),
+
+    serviceType: Joi.string()
+        .allow('', null)
+        .optional()
         .messages({
-            'any.required': 'Course selection is required for Student and Faculty roles',
+            'string.base': 'Service type must be a string',
         }),
 
-    instituteType: Joi.string()
-        .when('role', {
-            // tslint:disable-next-line: all
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute type is required for Student and Faculty roles',
-        }),
-
-    instituteName: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute name is required for Student and Faculty roles',
-        }),
-
-    facultyType: Joi.string()
-        .when('role', {
-            is: 'Faculty',
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Faculty type is required for Faculty role',
-        }),
-
-    roleForInService: Joi.string()
-        .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility, shortHands.cho)
-        .when('role', {
-            is: Joi.not('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().optional(),
-        })
-        .messages({
-            'any.only': 'Role for In Service must be either Public Health Facility, CHO or Private Health Facility',
-            // tslint:disable-next-line: all
-            'any.required': 'Role for In Service is required',
-        }),
-
-    publicFacilityType: Joi.string()
+    hrmsId: Joi.string()
         .when('roleForInService', {
-            is: shortHands.publicHealthFacility,
+            is: GOV_KEY,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .pattern(/^\d{5,8}$/)
+        .required()
+        .messages({
+            'any.required': 'EHRMS Number is required',
+            'string.pattern.base': 'EHRMS Number must be 5–8 digits',
+        }),
+
+    block: Joi.string()
+        .when('roleForInService', {
+            is: GOV_KEY,
             otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'Public Facility Type is required for Public Health Facility role',
+            'any.required': 'block is required',
         }),
 
-    facilityName: Joi.string().when('roleForInService', {
-        is: shortHands.cho,
-        otherwise: Joi.string().allow('', null).optional(),
-        then: Joi.string().required(),
-    }).allow('', null).optional(),
-
-    nin: Joi.string().when('roleForInService', {
-        is: shortHands.cho,
-        otherwise: Joi.string().allow('', null).optional(),
-        then: Joi.string().required(),
-    }).allow('', null).optional(),
-
-    privateFacilityType: Joi.string()
+    facilityCode: Joi.string()
         .when('roleForInService', {
-            is: shortHands.privateHealthFacility,
+            is: GOV_KEY,
             otherwise: Joi.string().allow('', null).optional(),
             then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Facility Code is required',
         }),
-    serviceType: Joi.string().allow('', null).optional(),
+    facilityName: Joi.string().optional().messages({
+        'any.required': 'Facility name is required',
+    }),
+    facilityType: Joi.string()
+        .when('roleForInService', {
+            is: GOV_KEY,
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            // tslint:disable-next-line: all
+            'any.required': 'Facility Type is required',
+        }),
+    regNurseRegMidwifeNumber: Joi.string().optional().messages({
+        'any.required': 'RNRM Number is required',
+    }),
+    roleForInService: Joi.string().optional().messages({
+        'any.required': 'Role for In-Service is required',
+    }),
+
 })
 const API_END_POINTS = {
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
@@ -200,66 +216,18 @@ const API_END_POINTS = {
 const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
-    Faculty: 'ANM-Faculty-Bihar',
-    'In Service': 'ANM-Bihar',
+    Faculty: 'ANM-Faculty-MP',
     // tslint:disable-next-line: all
-    Student: 'ANM-Student-Bihar',
+    Student: 'ANM-Student-MP',
 }
 
-const getDetailsAsPerRole = (userDetails: UserDetails) => {
-    let designation: string
-    let orgId: string
-    let orgName: string
+const standardDob = '01/01/1970'
+const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
+// tslint:disable-next-line: all
+const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
+const mongodbConnectionUri = CONSTANTS.MONGODB_URL
+logInfo('Mongodb connection URL', mongodbConnectionUri)
 
-    switch (userDetails.role) {
-        case 'Student':
-            // tslint:disable-next-line: all
-            designation = 'ANM-Student-Bihar'
-            orgId = '014005962721189888281'
-            // tslint:disable-next-line: all
-            orgName = 'Bihar Nursing Registration Council'
-            break
-        case 'Faculty':
-            designation = 'ANM-Faculty-Bihar'
-            orgId = '014005962721189888281'
-            orgName = 'Bihar Nursing Registration Council'
-            break
-        case 'In Service':
-            if (userDetails.roleForInService === 'Public Health Facility') {
-                if (userDetails.publicFacilityType === 'GNM-Bihar' || userDetails.privateFacilityType === 'GNM-Bihar') {
-                    designation = 'GNM-Bihar'
-                } else {
-                    designation = 'ANM-Bihar'
-                }
-                orgId = '01403709013603123234776'
-                orgName = healthBihar
-            } else if (userDetails.roleForInService === 'Private Health Facility') {
-                if (userDetails.publicFacilityType === 'GNM-Bihar' || userDetails.privateFacilityType === 'GNM-Bihar') {
-                    designation = 'GNM-Bihar'
-                } else {
-                    designation = 'ANM-Bihar'
-                }
-                orgId = '01403708858877542434777'
-                orgName = 'Private (Bihar)'
-            } else if (userDetails.roleForInService === 'CHO') {
-                designation = 'CHO-Bihar'
-                orgId = '01403709013603123234776'
-                orgName = healthBihar
-            }
-            break
-        default:
-            designation = 'NA'
-            orgId = 'NA'
-            orgName = 'NA'
-            break
-    }
-
-    return {
-        designation,
-        orgId,
-        orgName,
-    }
-}
 const indianCountryCode = '+91'
 const msg91Headers = {
     // tslint:disable-next-line: all
@@ -267,14 +235,8 @@ const msg91Headers = {
     authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
     'content-type': 'application/json',
 }
-const standardDob = '01/01/1970'
-const biharOrgName = 'Bihar Nursing Registration Council'
-const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
-// tslint:disable-next-line: all
-const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
-const mongodbConnectionUri = CONSTANTS.MONGODB_URL
-logInfo('Mongodb connection URL', mongodbConnectionUri)
-bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
+
+mpNHMUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {
         createAccount: 'failed',
         isUserMigrated: false,
@@ -286,10 +248,10 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         validationStatus: 'success',
         validationStatusFailedReason: 'NA',
     }
-    const userFormDetails = req.body.value.request.formValues
     try {
+        const userFormDetails = req.body.value.request.formValues
         const phone = userFormDetails.phone
-        logInfo('Request body BNRC', JSON.stringify(userFormDetails))
+        logInfo('Request body MP', JSON.stringify(userFormDetails))
         const preServiceData = userFormDetails
         // tslint:disable-next-line: no-any
         const result: any = serviceSchemaJoi.validate(preServiceData, { abortEarly: false })
@@ -306,16 +268,23 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
         if (isUserExists.message === 'success' && isUserExists.userDetails) {
             userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
-            if (isUserExists.userDetails.rootOrgName == 'Bihar Nursing Registration Council' || isUserExists.userDetails.rootOrgName == healthBihar || isUserExists.userDetails.rootOrgName == 'Private (Bihar)') {
+            // if (isUserExists.userDetails.rootOrgName == 'Department of Medical Education Education and Training') {
+            //     userJourneyStatus.userExistingOrganisation = 'Bihar Nursing Registration Council || Health (Bihar) || Private (Bihar)'
+            //     await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
+            //     return res.status(200).json({
+            //         message: userSuccessRegistrationMessage,
+            //         status: 'SUCCESS',
+            //     })
+            // }
+            if (validRootOrgs.includes(isUserExists.userDetails.rootOrgName)) {
                 userJourneyStatus.userExistingOrganisation = isUserExists.userDetails.rootOrgName
                 const newUserOrg = getDetailsAsPerRole(userFormDetails).orgName
                 if (isUserExists.userDetails.rootOrgName !== newUserOrg) {
-                    await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
+                    await migrateUserToMp(isUserExists.userDetails, userFormDetails)
                     const roleAssignResponse = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                     userJourneyStatus.roleAssign = roleAssignResponse ? 'success' : 'failed'
                     userJourneyStatus.isUserMigrated = true
                 }
-
                 const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
                 userJourneyStatus.profileUpdate = profileUpdateResponse ? 'success' : 'failed'
                 await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
@@ -324,12 +293,11 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
                     status: 'SUCCESS',
                 })
             } else if (isUserExists.userDetails.rootOrgName == 'aastrika' || isUserExists.userDetails.rootOrgName == 'SPhere Team 1') {
-                const userMigrationStatus = await migrateUserToBnrc(isUserExists.userDetails, userFormDetails)
+                const userMigrationStatus = await migrateUserToMp(isUserExists.userDetails, userFormDetails)
                 const assignRoleResponseForAastrikaOrg = await assignRoleToUser(isUserExists.userDetails.id, userFormDetails)
                 const profileUpdateResponse = await userProfileUpdate(userFormDetails, isUserExists.userDetails.id)
                 userJourneyStatus.profileUpdate = profileUpdateResponse ? 'success' : 'failed'
                 userJourneyStatus.isUserMigrated = true
-
                 if (!userMigrationStatus || !assignRoleResponseForAastrikaOrg) {
                     userJourneyStatus.userExistingOrganisation = 'aastrika || SPhere Team 1'
                     await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
@@ -386,16 +354,15 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.profileUpdate = 'success'
         }
         // Step 4 Send Success Response Message
-        const sendMessageResponse = await sendRegistrationMessage(phone)
-        if (sendMessageResponse) {
-            userJourneyStatus.registrationSuccessMessage = 'success'
-        }
-        // Step 5 Insert User Status in Database
+        // const sendMessageResponse = await sendRegistrationMessage(phone)
+        // if (sendMessageResponse) {
+        userJourneyStatus.registrationSuccessMessage = 'success'
+        // }
+        // Step 4 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
         logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
         const isUserJourneySucceess = Object.values(userJourneyStatus).some((status) => status === 'failed')
         if (isUserJourneySucceess) {
-            await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
             return res.status(400).json({
                 message: accessDeniedMessage,
                 status: 'FAILED',
@@ -408,10 +375,9 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus,
         })
     } catch (error) {
-        logInfo('BNRC user creation error')
+        logInfo('MP user creation error')
         logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
-        logInfo('Error BNRC', JSON.stringify(error))
-        await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
+        logInfo('Error MP', JSON.stringify(error))
         res.status(400).json({
             message: accessDeniedMessage,
             status: 'FAILED',
@@ -419,10 +385,10 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
     }
 
 })
-bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
+mpNHMUserCreation.post('/otp/sendOtp', async (req, res) => {
     const phone = req.body.phone || ''
     try {
-        logInfo('Entered into Send OTP for BNRC >>>>>')
+        logInfo('Entered into Send OTP for MP-NHM >>>>>')
         logInfo('User request body send otp', JSON.stringify(req.body))
         if (!phone) {
             res.status(400).json({
@@ -440,30 +406,30 @@ bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
             method: 'POST',
             url: API_END_POINTS.msg91SendOtp,
         })
-        logInfo('SEND_OTP: OTP sent successfully for BNRC', JSON.stringify(req.body))
         return res.status(200).json({
             message: `OTP successfully sent on phone ${phone}`,
             status: 'success',
         })
     } catch (error) {
-        logError('SEND_OTP: Error while send OTP for BNRC', JSON.stringify(error))
+        logInfo('Error in sending user OTP' + error)
         return res.status(500).send({
             message: `OTP generation fail for phone ${phone}`,
             status: 'failed',
         })
     }
 })
-bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
+mpNHMUserCreation.post('/otp/resendOtp', async (req, res) => {
     const phone = req.body.phone || ''
     try {
-        logInfo('RESEND_OTP: Entered into Re-Send OTP for BNRC >>>>>', JSON.stringify(req.body))
+        logInfo('User request body resend otp', JSON.stringify(req.body))
+
         if (!phone) {
             return res.status(400).json({
                 message: 'Mandatory parameters phone missing',
                 status: 'error',
             })
         }
-        logInfo('RESEND_OTP: SSO Resend OTP through phone', phone)
+        logInfo('SSO Resend OTP through phone', phone)
         await axios({
             headers: msg91Headers,
             params: {
@@ -474,20 +440,19 @@ bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
             method: 'POST',
             url: API_END_POINTS.msg91ResendOtp,
         })
-
         return res.status(200).json({
             message: `OTP successfully re-sent on phone ${phone}`,
             status: 'success',
         })
     } catch (error) {
-        logError('RESEND_OTP: Error while resend OTP for BNRC', JSON.stringify(error))
+        logInfo('Error in resending user OTP' + error)
         return res.status(500).send({
             message: `OTP generation fail for phone ${phone}`,
             status: 'failed',
         })
     }
 })
-bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
+mpNHMUserCreation.post('/otp/validateOtp', async (req, res) => {
     const { phone, otp } = req.body
     try {
         logInfo('VALIDATE_OTP: Entered into validate OTP for BNRC >>>>>', JSON.stringify(req.body))
@@ -526,35 +491,35 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
         })
     }
 })
-const sendRegistrationMessage = async (phone: number) => {
-    try {
-        const messageBody = {
-            recipients: [
-                {
-                    mobiles: `91${phone}`,
-                },
-            ],
-            template_id: CONSTANTS.BNRC_MSG91_TEMPLATE_ID,
+// const sendRegistrationMessage = async (phone: number) => {
+//     try {
+//         const messageBody = {
+//             recipients: [
+//                 {
+//                     mobiles: `91${phone}`,
+//                 },
+//             ],
+//             template_id: CONSTANTS.MPNMH_MSG91_TEMPLATE_ID,
 
-        }
-        const sendMessageResponse = await axios({
-            data: messageBody,
-            headers: {
-                authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-                'content-type': 'application/JSON',
-            },
-            method: 'post',
-            url: 'https://control.msg91.com/api/v5/flow/',
-        })
-        if (sendMessageResponse.data.type == 'success') {
-            return true
-        }
-        return false
-    } catch (error) {
-        logError('Error while sending message to user', JSON.stringify(error))
-        return false
-    }
-}
+//         }
+//         const sendMessageResponse = await axios({
+//             data: messageBody,
+//             headers: {
+//                 authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+//                 'content-type': 'application/JSON',
+//             },
+//             method: 'post',
+//             url: 'https://control.msg91.com/api/v5/flow/',
+//         })
+//         if (sendMessageResponse.data.type == 'success') {
+//             return true
+//         }
+//         return false
+//     } catch (error) {
+//         logError('Error while sending message to user', JSON.stringify(error))
+//         return false
+//     }
+// }
 const getUserDetails = async (phone: number) => {
     try {
         const userDetails = await axios({
@@ -584,7 +549,7 @@ const getUserDetails = async (phone: number) => {
 
 const createUser = async (userDetails: UserDetails) => {
     try {
-        logInfo('Create user bnrc body', JSON.stringify(userDetails))
+        logInfo('Create user MP body', JSON.stringify(userDetails))
         const userChannel = getDetailsAsPerRole(userDetails).orgName
         const userCreationData = {
             request: {
@@ -620,9 +585,10 @@ const createUser = async (userDetails: UserDetails) => {
 }
 const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
     try {
+        const userOrgId = getDetailsAsPerRole(userDetails).orgId
         const userRoleAssignData = {
             request: {
-                organisationId: getDetailsAsPerRole(userDetails).orgId,
+                organisationId: userOrgId,
                 roles: ['PUBLIC'],
                 userId,
             },
@@ -669,7 +635,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             gender: '',
                             knownLanguages: [],
                             mobile: '',
-                            postalAddress: `India, Bihar, Patna`,
+                            postalAddress: `India, Madhya Pradesh, ${user.district}`,
                             regNurseRegMidwifeNumber: 'NA',
                             registrationSource,
                             surname: '',
@@ -677,28 +643,27 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         },
                         professionalDetails: [
                             {
-                                block: user.block || '',
-                                bnrcRegistrationNumber: '',
+                                [ERHMS_CODE_KEY]: '',
+                                block: user?.block || '',
                                 completePostalAddress: '',
-                                designation: getDetailsAsPerRole(user).designation,
+                                designation: 'ANM-Student-MP',
                                 doj: '',
+                                facilityCode: '',
                                 facilityName: '',
+                                facilityType: '',
                                 facultyType: '',
-                                hrmsId: '',
                                 instituteName: '',
                                 instituteType: '',
-                                name: biharOrgName,
+                                name: getDetailsAsPerRole(user).orgName,
                                 nameOther: '',
-                                nin: user.nin || '',
                                 orgType: 'Government',
-                                privateFacilityType: '',
                                 profession: 'Nurse',
                                 professionOtherSpecify: '',
-                                publicFacilityType: '',
                                 qualification: '',
                                 roleForInService: '',
-                                serviceType: '',
+                                serviceType: user?.serviceType || '',
                             },
+
                         ],
                         userId,
                     },
@@ -716,53 +681,48 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         profileReq: {
                             academics: [
                                 {
-                                    nameOfInstitute: '',
-                                    nameOfQualification: '',
-                                    type: 'GRADUATE',
+                                    nameOfInstitute: user.instituteName,
+                                    nameOfQualification: user.courseSelection,
+                                    type: user.instituteType,
                                     yearOfPassing: '',
                                 },
                             ],
                             id: userId,
-
                             personalDetails: {
-
                                 dob: standardDob,
                                 email: user.email,
                                 firstname: user.firstName,
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
-                                postalAddress: `India, Bihar, ${user.district}`,
-                                regNurseRegMidwifeNumber: 'NA',
+                                postalAddress: `India, Madhya Pradesh, ${user.district}`,
+                                regNurseRegMidwifeNumber: user?.regNurseRegMidwifeNumber || 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
-
                             },
                             professionalDetails: [
                                 {
-                                    block: user.block || '',
-                                    bnrcRegistrationNumber: user.bnrcRegistrationNumber,
+                                    [ERHMS_CODE_KEY]: user?.hrmsId || '',
+                                    block: user?.block || '',
                                     completePostalAddress: '',
-                                    designation: getDetailsAsPerRole(user).designation,
+                                    designation: 'ANM-Student-MP',
                                     doj: '',
-                                    facilityName: '',
+                                    facilityCode: user?.facilityCode || '',
+                                    facilityName: user?.facilityName || '',
+                                    facilityType: user?.facilityType || '',
                                     facultyType: '',
-                                    hrmsId: user.hrmsId,
-                                    instituteName: user.instituteName,
-                                    instituteType: user.instituteType,
-
-                                    name: biharOrgName,
+                                    instituteName: user?.instituteName || '',
+                                    instituteType: user?.instituteType || '',
+                                    name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
-                                    nin: user.nin || '',
                                     orgType: 'Government',
-                                    privateFacilityType: '',
                                     profession: 'Student',
                                     professionOtherSpecify: '',
-                                    publicFacilityType: '',
-                                    qualification: user.courseSelection,
-                                    roleForInService: '',
-                                    serviceType: user.serviceType || '',
+                                    qualification: user?.courseSelection,
+                                    roleForInService: user?.roleForInService || '',
+                                    serviceType: user?.serviceType || '',
                                 },
+
                             ],
                             userId,
                         },
@@ -795,36 +755,35 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
-                                postalAddress: `India, Bihar, ${user.district}`,
-                                regNurseRegMidwifeNumber: 'NA',
+                                postalAddress: `India, Madhya Pradesh, ${user.district}`,
+                                regNurseRegMidwifeNumber: user?.regNurseRegMidwifeNumber || 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
 
                             },
                             professionalDetails: [
                                 {
-                                    block: user.block || '',
-                                    bnrcRegistrationNumber: user.bnrcRegistrationNumber,
+                                    [ERHMS_CODE_KEY]: user?.hrmsId || '',
+                                    block: user?.block || '',
                                     completePostalAddress: '',
-                                    designation: 'ANM-Faculty-Bihar',
+                                    designation: 'ANM-Faculty-MP',
                                     doj: '',
-                                    facilityName: '',
-                                    facultyType: user.facultyType,
-                                    hrmsId: user.hrmsId,
-                                    instituteName: user.instituteName,
-                                    instituteType: user.instituteType,
-                                    name: biharOrgName,
+                                    facilityCode: user?.facilityCode || '',
+                                    facilityName: user?.facilityName || '',
+                                    facilityType: user?.facilityType || '',
+                                    facultyType: user?.facultyType,
+                                    instituteName: user?.instituteName || '',
+                                    instituteType: user?.instituteType || '',
+                                    name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
-                                    nin: user.nin || '',
                                     orgType: 'Government',
-                                    privateFacilityType: '',
                                     profession: 'Faculty',
                                     professionOtherSpecify: '',
-                                    publicFacilityType: '',
                                     qualification: user.courseSelection,
-                                    roleForInService: '',
-                                    serviceType: user.serviceType || '',
+                                    roleForInService: user?.roleForInService || '',
+                                    serviceType: user?.serviceType || '',
                                 },
+
                             ],
                             userId: `${userId}`,
                         },
@@ -833,9 +792,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
-
-        // tslint:disable-next-line: all
-        if (user.role == "In Service") {
+        if (user.role == 'ANM-MP' || user.role == 'CHO-MP') {
             userProfileUpdateData = {
                 request: {
                     profileDetails: {
@@ -845,9 +802,9 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         profileReq: {
                             academics: [
                                 {
-                                    nameOfInstitute: '',
-                                    nameOfQualification: '',
-                                    type: 'GRADUATE',
+                                    nameOfInstitute: user.instituteName,
+                                    nameOfQualification: user.courseSelection,
+                                    type: user.instituteType,
                                     yearOfPassing: '',
                                 },
                             ],
@@ -859,36 +816,34 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 gender: '',
                                 knownLanguages: [],
                                 mobile: JSON.stringify(user.phone),
-                                postalAddress: `India, Bihar, ${user.district}`,
-                                regNurseRegMidwifeNumber: 'NA',
+                                postalAddress: `India, Madhya Pradesh, ${user.district}`,
+                                regNurseRegMidwifeNumber: user?.regNurseRegMidwifeNumber || 'NA',
                                 registrationSource,
                                 surname: user.lastName || user.firstName,
-
                             },
                             professionalDetails: [
                                 {
-                                    block: user.block || '',
-                                    bnrcRegistrationNumber: user.bnrcRegistrationNumber,
+                                    [ERHMS_CODE_KEY]: user?.hrmsId || '',
+                                    block: user?.block || '',
                                     completePostalAddress: '',
                                     designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
-                                    facilityName: user.facilityName || '',
-                                    facultyType: '',
-                                    hrmsId: user.hrmsId,
+                                    facilityCode: user?.facilityCode || '',
+                                    facilityName: user?.facilityName || '',
+                                    facilityType: user?.facilityType || '',
+                                    facultyType: user?.facultyType || '',
                                     instituteName: '',
                                     instituteType: '',
                                     name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
-                                    nin: user.nin || '',
                                     orgType: 'Government',
-                                    privateFacilityType: user.privateFacilityType || '',
-                                    profession: 'Nurse',
+                                    profession: getDetailsAsPerRole(user).designation,
                                     professionOtherSpecify: '',
-                                    publicFacilityType: user.publicFacilityType || '',
                                     qualification: '',
-                                    roleForInService: user.roleForInService || '',
-                                    serviceType: user.serviceType || '',
+                                    roleForInService: user?.roleForInService || '',
+                                    serviceType: user?.serviceType || '',
                                 },
+
                             ],
                             userId,
                         },
@@ -913,111 +868,123 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
 }
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
-        block: userDetails.block || '',
-        bnrcRegistrationNumber: userDetails.bnrcRegistrationNumber || '',
+        [ERHMS_CODE_KEY]: userDetails.hrmsId || '',
+        block: userDetails?.block || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
         designation: getDetailsAsPerRole(userDetails).designation || '',
         district: userDetails.district || '',
+        dob: userDetails?.dob
+            ? types.LocalDate.fromString(dayjs(userDetails.dob).format('YYYY-MM-DD'))
+            : null,
         email: userDetails.email || '',
-        facilityName: userDetails.facilityName || '',
+        facilityCode: userDetails?.facilityCode || '',
+        facilityName: userDetails?.facilityName || '',
+        facilityType: userDetails.facilityType || '',
         facultyType: userDetails.facultyType || '',
         firstName: userDetails.firstName || '',
-        hrmsId: userDetails.hrmsId || '',
         instituteName: userDetails.instituteName || '',
         instituteType: userDetails.instituteType || '',
         lastName: userDetails.lastName || '',
-        nin: userDetails.nin || '',
-        organisationId: getDetailsAsPerRole(userDetails).orgId || '',
-        organisationName: getDetailsAsPerRole(userDetails).orgName || '',
-        phone: userDetails.phone || '',
-        privateFacilityType: userDetails.privateFacilityType || '',
-        publicFacilityType: userDetails.publicFacilityType || '',
+        organisationId: getDetailsAsPerRole(userDetails).orgId,
+        organisationName: getDetailsAsPerRole(userDetails).orgName,
+        phone: String(userDetails.phone || ''),
+        regNurseRegMidwifeNumber: userDetails?.regNurseRegMidwifeNumber || 'NA',
         registrationSource: 'Self Registration',
         role: userDetails.role || '',
-        roleForInService: userDetails.roleForInService || '',
-        serviceType: userDetails.serviceType || '',
+        roleForInService: userDetails?.roleForInService || '',
+        serviceType: userDetails?.serviceType || '',
+        ...userJourneyStatus,
     }
 
-    const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
+    logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
+
+    const query = `
+        INSERT INTO sunbird.mp_registration_data (
+            unique_id,
+            block,
+            course_selection,
+            create_account,
+            created_on,
+            designation,
+            district,
+            dob,
+            email,
+            erhms_code,
+            facility_code,
+            facility_name,
+            facility_type,
+            faculty_type,
+            first_name,
+            institute_name,
+            institute_type,
+            is_user_migrated,
+            last_name,
+            organisation_id,
+            organisation_name,
+            phone,
+            profile_update,
+            registration_source,
+            registration_success_message,
+            regnurseregmidwifenumber,
+            role,
+            role_assign,
+            roleforinservice,
+            service_type,
+            user_already_exists,
+            user_existing_organisation,
+            validation_status,
+            validation_status_failed_reason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
+
+    const params = [
+        types.Uuid.fromString(uuidv4()),                             // unique_id
+        String(userDetailedStructure.block || ''),                    // block
+        String(userDetailedStructure.courseSelection || ''),           // course_selection
+        String(userDetailedStructure.createAccount || ''),             // create_account
+        userDetailedStructure.createdOn,                               // created_on
+        String(userDetailedStructure.designation || ''),               // designation
+        String(userDetailedStructure.district || ''),                  // district
+        userDetailedStructure.dob,                                     // dob (Cassandra LocalDate)
+        String(userDetailedStructure.email || ''),                     // email
+        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),           // erhms_code
+        String(userDetailedStructure.facilityCode || ''),              // facility_code
+        String(userDetailedStructure.facilityName || ''),              // facility_name
+        String(userDetailedStructure.facilityType || ''),              // facility_type
+        String(userDetailedStructure.facultyType || ''),               // faculty_type
+        String(userDetailedStructure.firstName || ''),                 // first_name
+        String(userDetailedStructure.instituteName || ''),             // institute_name
+        String(userDetailedStructure.instituteType || ''),             // institute_type
+        Boolean(userDetailedStructure.isUserMigrated || false),        // is_user_migrated
+        String(userDetailedStructure.lastName || ''),                  // last_name
+        String(userDetailedStructure.organisationId || ''),            // organisation_id
+        String(userDetailedStructure.organisationName || ''),          // organisation_name
+        String(userDetailedStructure.phone || ''),                     // phone
+        String(userDetailedStructure.profileUpdate || ''),             // profile_update
+        String(userDetailedStructure.registrationSource || ''),        // registration_source
+        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
+        String(userDetailedStructure.regNurseRegMidwifeNumber || ''),  // regnurseregmidwifenumber
+        String(userDetailedStructure.role || ''),                      // role
+        String(userDetailedStructure.roleAssign || ''),                // role_assign
+        String(userDetailedStructure.roleForInService || ''),          // roleforinservice
+        String(userDetailedStructure.serviceType || ''),               // service_type
+        Boolean(userDetailedStructure.userAlreadyExists || false),     // user_already_exists
+        String(userDetailedStructure.userExistingOrganisation || ''),  // user_existing_organisation
+        String(userDetailedStructure.validationStatus || ''),          // validation_status
+        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
+    ]
 
     try {
-        const query = `INSERT INTO sunbird.bnrc_registration_data (
-            unique_id, block, bnrc_registration_number, course_selection, create_account, created_on,
-            designation, district, email, facility_name, faculty_type, first_name, hrms_id,
-            institute_name, institute_type, is_user_migrated, last_name, nin, organisation_id,
-            organisation_name, phone, private_facility_type, profile_update, public_facility_type,
-            registration_source, registration_success_message, role, role_assign, role_for_in_service,
-            service_type, user_already_exists, user_existing_organisation, validation_status,
-            validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-
-        const params = [
-            types.Uuid.fromString(uuidv4()),
-            userFinalStatus.block,
-            userFinalStatus.bnrcRegistrationNumber,
-            userFinalStatus.courseSelection,
-            userFinalStatus.createAccount || '',
-            userFinalStatus.createdOn,
-            userFinalStatus.designation,
-            userFinalStatus.district,
-            userFinalStatus.email,
-
-            // ✅ handle facilityName (stringify if object, else keep string)
-            userFinalStatus.facilityName
-                ? (typeof userFinalStatus.facilityName === 'object'
-                    ? (userFinalStatus.facilityName.name
-                        ? String(userFinalStatus.facilityName.name)
-                        : JSON.stringify(userFinalStatus.facilityName))
-                    : String(userFinalStatus.facilityName))
-                : '',
-
-            userFinalStatus.facultyType,
-            userFinalStatus.firstName,
-            userFinalStatus.hrmsId,
-            userFinalStatus.instituteName,
-            userFinalStatus.instituteType,
-            Boolean(userFinalStatus.isUserMigrated),
-            userFinalStatus.lastName,
-
-            // ✅ handle nin (convert object/number to string)
-            userFinalStatus.nin
-                ? (typeof userFinalStatus.nin === 'object'
-                    ? (userFinalStatus.nin.nin
-                        ? String(userFinalStatus.nin.nin)
-                        : JSON.stringify(userFinalStatus.nin))
-                    : String(userFinalStatus.nin))
-                : '',
-
-            userFinalStatus.organisationId,
-            userFinalStatus.organisationName,
-            String(userFinalStatus.phone || ''),   // ✅ always string
-            userFinalStatus.privateFacilityType,
-            userFinalStatus.profileUpdate || '',
-            userFinalStatus.publicFacilityType,
-            userFinalStatus.registrationSource,
-            userFinalStatus.registrationSuccessMessage || '',
-            userFinalStatus.role,
-            userFinalStatus.roleAssign || '',
-            userFinalStatus.roleForInService,
-            userFinalStatus.serviceType,
-            Boolean(userFinalStatus.userAlreadyExists),
-            userFinalStatus.userExistingOrganisation || '',
-            userFinalStatus.validationStatus || '',
-            userFinalStatus.validationStatusFailedReason || '',
-        ]
-
-        logInfo('Cassandra insert data', JSON.stringify(params))
         await client.execute(query, params, { prepare: true })
         return true
     } catch (error) {
-        // ✅ full log for debugging
-        logError('Error inserting into Cassandra', JSON.stringify(error))
+        logError('Cassandra insert error', JSON.stringify(error))
         return false
     }
 }
 
-const migrateUserToBnrc = async (userDetails, userFormDetails) => {
+const migrateUserToMp = async (userDetails, userFormDetails) => {
     try {
         const migrateUserData = {
             request: {
@@ -1040,7 +1007,7 @@ const migrateUserToBnrc = async (userDetails, userFormDetails) => {
         const userProfileDetails = userDetails.profileDetails
         const updatedProfessionalDetails = { ...userProfileDetails.profileReq.professionalDetails[0], ...userFormDetails }
         userProfileDetails.profileReq.professionalDetails[0] = updatedProfessionalDetails
-        userProfileDetails.profileReq.personalDetails.postalAddress = `India, Bihar, ${userFormDetails.district}`
+        userProfileDetails.profileReq.personalDetails.postalAddress = `India, , ${userFormDetails.district}`
         userProfileDetails.profileReq.professionalDetails[0].designation = getUserDesignationFromRole[userFormDetails.role]
         const userProfileUpdateBody = {
             request: {
@@ -1060,7 +1027,7 @@ const migrateUserToBnrc = async (userDetails, userFormDetails) => {
             return true
         }
     } catch (error) {
-        logError('Error while migrating user to BNRC org', JSON.stringify(error))
+        logError('Error while migrating user to MP org', JSON.stringify(error))
         return false
     }
 }

@@ -987,6 +987,13 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo("Inside CBP course recommendation route");
     const searchRequestBody = req.body
+    if (req.session?.grant) {
+      logInfo('Entered into if statement to set kauth session ', JSON.stringify(req.session))
+      logInfo('Entered into if statement to set kauth grant ', JSON.stringify(req.session?.grant))
+    }
+    const token = req.session?.grant?.access_token?.token || ''
+    searchRequestBody.authToken = token
+    logInfo('Inside CBP course recommendation route request body', JSON.stringify(searchRequestBody))
     const response = await axios({
       data: searchRequestBody,
       headers: contentTypeHeader,
@@ -1078,7 +1085,7 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Inside home config update', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1106,7 +1113,7 @@ mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
     /* tslint:disable-next-line */
     logInfo('Request body', JSON.stringify(req.params), req.params[0])
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id, )
+    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,

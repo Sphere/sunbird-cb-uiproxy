@@ -65,6 +65,7 @@ tnaiAuth.post('/login', async (req: any, res: Response) => {
             })
             logInfo('User details from TNAI', JSON.stringify(userDetailResponseFromTnai.data))
         } catch (error) {
+            logError('Error while fetching user details from TNAI' + JSON.stringify(error))
             return res.status(400).json({
                 msg: 'Token invalid or User not present in TNAI',
                 status: 'error',
