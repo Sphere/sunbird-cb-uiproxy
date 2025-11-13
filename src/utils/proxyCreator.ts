@@ -488,6 +488,9 @@ export function proxyCreatorEtlFrac(
 ): Router {
 
   route.all('/*', (req, res) => {
+    // REMOVE Origin header to bypass CORS error
+    delete req.headers.origin;
+    delete req.headers.Origin;
     // Remove the proxy prefix `/proxies/v8`
     const url = req.originalUrl.replace('/proxies/v8', '')
 
