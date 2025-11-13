@@ -236,7 +236,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       })
     }
     if (req.body.phone || req.body.email) {
-      logInfo('Entered into /validateOtp ', req.body)
+      logInfo('VALIDATE_OTP: Entered into /validateOtp ', JSON.stringify(req.body))
       const mobileNumber = req.body.phone
       const email = req.body.email
       const validOtp = req.body.otp
@@ -248,7 +248,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       }
       let userOtpVerified = false
       if (mobileNumber) {
-        logInfo('Validate otp for phone', mobileNumber, validOtp)
+        logInfo('VALIDATE_OTP: for phone', mobileNumber, validOtp)
         const verifyOtpResponse = await axios({
           headers: msg91Headers,
           method: 'GET',
@@ -258,7 +258,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
           },
           url: API_END_POINTS.msg91VerifyOtp,
         })
-        logInfo('validate OTP response phone', JSON.stringify(verifyOtpResponse.data))
+        logInfo('VALIDATE_OTP: response phone', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.type !== 'success') {
           return res.status(400).json({
             message: 'Phone OTP validation failed try again',
@@ -267,13 +267,14 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         userOtpVerified = true
       }
       if (email) {
-        logInfo('Validate otp for email')
+        logInfo('VALIDATE_OTP: for email')
         const verifyOtpResponse = await validateOTP(
           userUUId,
           email,
           'email',
           validOtp
         )
+        logInfo('VALIDATE_OTP: response email', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
           return res.status(400).json({
             message: 'Email OTP validation failed try again',
@@ -282,7 +283,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         userOtpVerified = true
       }
       if (userOtpVerified) {
-        logInfo('Otp is verified. Now autologin started.')
+        logInfo('VALIDATE_OTP: Otp is verified. Now autologin started.')
         await updateRoles(userUUId)
         res.clearCookie('connect.sid')
         req.session.user = null
@@ -297,7 +298,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
                 password,
                 username: mobileNumber ? mobileNumber : email,
               })
-              logInfo('Entered into authorization part.' + transformedData)
+              logInfo('VALIDATE_OTP:Entered into authorization part.' + transformedData)
               const authTokenResponse = await axios({
                 ...axiosRequestConfig,
                 data: transformedData,
@@ -307,7 +308,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
                 method: 'POST',
                 url: API_END_POINTS.grantAccessToken,
               })
-              logInfo('Entered into authTokenResponsev2 :' + authTokenResponse)
+              logInfo('VALIDATE_OTP:Entered into authTokenResponsev2 :' + JSON.stringify(authTokenResponse.data))
               if (authTokenResponse.data) {
                 const accessToken = authTokenResponse.data.access_token
                 // tslint:disable-next-line: no-any
@@ -326,7 +327,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
                 req.session.grant = {
                   access_token: { content: decodedToken, token: accessToken },
                 }
-                logInfo('Success ! Entered into usertokenResponse..')
+                logInfo('VALIDATE_OTP:Success ! Entered into usertokenResponse..')
                 await getCurrentUserRoles(req, accessToken)
 
                 res.status(200).json({
@@ -336,7 +337,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
                 res.end()
               }
             } catch (e) {
-              logInfo('Error throwing Cookie inside auth route : ' + e)
+              logInfo('VALIDATE_OTP:Error throwing Cookie inside auth route : ' + e)
               res.status(400).send({
                 error: AUTH_FAIL,
                 status: 'failed',
@@ -347,6 +348,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       }
     }
   } catch (error) {
+    logInfo('VALIDATE_OTP:Error in validate otp >>>>>>' + JSON.stringify(error))
     res.status(500).send({
       message: VALIDATION_FAIL,
       status: 'failed',
