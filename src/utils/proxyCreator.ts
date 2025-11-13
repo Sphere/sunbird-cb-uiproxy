@@ -488,23 +488,21 @@ export function proxyCreatorEtlFrac(
 ): Router {
 
   route.all('/*', (req, res) => {
-    console.log('REQ_URL_ORIGINAL_FRAC', req.originalUrl);
+    console.log('REQ_URL_ORIGINAL_FRAC', req.originalUrl)
 
     // Remove the proxy prefix `/proxies/v8`
-    const url = req.originalUrl.replace('/proxies/v8', '');
+    const url = req.originalUrl.replace('/proxies/v8', '')
 
     // Ensure no double slash when joining
-    const finalTarget = targetUrl.replace(/\/+$/, '') + url;
+    const finalTarget = targetUrl.replace(/\/+$/, '') + url
 
     proxy.web(req, res, {
       changeOrigin: true,
       ignorePath: true,   // safe because we manually append url
       target: finalTarget,
       timeout,
-    });
-  });
+    })
+  })
 
-  return route;
+  return route
 }
-
-

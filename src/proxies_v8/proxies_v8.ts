@@ -14,6 +14,7 @@ import {
   proxyContent,
   proxyContentLearnerVM,
   proxyCreatorDownloadCertificate,
+  proxyCreatorEtlFrac,
   proxyCreatorForms,
   proxyCreatorKnowledge,
   proxyCreatorLearner,
@@ -24,7 +25,6 @@ import {
   proxyCreatorToAppentUserId,
   proxyHierarchyKnowledge,
   scormProxyCreatorRoute,
-  proxyCreatorEtlFrac,
 } from '../utils/proxyCreator'
 import {
   extractUserIdFromRequest,
