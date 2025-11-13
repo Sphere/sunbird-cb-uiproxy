@@ -474,36 +474,36 @@ export function proxyCreatorDownloadCertificate(
 }
 
 
-/**
- * Proxies requests from the frontend to the etl-frac service.
- * @param route The express router to which the proxy routes should be added.
- * @param targetUrl The URL of the etl-frac service.
- * @param timeout The maximum time in milliseconds before proxy timeout.
- * @returns The express router with the proxy routes added.
- */
 export function proxyCreatorEtlFrac(
   route: Router,
   targetUrl: string,
   timeout = 10000
 ): Router {
 
-  route.all('/*', (req, res) => {
-    // REMOVE Origin header to bypass CORS error
+  route.all("/*", (req, res) => {
+    console.log("REQ_URL_ORIGINAL_FRAC", req.originalUrl);
+
+    // 1️⃣ Remove Origin header so Spring Boot does NOT trigger CORS
     delete req.headers.origin;
     delete req.headers.Origin;
-    // Remove the proxy prefix `/proxies/v8`
-    const url = req.originalUrl.replace('/proxies/v8', '')
 
-    // Ensure no double slash when joining
-    const finalTarget = targetUrl.replace(/\/+$/, '') + url
+    // 2️⃣ Remove Content-Length for multipart — let proxy handle boundaries
+    delete req.headers["content-length"];
 
+    // 3️⃣ Compute the final target path
+    const url = req.originalUrl.replace("/proxies/v8", "");
+    const finalTarget = targetUrl.replace(/\/+$/, "") + url;
+
+    console.log("PROXY → TARGET:", finalTarget);
+
+    // 4️⃣ Forward request
     proxy.web(req, res, {
-      changeOrigin: true,
-      ignorePath: true,   // safe because we manually append url
       target: finalTarget,
+      changeOrigin: true,
+      ignorePath: false,      
       timeout,
-    })
-  })
+    });
+  });
 
-  return route
+  return route;
 }
