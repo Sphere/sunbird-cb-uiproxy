@@ -473,7 +473,7 @@ export function proxyCreatorDownloadCertificate(
   return route
 }
 
-/**
+
 /**
  * Proxies requests from the frontend to the etl-frac service.
  * @param route The express router to which the proxy routes should be added.
@@ -488,8 +488,6 @@ export function proxyCreatorEtlFrac(
 ): Router {
 
   route.all('/*', (req, res) => {
-    console.log('REQ_URL_ORIGINAL_FRAC', req.originalUrl)
-
     // Remove the proxy prefix `/proxies/v8`
     const url = req.originalUrl.replace('/proxies/v8', '')
 
