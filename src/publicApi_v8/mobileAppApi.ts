@@ -12,13 +12,17 @@ import _ from 'lodash'
 import nodeHtmlToImage from 'node-html-to-image'
 import request from 'request'
 import { axiosRequestConfig } from '../configs/request.config'
+import { axiosRequestConfigLong } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { fetchnodebbUserDetails } from './nodebbUser'
+import { getRatingSummaries } from './ratingSummary'
 import { getCurrentUserRoles } from './rolePermission'
+
+// ... other imports ...
 const cassandra = require('cassandra-driver')
 
 const VALIDATION_FAIL =
@@ -27,6 +31,7 @@ export const publicCertificateFlinkv2 = Router()
 const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
+  CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
   DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
   FORM_API: `${CONSTANTS.FORM_API_BASE}`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
@@ -321,7 +326,10 @@ mobileAppApi.get('/v1/assessment/*', async (req, res) => {
     jumbler(contentPath).then((response) => {
       return res.send(response)
     })
-    logInfo('New getAssessments competency mobile APP >>>>>>>>>>> ', contentPath)
+    logInfo(
+      'New getAssessments competency mobile APP >>>>>>>>>>> ',
+      contentPath
+    )
   } catch (err) {
     res.status(404).json({
       message: 'Error occured while get assessment',
@@ -505,7 +513,7 @@ mobileAppApi.post('/v2/updateProgress', async (req, res) => {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body)
     logInfo(
       'Check req body of update progress v2 for mobile before fix >> ' +
-      JSON.stringify(req.body)
+        JSON.stringify(req.body)
     )
     const accesTokenResult = verifyToken(req, res)
     const userId = accesTokenResult.userId
@@ -796,7 +804,7 @@ mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
       } else {
         throw new Error(
           _.get(response.data, 'params.errmsg') ||
-          _.get(response.data, 'params.err')
+            _.get(response.data, 'params.err')
         )
       }
     }
@@ -988,12 +996,21 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     logInfo("Inside CBP course recommendation route");
     const searchRequestBody = req.body
     if (req.session?.grant) {
-      logInfo('Entered into if statement to set kauth session ', JSON.stringify(req.session))
-      logInfo('Entered into if statement to set kauth grant ', JSON.stringify(req.session?.grant))
+      logInfo(
+        'Entered into if statement to set kauth session ',
+        JSON.stringify(req.session)
+      )
+      logInfo(
+        'Entered into if statement to set kauth grant ',
+        JSON.stringify(req.session?.grant)
+      )
     }
     const token = req.session?.grant?.access_token?.token || ''
     searchRequestBody.authToken = token
-    logInfo('Inside CBP course recommendation route request body', JSON.stringify(searchRequestBody))
+    logInfo(
+      'Inside CBP course recommendation route request body',
+      JSON.stringify(searchRequestBody)
+    )
     const response = await axios({
       data: searchRequestBody,
       headers: contentTypeHeader,
@@ -1038,7 +1055,10 @@ mobileAppApi.post('/create/homepageconfig', async (req, res) => {
 
 mobileAppApi.get('/read/homepageconfig', async (req, res) => {
   try {
-    logInfo('Inside home config route /read/homepageconfig ', JSON.stringify(req.params))
+    logInfo(
+      'Inside home config route /read/homepageconfig ',
+      JSON.stringify(req.params)
+    )
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -1061,7 +1081,7 @@ mobileAppApi.get('/read/homepageconfig', async (req, res) => {
 mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo('Inside home config read by id', JSON.stringify(req.params))
+    logInfo("Inside home config read by id", JSON.stringify(req.params));
     const id = req.params[0]
     const response = await axios({
       headers: {
@@ -1074,18 +1094,25 @@ mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logInfo('error', JSON.stringify(err))
-    res.status(err?.response?.status || DEFAULT_ERROR_STATUS).send(
-      err?.response?.data || { error: DEFAULT_ERROR_MSG }
-    )
+    res
+      .status(err?.response?.status || DEFAULT_ERROR_STATUS)
+      .send(err?.response?.data || { error: DEFAULT_ERROR_MSG })
   }
 })
 
 mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo('Inside home config update', JSON.stringify(req.params), req.params[0])
+    logInfo(
+      'Inside home config update',
+      JSON.stringify(req.params),
+      req.params[0]
+    )
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
+    logInfo(
+      'Inside CBP course recommendation route ',
+      API_END_POINTS.formHomeConfig + '/' + id
+    )
     const searchRequestBody = req.body
     const response = await axios({
       data: searchRequestBody,
@@ -1111,9 +1138,12 @@ mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
 mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo('Request body', JSON.stringify(req.params), req.params[0])
+    logInfo("Request body", JSON.stringify(req.params), req.params[0]);
     const id = req.params[0]
-    logInfo('Inside CBP course recommendation route ', API_END_POINTS.formHomeConfig + '/' + id,)
+    logInfo(
+      'Inside CBP course recommendation route ',
+      API_END_POINTS.formHomeConfig + '/' + id
+    )
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -1384,15 +1414,17 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
     const currentDate = new Date()
 
     // First check if a record exists for this user
-    const checkQuery = 'SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
-    const checkResult = await cassandraClient.execute(checkQuery, [userId], { prepare: true })
+    const checkQuery =
+      'SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
+    const checkResult = await cassandraClient.execute(checkQuery, [userId], {
+      prepare: true,
+    })
 
     let query
     let params
     let consentId
     logInfo(JSON.stringify(checkResult.rows[0]))
     if (checkResult.rowLength === 0) {
-
       // No existing record - perform an insert
       consentId = uuidv4()
       query = `
@@ -1403,12 +1435,13 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
         consentId,
         currentDate,
         req.body.is_opted_in,
-        req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+        req.body.is_whats_up_opted_in === undefined
+          ? null
+          : req.body.is_whats_up_opted_in,
         currentDate,
         req.body.opt_in_channel,
         userId,
       ]
-
     } else {
       // Existing record - perform an update
       query = `
@@ -1421,7 +1454,9 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
       `
       params = [
         req.body.is_opted_in,
-        req.body.is_whats_up_opted_in === undefined ? null : req.body.is_whats_up_opted_in,
+        req.body.is_whats_up_opted_in === undefined
+          ? null
+          : req.body.is_whats_up_opted_in,
         currentDate,
         req.body.opt_in_channel,
         checkResult.rows[0].consent_id,
@@ -1434,7 +1469,6 @@ mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
       message: 'Consent recorded successfully',
       user_id: userId,
     })
-
   } catch (err) {
     logInfo('Error recording user consent:', JSON.stringify(err))
     return res.status(500).json({
@@ -1454,7 +1488,8 @@ mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
 
     const userId = accessTokenResult.userId
     // Query Cassandra
-    const query = 'SELECT * FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
+    const query =
+      'SELECT * FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?'
     const result = await cassandraClient.execute(query, [userId], {
       prepare: true,
     })
@@ -1467,6 +1502,93 @@ mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
     logInfo('Error recording user consent:', JSON.stringify(err))
     return res.status(500).json({
       message: 'Error occurred while getting user consent in Cassandra',
+    })
+  }
+})
+/**
+ * content search with raring..
+ *
+ * @author Aman Kumar Sharma <amankumar.sharma@tarento.com>
+ */
+// **POST - content search**
+mobileAppApi.post('/contentSearch', async (req, res) => {
+  try {
+    logInfo('Inside contentSearch API new end Point ')
+    const { rating } = req.query
+    const courseSearchRequestData = req.body
+    const filters = courseSearchRequestData.request?.filters || {}
+
+    const sortMethod = courseSearchRequestData.request?.sort_by || {
+      lastUpdatedOn: 'desc',
+    }
+
+    const requestBodyForSearch = {
+      request: {
+        filters,
+        limit: courseSearchRequestData.request?.limit || 20,
+        sort_by: sortMethod,
+      },
+      sort: [{ lastUpdatedOn: 'desc' }],
+    }
+    const headers = {
+      Authorization: CONSTANTS.SB_API_KEY,
+      ...contentTypeHeader,
+    }
+
+    // Calling content search API
+    const searchResponseES = await axios({
+      ...axiosRequestConfigLong,
+      data: requestBodyForSearch,
+      headers,
+      method: 'post',
+      url: API_END_POINTS.CONTENT_SEARCH_PROXY,
+    })
+
+    const searchResult = searchResponseES.data.result
+    const searchResults = searchResult?.content || []
+
+    if (searchResults.length === 0) {
+      return res.status(200).json(searchResponseES.data)
+    }
+
+    // If rating=true, fetch ratings and merge with results
+    if (rating === 'true') {
+      // tslint:disable-next-line: no-any
+      const activityIds = searchResults.map((item: any) => item.identifier)
+
+      // Call the function directly
+      const ratingsData = await getRatingSummaries('Course', activityIds)
+      const ratingMap = new Map(ratingsData.map((r) => [r.activityId, r]))
+
+      // Merge logic
+      // tslint:disable-next-line: no-any
+      const enrichedResults = searchResults.map((course: any) => {
+        // tslint:disable-next-line: no-any
+        const matchingRating: any = ratingMap.get(course.identifier)
+        return {
+          ...course,
+          averageRating: matchingRating?.averageRating ?? 0,
+          totalNumberOfRatings: matchingRating?.totalNumberOfRatings ?? 0,
+        }
+      })
+
+      // Return the complete response structure with enriched content
+      return res.status(200).json({
+        ...searchResponseES.data,
+        result: {
+          ...searchResult,
+          content: enrichedResults,
+        },
+      })
+    }
+
+    // If rating param not true → return complete search response
+    return res.status(200).json(searchResponseES.data)
+  } catch (error) {
+    logError('Error in /contentSearch: ' + JSON.stringify(error))
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Something went wrong while fetching content search results',
     })
   }
 })
@@ -1560,13 +1682,15 @@ mobileAppApi.get('/getAllUserFeed', async (req, res) => {
       },
       {
         // tslint:disable-next-line: max-line-length
-        action_url: 'https://sphere.aastrika.org/app/org-details?orgId=' +
+        action_url:
+          'https://sphere.aastrika.org/app/org-details?orgId=' +
           'Fernandez%20Foundation',
         // URL for the user to take action (e.g., view message)
         created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
         // tslint:disable-next-line: max-line-length
         // tslint:disable-next-line: max-line-length
-        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' +
+        logo:
+          'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' +
           'do_1134170690099118081470/artifact/do_1134172312759009281507_' +
           '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
 
