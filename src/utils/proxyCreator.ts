@@ -473,7 +473,6 @@ export function proxyCreatorDownloadCertificate(
   return route
 }
 
-
 export function proxyCreatorEtlFrac(
   route: Router,
   targetUrl: string,
@@ -481,7 +480,7 @@ export function proxyCreatorEtlFrac(
 ): Router {
 
   route.all("/*", (req, res) => {
-    console.log("REQ_URL_ORIGINAL_FRAC", req.originalUrl);
+    logInfo("REQ_URL_ORIGINAL_FRAC", req.originalUrl);
 
     // 1️⃣ Remove Origin header so Spring Boot does NOT trigger CORS
     delete req.headers.origin;
@@ -494,13 +493,13 @@ export function proxyCreatorEtlFrac(
     const url = req.originalUrl.replace("/proxies/v8", "");
     const finalTarget = targetUrl.replace(/\/+$/, "") + url;
 
-    console.log("PROXY → TARGET:", finalTarget);
+    logInfo("PROXY → TARGET:", finalTarget);
 
     // 4️⃣ Forward request
     proxy.web(req, res, {
-      target: finalTarget,
       changeOrigin: true,
-      ignorePath: false,      
+      ignorePath: false,
+      target: finalTarget,
       timeout,
     });
   });
