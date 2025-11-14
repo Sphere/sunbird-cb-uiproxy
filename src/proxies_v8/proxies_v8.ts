@@ -355,7 +355,7 @@ proxiesV8.use(
 )
 proxiesV8.use(
   '/api/entity/v1/*',
-  proxyCreatorEtlFrac(express.Router(), `${CONSTANTS.FRAC_ETL_API_BASE}/api/entity/v1/`)
+  proxyCreatorEtlFrac(express.Router(), `${CONSTANTS.FRAC_ETL_API_BASE}`)
 )
 proxiesV8.post('/userData/v1/bulkUpload', async (req, res) => {
   if (req.files) {
