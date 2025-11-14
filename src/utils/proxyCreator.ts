@@ -478,29 +478,21 @@ export function proxyCreatorEtlFrac(
   targetUrl: string,
   timeout = 10000
 ): Router {
-
-  route.all("/*", (req, res) => {
-    logInfo("REQ_URL_ORIGINAL_FRAC", req.originalUrl);
-
-    // 1️⃣ Remove Origin header so Spring Boot does NOT trigger CORS
-    delete req.headers.origin;
-    delete req.headers.Origin;
-
-
-    // 3️⃣ Compute the final target path
-    const url = req.originalUrl.replace("/proxies/v8", "");
-    const finalTarget = targetUrl.replace(/\/+$/, "") + url;
-
-    logInfo("PROXY → TARGET:", finalTarget);
-
-    // 4️⃣ Forward request
+  route.all('/*', (req, res) => {
+    logInfo('Entered into proxyCreatorEtlFrac', JSON.stringify(req))
+    const originalUrl = req.originalUrl;
+    logInfo('Original URL proxyCreatorEtlFrac', originalUrl);
+    const url = removePrefix(`${PROXY_SLUG}`, originalUrl)
+    logInfo('Final URL proxyCreatorEtlFrac', url);
+    // tslint:disable-next-line: no-console
+    logInfo('Final URL proxyCreatorEtlFrac', targetUrl + url)
     proxy.web(req, res, {
       changeOrigin: true,
-      ignorePath: false,
-      target: finalTarget,
-      timeout,
-    });
-  });
+      ignorePath: true,
+      target: targetUrl + url,
+      timeout
+    })
+  })
 
   return route;
 }
