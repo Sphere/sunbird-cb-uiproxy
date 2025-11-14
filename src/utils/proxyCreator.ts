@@ -479,17 +479,17 @@ export function proxyCreatorEtlFrac(
   timeout = 10000
 ): Router {
   route.all('/*', (req, res) => {
-    logInfo('Entered into proxyCreatorEtlFrac', JSON.stringify(req))
+    logInfo('Entered into proxyCreatorEtlFrac: ' + req.originalUrl)
     const originalUrl = req.originalUrl;
-    logInfo('Original URL proxyCreatorEtlFrac', originalUrl);
+    logInfo('Original URL proxyCreatorEtlFrac: ' + originalUrl);
     const url = removePrefix(`${PROXY_SLUG}`, originalUrl)
-    logInfo('Final URL proxyCreatorEtlFrac', url);
-    // tslint:disable-next-line: no-console
-    logInfo('Final URL proxyCreatorEtlFrac', targetUrl + url)
+    logInfo('Final URL proxyCreatorEtlFrac: ' + url);
+    const finalTarget = targetUrl + url;
+    logInfo('Proxy → Target: ' + finalTarget);
     proxy.web(req, res, {
       changeOrigin: true,
       ignorePath: true,
-      target: targetUrl + url,
+      target: finalTarget,
       timeout
     })
   })
