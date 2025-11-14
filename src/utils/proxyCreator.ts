@@ -486,8 +486,6 @@ export function proxyCreatorEtlFrac(
     delete req.headers.origin;
     delete req.headers.Origin;
 
-    // 2️⃣ Remove Content-Length for multipart — let proxy handle boundaries
-    delete req.headers["content-length"];
 
     // 3️⃣ Compute the final target path
     const url = req.originalUrl.replace("/proxies/v8", "");
