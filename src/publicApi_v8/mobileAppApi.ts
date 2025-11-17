@@ -1,33 +1,33 @@
-import axios from "axios";
-import fs from "fs";
-import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
+import axios from 'axios';
+import fs from 'fs';
+import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 
-import { Router } from "express";
-import express from "express";
-import { createProxyServer } from "http-proxy";
-import Joi from "joi";
-import jwt_decode from "jwt-decode";
-import _ from "lodash";
-import nodeHtmlToImage from "node-html-to-image";
-import request from "request";
-import { axiosRequestConfig } from "../configs/request.config";
-import { assessmentCreator } from "../utils/assessmentSubmitHelper";
-import { CONSTANTS } from "../utils/env";
-import { jumbler } from "../utils/jumbler";
-import { logError, logInfo } from "../utils/logger";
-import { requestValidator } from "../utils/requestValidator";
-import { fetchnodebbUserDetails } from "./nodebbUser";
-import { getRatingSummaries } from "./ratingSummary";
-import { getCurrentUserRoles } from "./rolePermission";
-import { searchContent } from "./contentSearch.service";
+import { Router } from 'express';
+import express from 'express';
+import { createProxyServer } from 'http-proxy';
+import Joi from 'joi';
+import jwt_decode from 'jwt-decode';
+import _ from 'lodash';
+import nodeHtmlToImage from 'node-html-to-image';
+import request from 'request';
+import { axiosRequestConfig } from '../configs/request.config';
+import { assessmentCreator } from '../utils/assessmentSubmitHelper';
+import { CONSTANTS } from '../utils/env';
+import { jumbler } from '../utils/jumbler';
+import { logError, logInfo } from '../utils/logger';
+import { requestValidator } from '../utils/requestValidator';
+import { searchContent } from './contentSearch.service';
+import { fetchnodebbUserDetails } from './nodebbUser';
+import { getContentWithRatings } from './ratingSummary';
+import { getCurrentUserRoles } from './rolePermission';
 // ... other imports ...
-const cassandra = require("cassandra-driver");
+const cassandra = require('cassandra-driver');
 
 const VALIDATION_FAIL =
-  "Sorry ! Download cerificate not worked . Please try again in sometime.";
+  'Sorry ! Download cerificate not worked . Please try again in sometime.';
 export const publicCertificateFlinkv2 = Router();
-const REDIRECT_URL = "https://sphere.aastrika.org/app/profile-view";
+const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view';
 const API_END_POINTS = {
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
@@ -56,56 +56,56 @@ const API_END_POINTS = {
   userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
   userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 };
-const PROXY_SLUG_FORMS = "/public/v8/mobileApp/ext-forms";
+const PROXY_SLUG_FORMS = '/public/v8/mobileApp/ext-forms';
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID.";
 const GET_ALL_ENTITY_FAIL = "Sorry ! couldn't get all the entity";
-const SERVER_ERROR_MSG = "Something went wrong while fetching results";
+const SERVER_ERROR_MSG = 'Something went wrong while fetching results';
 
-const authenticatedToken = "x-authenticated-user-token";
+const authenticatedToken = 'x-authenticated-user-token';
 // tslint:disable-next-line: no-any
-const contentTypeHeader = { "Content-Type": "application/json" };
+const contentTypeHeader = { 'Content-Type': 'application/json' };
 const proxy = createProxyServer({});
 // tslint:disable-next-line: no-any
 const getHeaders = (req: any) => {
   return {
     Authorization: CONSTANTS.SB_API_KEY,
     contentTypeHeader,
-    "x-authenticated-user-token": req.headers[authenticatedToken],
+    'x-authenticated-user-token': req.headers[authenticatedToken],
   };
 };
 const DEFAULT_ERROR_STATUS = 500;
-const DEFAULT_ERROR_MSG = "Something went wrong fetching results";
+const DEFAULT_ERROR_MSG = 'Something went wrong fetching results';
 
-const publicKeyPath = "/keys/access_key";
-const publicKeyValue = fs.readFileSync(publicKeyPath, "utf8");
-const beginKey = "-----BEGIN PUBLIC KEY-----\n";
-const endKey = "\n-----END PUBLIC KEY-----";
+const publicKeyPath = '/keys/access_key';
+const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8');
+const beginKey = '-----BEGIN PUBLIC KEY-----\n';
+const endKey = '\n-----END PUBLIC KEY-----';
 const publicKey = beginKey + publicKeyValue + endKey;
 export const mobileAppApi = Router();
 
 // tslint:disable-next-line: no-any
 const verifyToken = (req: any, res: any) => {
   try {
-    logInfo("Inside verify token function");
+    logInfo('Inside verify token function');
     const accessToken = req.headers[authenticatedToken];
-    logInfo("Token via cookie", accessToken);
+    logInfo('Token via cookie', accessToken);
     // tslint:disable-next-line: no-any
     try {
       jwt.verify(accessToken, publicKey, {
-        algorithms: ["RS256"],
+        algorithms: ['RS256'],
       });
-      logInfo("Token verified");
+      logInfo('Token verified');
     } catch (error) {
-      logInfo("Token error");
+      logInfo('Token error');
       return res.status(404).json({
-        message: "User token missing or invalid",
+        message: 'User token missing or invalid',
         redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
       });
     }
     // tslint:disable-next-line: no-any
     const decodedToken: any = jwt_decode(accessToken.toString());
-    const decodedTokenArray = decodedToken.sub.split(":");
+    const decodedTokenArray = decodedToken.sub.split(':');
     const userId = decodedTokenArray[decodedTokenArray.length - 1];
     return {
       accessToken,
@@ -115,7 +115,7 @@ const verifyToken = (req: any, res: any) => {
     };
   } catch (error) {
     return res.status(404).json({
-      message: "User token missing or invalid",
+      message: 'User token missing or invalid',
       // tslint:disable-next-line: no-any
       redirectUrl: `${CONSTANTS.HTTPS_HOST}/public/home`,
     });
@@ -125,16 +125,16 @@ const verifyToken = (req: any, res: any) => {
 // tslint:disable-next-line: no-any
 const cassandraClient = new cassandra.Client({
   contactPoints: [CONSTANTS.CASSANDRA_IP],
-  keyspace: "sunbird_courses",
-  localDataCenter: "datacenter1",
+  keyspace: 'sunbird_courses',
+  localDataCenter: 'datacenter1',
 });
 mobileAppApi.use(async (req, res, next) => {
-  if (req.url.includes("/kong")) {
+  if (req.url.includes('/kong')) {
     try {
-      logInfo("Request URL", req.url);
-      const rewrittenUrl = req.url.replace("/kong/", "/api/");
+      logInfo('Request URL', req.url);
+      const rewrittenUrl = req.url.replace('/kong/', '/api/');
       const backendUrl = `${CONSTANTS.HTTPS_HOST}${rewrittenUrl}`;
-      logInfo("backendUrl", backendUrl);
+      logInfo('backendUrl', backendUrl);
       req.headers.Authorization = CONSTANTS.SB_API_KEY;
       // tslint:disable-next-line: no-any
       const axiosOptions: any = {
@@ -142,47 +142,47 @@ mobileAppApi.use(async (req, res, next) => {
         method: req.method,
         url: backendUrl,
       };
-      logInfo("Req Headers", JSON.stringify(req.headers));
-      if (["POST", "PUT", "PATCH"].includes(req.method)) {
+      logInfo('Req Headers', JSON.stringify(req.headers));
+      if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
         axiosOptions.data = req.body;
       }
       const response = await axios(axiosOptions);
       res.status(response.status).send(response.data);
       // tslint:disable-next-line: no-any
     } catch (error) {
-      logInfo("Error forwarding request:", JSON.stringify(error));
-      res.status(500).send("Internal Server Error");
+      logInfo('Error forwarding request:', JSON.stringify(error));
+      res.status(500).send('Internal Server Error');
     }
   } else {
     // If "/kong" is not in the URL, pass to the next route
     next();
   }
 });
-mobileAppApi.get("/getContents/*", (req, res) => {
+mobileAppApi.get('/getContents/*', (req, res) => {
   try {
     const contentPath = removePrefix(
-      "/public/v8/mobileApp/getContents/",
+      '/public/v8/mobileApp/getContents/',
       req.originalUrl
     );
     const sunbirdUrl = CONSTANTS.S3_BUCKET_URL + contentPath;
     logInfo(
-      "New getcontents sunbird URL for Mobile APP >>>>>>>>>>> ",
+      'New getcontents sunbird URL for Mobile APP >>>>>>>>>>> ',
       sunbirdUrl
     );
     return request(sunbirdUrl).pipe(res);
   } catch (err) {
     res.status(404).json({
-      message: "Content not found",
+      message: 'Content not found',
     });
   }
 });
 
 mobileAppApi.use(
-  "/discussion/*",
+  '/discussion/*',
   mobileProxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 );
 
-mobileAppApi.post("/user/profileUpdate", async (req, res) => {
+mobileAppApi.post('/user/profileUpdate', async (req, res) => {
   try {
     // Validation Schema
     const schema = Joi.object({
@@ -204,9 +204,9 @@ mobileAppApi.post("/user/profileUpdate", async (req, res) => {
     if (error) {
       return res.status(400).json({
         result: {
-          errorSource: "JOI",
+          errorSource: 'JOI',
           errors: error.details.map((value) => value.message),
-          response: "FAILED",
+          response: 'FAILED',
         },
       });
     }
@@ -214,7 +214,7 @@ mobileAppApi.post("/user/profileUpdate", async (req, res) => {
     // Verify access token
     const accessTokenResult = verifyToken(req, res);
     if (accessTokenResult.status !== 200) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
     const requestUpdateLocation =
       req.body.request.profileDetails.profileLocation;
@@ -235,18 +235,18 @@ mobileAppApi.post("/user/profileUpdate", async (req, res) => {
       events: [
         {
           actor: {
-            action: "Profile_Update",
+            action: 'Profile_Update',
             id: req.body.request.userId,
-            type: "User",
+            type: 'User',
           },
-          eid: "IMPRESSION",
+          eid: 'IMPRESSION',
           mid: `IMPRESSION:${uuidv4()}`,
-          ver: "3.0",
+          ver: '3.0',
         },
       ],
-      id: "ekstep.telemetry",
+      id: 'ekstep.telemetry',
       params: { msgid: `${uuidv4()}` },
-      ver: "3.0",
+      ver: '3.0',
     };
 
     await axios.post(
@@ -262,12 +262,12 @@ mobileAppApi.post("/user/profileUpdate", async (req, res) => {
     try {
       const userCassandraClient = new cassandra.Client({
         contactPoints: [CONSTANTS.CASSANDRA_IP],
-        keyspace: "sunbird_courses",
-        localDataCenter: "datacenter1",
+        keyspace: 'sunbird_courses',
+        localDataCenter: 'datacenter1',
       });
       // tslint:disable-next-line: max-line-length
       const query =
-        "INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)";
+        'INSERT INTO sunbird.user_profile_journey (id, userid, profileRequestBody, createdon, profileLocation) VALUES (?, ?, ?, ?, ?)';
       await userCassandraClient.execute(
         query,
         [
@@ -281,7 +281,7 @@ mobileAppApi.post("/user/profileUpdate", async (req, res) => {
       );
     } catch (dbError) {
       return res.status(500).json({
-        message: "Error occurred while inserting user profile in Cassandra",
+        message: 'Error occurred while inserting user profile in Cassandra',
       });
     }
 
@@ -290,12 +290,12 @@ mobileAppApi.post("/user/profileUpdate", async (req, res) => {
   } catch (error) {
     logInfo(JSON.stringify(error));
     return res.status(500).json({
-      message: "Error occurred while updating user profile",
+      message: 'Error occurred while updating user profile',
     });
   }
 });
 
-mobileAppApi.post("/submitAssessment", async (req, res) => {
+mobileAppApi.post('/submitAssessment', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res);
     if (accesTokenResult.status == 200) {
@@ -312,30 +312,30 @@ mobileAppApi.post("/submitAssessment", async (req, res) => {
     }
   } catch (err) {
     res.status(404).json({
-      message: "Error occured while submit",
+      message: 'Error occured while submit',
     });
   }
 });
-mobileAppApi.get("/v1/assessment/*", async (req, res) => {
+mobileAppApi.get('/v1/assessment/*', async (req, res) => {
   try {
     const contentPath = removePrefix(
-      "/public/v8/mobileApp/v1/assessment/",
+      '/public/v8/mobileApp/v1/assessment/',
       req.originalUrl
     );
     jumbler(contentPath).then((response) => {
       return res.send(response);
     });
     logInfo(
-      "New getAssessments competency mobile APP >>>>>>>>>>> ",
+      'New getAssessments competency mobile APP >>>>>>>>>>> ',
       contentPath
     );
   } catch (err) {
     res.status(404).json({
-      message: "Error occured while get assessment",
+      message: 'Error occured while get assessment',
     });
   }
 });
-mobileAppApi.post("/v1/competencyAssessment/submit", async (req, res) => {
+mobileAppApi.post('/v1/competencyAssessment/submit', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res);
     const accessToken = accesTokenResult.accessToken;
@@ -349,19 +349,19 @@ mobileAppApi.post("/v1/competencyAssessment/submit", async (req, res) => {
     res.status(assessmentSubmitStatus.status).json(assessmentSubmitStatus.data);
   } catch (err) {
     res.status(404).json({
-      message: "Error occured while submit assessment",
+      message: 'Error occured while submit assessment',
     });
   }
 });
 // tslint:disable-next-line: no-any
-mobileAppApi.get("/webviewLogin", async (req: any, res) => {
+mobileAppApi.get('/webviewLogin', async (req: any, res) => {
   const accesTokenResult = verifyToken(req, res);
   const accessToken = accesTokenResult.accessToken;
   const decodedToken = accesTokenResult.decodedToken;
   const userId = accesTokenResult.userId;
   if (accesTokenResult.status == 200) {
     req.session.userId = userId;
-    logInfo(userId, "userid......................");
+    logInfo(userId, 'userid......................');
     req.kauth = {
       grant: {
         access_token: { content: decodedToken, token: accessToken },
@@ -370,17 +370,17 @@ mobileAppApi.get("/webviewLogin", async (req: any, res) => {
     req.session.grant = {
       access_token: { content: decodedToken, token: accessToken },
     };
-    logInfo("Success ! Entered into usertokenResponse..");
+    logInfo('Success ! Entered into usertokenResponse..');
     await getCurrentUserRoles(req, accessToken);
     // tslint:disable-next-line: no-any
     res.status(200).json({
-      message: "success",
+      message: 'success',
       // tslint:disable-next-line: no-any
       redirectUrl: REDIRECT_URL,
     });
   }
 });
-mobileAppApi.post("/getEntityById/:id", async (req, res) => {
+mobileAppApi.post('/getEntityById/:id', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res);
     if (accesTokenResult.status == 200) {
@@ -390,21 +390,21 @@ mobileAppApi.post("/getEntityById/:id", async (req, res) => {
           authenticatedToken: req.headers[authenticatedToken],
           contentTypeHeader,
         },
-        method: "POST",
+        method: 'POST',
         url: `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
       });
-      logInfo("Check req body of getEntityByID >> " + req.body);
+      logInfo('Check req body of getEntityByID >> ' + req.body);
       res.status(response.data.responseCode).send(response.data);
     }
   } catch (error) {
-    logError("Error in getEntityById  >>>>>>" + error);
+    logError('Error in getEntityById  >>>>>>' + error);
     res.status(500).send({
       message: GET_ENTITY_BY_ID_FAIL,
-      status: "failed",
+      status: 'failed',
     });
   }
 });
-mobileAppApi.post("/getAllEntity", async (req, res) => {
+mobileAppApi.post('/getAllEntity', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res);
     if (accesTokenResult.status == 200) {
@@ -414,46 +414,46 @@ mobileAppApi.post("/getAllEntity", async (req, res) => {
           authenticatedToken: req.headers[authenticatedToken],
           contentTypeHeader,
         },
-        method: "POST",
+        method: 'POST',
         url: API_END_POINTS.GET_ALL_ENTITY,
       });
-      logInfo("Check req body of getAllEntity >> " + req.body);
+      logInfo('Check req body of getAllEntity >> ' + req.body);
       res.status(response.data.responseCode).send(response.data);
     }
   } catch (error) {
-    logError("Error in GET_ALL_ENTITY  >>>>>>" + error);
+    logError('Error in GET_ALL_ENTITY  >>>>>>' + error);
     res.status(500).send({
       message: GET_ALL_ENTITY_FAIL,
-      status: "failed",
+      status: 'failed',
     });
   }
 });
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length);
 }
-mobileAppApi.post("/cmi5/getAuthorization", async (req, res) => {
-  logInfo("Check req body of cmi5 authorization>> " + req.body);
+mobileAppApi.post('/cmi5/getAuthorization', async (req, res) => {
+  logInfo('Check req body of cmi5 authorization>> ' + req.body);
   try {
     const accesTokenResult = verifyToken(req, res);
     res.status(200).json(accesTokenResult);
   } catch (error) {
     res.status(500).send({
-      message: "Something went wrong",
-      status: "failed",
+      message: 'Something went wrong',
+      status: 'failed',
     });
   }
 });
-mobileAppApi.post("/cmi5/updateProgress", async (req, res) => {
+mobileAppApi.post('/cmi5/updateProgress', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res);
     const userId = accesTokenResult.userId;
     req.body.request.userId = userId;
-    if (requestValidator(["userId", "contents"], req.body.request, res)) return;
+    if (requestValidator(['userId', 'contents'], req.body.request, res)) return;
     if (accesTokenResult.status == 200) {
       await axios({
         data: req.body,
         headers: getHeaders(req),
-        method: "PATCH",
+        method: 'PATCH',
         url: API_END_POINTS.UPDATE_PROGRESS,
       });
       const stateReadBody = {
@@ -461,71 +461,71 @@ mobileAppApi.post("/cmi5/updateProgress", async (req, res) => {
           batchId: req.body.request.contents[0].batchId,
           contentIds: [],
           courseId: req.body.request.contents[0].courseId,
-          fields: ["progressdetails"],
+          fields: ['progressdetails'],
           userId: req.body.request.userId,
         },
       };
       const responseProgressRead = await axios({
         data: stateReadBody,
         headers: getHeaders(req),
-        method: "POST",
+        method: 'POST',
         url: API_END_POINTS.READ_PROGRESS,
       });
       res.status(200).json(responseProgressRead.data);
     }
   } catch (error) {
-    logError("Error in update cmi5 progress  >>>>>>" + error);
+    logError('Error in update cmi5 progress  >>>>>>' + error);
     res.status(500).send({
-      message: "Something went wrong during cmi5 progress update",
-      status: "failed",
+      message: 'Something went wrong during cmi5 progress update',
+      status: 'failed',
     });
   }
 });
-mobileAppApi.post("/cmi5/readProgress", async (req, res) => {
+mobileAppApi.post('/cmi5/readProgress', async (req, res) => {
   try {
     const stateReadBody = {
       request: {
         batchId: req.body.request.contents[0].batchId,
         contentIds: [],
         courseId: req.body.request.contents[0].courseId,
-        fields: ["progressdetails"],
+        fields: ['progressdetails'],
         userId: req.body.request.userId,
       },
     };
     const responseProgressRead = await axios({
       data: stateReadBody,
       headers: getHeaders(req),
-      method: "POST",
+      method: 'POST',
       url: API_END_POINTS.READ_PROGRESS,
     });
     res.status(200).json(responseProgressRead.data);
   } catch (error) {
-    logError("Error in reading cmi5  >>>>>>" + error);
+    logError('Error in reading cmi5  >>>>>>' + error);
     res.status(500).send({
-      message: "Something went wrong during cmi5 progress read",
-      status: "failed",
+      message: 'Something went wrong during cmi5 progress read',
+      status: 'failed',
     });
   }
 });
-mobileAppApi.post("/v2/updateProgress", async (req, res) => {
+mobileAppApi.post('/v2/updateProgress', async (req, res) => {
   try {
-    logInfo("Check req body of update progress v2 for mobile >> " + req.body);
+    logInfo('Check req body of update progress v2 for mobile >> ' + req.body);
     logInfo(
-      "Check req body of update progress v2 for mobile before fix >> " +
+      'Check req body of update progress v2 for mobile before fix >> ' +
         JSON.stringify(req.body)
     );
     const accesTokenResult = verifyToken(req, res);
     const userId = accesTokenResult.userId;
     req.body.request.userId = userId;
     logInfo(
-      "Check req body of update progress v2 for mobile after fix >> " + req.body
+      'Check req body of update progress v2 for mobile after fix >> ' + req.body
     );
-    if (requestValidator(["userId", "contents"], req.body.request, res)) return;
+    if (requestValidator(['userId', 'contents'], req.body.request, res)) return;
     if (accesTokenResult.status == 200) {
       await axios({
         data: req.body,
         headers: getHeaders(req),
-        method: "PATCH",
+        method: 'PATCH',
         url: API_END_POINTS.UPDATE_PROGRESS,
       });
       const stateReadBody = {
@@ -533,51 +533,51 @@ mobileAppApi.post("/v2/updateProgress", async (req, res) => {
           batchId: req.body.request.contents[0].batchId,
           contentIds: [],
           courseId: req.body.request.contents[0].courseId,
-          fields: ["progressdetails"],
+          fields: ['progressdetails'],
           userId: req.body.request.userId,
         },
       };
       const responseProgressRead = await axios({
         data: stateReadBody,
         headers: getHeaders(req),
-        method: "POST",
+        method: 'POST',
         url: API_END_POINTS.READ_PROGRESS,
       });
-      logInfo("Check req body of update progress v2 >> " + req.body);
+      logInfo('Check req body of update progress v2 >> ' + req.body);
       res.status(200).json(responseProgressRead.data);
     }
   } catch (error) {
-    logError("Error in update progress v2  >>>>>>" + error);
+    logError('Error in update progress v2  >>>>>>' + error);
     res.status(500).send({
-      message: "Something went wrong during progress update",
-      status: "failed",
+      message: 'Something went wrong during progress update',
+      status: 'failed',
     });
   }
 });
-mobileAppApi.get("/version", async (_req, res) => {
+mobileAppApi.get('/version', async (_req, res) => {
   try {
     const filePath = CONSTANTS.APP_VERSION_PATH;
     const response = await axios({
       headers: {},
-      method: "GET",
+      method: 'GET',
       url: filePath,
     });
     const filteredData = response.data;
     res.status(200).json({
-      message: "success",
+      message: 'success',
       response: filteredData,
       status: 200,
     });
   } catch (err) {
     res.status(404).json({
-      message: "Content not found",
+      message: 'Content not found',
     });
   }
 });
-mobileAppApi.patch("/updateUserProfile", async (req, res) => {
+mobileAppApi.patch('/updateUserProfile', async (req, res) => {
   try {
     logInfo(
-      "Check req body of mobile app profile update API",
+      'Check req body of mobile app profile update API',
       JSON.stringify(req.body)
     );
     const accesTokenResult = verifyToken(req, res);
@@ -598,19 +598,19 @@ mobileAppApi.patch("/updateUserProfile", async (req, res) => {
         if (error) {
           return res.status(400).json({
             result: {
-              errorSource: "JOI",
+              errorSource: 'JOI',
               errors: error.details.map((value) => value.message),
-              response: "FAILED",
+              response: 'FAILED',
             },
           });
         }
       } catch (err) {
-        logError("Something went wrong while updating user" + err);
+        logError('Something went wrong while updating user' + err);
         return res
           .status((err && err.response && err.response.status) || 500)
           .send(
             (err && err.response && err.response.data) || {
-              error: "Something went wrong during profile update",
+              error: 'Something went wrong during profile update',
             }
           );
       }
@@ -625,7 +625,7 @@ mobileAppApi.patch("/updateUserProfile", async (req, res) => {
           .regNurseRegMidwifeNumber
       ) {
         req.body.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber =
-          "[NA]";
+          '[NA]';
       }
       // tslint:disable-next-line: max-line-length
       req.body.request.profileDetails.profileReq.personalDetails = _.omitBy(
@@ -644,27 +644,27 @@ mobileAppApi.patch("/updateUserProfile", async (req, res) => {
       res.status(response.status).send(response.data);
     }
   } catch (err) {
-    logError("Something went wrong while updating user" + err);
+    logError('Something went wrong while updating user' + err);
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: "Something went wrong",
+        error: 'Something went wrong',
       }
     );
   }
 });
 
-mobileAppApi.get("/courseRemommendationv2", async (req, res) => {
+mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    let appId = req.query.appId || "";
-    if (appId == "app.aastrika.ekhamata") {
+    let appId = req.query.appId || '';
+    if (appId == 'app.aastrika.ekhamata') {
       const filteredCourses = await getCoursesForIhat();
       return res.status(200).send(filteredCourses);
     }
-    logInfo("Appid", appId);
+    logInfo('Appid', appId);
     const responseObject = {
-      background: req.query.background || "",
-      profession: req.query.profession || "",
+      background: req.query.background || '',
+      profession: req.query.profession || '',
     };
     if (!req.query.background) {
       delete responseObject.background;
@@ -673,7 +673,7 @@ mobileAppApi.get("/courseRemommendationv2", async (req, res) => {
       delete responseObject.profession;
     }
     const response = await axios({
-      method: "GET",
+      method: 'GET',
       params: responseObject,
       url: API_END_POINTS.RECOMMENDATION_API,
     });
@@ -683,12 +683,12 @@ mobileAppApi.get("/courseRemommendationv2", async (req, res) => {
     logInfo(JSON.stringify(err));
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: "Exception occured in recommendation service",
+        error: 'Exception occured in recommendation service',
       }
     );
   }
 });
-mobileAppApi.get("/ios/certificateDownload", async (req, res) => {
+mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res);
     if (accesTokenResult.status == 200) {
@@ -698,31 +698,31 @@ mobileAppApi.get("/ios/certificateDownload", async (req, res) => {
 
       if (!(userid || courseid || secretKey)) {
         res.status(400).json({
-          msg: "UserID, courseID or secretKey can not be empty",
-          status: "error",
+          msg: 'UserID, courseID or secretKey can not be empty',
+          status: 'error',
           status_code: 400,
         });
       }
       const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY;
       if (certificateKey !== secretKey) {
         res.status(400).json({
-          msg: "Invalid certificate download key",
-          status: "error",
+          msg: 'Invalid certificate download key',
+          status: 'error',
           status_code: 400,
         });
       }
       const client = new cassandra.Client({
         contactPoints: [CONSTANTS.CASSANDRA_IP],
-        keyspace: "sunbird_courses",
-        localDataCenter: "datacenter1",
+        keyspace: 'sunbird_courses',
+        localDataCenter: 'datacenter1',
       });
       // tslint:disable-next-line: max-line-length
       const query = `SELECT userid, courseid, batchid, issued_certificates FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`;
       const certificateData = await client.execute(query);
       if (!certificateData) {
         res.status(400).json({
-          msg: "Certificate ID cannot be fetched",
-          status: "error",
+          msg: 'Certificate ID cannot be fetched',
+          status: 'error',
           status_code: 400,
         });
       }
@@ -736,11 +736,11 @@ mobileAppApi.get("/ios/certificateDownload", async (req, res) => {
         headers: {
           Authorization: CONSTANTS.SB_API_KEY,
         },
-        method: "GET",
+        method: 'GET',
         url: `${API_END_POINTS.DOWNLOAD_CERTIFICATE}${certificateId}`,
       });
       logInfo(
-        "Certificate download in progress of certificate ID",
+        'Certificate download in progress of certificate ID',
         certificateId
       );
       function getPosition(stringValue, subStringValue, index) {
@@ -749,7 +749,7 @@ mobileAppApi.get("/ios/certificateDownload", async (req, res) => {
       }
       let imageData = response.data.result.printUri;
       imageData = decodeURIComponent(imageData);
-      imageData = imageData.substring(imageData.indexOf(","));
+      imageData = imageData.substring(imageData.indexOf(','));
       let width = imageData.substring(
         imageData.indexOf("<svg width='") + 12,
         getPosition(imageData, "'", 2)
@@ -759,19 +759,19 @@ mobileAppApi.get("/ios/certificateDownload", async (req, res) => {
         getPosition(imageData, "'", 4)
       );
       if (!imageData.includes("<svg width='")) {
-        width = "1400";
-        height = "950";
+        width = '1400';
+        height = '950';
       }
       const puppeteer = {
         args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-accelerated-2d-canvas",
-          "--no-first-run",
-          "--headless",
-          "--no-zygote",
-          "--disable-gpu",
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--headless',
+          '--no-zygote',
+          '--disable-gpu',
         ],
         headless: true,
         ignoreHTTPSErrors: true,
@@ -791,131 +791,131 @@ mobileAppApi.get("/ios/certificateDownload", async (req, res) => {
   </html>`,
         puppeteerArgs: puppeteer,
       });
-      if (response.data.responseCode === "OK") {
-        logInfo("Certificate printURI received :");
+      if (response.data.responseCode === 'OK') {
+        logInfo('Certificate printURI received :');
         res.writeHead(200, {
-          "Content-Disposition":
-            "attachment;filename=" + `${certificateName}.png`,
-          "Content-Type": "image/png",
+          'Content-Disposition':
+            'attachment;filename=' + `${certificateName}.png`,
+          'Content-Type': 'image/png',
         });
-        res.end(image, "binary");
-        image = "";
+        res.end(image, 'binary');
+        image = '';
       } else {
         throw new Error(
-          _.get(response.data, "params.errmsg") ||
-            _.get(response.data, "params.err")
+          _.get(response.data, 'params.errmsg') ||
+            _.get(response.data, 'params.err')
         );
       }
     }
   } catch (error) {
-    logError("Error in downloading certificate  >>>>>>" + error);
+    logError('Error in downloading certificate  >>>>>>' + error);
     res.status(500).send({
       message: VALIDATION_FAIL,
-      status: "failed",
+      status: 'failed',
     });
   }
 });
-mobileAppApi.get("/certificateDownload", async (req, res) => {
+mobileAppApi.get('/certificateDownload', async (req, res) => {
   try {
     const { userId, certificateId } = req.query;
     const accesTokenResult = verifyToken(req, res);
     if (!userId || !certificateId || accesTokenResult.userId != userId) {
       return res.status(400).json({
-        message: "Token, Userid or Certificate missing or invalid",
-        status: "FAILED",
+        message: 'Token, Userid or Certificate missing or invalid',
+        status: 'FAILED',
       });
     }
     const certificateDownloadResponse = await axios({
       headers: { Authorization: CONSTANTS.SB_API_KEY },
-      method: "GET",
+      method: 'GET',
       params: userId,
       url: `${API_END_POINTS.CERTIFICATE_DOWNLOAD}/${certificateId}`,
     });
     res.status(200).json({
       data: certificateDownloadResponse.data.result,
-      status: "SUCCESS",
+      status: 'SUCCESS',
     });
   } catch (error) {
     res.status(400).json({
-      message: "Error occurred while certificate download",
-      status: "FAILED",
+      message: 'Error occurred while certificate download',
+      status: 'FAILED',
     });
   }
 });
-mobileAppApi.post("/ratings/upsert", async (req, res) => {
+mobileAppApi.post('/ratings/upsert', async (req, res) => {
   try {
-    logInfo("Inside ratings upsert API");
+    logInfo('Inside ratings upsert API');
     const upsertData = req.body;
     const response = await axios({
       data: upsertData,
       headers: contentTypeHeader,
-      method: "post",
+      method: 'post',
       url: API_END_POINTS.ratingUpsert,
     });
     res.status(200).json(response.data);
   } catch (error) {
     logInfo(JSON.stringify(error));
     res.status(400).json({
-      message: "Something went wrong while ratings upsert",
+      message: 'Something went wrong while ratings upsert',
     });
   }
 });
-mobileAppApi.post("/ratings/v2/read", async (req, res) => {
+mobileAppApi.post('/ratings/v2/read', async (req, res) => {
   try {
-    logInfo("Inside ratings read API");
+    logInfo('Inside ratings read API');
     const readRatingsData = req.body;
     const response = await axios({
       data: readRatingsData,
       headers: contentTypeHeader,
-      method: "post",
+      method: 'post',
       url: API_END_POINTS.ratingRead,
     });
     res.status(200).json(response.data);
   } catch (error) {
     logInfo(JSON.stringify(error));
     res.status(400).json({
-      message: "Something went wrong while reading ratings",
+      message: 'Something went wrong while reading ratings',
     });
   }
 });
-mobileAppApi.post("/ratings/ratingLookUp", async (req, res) => {
+mobileAppApi.post('/ratings/ratingLookUp', async (req, res) => {
   try {
-    logInfo("Inside ratings lookup API");
+    logInfo('Inside ratings lookup API');
     const upsertData = req.body;
     const response = await axios({
       data: upsertData,
       headers: contentTypeHeader,
-      method: "post",
+      method: 'post',
       url: API_END_POINTS.ratingLookUp,
     });
     res.status(200).json(response.data);
   } catch (error) {
     logInfo(JSON.stringify(error));
     res.status(400).json({
-      message: "Something went wrong while rating lookup",
+      message: 'Something went wrong while rating lookup',
     });
   }
 });
-mobileAppApi.get("/ratings/summary", async (req, res) => {
+mobileAppApi.get('/ratings/summary', async (req, res) => {
   try {
-    logInfo("Inside ratings summary API");
+    logInfo('Inside ratings summary API');
     const courseId = req.query.courseId;
     if (!courseId) {
       return res.status(400).json({
-        message: "CourseId cannot be empty",
-        status: "Failed",
+        message: 'CourseId cannot be empty',
+        status: 'Failed',
       });
     }
     const response = await axios({
       headers: contentTypeHeader,
-      method: "GET",
+      method: 'GET',
       url: API_END_POINTS.summary(courseId),
     });
     res.status(200).json(response.data);
   } catch (error) {
     logInfo(JSON.stringify(error));
     res.status(400).json({
-      message: "Something went wrong getting summary results",
+      message: 'Something went wrong getting summary results',
     });
   }
 });
@@ -933,35 +933,35 @@ const getUserDetails = async (userId: string) => {
         authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "POST",
+      method: 'POST',
       url: API_END_POINTS.userSearch,
     });
     return userDetails.data.result.response.content[0].profileDetails;
   } catch (error) {
-    logError("Error while user search", JSON.stringify(error));
-    return "";
+    logError('Error while user search', JSON.stringify(error));
+    return '';
   }
 };
-mobileAppApi.post("/acceptTnc", async (req, res) => {
+mobileAppApi.post('/acceptTnc', async (req, res) => {
   try {
     const tncRequestBody = req.body;
-    logInfo("tncRequestBody for tnc update", tncRequestBody);
+    logInfo('tncRequestBody for tnc update', tncRequestBody);
     const userProfileDetails = await getUserDetails(tncRequestBody.userId);
     logInfo(
-      "userProfileDetails for tnc update",
+      'userProfileDetails for tnc update',
       JSON.stringify(userProfileDetails)
     );
     if (!userProfileDetails) {
       return res.status(400).json({
-        message: "User not found",
-        status: "failed",
+        message: 'User not found',
+        status: 'failed',
       });
     }
-    userProfileDetails.profileReq.personalDetails.tncAccepted = "true";
+    userProfileDetails.profileReq.personalDetails.tncAccepted = 'true';
     const userProfileUpdateBody = {
       request: {
         profileDetails: userProfileDetails,
-        tcStatus: "true",
+        tcStatus: 'true',
         tncAcceptedOn: new Date().getTime(),
         tncAcceptedVersion: tncRequestBody.tncVersion,
         userId: tncRequestBody.userId,
@@ -973,47 +973,47 @@ mobileAppApi.post("/acceptTnc", async (req, res) => {
         authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "PATCH",
+      method: 'PATCH',
       url: API_END_POINTS.profileUpdate,
     });
     res.status(200).json({
-      message: "TNC Accepted Successfully",
-      status: "success",
+      message: 'TNC Accepted Successfully',
+      status: 'success',
     });
   } catch (error) {
     logInfo(JSON.stringify(error));
     res.status(400).json({
-      message: "Something went wrong while accepting TNC",
-      status: "failed",
+      message: 'Something went wrong while accepting TNC',
+      status: 'failed',
     });
   }
 });
 
-mobileAppApi.post("/publicSearch/courseRecommendationCbp", async (req, res) => {
+mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo("Inside CBP course recommendation route");
+    logInfo('Inside CBP course recommendation route');
     const searchRequestBody = req.body;
     if (req.session?.grant) {
       logInfo(
-        "Entered into if statement to set kauth session ",
+        'Entered into if statement to set kauth session ',
         JSON.stringify(req.session)
       );
       logInfo(
-        "Entered into if statement to set kauth grant ",
+        'Entered into if statement to set kauth grant ',
         JSON.stringify(req.session?.grant)
       );
     }
-    const token = req.session?.grant?.access_token?.token || "";
+    const token = req.session?.grant?.access_token?.token || '';
     searchRequestBody.authToken = token;
     logInfo(
-      "Inside CBP course recommendation route request body",
+      'Inside CBP course recommendation route request body',
       JSON.stringify(searchRequestBody)
     );
     const response = await axios({
       data: searchRequestBody,
       headers: contentTypeHeader,
-      method: "POST",
+      method: 'POST',
       url: API_END_POINTS.cbpCourseRecommendation,
     });
     res.status(response.status).send(response.data);
@@ -1027,10 +1027,10 @@ mobileAppApi.post("/publicSearch/courseRecommendationCbp", async (req, res) => {
   }
 });
 
-mobileAppApi.post("/create/homepageconfig", async (req, res) => {
+mobileAppApi.post('/create/homepageconfig', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo("Inside home config route");
+    logInfo('Inside home config route');
     const searchRequestBody = req.body;
     const response = await axios({
       data: searchRequestBody,
@@ -1038,12 +1038,12 @@ mobileAppApi.post("/create/homepageconfig", async (req, res) => {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "POST",
+      method: 'POST',
       url: API_END_POINTS.formHomeConfig,
     });
     res.status(response.status).send(response.data);
   } catch (err) {
-    logInfo("error", JSON.stringify(err));
+    logInfo('error', JSON.stringify(err));
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: DEFAULT_ERROR_MSG,
@@ -1052,10 +1052,10 @@ mobileAppApi.post("/create/homepageconfig", async (req, res) => {
   }
 });
 
-mobileAppApi.get("/read/homepageconfig", async (req, res) => {
+mobileAppApi.get('/read/homepageconfig', async (req, res) => {
   try {
     logInfo(
-      "Inside home config route /read/homepageconfig ",
+      'Inside home config route /read/homepageconfig ',
       JSON.stringify(req.params)
     );
     const response = await axios({
@@ -1063,12 +1063,12 @@ mobileAppApi.get("/read/homepageconfig", async (req, res) => {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "GET",
+      method: 'GET',
       url: API_END_POINTS.formHomeConfig,
     });
     res.status(response.status).send(response.data);
   } catch (err) {
-    logInfo("error", JSON.stringify(err));
+    logInfo('error', JSON.stringify(err));
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: DEFAULT_ERROR_MSG,
@@ -1077,40 +1077,40 @@ mobileAppApi.get("/read/homepageconfig", async (req, res) => {
   }
 });
 
-mobileAppApi.get("/getById/homepageconfig/*", async (req, res) => {
+mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo("Inside home config read by id", JSON.stringify(req.params));
+    logInfo('Inside home config read by id', JSON.stringify(req.params));
     const id = req.params[0];
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "GET",
-      url: API_END_POINTS.formHomeConfig + "/" + id,
+      method: 'GET',
+      url: API_END_POINTS.formHomeConfig + '/' + id,
     });
     res.status(response.status).send(response.data);
   } catch (err) {
-    logInfo("error", JSON.stringify(err));
+    logInfo('error', JSON.stringify(err));
     res
       .status(err?.response?.status || DEFAULT_ERROR_STATUS)
       .send(err?.response?.data || { error: DEFAULT_ERROR_MSG });
   }
 });
 
-mobileAppApi.put("/updateById/homepageconfig/*", async (req, res) => {
+mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
     logInfo(
-      "Inside home config update",
+      'Inside home config update',
       JSON.stringify(req.params),
       req.params[0]
     );
     const id = req.params[0];
     logInfo(
-      "Inside CBP course recommendation route ",
-      API_END_POINTS.formHomeConfig + "/" + id
+      'Inside CBP course recommendation route ',
+      API_END_POINTS.formHomeConfig + '/' + id
     );
     const searchRequestBody = req.body;
     const response = await axios({
@@ -1119,13 +1119,13 @@ mobileAppApi.put("/updateById/homepageconfig/*", async (req, res) => {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "PUT",
-      url: API_END_POINTS.formHomeConfig + "/" + id,
+      method: 'PUT',
+      url: API_END_POINTS.formHomeConfig + '/' + id,
     });
-    logInfo("Response from homepageconfig", JSON.stringify(response.data));
+    logInfo('Response from homepageconfig', JSON.stringify(response.data));
     res.status(response.status).send(response.data);
   } catch (err) {
-    logInfo("error", JSON.stringify(err));
+    logInfo('error', JSON.stringify(err));
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: DEFAULT_ERROR_MSG,
@@ -1134,27 +1134,27 @@ mobileAppApi.put("/updateById/homepageconfig/*", async (req, res) => {
   }
 });
 
-mobileAppApi.delete("/deleteById/homepageconfig/*", async (req, res) => {
+mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    logInfo("Request body", JSON.stringify(req.params), req.params[0]);
+    logInfo('Request body', JSON.stringify(req.params), req.params[0]);
     const id = req.params[0];
     logInfo(
-      "Inside CBP course recommendation route ",
-      API_END_POINTS.formHomeConfig + "/" + id
+      'Inside CBP course recommendation route ',
+      API_END_POINTS.formHomeConfig + '/' + id
     );
     const response = await axios({
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "DELETE",
-      url: API_END_POINTS.formHomeConfig + "/" + id,
+      method: 'DELETE',
+      url: API_END_POINTS.formHomeConfig + '/' + id,
     });
-    logInfo("Response from homepageconfig", JSON.stringify(response.data));
+    logInfo('Response from homepageconfig', JSON.stringify(response.data));
     res.status(response.status).send(response.data);
   } catch (err) {
-    logInfo("error", JSON.stringify(err));
+    logInfo('error', JSON.stringify(err));
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
         error: DEFAULT_ERROR_MSG,
@@ -1163,56 +1163,56 @@ mobileAppApi.delete("/deleteById/homepageconfig/*", async (req, res) => {
   }
 });
 
-mobileAppApi.post("/learnerPath", async (req, res) => {
+mobileAppApi.post('/learnerPath', async (req, res) => {
   try {
-    logInfo("Inside learner path api", JSON.stringify(req.body));
+    logInfo('Inside learner path api', JSON.stringify(req.body));
     const learnerPathBody = req.body;
     const accesTokenResult = verifyToken(req, res);
     if (accesTokenResult.userId != learnerPathBody.userid) {
       return res.status(400).json({
-        message: "Invalid Token or Userid",
-        status: "FAILED",
+        message: 'Invalid Token or Userid',
+        status: 'FAILED',
       });
     }
     const serviceResponse = await axios({
       data: learnerPathBody,
       headers: contentTypeHeader,
-      method: "POST",
+      method: 'POST',
       url: `${API_END_POINTS.UPDATE_LEARNER_PATH}`,
     });
     res.status(200).json({
       data: serviceResponse.data,
-      status: "SUCCESS",
+      status: 'SUCCESS',
     });
   } catch (err) {
     logInfo(JSON.stringify(err));
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {
-        error: "Something went wrong while updating or inserting learnerpath",
+        error: 'Something went wrong while updating or inserting learnerpath',
       }
     );
   }
 });
-mobileAppApi.get("/learnerPath", async (req, res) => {
+mobileAppApi.get('/learnerPath', async (req, res) => {
   try {
     const userId = req.query.userId;
-    logInfo("Inside learner path api", JSON.stringify(userId));
+    logInfo('Inside learner path api', JSON.stringify(userId));
     const accesTokenResult = verifyToken(req, res);
     if (accesTokenResult.userId != userId) {
       return res.status(400).json({
-        message: "Invalid Token or Userid",
-        status: "FAILED",
+        message: 'Invalid Token or Userid',
+        status: 'FAILED',
       });
     }
     const serviceResponse = await axios({
       headers: contentTypeHeader,
-      method: "GET",
+      method: 'GET',
       params: req.query,
       url: `${API_END_POINTS.GET_LEARNER_PATH}`,
     });
     res.status(200).json({
       data: serviceResponse.data,
-      status: "SUCCESS",
+      status: 'SUCCESS',
     });
   } catch (err) {
     logInfo(JSON.stringify(err));
@@ -1224,30 +1224,30 @@ mobileAppApi.get("/learnerPath", async (req, res) => {
   }
 });
 mobileAppApi.get(
-  "/user/enrollment/list/adhocCertificates",
+  '/user/enrollment/list/adhocCertificates',
   async (req, res) => {
     try {
       /* tslint:disable-next-line */
-      logInfo("Inside user enrollment list for Adhoc certificates");
-      logInfo("Request params", JSON.stringify(req.query));
+      logInfo('Inside user enrollment list for Adhoc certificates');
+      logInfo('Request params', JSON.stringify(req.query));
       const enrollmentParams = req.query;
       const accesTokenResult = verifyToken(req, res);
       if (accesTokenResult.status != 200) {
         return res.status(400).json({
-          message: "Token missing or invalid",
-          status: "FAILED",
+          message: 'Token missing or invalid',
+          status: 'FAILED',
         });
       }
       const sunbirdEnrollmentApiResponse = await axios({
         headers: getHeaders(req),
-        method: "GET",
+        method: 'GET',
         params: enrollmentParams,
         url: `${API_END_POINTS.userEnrollmentList}/${accesTokenResult.userId}`,
       });
       const generalCertificatesFromSunbird =
         sunbirdEnrollmentApiResponse.data.result.courses.map((courseData) => {
           if (courseData.issuedCertificates.length > 0) {
-            courseData.issuedCertificates[0].certificateType = "General";
+            courseData.issuedCertificates[0].certificateType = 'General';
             return courseData;
           }
           return courseData;
@@ -1256,7 +1256,7 @@ mobileAppApi.get(
       try {
         const rcMapperApiResponse = await axios({
           headers: getHeaders(req),
-          method: "GET",
+          method: 'GET',
           params: { userId: accesTokenResult.userId },
           url: `${API_END_POINTS.rcMapperHost}`,
         });
@@ -1285,15 +1285,15 @@ function mobileProxyCreatorSunbird(
   targetUrl: string,
   _timeout = 10000
 ): Router {
-  route.all("/*", async (req, res) => {
+  route.all('/*', async (req, res) => {
     try {
       const accessToken = req.headers[authenticatedToken];
       if (!accessToken) {
-        throw new Error("Access token not found");
+        throw new Error('Access token not found');
       }
       // tslint:disable-next-line: no-any
       const decodedToken: any = jwt_decode(accessToken.toString());
-      const decodedTokenArray = decodedToken.sub.split(":");
+      const decodedTokenArray = decodedToken.sub.split(':');
       const userId = decodedTokenArray[decodedTokenArray.length - 1];
 
       const nodebbUserId = await fetchnodebbUserDetails(
@@ -1303,53 +1303,53 @@ function mobileProxyCreatorSunbird(
         decodedToken
       );
       // tslint:disable-next-line: no-console
-      console.log("discussion response---", nodebbUserId);
+      console.log('discussion response---', nodebbUserId);
       let url;
       // tslint:disable-next-line: no-console
-      console.log("REQ_URL_ORIGINAL proxyCreatorSunbird", req.originalUrl);
+      console.log('REQ_URL_ORIGINAL proxyCreatorSunbird', req.originalUrl);
 
-      if (req.originalUrl.includes("/uid")) {
-        req.originalUrl = req.originalUrl.replace(/\/uid/g, "");
+      if (req.originalUrl.includes('/uid')) {
+        req.originalUrl = req.originalUrl.replace(/\/uid/g, '');
       }
-      if (req.originalUrl.includes("discussion/topic")) {
-        const topic = req.originalUrl.toString().split("/");
+      if (req.originalUrl.includes('discussion/topic')) {
+        const topic = req.originalUrl.toString().split('/');
         if (topic[6] === topic[7]) {
           req.originalUrl =
             topic[0] +
-            "/" +
+            '/' +
             topic[1] +
-            "/" +
+            '/' +
             topic[2] +
-            "/" +
+            '/' +
             topic[3] +
-            "/" +
+            '/' +
             topic[4] +
-            "/" +
+            '/' +
             topic[5] +
-            "/" +
+            '/' +
             topic[7];
         }
-        logInfo("Updated req.originalUrl >>> " + req.originalUrl);
+        logInfo('Updated req.originalUrl >>> ' + req.originalUrl);
       }
-      if (req.originalUrl.includes("?")) {
+      if (req.originalUrl.includes('?')) {
         url =
-          removePrefix("/public/v8/mobileApp", req.originalUrl) +
-          "&_uid=" +
+          removePrefix('/public/v8/mobileApp', req.originalUrl) +
+          '&_uid=' +
           nodebbUserId;
       } else {
         url =
-          removePrefix("/public/v8/mobileApp", req.originalUrl) +
-          "?_uid=" +
+          removePrefix('/public/v8/mobileApp', req.originalUrl) +
+          '?_uid=' +
           nodebbUserId;
       }
 
-      logInfo("Final Url for target >>>>>>>>>", targetUrl + url);
+      logInfo('Final Url for target >>>>>>>>>', targetUrl + url);
       // tslint:disable-next-line: no-any
       const headers: any = {
         Authorization: CONSTANTS.SB_API_KEY,
-        "X-Channel-Id": "0132317968766894088",
+        'X-Channel-Id': '0132317968766894088',
 
-        "X-Authenticated-User-Token": req.headers[authenticatedToken],
+        'X-Authenticated-User-Token': req.headers[authenticatedToken],
       };
       // tslint:disable-next-line: no-any
       const method = req.method as any;
@@ -1373,7 +1373,7 @@ function mobileProxyCreatorSunbird(
     } catch (error) {
       // tslint:disable-next-line: no-console
       console.log(JSON.stringify(error));
-      res.status(401).send("Unauthorized");
+      res.status(401).send('Unauthorized');
     }
   });
   return route;
@@ -1388,7 +1388,7 @@ function mobileProxyCreatorSunbird(
  */
 // **POST - Record User Consent**
 
-mobileAppApi.post("/user/WhatsappConsent", async (req, res) => {
+mobileAppApi.post('/user/WhatsappConsent', async (req, res) => {
   try {
     // Validate request body
     const schema = Joi.object({
@@ -1399,14 +1399,14 @@ mobileAppApi.post("/user/WhatsappConsent", async (req, res) => {
     const { error } = schema.validate(req.body);
     if (error) {
       // tslint:disable-next-line: no-console
-      console.error("Error while validating user consent:", error);
+      console.error('Error while validating user consent:', error);
       return res.status(400).json({ error: error.details });
     }
 
     // Verify authentication
     const accessTokenResult = verifyToken(req, res);
     if (accessTokenResult.status !== 200) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
     const userId = accessTokenResult.userId;
@@ -1414,7 +1414,7 @@ mobileAppApi.post("/user/WhatsappConsent", async (req, res) => {
 
     // First check if a record exists for this user
     const checkQuery =
-      "SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?";
+      'SELECT consent_id FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?';
     const checkResult = await cassandraClient.execute(checkQuery, [userId], {
       prepare: true,
     });
@@ -1465,42 +1465,42 @@ mobileAppApi.post("/user/WhatsappConsent", async (req, res) => {
     return res.status(200).json({
       consent_id: consentId,
       is_new_record: checkResult.rowLength === 0,
-      message: "Consent recorded successfully",
+      message: 'Consent recorded successfully',
       user_id: userId,
     });
   } catch (err) {
-    logInfo("Error recording user consent:", JSON.stringify(err));
+    logInfo('Error recording user consent:', JSON.stringify(err));
     return res.status(500).json({
-      message: "Error occurred while inserting user consent in Cassandra",
+      message: 'Error occurred while inserting user consent in Cassandra',
     });
   }
 });
 
 // **GET - Retrieve User Consent**
-mobileAppApi.get("/user/getWhatsappConsent", async (req, res) => {
+mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
   try {
     // Verify authentication
     const accessTokenResult = verifyToken(req, res);
     if (accessTokenResult.status !== 200) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
     const userId = accessTokenResult.userId;
     // Query Cassandra
     const query =
-      "SELECT * FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?";
+      'SELECT * FROM sunbird_courses.user_whatsup_opt_in_consent WHERE user_id = ?';
     const result = await cassandraClient.execute(query, [userId], {
       prepare: true,
     });
 
     if (result.rowLength === 0) {
-      return res.status(404).json({ message: "Consent record not found" });
+      return res.status(404).json({ message: 'Consent record not found' });
     }
     return res.status(200).json(result.rows[0]);
   } catch (err) {
-    logInfo("Error recording user consent:", JSON.stringify(err));
+    logInfo('Error recording user consent:', JSON.stringify(err));
     return res.status(500).json({
-      message: "Error occurred while getting user consent in Cassandra",
+      message: 'Error occurred while getting user consent in Cassandra',
     });
   }
 });
@@ -1510,50 +1510,31 @@ mobileAppApi.get("/user/getWhatsappConsent", async (req, res) => {
  * @author Aman Kumar Sharma <amankumar.sharma@tarento.com>
  */
 // **POST - content search**
-mobileAppApi.post("/contentSearch", async (req, res) => {
+
+mobileAppApi.post('/contentSearch', async (req, res) => {
   try {
-    logInfo("Inside contentSearch API new end Point");
+    logInfo('Inside contentSearch API new end Point');
     const { rating } = req.query;
     const courseSearchRequestData = req.body;
 
     // Call content search service
     const searchResponse = await searchContent(courseSearchRequestData);
-    const searchResult = searchResponse.result;
-    const searchResults = searchResult?.content || [];
 
-    if (searchResults.length === 0) {
-      return res.status(200).json(searchResponse);
-    }
+    // Use the helper method to enrich with ratings if needed
+    const enrichedResult = await getContentWithRatings(
+      searchResponse.result,
+      rating === 'true'
+    );
 
-    // If rating=true, enrich with ratings
-    if (rating === "true") {
-      const activityIds = searchResults.map((item: any) => item.identifier);
-      const ratingsData = await getRatingSummaries("Course", activityIds);
-      const ratingMap = new Map(ratingsData.map((r) => [r.activityId, r]));
-
-      const enrichedResults = searchResults.map((course: any) => {
-        const matchingRating: any = ratingMap.get(course.identifier);
-        return {
-          ...course,
-          averageRating: matchingRating?.averageRating ?? 0,
-          totalNumberOfRatings: matchingRating?.totalNumberOfRatings ?? 0,
-        };
-      });
-
-      return res.status(200).json({
-        ...searchResponse,
-        result: {
-          ...searchResult,
-          content: enrichedResults,
-        },
-      });
-    }
-    return res.status(200).json(searchResponse);
+    return res.status(200).json({
+      ...searchResponse,
+      result: enrichedResult,
+    });
   } catch (error) {
-    logError("Error in /contentSearch: " + JSON.stringify(error));
+    logError('Error in /contentSearch: ' + JSON.stringify(error));
     return res.status(500).json({
-      error: "Internal Server Error",
-      message: "Something went wrong while fetching content search results",
+      error: 'Internal Server Error',
+      message: 'Something went wrong while fetching content search results',
     });
   }
 });
@@ -1562,32 +1543,32 @@ const getCoursesForIhat = async () => {
   const requestFilterForIhat = {
     request: {
       filters: {
-        contentType: ["Course"],
-        primaryCategory: ["Course"],
-        sourceName: "IHAT",
-        status: ["Live"],
+        contentType: ['Course'],
+        primaryCategory: ['Course'],
+        sourceName: 'IHAT',
+        status: ['Live'],
       },
       limit: 15,
 
       sort_by: {
-        lastUpdatedOn: "desc",
+        lastUpdatedOn: 'desc',
       },
     },
     sort: [
       {
-        lastUpdatedOn: "desc",
+        lastUpdatedOn: 'desc',
       },
     ],
   };
   const ihatCoursesList = await axios({
     data: requestFilterForIhat,
     headers: { Authorization: CONSTANTS.SB_API_KEY },
-    method: "POST",
+    method: 'POST',
     url: `${API_END_POINTS.SEARCH_COURSE_SB}`,
   });
   return ihatCoursesList.data.result.content.map((course) => {
     return {
-      background: "Healthcare Worker",
+      background: 'Healthcare Worker',
       course_appIcon: course.appIcon,
       course_creator: course.creator,
       course_id: course.identifier,
@@ -1595,7 +1576,7 @@ const getCoursesForIhat = async () => {
       course_name: course.name,
       course_sourceName: course.sourceName,
       course_thumbnail: course.thumbnail,
-      profession: "ANM",
+      profession: 'ANM',
       user_count: 3,
     };
   });
@@ -1603,133 +1584,133 @@ const getCoursesForIhat = async () => {
 // tslint:disable-next-line: max-line-length
 /* tslint:disable:max-len */
 
-mobileAppApi.get("/getAllUserFeed", async (req, res) => {
+mobileAppApi.get('/getAllUserFeed', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res);
     if (accesTokenResult.status != 200) {
       return res.status(400).json({
-        message: "Token missing or invalid",
-        status: "FAILED",
+        message: 'Token missing or invalid',
+        status: 'FAILED',
       });
     }
-    logInfo("Entered into getAllUserFeed >>>>>", req.query);
+    logInfo('Entered into getAllUserFeed >>>>>', req.query);
     if (!req.query.userId) {
       res.status(400).json({
-        message: "User id can not be empty",
-        status: "FAILED",
+        message: 'User id can not be empty',
+        status: 'FAILED',
       });
     }
     const userFeedData = [
       {
         action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
-        created_on: "2024-11-26T14:32:00Z", // Timestamp of when the notification was created
+        created_on: '2024-11-26T14:32:00Z', // Timestamp of when the notification was created
         // tslint:disable-next-line: max-line-length
-        logo: "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png",
+        logo: 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/do_1137533766819430401136/artifact/do_113757035395252224156_1679325610280_postpartumhemorragealt1679325609439.thumb.png',
         // tslint:disable-next-line: max-line-length
         message:
           'New course added: <a href="https://sphere.aastrika.org/app/toc/' +
           'do_1137533766819430401136/overview" target="_blank">Post Partum ' +
-          "Haemorrhage (PPH)</a>",
+          'Haemorrhage (PPH)</a>',
         metadata: {
           // Additional metadata to enrich the notification
-          related_entity_id: "message_56979", // Associated entity (e.g., a message, post, comment)
-          source: "system", // Source of the notification (e.g., system, user, admin)
-          tags: ["important", "user_mention"], // Tags for categorization or filtering
+          related_entity_id: 'message_56979', // Associated entity (e.g., a message, post, comment)
+          source: 'system', // Source of the notification (e.g., system, user, admin)
+          tags: ['important', 'user_mention'], // Tags for categorization or filtering
           user_mention_id: null, // ID of the user mentioned (if applicable)
         },
-        notification_id: "not_1232334", // Unique ID for the notification
-        priority: "high", // Priority of the notification (e.g., low, medium, high)
+        notification_id: 'not_1232334', // Unique ID for the notification
+        priority: 'high', // Priority of the notification (e.g., low, medium, high)
         read_on: null, // Timestamp of when the notification was read (null if unread)
-        status: "unread", // Current status of the notification (e.g., unread, read, dismissed)
-        title: "You have a new message!", // Short title or summary of the notification
-        type: "new_message", // Type of notification (e.g., new message, mention, like)
-        user_id: "user_6789", // ID of the user receiving the notification
+        status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+        title: 'You have a new message!', // Short title or summary of the notification
+        type: 'new_message', // Type of notification (e.g., new message, mention, like)
+        user_id: 'user_6789', // ID of the user receiving the notification
       },
       {
         // tslint:disable-next-line: max-line-length
         action_url:
-          "https://sphere.aastrika.org/app/org-details?orgId=" +
-          "Fernandez%20Foundation",
+          'https://sphere.aastrika.org/app/org-details?orgId=' +
+          'Fernandez%20Foundation',
         // URL for the user to take action (e.g., view message)
-        created_on: "2024-11-25T14:32:00Z", // Timestamp of when the notification was created
+        created_on: '2024-11-25T14:32:00Z', // Timestamp of when the notification was created
         // tslint:disable-next-line: max-line-length
         // tslint:disable-next-line: max-line-length
         logo:
-          "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/" +
-          "do_1134170690099118081470/artifact/do_1134172312759009281507_" +
-          "1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg",
+          'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/content/' +
+          'do_1134170690099118081470/artifact/do_1134172312759009281507_' +
+          '1637848567343_fernandezfoundationprimarylogo20191599049077665.thumb.jpg',
 
         message: `<a href="https://sphere.aastrika.org/app/org-details?orgId=Fernandez%20Foundation"
       target="_blank">Fernandez Foundation</a> updated a new Respectful Maternity Course`,
 
         metadata: {
           // Additional metadata to enrich the notification
-          related_entity_id: "message_56759", // Associated entity (e.g., a message, post, comment)
-          source: "system", // Source of the notification (e.g., system, user, admin)
-          tags: ["important", "user_mention"], // Tags for categorization or filtering
+          related_entity_id: 'message_56759', // Associated entity (e.g., a message, post, comment)
+          source: 'system', // Source of the notification (e.g., system, user, admin)
+          tags: ['important', 'user_mention'], // Tags for categorization or filtering
           user_mention_id: null, // ID of the user mentioned (if applicable)
         },
-        notification_id: "not_64612345", // Unique ID for the notification
-        priority: "medium", // Priority of the notification (e.g., low, medium, high)
+        notification_id: 'not_64612345', // Unique ID for the notification
+        priority: 'medium', // Priority of the notification (e.g., low, medium, high)
         read_on: null, // Timestamp of when the notification was read (null if unread)
-        status: "unread", // Current status of the notification (e.g., unread, read, dismissed)
-        title: "You have a new certificate!", // Short title or summary of the notification
-        type: "new_message", // Type of notification (e.g., new message, mention, like)
-        user_id: "user_6789", // ID of the user receiving the notification
+        status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+        title: 'You have a new certificate!', // Short title or summary of the notification
+        type: 'new_message', // Type of notification (e.g., new message, mention, like)
+        user_id: 'user_6789', // ID of the user receiving the notification
       },
       {
         action_url: REDIRECT_URL, // URL for the user to take action (e.g., view message)
-        created_on: "2024-11-24T14:32:00Z", // Timestamp of when the notification was created
+        created_on: '2024-11-24T14:32:00Z', // Timestamp of when the notification was created
         logo:
-          "https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/" +
-          "artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png",
+          'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/collection/do_11378822335428198411/' +
+          'artifact/do_11378822362212761612_1683132767343_untitled100021683132765623.thumb.thumb.thumb.png',
 
         message:
-          "Congratulations you have successfully completed the course: " +
+          'Congratulations you have successfully completed the course: ' +
           '<a href="https://sphere.aastrika.org/app/profile-view" target="_blank">' +
-          "Respectful Maternity Care</a>", // Detailed message content
+          'Respectful Maternity Care</a>', // Detailed message content
 
         metadata: {
           // Additional metadata to enrich the notification
-          related_entity_id: "message_56789", // Associated entity (e.g., a message, post, comment)
-          source: "system", // Source of the notification (e.g., system, user, admin)
-          tags: ["important", "user_mention"], // Tags for categorization or filtering
+          related_entity_id: 'message_56789', // Associated entity (e.g., a message, post, comment)
+          source: 'system', // Source of the notification (e.g., system, user, admin)
+          tags: ['important', 'user_mention'], // Tags for categorization or filtering
           user_mention_id: null, // ID of the user mentioned (if applicable)
         },
-        notification_id: "not_6457612345", // Unique ID for the notification
-        priority: "high", // Priority of the notification (e.g., low, medium, high)
+        notification_id: 'not_6457612345', // Unique ID for the notification
+        priority: 'high', // Priority of the notification (e.g., low, medium, high)
         read_on: null, // Timestamp of when the notification was read (null if unread)
-        status: "unread", // Current status of the notification (e.g., unread, read, dismissed)
-        title: "You have a new course to read!", // Short title or summary of the notification
-        type: "new_message", // Type of notification (e.g., new message, mention, like)
-        user_id: "user_6789", // ID of the user receiving the notification
+        status: 'unread', // Current status of the notification (e.g., unread, read, dismissed)
+        title: 'You have a new course to read!', // Short title or summary of the notification
+        type: 'new_message', // Type of notification (e.g., new message, mention, like)
+        user_id: 'user_6789', // ID of the user receiving the notification
       },
     ];
     res.status(200).json({
       message: `User feed successfully read for userId ${req.query.userId}`,
-      status: "SUCCESS",
+      status: 'SUCCESS',
       userFeed: userFeedData,
       userId: req.query.userId,
     });
   } catch (error) {
-    logInfo("Error in user creation >>>>>>" + error);
+    logInfo('Error in user creation >>>>>>' + error);
     res.status(500).send({
-      message: "Something went wrong while fetching user feed",
-      status: "failed",
+      message: 'Something went wrong while fetching user feed',
+      status: 'failed',
     });
   }
 });
 // tslint:disable-next-line: max-line-length
-mobileAppApi.get("/getUnreadUserNotifications", async (req, res) => {
+mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
   try {
     const serviceResponse = await axios({
       headers: contentTypeHeader,
-      method: "GET",
+      method: 'GET',
       url: `${API_END_POINTS.NOTIFICATION_ENGINE}/notifications/notifications/${req.query.userId}`,
     });
     res.status(200).json({
       data: serviceResponse.data,
-      status: "SUCCESS",
+      status: 'SUCCESS',
     });
   } catch (err) {
     logInfo(JSON.stringify(err));
@@ -1741,9 +1722,9 @@ mobileAppApi.get("/getUnreadUserNotifications", async (req, res) => {
   }
 });
 
-mobileAppApi.post("/ext-forms/*", async (req, res) => {
+mobileAppApi.post('/ext-forms/*', async (req, res) => {
   const endpoint = removePrefix(`${PROXY_SLUG_FORMS}`, req.originalUrl);
-  logInfo("req.originalUrl ", req.body, endpoint);
+  logInfo('req.originalUrl ', req.body, endpoint);
   try {
     const serviceResponse = await axios({
       data: req.body,
@@ -1751,12 +1732,12 @@ mobileAppApi.post("/ext-forms/*", async (req, res) => {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: "POST",
+      method: 'POST',
       url: `${API_END_POINTS.FORM_API}${endpoint}`,
     });
     res.status(200).json({
       data: serviceResponse.data,
-      status: "SUCCESS",
+      status: 'SUCCESS',
     });
   } catch (err) {
     logInfo(JSON.stringify(err));
