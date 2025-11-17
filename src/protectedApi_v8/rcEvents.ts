@@ -409,6 +409,7 @@ async function updateCertificateStatus(queryParams: any): Promise<void> {
 const generateCertificateFromRcMapper = async (
   // tslint:disable-next-line: no-any
   user: any,
+  // tslint:disable-next-line: no-any
   eventDataFromCassandra: any,
   userId: string,
   templateId: string
