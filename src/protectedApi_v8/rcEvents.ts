@@ -244,11 +244,9 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
       }
       await insertUserEventLink(queryParamsLink);
     }
-    res
-      .status(200)
-      .json({
-        message: `Users successfully linked to event ${eventData.eventId}`,
-      });
+    res.status(200).json({
+      message: `Users successfully linked to event ${eventData.eventId}`,
+    });
   } catch (err) {
     logInfo(JSON.stringify(err));
     res.status(500).json({ error: 'Error linking users to event' });
@@ -262,7 +260,7 @@ async function getUserDetailsFromSunbird(phone: string, user: any) {
   if (isUserExists.status && isUserExists.userId) {
     return isUserExists;
   }
-  return await createUserIfNotExists(user);
+  return createUserIfNotExists(user);
 }
 // tslint:disable-next-line: no-any
 async function insertUserEventLink(queryParamsLink: any) {
@@ -409,6 +407,7 @@ async function updateCertificateStatus(queryParams: any): Promise<void> {
 }
 // tslint:disable-next-line: no-any
 const generateCertificateFromRcMapper = async (
+  // tslint:disable-next-line: no-any
   user: any,
   eventDataFromCassandra: any,
   userId: string,
