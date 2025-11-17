@@ -36,5 +36,5 @@ export const getDetailsAsPerRole = (userDetails: UserDetails) => {
 }
 
 export const validRootOrgs = [
-    'Madhya Pradesh - National Health Mission'
+    'Madhya Pradesh - National Health Mission',
 ]

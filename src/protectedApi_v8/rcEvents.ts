@@ -221,7 +221,7 @@ async function getUserDetailsFromSunbird(phone: string, user: any) {
     if (isUserExists.status && isUserExists.userId) {
         return isUserExists
     }
-    return await createUserIfNotExists(user)
+    return createUserIfNotExists(user)
 }
 // tslint:disable-next-line: no-any
 async function insertUserEventLink(queryParamsLink: any) {
