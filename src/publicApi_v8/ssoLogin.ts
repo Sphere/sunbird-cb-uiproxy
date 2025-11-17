@@ -207,14 +207,14 @@ ssoLogin.post('/login', async (req: any, res) => {
         const userId = userDetails.data.result.response.content[0].id
         logInfo('SSO login userid', userId)
         if (typeOfLogin == 'otp' && userEmail) {
-            logInfo('Validate otp for email', userEmail, otp)
+            logInfo('VALIDATE_OTP: for email', userEmail, otp)
             const verifyOtpResponse = await validateOTP(
                 userId,
                 userEmail,
                 'email',
                 otp
             )
-            logInfo('SSO login OTP verify response for email', JSON.stringify(verifyOtpResponse.data))
+            logInfo('VALIDATE_OTP: SSO login OTP verify response for email', JSON.stringify(verifyOtpResponse.data))
             if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
                 return res.status(400).json({
                     message: 'Email OTP validation failed try again',
@@ -222,7 +222,7 @@ ssoLogin.post('/login', async (req: any, res) => {
             }
         }
         if (typeOfLogin == 'otp' && userPhone) {
-            logInfo('Validate otp for phone', userPhone, otp)
+            logInfo('VALIDATE_OTP: for phone', userPhone, otp)
 
             const verifyOtpResponse = await axios({
                 headers: msg91Headers,
@@ -234,7 +234,7 @@ ssoLogin.post('/login', async (req: any, res) => {
 
                 url: API_END_POINTS.msg91VerifyOtp,
             })
-            logInfo('SSO login OTP verify response for phone', JSON.stringify(verifyOtpResponse.data))
+            logInfo('VALIDATE_OTP: SSO login OTP verify response for phone', JSON.stringify(verifyOtpResponse.data))
             if (verifyOtpResponse.data.type !== 'success') {
                 return res.status(400).json({
                     message: 'Phone OTP validation failed try again',
@@ -312,6 +312,7 @@ ssoLogin.post('/login', async (req: any, res) => {
         })
 
     } catch (error) {
+        logInfo('VALIDATE_OTP: Error in SSO login route', JSON.stringify(error))
         res.status(500).send({
             message: VALIDATION_FAIL,
             status: 'failed',

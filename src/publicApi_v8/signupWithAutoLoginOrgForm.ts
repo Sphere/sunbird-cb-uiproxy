@@ -376,7 +376,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
             createAccount: 'skipped',
             isUserMigrated: migrated,
             profileUpdate: profileUpdatedData ? 'success' : 'failed',
-            registrationSuccessMessage: 'User created successfully',
+            registrationSuccessMessage: 'User migrated successfully',
             roleAssign: roleAssign ? 'success' : 'failed',
             userAlreadyExists: true,
             userExistingOrganisation: existingUser.rootOrgName,
@@ -457,7 +457,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
 
     if (userPhone) {
       try {
-        logInfo('Autologin send otp through phone', userPhone)
+        logInfo('VALIDATE_OTP:Autologin send otp through phone', userPhone)
         await axios({
           headers: msg91Headers,
           method: 'POST',
@@ -474,7 +474,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
           userId,
         })
       } catch (error) {
-        logError('Error while sending mobile OTP', JSON.stringify(error))
+        logError('VALIDATE_OTP: Error while sending mobile OTP', JSON.stringify(error))
         return res.status(500).send({
           message: `OTP generation fail for phone ${userPhone}`,
           status: 'failed',
@@ -484,7 +484,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
 
     if (userEmail) {
       try {
-        logInfo('Autologin send otp through email', userEmail)
+        logInfo('VALIDATE_OTP: Autologin send otp through email', userEmail)
         await getOTP(userId, userEmail, 'email')
         return res.status(200).json({
           data: `OTP successfully sent on email ${userEmail}`,
@@ -493,7 +493,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
           userId,
         })
       } catch (error) {
-        logError('Error while sending email OTP', JSON.stringify(error))
+        logError('VALIDATE_OTP: Error while sending email OTP', JSON.stringify(error))
         return res.status(500).send({
           message: `OTP generation fail for email ${userEmail}`,
           status: 'failed',
