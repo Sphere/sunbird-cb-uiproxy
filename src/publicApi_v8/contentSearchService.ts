@@ -11,6 +11,7 @@ export interface ContentSearchRequest {
     // tslint:disable-next-line: no-any
     filters?: Record<string, any>;
     limit?: number;
+    offset?: number;
     sort_by?: Record<string, string>;
   };
 }
@@ -37,6 +38,7 @@ export async function searchContent(
     request: {
       filters,
       limit: searchRequest.request?.limit || 20,
+      offset: searchRequest.request?.offset || 1,
       sort_by: sortMethod,
     },
     sort: [{ lastUpdatedOn: 'desc' }],
