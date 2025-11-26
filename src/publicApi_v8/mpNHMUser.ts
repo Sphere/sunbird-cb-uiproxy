@@ -28,7 +28,7 @@ interface UserDetails {
     block?: string
     ehrmsNumber?: string
     // tslint:disable-next-line: all
-    role: 'Student' | 'Faculty' | 'ANM-MP' | 'CHO-MP',
+    role: 'Student' | 'Faculty' | 'ANM-MP' | 'CHO-MP' | 'Trainer-MP',
     regNurseRegMidwifeNumber?: string
     employmentType?: string
     dob?: string
@@ -126,11 +126,11 @@ const serviceSchemaJoi = Joi.object({
             'number.positive': 'Phone number must be a positive integer',
         }),
     role: Joi.string()
-        .valid('Student', 'Faculty', 'ANM-MP', 'CHO-MP')
+        .valid('Student', 'Faculty', 'ANM-MP', 'CHO-MP', 'Trainer-MP')
         .required()
         .messages({
             // tslint:disable-next-line: all
-            'any.only': 'Role must be either Student, Faculty, ANM-MP, or CHO-MP',
+            'any.only': 'Role must be either Student, Faculty, ANM-MP, CHO-MP, or Trainer-MP',
             'any.required': 'Role is required',
         }),
     // ✅ Newly Added Fields
@@ -790,7 +790,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
-        if (user.role == 'ANM-MP' || user.role == 'CHO-MP') {
+        if (user.role == 'ANM-MP' || user.role == 'CHO-MP' || user.role == 'Trainer-MP') {
             userProfileUpdateData = {
                 request: {
                     profileDetails: {
