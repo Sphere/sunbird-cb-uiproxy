@@ -16,6 +16,16 @@ const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
 const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
 
+const uploadProxy = createProxyServer({
+  changeOrigin: true,
+  secure: false,
+  ignorePath: false,        // Keep same request path (/upload)
+})
+
+uploadProxy.on('error', (err) => {
+  console.error('UPLOAD PROXY ERROR:', err)
+})
+
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
   proxyReq.setHeader('X-Channel-Id', '0132317968766894088')
@@ -490,6 +500,27 @@ export function proxyCreatorEtlFrac(
     console.log('REQ_URL_ORIGINAL_FRAC', req.originalUrl)
     proxyCreator(timeout).web(req, res, {
       target: targetUrl,
+    })
+  })
+  return route
+}
+
+/**
+ * Dedicated proxy for multipart upload (no JSON body rewrite)
+ */
+export function proxyCreatorEtlFracUpload(
+  route: Router,
+  targetUrl: string,
+  timeout = 500000
+): Router {
+  route.all('/*', (req, res) => {
+    console.log('REQ_URL_ORIGINAL_FRAC_UPLOAD', req.originalUrl)
+
+    // ⚠️ Don't touch req.body → let body stream (file) go directly
+    uploadProxy.web(req, res, {
+      target: targetUrl,
+      timeout,
+      buffer: req,      // ensures file streaming continues
     })
   })
   return route
