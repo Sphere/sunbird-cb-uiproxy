@@ -483,7 +483,7 @@ export function proxyCreatorDownloadCertificate(
 export function proxyCreatorEtlFrac(
   route: Router,
   targetUrl: string,
-  timeout = 10000
+  timeout = 500000
 ): Router {
   route.all('/*', (req, res) => {
     // tslint:disable-next-line: no-console
