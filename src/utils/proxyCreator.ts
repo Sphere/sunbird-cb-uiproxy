@@ -18,12 +18,8 @@ const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
 
 const uploadProxy = createProxyServer({
   changeOrigin: true,
-  secure: false,
   ignorePath: false,        // Keep same request path (/upload)
-})
-
-uploadProxy.on('error', (err) => {
-  console.error('UPLOAD PROXY ERROR:', err)
+  secure: false,
 })
 
 // tslint:disable-next-line: no-any
@@ -514,13 +510,13 @@ export function proxyCreatorEtlFracUpload(
   timeout = 500000
 ): Router {
   route.all('/*', (req, res) => {
-    console.log('REQ_URL_ORIGINAL_FRAC_UPLOAD', req.originalUrl)
+    logInfo('REQ_URL_ORIGINAL_FRAC_UPLOAD', req.originalUrl)
 
     // ⚠️ Don't touch req.body → let body stream (file) go directly
     uploadProxy.web(req, res, {
+      buffer: req,      // ensures file streaming continues
       target: targetUrl,
       timeout,
-      buffer: req,      // ensures file streaming continues
     })
   })
   return route
