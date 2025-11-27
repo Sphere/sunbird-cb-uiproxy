@@ -473,26 +473,24 @@ export function proxyCreatorDownloadCertificate(
   return route
 }
 
+/**
+ * Proxies requests from the frontend to the etl-frac service.
+ * @param route The express router to which the proxy routes should be added.
+ * @param targetUrl The URL of the etl-frac service.
+ * @param timeout The maximum time in milliseconds that the proxy should wait for a response from the etl-frac service.
+ * @returns The express router with the proxy routes added.
+ */
 export function proxyCreatorEtlFrac(
   route: Router,
   targetUrl: string,
   timeout = 10000
 ): Router {
   route.all('/*', (req, res) => {
-    logInfo('Entered into proxyCreatorEtlFrac: ' + req.originalUrl)
-    const originalUrl = req.originalUrl;
-    logInfo('Original URL proxyCreatorEtlFrac: ' + originalUrl);
-    const url = removePrefix(`${PROXY_SLUG}`, originalUrl)
-    logInfo('Final URL proxyCreatorEtlFrac: ' + url);
-    const finalTarget = targetUrl + url;
-    logInfo('Proxy → Target: ' + finalTarget);
-    proxy.web(req, res, {
-      changeOrigin: true,
-      ignorePath: true,
-      target: finalTarget,
-      timeout
+    // tslint:disable-next-line: no-console
+    console.log('REQ_URL_ORIGINAL_FRAC', req.originalUrl)
+    proxyCreator(timeout).web(req, res, {
+      target: targetUrl,
     })
   })
-
-  return route;
+  return route
 }
