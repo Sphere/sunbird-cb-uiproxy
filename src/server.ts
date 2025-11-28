@@ -26,12 +26,14 @@ import { logError, logInfo, logSuccess } from './utils/logger'
 const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
 import fs from 'fs'
+// tslint:disable-next-line: comment-format
 // import path from 'path'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
 const { frameworkAPI } = require('@project-sunbird/ext-framework-server/api')
 const frameworkConfig = require('./configs/framework.config')
 
 const publicKeyPath = '/keys/access_key' // prod
+// tslint:disable-next-line: comment-format
 // const publicKeyPath = path.join(__dirname, '/keys/access_key') // local
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'

@@ -17,8 +17,10 @@ const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
 const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
 const CONTENT_TYPE_KEY = 'content-type'
+const CONTENT_LENGTH_KEY_LOWER = 'content-length'
 const AUTH_TOKEN_KEY = 'x-authenticated-user-token'
 const AUTH_USER_ID_KEY = 'x-authenticated-userid'
+const CONTENT_LENGTH_KEY = 'Content-Length'
 
 /**
  * Upload-dedicated proxy — streams multipart data without JSON conversion.
@@ -53,7 +55,7 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 
   if (req.body) {
     const bodyData = JSON.stringify(req.body)
-    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData))
+    proxyReq.setHeader(CONTENT_LENGTH_KEY, Buffer.byteLength(bodyData))
     proxyReq.write(bodyData)
   }
 })
@@ -541,7 +543,7 @@ export function proxyCreatorEtlFracUpload(
     logInfo('\n==================== ⛳ UPLOAD DEBUG START ====================')
 
     logInfo('🟢 Incoming UI Request')
-    logInfo('Content-Length :', req.headers['content-length'])
+    logInfo('Content-Length :', req.headers[CONTENT_LENGTH_KEY_LOWER])
     logInfo('Content-Type   :', req.headers[CONTENT_TYPE_KEY])
     logInfo('HostHeader     :', req.headers.host)
     logInfo('Method         :', req.method)
@@ -587,24 +589,27 @@ export function proxyCreatorEtlFracUpload(
       logInfo('📥 UI upload stream fully received.')
     })
 
+    // tslint:disable-next-line: no-any
     req.on('error', (err: any) => {
       logInfo('❌ ERROR while reading from UI:', err)
     })
 
+    // tslint:disable-next-line: no-any
     uploadProxy.on('proxyReq', () => {
       logInfo('\n🚚 Streaming to Backend now...')
       logInfo(
         '📤 Backend Request Headers: ' +
         JSON.stringify({
           Authorization: CONSTANTS.SB_API_KEY.substring(0, 30) + '...',
+          'Content-Length': req.headers[CONTENT_LENGTH_KEY_LOWER],
+          'Content-Type': req.headers[CONTENT_TYPE_KEY],
           'x-authenticated-userid': xUserId,
           'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
-          'Content-Type': req.headers['content-type'],
-          'Content-Length': req.headers['content-length'],
         })
       )
     })
 
+    // tslint:disable-next-line: no-any
     uploadProxy.on('proxyRes', (proxyRes: any) => {
       logInfo('🟢 Backend Response Received')
       logInfo('Status Code:', proxyRes.statusCode)
@@ -616,6 +621,7 @@ export function proxyCreatorEtlFracUpload(
       logInfo('==================== 🏁 UPLOAD DEBUG END ====================\n')
     })
 
+    // tslint:disable-next-line: no-any
     uploadProxy.on('error', (err: any) => {
       logInfo('\n❌ PROXY STREAM ERROR')
       logInfo('Message:', err?.message)
@@ -628,11 +634,11 @@ export function proxyCreatorEtlFracUpload(
     uploadProxy.web(req, res, {
       changeOrigin: true,
       headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        "Content-Length": req.headers["content-length"],
-        "Content-Type": req.headers[CONTENT_TYPE_KEY],
         [AUTH_TOKEN_KEY]: xAuthToken,
         [AUTH_USER_ID_KEY]: xUserId,
+        Authorization: CONSTANTS.SB_API_KEY,
+        [CONTENT_LENGTH_KEY]: req.headers[CONTENT_LENGTH_KEY_LOWER],
+        "Content-Type": req.headers[CONTENT_TYPE_KEY],
       },
       ignorePath: true,
       secure: false,
