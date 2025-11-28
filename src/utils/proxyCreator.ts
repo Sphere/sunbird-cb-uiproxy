@@ -56,6 +56,7 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 })
 
 // 🆕 Upload-specific proxy handler — prevents JSON rewrite for form-data uploads
+// tslint:disable-next-line: no-any
 uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
   const contentType = req.headers['content-type'] || ''
   if (contentType.startsWith('multipart/form-data')) {
