@@ -599,6 +599,7 @@ export function proxyCreatorEtlFracUpload(
       logInfo('\n🚚 Streaming to Backend now...')
       logInfo(
         '📤 Backend Request Headers: ' +
+        // tslint:disable-next-line: object-literal-key-quotes
         JSON.stringify({
           'x-authenticated-userid': xUserId,
           'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
