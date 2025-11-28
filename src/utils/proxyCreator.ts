@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import http from 'http'
 import { createProxyServer } from 'http-proxy'
 import {
   extractUserIdFromRequest,
@@ -7,7 +8,6 @@ import {
 import { returnData } from './dataAlterer'
 import { CONSTANTS } from './env'
 import { logError, logInfo } from './logger'
-import http from 'http'
 
 const proxyCreator = (timeout = 10000) =>
   createProxyServer({
@@ -524,21 +524,115 @@ export function proxyCreatorEtlFrac(
   return route
 }
 
+/**
+ *  Direct raw-stream upload proxy (does NOT parse body)
+ */
 
 export function proxyCreatorEtlFracUpload(
   route: Router,
   targetUrl: string,
   timeout = 500000
 ): Router {
-  route.all('/*', (req, res) => {
-    const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
-    logInfo('REQ_URL_ORIGINAL_FRAC_UPLOAD', req.originalUrl)
-    logInfo('[UPLOAD FINAL TARGET]', `${targetUrl}${url}`)
+  route.all('/*', (req: any, res) => {
+    logInfo('\n==================== ⛳ UPLOAD DEBUG START ====================')
+
+    logInfo('🟢 Incoming UI Request')
+    logInfo('Content-Length :', req.headers['content-length'])
+    logInfo('Content-Type   :', req.headers['content-type'])
+    logInfo('HostHeader     :', req.headers.host)
+    logInfo('Method         :', req.method)
+    logInfo('URL            :', req.originalUrl)
+    logInfo('User-Agent     :', req.headers['user-agent'])
+
+    // Extract user details
+    const xUserId = extractUserIdFromRequest(req)
+    const xAuthToken = extractUserToken(req)
+    logInfo('🔑 x-authenticated-userid   :', xUserId)
+    logInfo(
+      '🔑 x-authenticated-user-token :',
+      xAuthToken ? xAuthToken.substring(0, 30) + '...' : undefined
+    )
+
+    // Path rewrite
+    let rewrittenPath = req.originalUrl.replace('/proxies/v8', '')
+    logInfo('🔄 Step1 rewrittenPath:', rewrittenPath)
+
+    // Fix for Kong rule
+    if (rewrittenPath === '/api/entity/v1/upload') {
+      logInfo(
+        '⚠️ Correcting path for Kong routing (/api/entity/v1/upload ➜ /v1/entity/upload)'
+      )
+      rewrittenPath = '/v1/entity/upload'
+    }
+
+    const finalTarget = targetUrl + rewrittenPath
+    logInfo('Rewritten path   :', rewrittenPath)
+    logInfo('Target host      :', targetUrl)
+    logInfo('🎯 FINAL TARGET URL:', finalTarget)
+
+    // Count streamed bytes
+    let bytesReceived = 0
+    req.on('data', (chunk: Buffer) => {
+      bytesReceived += chunk.length
+      logInfo(
+        `📡 Incoming stream chunk: ${chunk.length} bytes (total so far: ${bytesReceived})`
+      )
+    })
+
+    req.on('end', () => {
+      logInfo('📥 UI upload stream fully received.')
+    })
+
+    req.on('error', (err: any) => {
+      logInfo('❌ ERROR while reading from UI:', err)
+    })
+
+    uploadProxy.on('proxyReq', () => {
+      logInfo('\n🚚 Streaming to Backend now...')
+      logInfo(
+        '📤 Backend Request Headers: ' +
+        JSON.stringify({
+          Authorization: CONSTANTS.SB_API_KEY.substring(0, 30) + '...',
+          'x-authenticated-userid': xUserId,
+          'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
+          'Content-Type': req.headers['content-type'],
+          'Content-Length': req.headers['content-length'],
+        })
+      )
+    })
+
+    uploadProxy.on('proxyRes', (proxyRes: any) => {
+      logInfo('🟢 Backend Response Received')
+      logInfo('Status Code:', proxyRes.statusCode)
+      logInfo('Response Headers:', proxyRes.headers)
+
+      const backendErr = proxyRes.headers.error || proxyRes.headers['x-error']
+      if (backendErr) logInfo('⚠ Backend returned error INFO:', backendErr)
+
+      logInfo('==================== 🏁 UPLOAD DEBUG END ====================\n')
+    })
+
+    uploadProxy.on('error', (err: any) => {
+      logInfo('\n❌ PROXY STREAM ERROR')
+      logInfo('Message:', err?.message)
+      logInfo('Stack  :', err?.stack)
+      logInfo('==================== 🏁 UPLOAD DEBUG END ====================\n')
+    })
+
+    // 🔥 Fire backend stream (no body parsing)
     uploadProxy.web(req, res, {
+      target: finalTarget,
       changeOrigin: true,
       secure: false,
-      target: targetUrl + url,
-      timeout
+      timeout,
+      ignorePath: true,
+      headers: {
+        Authorization: CONSTANTS.SB_API_KEY,
+        "Content-Length": req.headers["content-length"],
+        "Content-Type": req.headers["content-type"],
+        "x-authenticated-user-token": xAuthToken,
+        "x-authenticated-userid": xUserId,
+      },
     })
   })
 

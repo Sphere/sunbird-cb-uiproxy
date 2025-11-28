@@ -354,9 +354,14 @@ proxiesV8.use(
   '/org/*',
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
+// proxiesV8.use(
+//   '/api/entity/v1/upload',
+//   proxyCreatorEtlFracUpload(express.Router(), `${CONSTANTS.FRAC_ETL_API_BASE}`)
+// )'
+
 proxiesV8.use(
   '/api/entity/v1/upload',
-  proxyCreatorEtlFracUpload(express.Router(), `${CONSTANTS.FRAC_ETL_API_BASE}`)
+  proxyCreatorEtlFracUpload(express.Router(), CONSTANTS.FRAC_ETL_API_BASE)
 )
 proxiesV8.use(
   '/api/entity/v1/*',
