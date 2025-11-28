@@ -531,13 +531,13 @@ export function proxyCreatorEtlFracUpload(
   timeout = 500000
 ): Router {
   route.all('/*', (req, res) => {
-    logInfo('[UPLOAD FINAL TARGET]', `${targetUrl}${req.originalUrl}`)
+    const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
     logInfo('REQ_URL_ORIGINAL_FRAC_UPLOAD', req.originalUrl)
-
+    logInfo('[UPLOAD FINAL TARGET]', `${targetUrl}${url}`)
     uploadProxy.web(req, res, {
       changeOrigin: true,
       secure: false,
-      target: targetUrl,
+      target: targetUrl + url,
       timeout
     })
   })
