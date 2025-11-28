@@ -16,6 +16,9 @@ const proxyCreator = (timeout = 10000) =>
 const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
 const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
+const CONTENT_TYPE_KEY = 'content-type'
+const AUTH_TOKEN_KEY = 'x-authenticated-user-token'
+const AUTH_USER_ID_KEY = 'x-authenticated-userid'
 
 /**
  * Upload-dedicated proxy — streams multipart data without JSON conversion.
@@ -39,8 +42,8 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
   proxyReq.setHeader('X-Channel-Id', '0132317968766894088')
   // tslint:disable-next-line: max-line-length
   proxyReq.setHeader('Authorization', CONSTANTS.SB_API_KEY)
-  proxyReq.setHeader('x-authenticated-user-token', extractUserToken(req))
-  proxyReq.setHeader('x-authenticated-userid', extractUserIdFromRequest(req))
+  proxyReq.setHeader(AUTH_TOKEN_KEY, extractUserToken(req))
+  proxyReq.setHeader(AUTH_USER_ID_KEY, extractUserIdFromRequest(req))
 
   // condition has been added to set the session in nodebb req header
   // condition don't require for nodebb as of now, we manage authentication through API key and uid will be passed for each req.
@@ -58,7 +61,7 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 // 🆕 Upload-specific proxy handler — prevents JSON rewrite for form-data uploads
 // tslint:disable-next-line: no-any
 uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
-  const contentType = req.headers['content-type'] || ''
+  const contentType = req.headers[CONTENT_TYPE_KEY] || ''
   if (contentType.startsWith('multipart/form-data')) {
     return
   }
@@ -533,12 +536,13 @@ export function proxyCreatorEtlFracUpload(
   targetUrl: string,
   timeout = 500000
 ): Router {
-  route.all('/*', (req: any, res) => {
+  // tslint:disable-next-line: no-any
+  route.all('/*', (req: any, res: any) => {
     logInfo('\n==================== ⛳ UPLOAD DEBUG START ====================')
 
     logInfo('🟢 Incoming UI Request')
     logInfo('Content-Length :', req.headers['content-length'])
-    logInfo('Content-Type   :', req.headers['content-type'])
+    logInfo('Content-Type   :', req.headers[CONTENT_TYPE_KEY])
     logInfo('HostHeader     :', req.headers.host)
     logInfo('Method         :', req.method)
     logInfo('URL            :', req.originalUrl)
@@ -620,19 +624,20 @@ export function proxyCreatorEtlFracUpload(
     })
 
     // 🔥 Fire backend stream (no body parsing)
+    // tslint:disable-next-line: no-any
     uploadProxy.web(req, res, {
-      target: finalTarget,
       changeOrigin: true,
-      secure: false,
-      timeout,
-      ignorePath: true,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         "Content-Length": req.headers["content-length"],
-        "Content-Type": req.headers["content-type"],
-        "x-authenticated-user-token": xAuthToken,
-        "x-authenticated-userid": xUserId,
+        "Content-Type": req.headers[CONTENT_TYPE_KEY],
+        [AUTH_TOKEN_KEY]: xAuthToken,
+        [AUTH_USER_ID_KEY]: xUserId,
       },
+      ignorePath: true,
+      secure: false,
+      target: finalTarget,
+      timeout,
     })
   })
 

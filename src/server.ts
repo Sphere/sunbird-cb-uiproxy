@@ -90,7 +90,8 @@ export class Server {
     this.authoringProxies()
     this.setExtFormsFramework()
     //  Prevent body parsers from consuming multipart upload
-    this.app.use("/proxies/v8/api/entity/v1/upload", (req:any, _res, next) => {
+    // tslint:disable-next-line: no-any
+    this.app.use("/proxies/v8/api/entity/v1/upload", (req: any, _res: any, next: any) => {
       req._is_upload_stream = true; // just flag for internal logic
       next();
     });
@@ -201,15 +202,18 @@ export class Server {
     const skipBodyParser = (req: any) => req._is_upload_stream;
 
     // Skip json / urlencoded / express-fileupload only for upload stream
-    this.app.use((req: any, res, next) =>
+    // tslint:disable-next-line: no-any
+    this.app.use((req: any, res: any, next: any) =>
       skipBodyParser(req) ? next() : express.urlencoded({ extended: false, limit: "50mb" })(req, res, next)
     );
 
-    this.app.use((req: any, res, next) =>
+    // tslint:disable-next-line: no-any
+    this.app.use((req: any, res: any, next: any) =>
       skipBodyParser(req) ? next() : express.json({ limit: "50mb" })(req, res, next)
     );
 
-    this.app.use((req: any, res, next) =>
+    // tslint:disable-next-line: no-any
+    this.app.use((req: any, res: any, next: any) =>
       skipBodyParser(req) ? next() : fileUpload()(req, res, next)
     );
 
