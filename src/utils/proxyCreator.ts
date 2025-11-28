@@ -69,8 +69,6 @@ uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
   }
 })
 
-
-
 // tslint:disable-next-line: no-any
 proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
   if (req.originalUrl.includes('/discussion/user/v1/create')) {
@@ -599,13 +597,13 @@ export function proxyCreatorEtlFracUpload(
       logInfo('\n🚚 Streaming to Backend now...')
       logInfo(
         '📤 Backend Request Headers: ' +
-        // tslint:disable-next-line: object-literal-key-quotes
+        // tslint:disable-next-line: object-literal-sort-keys
         JSON.stringify({
-          'x-authenticated-userid': xUserId,
-          'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
           Authorization: CONSTANTS.SB_API_KEY.substring(0, 30) + '...',
           'Content-Length': req.headers[CONTENT_LENGTH_KEY_LOWER],
           'Content-Type': req.headers[CONTENT_TYPE_KEY],
+          'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
+          'x-authenticated-userid': xUserId,
         })
       )
     })
@@ -639,7 +637,7 @@ export function proxyCreatorEtlFracUpload(
         [AUTH_USER_ID_KEY]: xUserId,
         Authorization: CONSTANTS.SB_API_KEY,
         [CONTENT_LENGTH_KEY]: req.headers[CONTENT_LENGTH_KEY_LOWER],
-        "Content-Type": req.headers[CONTENT_TYPE_KEY],
+        'Content-Type': req.headers[CONTENT_TYPE_KEY],
       },
       ignorePath: true,
       secure: false,
