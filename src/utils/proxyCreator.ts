@@ -6,7 +6,8 @@ import {
 } from '../utils/requestExtract'
 import { returnData } from './dataAlterer'
 import { CONSTANTS } from './env'
-import { logInfo } from './logger'
+import { logError, logInfo } from './logger'
+import http from 'http'
 
 const proxyCreator = (timeout = 10000) =>
   createProxyServer({
@@ -16,11 +17,22 @@ const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
 const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
 
+/**
+ * Upload-dedicated proxy — streams multipart data without JSON conversion.
+ * Safe for large CSV / binary / form-data uploads.
+ */
 const uploadProxy = createProxyServer({
+  agent: new http.Agent({ keepAlive: true }),
   changeOrigin: true,
-  ignorePath: false,        // Keep same request path (/upload)
+  ignorePath: false,
   secure: false,
 })
+
+uploadProxy.on('error', (err, _req, _res) => {
+  const errorMessage = err instanceof Error ? err.message : String(err)
+  logError('[UPLOAD PROXY ERROR]', errorMessage)
+})
+
 
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
@@ -42,6 +54,16 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
     proxyReq.write(bodyData)
   }
 })
+
+// 🆕 Upload-specific proxy handler — prevents JSON rewrite for form-data uploads
+uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
+  const contentType = req.headers['content-type'] || ''
+  if (contentType.startsWith('multipart/form-data')) {
+    return
+  }
+})
+
+
 
 // tslint:disable-next-line: no-any
 proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
@@ -489,7 +511,7 @@ export function proxyCreatorDownloadCertificate(
 export function proxyCreatorEtlFrac(
   route: Router,
   targetUrl: string,
-  timeout = 500000
+  timeout = 10000
 ): Router {
   route.all('/*', (req, res) => {
     // tslint:disable-next-line: no-console
@@ -501,23 +523,23 @@ export function proxyCreatorEtlFrac(
   return route
 }
 
-/**
- * Dedicated proxy for multipart upload (no JSON body rewrite)
- */
+
 export function proxyCreatorEtlFracUpload(
   route: Router,
   targetUrl: string,
   timeout = 500000
 ): Router {
   route.all('/*', (req, res) => {
+    logInfo('[UPLOAD FINAL TARGET]', `${targetUrl}${req.originalUrl}`)
     logInfo('REQ_URL_ORIGINAL_FRAC_UPLOAD', req.originalUrl)
 
-    // ⚠️ Don't touch req.body → let body stream (file) go directly
     uploadProxy.web(req, res, {
-      buffer: req,      // ensures file streaming continues
+      changeOrigin: true,
+      secure: false,
       target: targetUrl,
-      timeout,
+      timeout
     })
   })
+
   return route
 }
