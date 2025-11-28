@@ -600,11 +600,11 @@ export function proxyCreatorEtlFracUpload(
       logInfo(
         '📤 Backend Request Headers: ' +
         JSON.stringify({
+          'x-authenticated-userid': xUserId,
+          'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
           Authorization: CONSTANTS.SB_API_KEY.substring(0, 30) + '...',
           'Content-Length': req.headers[CONTENT_LENGTH_KEY_LOWER],
           'Content-Type': req.headers[CONTENT_TYPE_KEY],
-          'x-authenticated-userid': xUserId,
-          'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
         })
       )
     })

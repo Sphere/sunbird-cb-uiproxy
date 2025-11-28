@@ -201,6 +201,7 @@ export class Server {
     // this.app.use(express.json({ limit: '50mb' }))
     // this.app.use(fileUpload())
     // ⛔ Skip parser for upload proxy
+    // tslint:disable-next-line: no-any
     const skipBodyParser = (req: any) => req._is_upload_stream;
 
     // Skip json / urlencoded / express-fileupload only for upload stream
