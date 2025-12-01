@@ -38,6 +38,18 @@ uploadProxy.on('error', (err, _req, _res) => {
   logError('[UPLOAD PROXY ERROR]', errorMessage)
 })
 
+// /**
+//  * Backup validation: Ensures multipart/form-data uploads bypass body parsing.
+//  * Works in conjunction with server.ts skipBodyParser middleware (line 205).
+//  * Prevents double-parsing of stream data.
+//  */
+// // tslint:disable-next-line: no-any
+// uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
+//   const contentType = req.headers[CONTENT_TYPE_KEY] || ''
+//   if (contentType.startsWith('multipart/form-data')) {
+//     return // Stream passes through unmodified to backend
+//   }
+// })
 
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
@@ -57,15 +69,6 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
     const bodyData = JSON.stringify(req.body)
     proxyReq.setHeader(CONTENT_LENGTH_KEY, Buffer.byteLength(bodyData))
     proxyReq.write(bodyData)
-  }
-})
-
-// 🆕 Upload-specific proxy handler — prevents JSON rewrite for form-data uploads
-// tslint:disable-next-line: no-any
-uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
-  const contentType = req.headers[CONTENT_TYPE_KEY] || ''
-  if (contentType.startsWith('multipart/form-data')) {
-    return
   }
 })
 
@@ -373,6 +376,37 @@ function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
 
+/**
+ * Extracts and builds proxy headers with authentication and content info.
+ * Consolidates header preparation logic used across proxy functions.
+ */
+function buildProxyHeaders(
+  userToken?: string,
+  userId?: string,
+  contentType?: string,
+  contentLength?: string
+): { [key: string]: string } {
+  const headers: { [key: string]: string } = {}
+
+  if (userToken) {
+    headers[AUTH_TOKEN_KEY] = userToken
+  }
+  if (userId) {
+    headers[AUTH_USER_ID_KEY] = userId
+  }
+  if (CONSTANTS?.SB_API_KEY) {
+    headers.Authorization = CONSTANTS.SB_API_KEY
+  }
+  if (contentType) {
+    headers['Content-Type'] = contentType
+  }
+  if (contentLength) {
+    headers[CONTENT_LENGTH_KEY] = contentLength
+  }
+
+  return headers
+}
+
 export function proxyCreatorSunbirdSearch(
   route: Router,
   targetUrl: string,
@@ -506,31 +540,15 @@ export function proxyCreatorDownloadCertificate(
 }
 
 /**
- * Proxies requests from the frontend to the etl-frac service.
- * @param route The express router to which the proxy routes should be added.
- * @param targetUrl The URL of the etl-frac service.
- * @param timeout The maximum time in milliseconds that the proxy should wait for a response from the etl-frac service.
- * @returns The express router with the proxy routes added.
+ * Streams large file uploads (CSV, binary, form-data) to ETL-FRAC backend.
+ * Does NOT parse request body - safe for large files.
+ * Kong path rewriting: /api/entity/v1/upload → /v1/entity/upload
+ *
+ * @param route Express router to attach proxy handler
+ * @param targetUrl Backend service URL
+ * @param timeout Request timeout (default: 500000ms)
+ * @returns Configured express router with upload proxy handler
  */
-export function proxyCreatorEtlFrac(
-  route: Router,
-  targetUrl: string,
-  timeout = 10000
-): Router {
-  route.all('/*', (req, res) => {
-    // tslint:disable-next-line: no-console
-    console.log('REQ_URL_ORIGINAL_FRAC', req.originalUrl)
-    proxyCreator(timeout).web(req, res, {
-      target: targetUrl,
-    })
-  })
-  return route
-}
-
-/**
- *  Direct raw-stream upload proxy (does NOT parse body)
- */
-
 export function proxyCreatorEtlFracUpload(
   route: Router,
   targetUrl: string,
@@ -538,111 +556,107 @@ export function proxyCreatorEtlFracUpload(
 ): Router {
   // tslint:disable-next-line: no-any
   route.all('/*', (req: any, res: any) => {
-    logInfo('\n==================== ⛳ UPLOAD DEBUG START ====================')
-
-    logInfo('🟢 Incoming UI Request')
-    logInfo('Content-Length :', req.headers[CONTENT_LENGTH_KEY_LOWER])
-    logInfo('Content-Type   :', req.headers[CONTENT_TYPE_KEY])
-    logInfo('HostHeader     :', req.headers.host)
-    logInfo('Method         :', req.method)
-    logInfo('URL            :', req.originalUrl)
-    logInfo('User-Agent     :', req.headers['user-agent'])
-
-    // Extract user details
+    // Extract auth and headers once
     const xUserId = extractUserIdFromRequest(req)
     const xAuthToken = extractUserToken(req)
-    logInfo('🔑 x-authenticated-userid   :', xUserId)
-    logInfo(
-      '🔑 x-authenticated-user-token :',
-      xAuthToken ? xAuthToken.substring(0, 30) + '...' : undefined
-    )
+    const contentType = req.headers[CONTENT_TYPE_KEY]
+    const contentLength = req.headers[CONTENT_LENGTH_KEY_LOWER]
 
-    // Path rewrite
+    // tslint:disable-next-line: no-console
+    console.log('REQ_URL_ORIGINAL proxyCreatorEtlFracUpload', req.originalUrl)
+
+    // Rewrite path for Kong routing
     let rewrittenPath = req.originalUrl.replace('/proxies/v8', '')
-    logInfo('🔄 Step1 rewrittenPath:', rewrittenPath)
-
-    // Fix for Kong rule
     if (rewrittenPath === '/api/entity/v1/upload') {
-      logInfo(
-        '⚠️ Correcting path for Kong routing (/api/entity/v1/upload ➜ /v1/entity/upload)'
-      )
       rewrittenPath = '/v1/entity/upload'
     }
 
     const finalTarget = targetUrl + rewrittenPath
-    logInfo('Rewritten path   :', rewrittenPath)
-    logInfo('Target host      :', targetUrl)
-    logInfo('🎯 FINAL TARGET URL:', finalTarget)
 
-    // Count streamed bytes
+    // Track incoming stream size
     let bytesReceived = 0
     req.on('data', (chunk: Buffer) => {
       bytesReceived += chunk.length
-      logInfo(
-        `📡 Incoming stream chunk: ${chunk.length} bytes (total so far: ${bytesReceived})`
-      )
     })
 
     req.on('end', () => {
-      logInfo('📥 UI upload stream fully received.')
+      logInfo('Upload completed. Size: ' + bytesReceived + ' bytes')
     })
 
-    // tslint:disable-next-line: no-any
-    req.on('error', (err: any) => {
-      logInfo('❌ ERROR while reading from UI:', err)
+    req.on('error', (err: Error) => {
+      logError('Upload stream error:', err.message)
     })
 
-    // tslint:disable-next-line: no-any
-    uploadProxy.on('proxyReq', () => {
-      logInfo('\n🚚 Streaming to Backend now...')
-      logInfo(
-        '📤 Backend Request Headers: ' +
-        // tslint:disable-next-line: object-literal-sort-keys
-        JSON.stringify({
-          Authorization: CONSTANTS.SB_API_KEY.substring(0, 30) + '...',
-          'Content-Length': req.headers[CONTENT_LENGTH_KEY_LOWER],
-          'Content-Type': req.headers[CONTENT_TYPE_KEY],
-          'x-authenticated-user-token': xAuthToken?.substring(0, 30) + '...',
-          'x-authenticated-userid': xUserId,
-        })
-      )
-    })
+    // tslint:disable-next-line: no-console
+    console.log('REQ_URL_FINAL proxyCreatorEtlFracUpload', finalTarget)
 
-    // tslint:disable-next-line: no-any
-    uploadProxy.on('proxyRes', (proxyRes: any) => {
-      logInfo('🟢 Backend Response Received')
-      logInfo('Status Code:', proxyRes.statusCode)
-      logInfo('Response Headers:', proxyRes.headers)
-
-      const backendErr = proxyRes.headers.error || proxyRes.headers['x-error']
-      if (backendErr) logInfo('⚠ Backend returned error INFO:', backendErr)
-
-      logInfo('==================== 🏁 UPLOAD DEBUG END ====================\n')
-    })
-
-    // tslint:disable-next-line: no-any
-    uploadProxy.on('error', (err: any) => {
-      logInfo('\n❌ PROXY STREAM ERROR')
-      logInfo('Message:', err?.message)
-      logInfo('Stack  :', err?.stack)
-      logInfo('==================== 🏁 UPLOAD DEBUG END ====================\n')
-    })
-
-    // 🔥 Fire backend stream (no body parsing)
+    // Forward stream to backend with auth headers
     // tslint:disable-next-line: no-any
     uploadProxy.web(req, res, {
       changeOrigin: true,
-      headers: {
-        [AUTH_TOKEN_KEY]: xAuthToken,
-        [AUTH_USER_ID_KEY]: xUserId,
-        Authorization: CONSTANTS.SB_API_KEY,
-        [CONTENT_LENGTH_KEY]: req.headers[CONTENT_LENGTH_KEY_LOWER],
-        'Content-Type': req.headers[CONTENT_TYPE_KEY],
-      },
+      headers: buildProxyHeaders(xAuthToken, xUserId, contentType, contentLength),
       ignorePath: true,
       secure: false,
       target: finalTarget,
       timeout,
+    })
+  })
+
+  return route
+}
+
+/**
+ * Proxies entity API requests to ETL-FRAC backend.
+ * Handles search, create, update, mapping, hierarchy operations.
+ * Kong path rewriting: /api/entity/v1/* → /v1/entity/*
+ *
+ * @param route Express router to attach proxy handler
+ * @param targetUrl Backend service URL
+ * @returns Configured express router with entity proxy handler
+ */
+export function proxyCreatorEtlFrac(
+  route: Router,
+  targetUrl: string
+): Router {
+  // tslint:disable-next-line: no-any
+  route.all('/*', (req: any, res: any) => {
+    // Strip proxy prefix and extract user data once
+    let url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
+    const originalUrl = url
+    const userId = extractUserIdFromRequest(req)
+    const userToken = extractUserToken(req)
+
+    // Rewrite entity API paths for Kong routing
+    const rewriteMatch = /^\/api\/entity\/v1\/(search|create|update|mapping|hierarchy)/.test(url)
+    if (rewriteMatch) {
+      url = url.replace('/api/entity/v1/', '/v1/entity/')
+      logInfo('Path rewrite: ' + originalUrl + ' -> ' + url)
+    }
+
+    const finalTarget = targetUrl + url
+
+    // Forward request to backend
+    proxy.web(req, res, {
+      changeOrigin: true,
+      headers: buildProxyHeaders(userToken, userId),
+      ignorePath: true,
+      target: finalTarget,
+    })
+
+    // Log successful responses
+    // tslint:disable-next-line: no-any
+    const originalSend = res.send
+    // tslint:disable-next-line: no-any
+    res.send = function(data: string | Buffer) {
+      if (res.statusCode < 400) {
+        logInfo('Response: ' + url + ' [' + res.statusCode + ']')
+      }
+      return originalSend.call(this, data)
+    }
+
+    // Error handling
+    res.on('error', (err: Error) => {
+      logError('Entity proxy error: ' + url + ' - ' + (err?.message || 'Unknown'))
     })
   })
 
