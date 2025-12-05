@@ -499,12 +499,12 @@ const checkIfuserExists = async (phone: string) => {
             // Handle cases where profileDetails might be null
             let firstName = userData.firstName || ''
             let lastName = userData.lastName || ''
-            
+
             if (userData.profileDetails && userData.profileDetails.profileReq && userData.profileDetails.profileReq.personalDetails) {
                 firstName = userData.profileDetails.profileReq.personalDetails.firstname || firstName
                 lastName = userData.profileDetails.profileReq.personalDetails.surname || userData.profileDetails.profileReq.personalDetails.firstname || lastName
             }
-            
+
             const userResult = {
                 firstName,
                 lastName,
@@ -650,7 +650,7 @@ const createUserIfNotExists = async (userData: any) => {
             name: error.name,
         })
         logError(`[createUserIfNotExists] ERROR: ${JSON.stringify(maskedError)}`)
-        
+
         if (error.response) {
             // Log API error response without sensitive data
             const maskedResponse = maskSensitiveData({
