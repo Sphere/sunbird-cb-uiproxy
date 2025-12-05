@@ -15,12 +15,12 @@ const s3 = new AWS.S3({
 })
 
 // Utility function to mask sensitive data in logs
-const maskSensitiveData = (data: any): any => {
+const maskSensitiveData = (data: Record<string, unknown>): Record<string, unknown> | unknown => {
     if (!data || typeof data !== 'object') return data
 
     const masked = JSON.parse(JSON.stringify(data))
 
-    const maskObject = (obj: any) => {
+    const maskObject = (obj: Record<string, unknown>): void => {
         if (!obj || typeof obj !== 'object') return
 
         for (const key in obj) {
@@ -28,19 +28,24 @@ const maskSensitiveData = (data: any): any => {
                 obj[key] = 'bearer [REDACTED_TOKEN]'
             } else if (key === 'password') {
                 obj[key] = '[REDACTED_PASSWORD]'
-            } else if (typeof obj[key] === 'string' && obj[key].includes('eyJ')) {
-                obj[key] = obj[key].replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[REDACTED_JWT_TOKEN]')
+            } else if (typeof obj[key] === 'string' && (obj[key] as string).includes('eyJ')) {
+                obj[key] = (obj[key] as string).replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[REDACTED_JWT_TOKEN]')
             } else if (typeof obj[key] === 'object') {
-                maskObject(obj[key])
+                maskObject(obj[key] as Record<string, unknown>)
             }
         }
     }
 
-    maskObject(masked)
+    maskObject(masked as Record<string, unknown>)
     return masked
 }
 
 const RC_S3_BUCKET_NAME = CONSTANTS.RC_S3_BUCKET_NAME
+const EVENT_TYPE_REGISTERED_WITH_SPHERE = 'registred with sphere'
+const EVENT_TYPE_REGISTERED_WITHOUT_SPHERE = 'registred without sphere'
+const ERROR_EVENT_NOT_FOUND = 'Event not found'
+const STATUS_IN_PROGRESS = 'inProgress'
+const STATUS_FAILED_USER_CREATION = 'failed during user creation'
 const client = new cassandra.Client({
     contactPoints: [CONSTANTS.CASSANDRA_IP],
     keyspace: 'sunbird_courses',
@@ -83,7 +88,7 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
     try {
         const result = await client.execute(getEventQuery, [eventId], { prepare: true })
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Event not found' })
+            return res.status(404).json({ error: ERROR_EVENT_NOT_FOUND })
         }
 
         // tslint:disable-next-line: no-any
@@ -128,7 +133,7 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
         const eventData = await client.execute(getEventQuery, [id], { prepare: true })
         const event = eventData.rows[0]
         if (eventData.rowLength === 0) {
-            return res.status(404).json({ error: 'Event not found' })
+            return res.status(404).json({ error: ERROR_EVENT_NOT_FOUND })
         }
         res.status(200).json({
             createdAt: event.createdat,
@@ -186,7 +191,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
         const eventDetails = await getEventDetails(eventId)
         if (!eventDetails || eventDetails.length === 0) {
             logError(`[/events/users] ERROR: Event not found - EventId: ${eventId}`)
-            return res.status(404).json({ error: 'Event not found' })
+            return res.status(404).json({ error: ERROR_EVENT_NOT_FOUND })
         }
 
         const eventData = eventDetails[0]
@@ -212,7 +217,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                 let lastName = ''
                 let userId = ''
 
-                if (eventData.eventtype == 'registred with sphere') {
+                if (eventData.eventtype === EVENT_TYPE_REGISTERED_WITH_SPHERE) {
                     logInfo(`[/events/users] User ${index + 1} - Calling getUserDetailsFromSunbird for phone: ${phone}`)
                     const userDetails = await getUserDetailsFromSunbird(phone, user)
 
@@ -221,7 +226,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                     userId = userDetails.userId
 
                     logInfo(`[/events/users] User ${index + 1} - Details retrieved - FirstName: ${firstName}, LastName: ${lastName}, UserId: ${userId}`)
-                } else if (eventData.eventtype == 'registred without sphere') {
+                } else if (eventData.eventtype === EVENT_TYPE_REGISTERED_WITHOUT_SPHERE) {
                     firstName = user.firstName
                     lastName = user.lastName
                     userId = 'Non-QR-User'
@@ -229,7 +234,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                 }
 
                 let queryParamsLink
-                const status = userId ? 'inProgress' : 'failed during user creation'
+                const status = userId ? STATUS_IN_PROGRESS : STATUS_FAILED_USER_CREATION
                 logInfo(`[/events/users] User ${index + 1} - Setting status: ${status}`)
 
                 if (userId) {
@@ -240,7 +245,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                         firstName,
                         lastName,
                         eventData.eventplace || place,
-                        'inProgress',
+                        STATUS_IN_PROGRESS,
                         new Date(),
                         new Date(),
                     ]
@@ -253,7 +258,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                         firstName,
                         lastName,
                         eventData.eventplace || place,
-                        'failed during user creation',
+                        STATUS_FAILED_USER_CREATION,
                         new Date(),
                         new Date(),
                     ]
@@ -360,7 +365,7 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
         }
 
         const eventStatusUpdate = [
-            'inProgress',
+            STATUS_IN_PROGRESS,
             new Date(),
             eventId,
         ]
@@ -373,7 +378,7 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
 
         for (const user of users) {
             const { userid } = user
-            if (!userid || user.certificateGenerationStatus === 'failed during user creation') {
+            if (!userid || user.certificateGenerationStatus === STATUS_FAILED_USER_CREATION) {
                 failedCount++
                 continue
             }
@@ -654,10 +659,11 @@ const createUserIfNotExists = async (userData: any) => {
         if (error.response) {
             // Log API error response without sensitive data
             const maskedResponse = maskSensitiveData({
-                status: error.response.status,
                 data: error.response.data,
+                status: error.response.status,
             })
-            logError(`[createUserIfNotExists] API Error Response - Status: ${error.response.status}, Data: ${JSON.stringify(maskedResponse.data)}`)
+            const maskedResponseData = (maskedResponse as Record<string, unknown>).data
+            logError(`[createUserIfNotExists] API Error Response - Status: ${error.response.status}, Data: ${JSON.stringify(maskedResponseData)}`)
 
             // Check if it's a duplicate phone error (UOS_USRCRT0002)
             if (error.response.data && error.response.data.params && error.response.data.params.err === 'UOS_USRCRT0002') {
