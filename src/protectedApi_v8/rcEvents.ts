@@ -4,6 +4,7 @@ import axios from 'axios'
 import cassandra from 'cassandra-driver'
 import { Router } from 'express'
 import uuid from 'uuid'
+import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getRCPassword } from '../utils/rcPasswordGenerator'
@@ -541,7 +542,7 @@ const createUserIfNotExists = async (userData: any) => {
             request: {
                 firstName: userData.firstName,
                 lastName: userData.lastName || `${userData.firstName}`,
-                password: getRCPassword(userData), // Uses encrypted password if valid; otherwise generates a Sunbird-compliant fallback password to avoid UOS_USRCRT0024 failure
+                password: encryptData(userData.phone), 
                 phone: userData.phone,
             },
         }
