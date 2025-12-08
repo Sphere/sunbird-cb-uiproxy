@@ -542,7 +542,7 @@ const createUserIfNotExists = async (userData: any) => {
             request: {
                 firstName: userData.firstName,
                 lastName: userData.lastName || `${userData.firstName}`,
-                password: encryptData(userData.phone), 
+                password: encryptData(userData.phone),
                 phone: userData.phone,
             },
         }
