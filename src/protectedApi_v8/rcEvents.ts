@@ -554,7 +554,7 @@ const createUserIfNotExists = async (userData: any) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
-            url: `https://sphere.aastrika.org/api/user/v3/create`,
+            url: `${CONSTANTS.KONG_API_BASE}/private/user/v3/create`,
         })
 
         logInfo(`[createUserIfNotExists] User creation API response: ${JSON.stringify(userCreationResponse.data)}`)
@@ -583,7 +583,7 @@ const createUserIfNotExists = async (userData: any) => {
                     authorization: CONSTANTS.SB_API_KEY,
                 },
                 method: 'POST',
-                url: `https://sphere.aastrika.org/api/user/private/v1/assign/role`,
+                url: `${CONSTANTS.KONG_API_BASE}/user/private/v1/assign/role`,
             })
             logInfo(`[createUserIfNotExists] Role assigned successfully - Response: ${JSON.stringify(roleAssignResponse.data)}`)
         } catch (errRole) {
@@ -631,7 +631,7 @@ const createUserIfNotExists = async (userData: any) => {
                     authorization: CONSTANTS.SB_API_KEY,
                 },
                 method: 'PATCH',
-                url: `https://sphere.aastrika.org/api/user/private/v1/update`,
+                url: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
             })
             logInfo(`[createUserIfNotExists] Profile updated successfully - Response: ${JSON.stringify(profileUpdateResponse.data)}`)
         } catch (errProfile) {
