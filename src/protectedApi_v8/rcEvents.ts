@@ -7,7 +7,6 @@ import uuid from 'uuid'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
-import { getRCPassword } from '../utils/rcPasswordGenerator'
 
 const s3 = new AWS.S3({
     accessKeyId: CONSTANTS.RC_S3_ACCESS_KEY_ID,
