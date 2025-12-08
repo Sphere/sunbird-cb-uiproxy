@@ -554,7 +554,7 @@ const createUserIfNotExists = async (userData: any) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
-            url: `${CONSTANTS.KONG_API_BASE}/private/user/v3/create`,
+            url: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
         })
 
         logInfo(`[createUserIfNotExists] User creation API response: ${JSON.stringify(userCreationResponse.data)}`)
