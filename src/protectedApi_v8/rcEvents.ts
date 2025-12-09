@@ -4,9 +4,9 @@ import axios from 'axios'
 import cassandra from 'cassandra-driver'
 import { Router } from 'express'
 import uuid from 'uuid'
-import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { getRCPassword } from '../utils/rcPasswordGenerator'
 
 const s3 = new AWS.S3({
     accessKeyId: CONSTANTS.RC_S3_ACCESS_KEY_ID,
@@ -541,7 +541,7 @@ const createUserIfNotExists = async (userData: any) => {
             request: {
                 firstName: userData.firstName,
                 lastName: userData.lastName || `${userData.firstName}`,
-                password: encryptData(userData.phone),
+                password: getRCPassword(userData), // encrypted password was failing user creation so added new method to generate password
                 phone: userData.phone,
             },
         }
