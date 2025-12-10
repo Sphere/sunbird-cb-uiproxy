@@ -8,6 +8,13 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
+const pgPool = new (require('pg')).Pool({
+    host: CONSTANTS.POSTGRES_HOST,
+    port: CONSTANTS.POSTGRES_PORT,
+    database: CONSTANTS.POSTGRES_DATABASE,
+    user: CONSTANTS.POSTGRES_USER,
+    password: CONSTANTS.POSTGRES_PASSWORD,
+})
 export const mpNHMUserCreation = express.Router()
 const dayjs = require('dayjs')
 const { types } = cassandra
@@ -897,7 +904,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
 
-    const query = `
+    const cassandraQuery = `
         INSERT INTO sunbird.mp_registration_data (
             unique_id,
             block,
@@ -936,8 +943,9 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
+    const uniqueId = uuidv4()
     const params = [
-        types.Uuid.fromString(uuidv4()),                             // unique_id
+        types.Uuid.fromString(uniqueId),                             // unique_id
         String(userDetailedStructure.block || ''),                    // block
         String(userDetailedStructure.courseSelection || ''),           // course_selection
         String(userDetailedStructure.createAccount || ''),             // create_account
@@ -974,10 +982,90 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
     ]
 
     try {
-        await client.execute(query, params, { prepare: true })
+        logError('Cassandra insert data', JSON.stringify(params))
+        await client.execute(cassandraQuery, params, { prepare: true })
+
+        // Insert into PostgreSQL
+        const postgresQuery = `INSERT INTO mp_registration_data (
+            unique_id,
+            block,
+            course_selection,
+            create_account,
+            created_on,
+            designation,
+            district,
+            dob,
+            email,
+            erhms_code,
+            facility_code,
+            facility_name,
+            facility_type,
+            faculty_type,
+            first_name,
+            institute_name,
+            institute_type,
+            is_user_migrated,
+            last_name,
+            organisation_id,
+            organisation_name,
+            phone,
+            profile_update,
+            registration_source,
+            registration_success_message,
+            regnurseregmidwifenumber,
+            role,
+            role_assign,
+            roleforinservice,
+            service_type,
+            user_already_exists,
+            user_existing_organisation,
+            validation_status,
+            validation_status_failed_reason
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)`
+
+        const postgresParams = [
+            uniqueId,
+            userDetailedStructure.block,
+            userDetailedStructure.courseSelection,
+            userDetailedStructure.createAccount || '',
+            userDetailedStructure.createdOn,
+            userDetailedStructure.designation,
+            userDetailedStructure.district,
+            userDetailedStructure.dob instanceof Date ? userDetailedStructure.dob : userDetailedStructure.dob?.toDate?.() || userDetailedStructure.dob,
+            userDetailedStructure.email,
+            userDetailedStructure[ERHMS_CODE_KEY],
+            userDetailedStructure.facilityCode,
+            userDetailedStructure.facilityName,
+            userDetailedStructure.facilityType,
+            userDetailedStructure.facultyType,
+            userDetailedStructure.firstName,
+            userDetailedStructure.instituteName,
+            userDetailedStructure.instituteType,
+            userDetailedStructure.isUserMigrated || false,
+            userDetailedStructure.lastName,
+            userDetailedStructure.organisationId,
+            userDetailedStructure.organisationName,
+            userDetailedStructure.phone,
+            userDetailedStructure.profileUpdate || '',
+            userDetailedStructure.registrationSource,
+            userDetailedStructure.registrationSuccessMessage || '',
+            userDetailedStructure.regNurseRegMidwifeNumber,
+            userDetailedStructure.role,
+            userDetailedStructure.roleAssign || '',
+            userDetailedStructure.roleForInService,
+            userDetailedStructure.serviceType,
+            userDetailedStructure.userAlreadyExists || false,
+            userDetailedStructure.userExistingOrganisation || '',
+            userDetailedStructure.validationStatus || '',
+            userDetailedStructure.validationStatusFailedReason || '',
+        ]
+
+        logError('PostgreSQL insert data', JSON.stringify(postgresParams))
+        await pgPool.query(postgresQuery, postgresParams)
+
         return true
     } catch (error) {
-        logError('Cassandra insert error', JSON.stringify(error))
+        logError('Cassandra/PostgreSQL insert error', JSON.stringify(error))
         return false
     }
 }

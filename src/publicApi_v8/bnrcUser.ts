@@ -7,6 +7,14 @@ import { v4 as uuidv4 } from 'uuid'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
+
+const pgPool = new (require('pg')).Pool({
+    host: CONSTANTS.POSTGRES_HOST,
+    port: CONSTANTS.POSTGRES_PORT,
+    database: CONSTANTS.POSTGRES_DATABASE,
+    user: CONSTANTS.POSTGRES_USER,
+    password: CONSTANTS.POSTGRES_PASSWORD,
+})
 export const bnrcUserCreation = express.Router()
 const { types } = cassandra
 
@@ -940,8 +948,11 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
 
+    const uniqueId = uuidv4()
+
     try {
-        const query = `INSERT INTO sunbird.bnrc_registration_data (
+        // Cassandra Insert
+        const cassandraQuery = `INSERT INTO sunbird.bnrc_registration_data (
             unique_id, block, bnrc_registration_number, course_selection, create_account, created_on,
             designation, district, email, facility_name, faculty_type, first_name, hrms_id,
             institute_name, institute_type, is_user_migrated, last_name, nin, organisation_id,
@@ -952,7 +963,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
         const params = [
-            types.Uuid.fromString(uuidv4()),
+            types.Uuid.fromString(uniqueId),
             userFinalStatus.block,
             userFinalStatus.bnrcRegistrationNumber,
             userFinalStatus.courseSelection,
@@ -1007,7 +1018,75 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ]
 
         logInfo('Cassandra insert data', JSON.stringify(params))
-        await client.execute(query, params, { prepare: true })
+        await client.execute(cassandraQuery, params, { prepare: true })
+
+        // PostgreSQL Insert (Dual-write for migration)
+        const pgQuery = `INSERT INTO bnrc_registration_data (
+            unique_id, block, bnrc_registration_number, course_selection, create_account, created_on,
+            designation, district, email, facility_name, faculty_type, first_name, hrms_id,
+            institute_name, institute_type, is_user_migrated, last_name, nin, organisation_id,
+            organisation_name, phone, private_facility_type, profile_update, public_facility_type,
+            registration_source, registration_success_message, role, role_assign, role_for_in_service,
+            service_type, user_already_exists, user_existing_organisation, validation_status,
+            validation_status_failed_reason
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)`
+
+        const pgParams = [
+            uniqueId,
+            userFinalStatus.block,
+            userFinalStatus.bnrcRegistrationNumber,
+            userFinalStatus.courseSelection,
+            userFinalStatus.createAccount || '',
+            userFinalStatus.createdOn,
+            userFinalStatus.designation,
+            userFinalStatus.district,
+            userFinalStatus.email,
+            userFinalStatus.facilityName
+                ? (typeof userFinalStatus.facilityName === 'object'
+                    ? (userFinalStatus.facilityName.name
+                        ? String(userFinalStatus.facilityName.name)
+                        : JSON.stringify(userFinalStatus.facilityName))
+                    : String(userFinalStatus.facilityName))
+                : '',
+            userFinalStatus.facultyType,
+            userFinalStatus.firstName,
+            userFinalStatus.hrmsId,
+            userFinalStatus.instituteName,
+            userFinalStatus.instituteType,
+            Boolean(userFinalStatus.isUserMigrated),
+            userFinalStatus.lastName,
+            userFinalStatus.nin
+                ? (typeof userFinalStatus.nin === 'object'
+                    ? (userFinalStatus.nin.nin
+                        ? String(userFinalStatus.nin.nin)
+                        : JSON.stringify(userFinalStatus.nin))
+                    : String(userFinalStatus.nin))
+                : '',
+            userFinalStatus.organisationId,
+            userFinalStatus.organisationName,
+            String(userFinalStatus.phone || ''),
+            userFinalStatus.privateFacilityType,
+            userFinalStatus.profileUpdate || '',
+            userFinalStatus.publicFacilityType,
+            userFinalStatus.registrationSource,
+            userFinalStatus.registrationSuccessMessage || '',
+            userFinalStatus.role,
+            userFinalStatus.roleAssign || '',
+            userFinalStatus.roleForInService,
+            userFinalStatus.serviceType,
+            Boolean(userFinalStatus.userAlreadyExists),
+            userFinalStatus.userExistingOrganisation || '',
+            userFinalStatus.validationStatus || '',
+            userFinalStatus.validationStatusFailedReason || '',
+        ]
+
+        try {
+            await pgPool.query(pgQuery, pgParams)
+            logInfo('PostgreSQL insert successful for BNRC registration', uniqueId)
+        } catch (pgError) {
+            logError('Error inserting into PostgreSQL', JSON.stringify(pgError))
+        }
+
         return true
     } catch (error) {
         // ✅ full log for debugging
