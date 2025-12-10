@@ -18,9 +18,9 @@ import { getCurrentUserRoles } from './rolePermission'
 const pgPool = new (require('pg')).Pool({
   database: CONSTANTS.POSTGRES_DATABASE,
   host: CONSTANTS.POSTGRES_HOST,
+  password: CONSTANTS.POSTGRES_PASSWORD,
   port: CONSTANTS.POSTGRES_PORT,
   user: CONSTANTS.POSTGRES_USER,
-  password: CONSTANTS.POSTGRES_PASSWORD,
 })
 
 // Type Interfaces

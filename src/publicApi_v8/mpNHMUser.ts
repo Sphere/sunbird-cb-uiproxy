@@ -11,9 +11,9 @@ import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
 const pgPool = new (require('pg')).Pool({
     database: CONSTANTS.POSTGRES_DATABASE,
     host: CONSTANTS.POSTGRES_HOST,
+    password: CONSTANTS.POSTGRES_PASSWORD,
     port: CONSTANTS.POSTGRES_PORT,
     user: CONSTANTS.POSTGRES_USER,
-    password: CONSTANTS.POSTGRES_PASSWORD,
 })
 export const mpNHMUserCreation = express.Router()
 const dayjs = require('dayjs')
