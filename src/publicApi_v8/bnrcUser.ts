@@ -9,9 +9,9 @@ import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 
 const pgPool = new (require('pg')).Pool({
+    database: CONSTANTS.POSTGRES_DATABASE,
     host: CONSTANTS.POSTGRES_HOST,
     port: CONSTANTS.POSTGRES_PORT,
-    database: CONSTANTS.POSTGRES_DATABASE,
     user: CONSTANTS.POSTGRES_USER,
     password: CONSTANTS.POSTGRES_PASSWORD,
 })
