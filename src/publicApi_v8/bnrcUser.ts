@@ -1082,9 +1082,9 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
         try {
             await pgPool.query(pgQuery, pgParams)
-            logInfo('PostgreSQL insert successful for BNRC registration', uniqueId)
+            logInfo('PostgreSQL insert successful for BNRC registration>>>>', uniqueId)
         } catch (pgError) {
-            logError('Error inserting into PostgreSQL', JSON.stringify(pgError))
+            logError('Error inserting into PostgreSQL>>>>', JSON.stringify(pgError))
         }
 
         return true
