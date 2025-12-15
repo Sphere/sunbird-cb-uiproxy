@@ -1,6 +1,5 @@
 /* eslint-disable */
 import axios from 'axios'
-// import cassandra from 'cassandra-driver'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
@@ -16,7 +15,6 @@ const pgPool = new (require('pg')).Pool({
     user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
 })
 export const bnrcUserCreation = express.Router()
-// const { types } = cassandra
 
 interface UserDetails {
     block?: string
@@ -41,11 +39,7 @@ interface UserDetails {
     role: 'Student' | 'Faculty' | 'In Service',
     serviceType?: string
 }
-// const client = new cassandra.Client({
-//     contactPoints: [CONSTANTS.CASSANDRA_IP],
-//     keyspace: 'sunbird',
-//     localDataCenter: 'datacenter1',
-// })
+
 const shortHands = {
     cho: 'CHO',
     privateHealthFacility: 'Private Health Facility',
@@ -951,74 +945,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
     const uniqueId = uuidv4()
 
     try {
-        // Cassandra Insert
-        // const cassandraQuery = `INSERT INTO sunbird.bnrc_registration_data (
-        //     unique_id, block, bnrc_registration_number, course_selection, create_account, created_on,
-        //     designation, district, email, facility_name, faculty_type, first_name, hrms_id,
-        //     institute_name, institute_type, is_user_migrated, last_name, nin, organisation_id,
-        //     organisation_name, phone, private_facility_type, profile_update, public_facility_type,
-        //     registration_source, registration_success_message, role, role_assign, role_for_in_service,
-        //     service_type, user_already_exists, user_existing_organisation, validation_status,
-        //     validation_status_failed_reason
-        // ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-
-        // const params = [
-        //     types.Uuid.fromString(uniqueId),
-        //     userFinalStatus.block,
-        //     userFinalStatus.bnrcRegistrationNumber,
-        //     userFinalStatus.courseSelection,
-        //     userFinalStatus.createAccount || '',
-        //     userFinalStatus.createdOn,
-        //     userFinalStatus.designation,
-        //     userFinalStatus.district,
-        //     userFinalStatus.email,
-
-        //     // ✅ handle facilityName (stringify if object, else keep string)
-        //     userFinalStatus.facilityName
-        //         ? (typeof userFinalStatus.facilityName === 'object'
-        //             ? (userFinalStatus.facilityName.name
-        //                 ? String(userFinalStatus.facilityName.name)
-        //                 : JSON.stringify(userFinalStatus.facilityName))
-        //             : String(userFinalStatus.facilityName))
-        //         : '',
-
-        //     userFinalStatus.facultyType,
-        //     userFinalStatus.firstName,
-        //     userFinalStatus.hrmsId,
-        //     userFinalStatus.instituteName,
-        //     userFinalStatus.instituteType,
-        //     Boolean(userFinalStatus.isUserMigrated),
-        //     userFinalStatus.lastName,
-
-        //     // ✅ handle nin (convert object/number to string)
-        //     userFinalStatus.nin
-        //         ? (typeof userFinalStatus.nin === 'object'
-        //             ? (userFinalStatus.nin.nin
-        //                 ? String(userFinalStatus.nin.nin)
-        //                 : JSON.stringify(userFinalStatus.nin))
-        //             : String(userFinalStatus.nin))
-        //         : '',
-
-        //     userFinalStatus.organisationId,
-        //     userFinalStatus.organisationName,
-        //     String(userFinalStatus.phone || ''),   // ✅ always string
-        //     userFinalStatus.privateFacilityType,
-        //     userFinalStatus.profileUpdate || '',
-        //     userFinalStatus.publicFacilityType,
-        //     userFinalStatus.registrationSource,
-        //     userFinalStatus.registrationSuccessMessage || '',
-        //     userFinalStatus.role,
-        //     userFinalStatus.roleAssign || '',
-        //     userFinalStatus.roleForInService,
-        //     userFinalStatus.serviceType,
-        //     Boolean(userFinalStatus.userAlreadyExists),
-        //     userFinalStatus.userExistingOrganisation || '',
-        //     userFinalStatus.validationStatus || '',
-        //     userFinalStatus.validationStatusFailedReason || '',
-        // ]
-
-        // logInfo('Cassandra insert data', JSON.stringify(params))
-        // await client.execute(cassandraQuery, params, { prepare: true })
 
         // PostgreSQL Insert (Dual-write for migration) - bnrc_registration_data_prod
         const pgQuery = `INSERT INTO bnrc_registration_data_prod (
@@ -1091,7 +1017,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
         return true
     } catch (error) {
-        // ✅ full log for debugging
         logError('Error inserting into Cassandra', JSON.stringify(error))
         return false
     }

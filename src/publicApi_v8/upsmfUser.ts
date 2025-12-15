@@ -916,18 +916,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
 
-    //     const query = `
-    //     INSERT INTO sunbird.upsmf_registration_data (
-    //       unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
-    //       erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
-    //       institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
-    //       phone, profile_update, registration_source, registration_success_message,
-    //       regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
-    //       upsmf_registration_number, user_already_exists, user_existing_organisation,
-    //       validation_status, validation_status_failed_reason
-    //     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    //   `
-
     const params = [
         types.Uuid.fromString(uuidv4()),                      // unique_id
         String(userDetailedStructure.block || ''),            // block
@@ -969,8 +957,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     try {
         logError('Cassandra insert data', JSON.stringify(params))
-        // await client.execute(query, params, { prepare: true })
-
         // Insert into PostgreSQL
         const postgresQuery = `INSERT INTO upsmf_registration_data (
           unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
