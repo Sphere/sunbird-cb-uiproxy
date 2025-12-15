@@ -46,11 +46,6 @@ interface UserDetails {
     serviceType?: 'Regular' | 'Contractual' | 'Private'
 
 }
-const client = new cassandra.Client({
-    contactPoints: [CONSTANTS.CASSANDRA_IP],
-    keyspace: 'sunbird',
-    localDataCenter: 'datacenter1',
-})
 const ERHMS_CODE_KEY = 'ERHMS-code'
 const GOV_KEY = 'Government'
 const serviceSchemaJoi = Joi.object({

@@ -96,12 +96,6 @@ const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
 // Cassandra client setup
 const { types } = cassandra
-const client = new cassandra.Client({
-  contactPoints: [CONSTANTS.CASSANDRA_IP],
-  keyspace: 'sunbird',
-  localDataCenter: 'datacenter1',
-})
-
 // =======================================================
 // HELPER FUNCTIONS
 // =======================================================
