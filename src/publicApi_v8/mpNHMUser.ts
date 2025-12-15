@@ -9,11 +9,11 @@ import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
 const pgPool = new (require('pg')).Pool({
-    database: CONSTANTS.POSTGRES_DATABASE,
-    host: CONSTANTS.POSTGRES_HOST,
-    password: CONSTANTS.POSTGRES_PASSWORD,
-    port: CONSTANTS.POSTGRES_PORT,
-    user: CONSTANTS.POSTGRES_USER,
+    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
 })
 export const mpNHMUserCreation = express.Router()
 const dayjs = require('dayjs')
@@ -902,88 +902,88 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ...userJourneyStatus,
     }
 
-    logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
+    // logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
 
-    const cassandraQuery = `
-        INSERT INTO sunbird.mp_registration_data (
-            unique_id,
-            block,
-            course_selection,
-            create_account,
-            created_on,
-            designation,
-            district,
-            dob,
-            email,
-            erhms_code,
-            facility_code,
-            facility_name,
-            facility_type,
-            faculty_type,
-            first_name,
-            institute_name,
-            institute_type,
-            is_user_migrated,
-            last_name,
-            organisation_id,
-            organisation_name,
-            phone,
-            profile_update,
-            registration_source,
-            registration_success_message,
-            regnurseregmidwifenumber,
-            role,
-            role_assign,
-            roleforinservice,
-            service_type,
-            user_already_exists,
-            user_existing_organisation,
-            validation_status,
-            validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
+    // const cassandraQuery = `
+    //     INSERT INTO sunbird.mp_registration_data (
+    //         unique_id,
+    //         block,
+    //         course_selection,
+    //         create_account,
+    //         created_on,
+    //         designation,
+    //         district,
+    //         dob,
+    //         email,
+    //         erhms_code,
+    //         facility_code,
+    //         facility_name,
+    //         facility_type,
+    //         faculty_type,
+    //         first_name,
+    //         institute_name,
+    //         institute_type,
+    //         is_user_migrated,
+    //         last_name,
+    //         organisation_id,
+    //         organisation_name,
+    //         phone,
+    //         profile_update,
+    //         registration_source,
+    //         registration_success_message,
+    //         regnurseregmidwifenumber,
+    //         role,
+    //         role_assign,
+    //         roleforinservice,
+    //         service_type,
+    //         user_already_exists,
+    //         user_existing_organisation,
+    //         validation_status,
+    //         validation_status_failed_reason
+    //     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    // `
 
     const uniqueId = uuidv4()
-    const params = [
-        types.Uuid.fromString(uniqueId),                             // unique_id
-        String(userDetailedStructure.block || ''),                    // block
-        String(userDetailedStructure.courseSelection || ''),           // course_selection
-        String(userDetailedStructure.createAccount || ''),             // create_account
-        userDetailedStructure.createdOn,                               // created_on
-        String(userDetailedStructure.designation || ''),               // designation
-        String(userDetailedStructure.district || ''),                  // district
-        userDetailedStructure.dob,                                     // dob (Cassandra LocalDate)
-        String(userDetailedStructure.email || ''),                     // email
-        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),           // erhms_code
-        String(userDetailedStructure.facilityCode || ''),              // facility_code
-        String(userDetailedStructure.facilityName || ''),              // facility_name
-        String(userDetailedStructure.facilityType || ''),              // facility_type
-        String(userDetailedStructure.facultyType || ''),               // faculty_type
-        String(userDetailedStructure.firstName || ''),                 // first_name
-        String(userDetailedStructure.instituteName || ''),             // institute_name
-        String(userDetailedStructure.instituteType || ''),             // institute_type
-        Boolean(userDetailedStructure.isUserMigrated || false),        // is_user_migrated
-        String(userDetailedStructure.lastName || ''),                  // last_name
-        String(userDetailedStructure.organisationId || ''),            // organisation_id
-        String(userDetailedStructure.organisationName || ''),          // organisation_name
-        String(userDetailedStructure.phone || ''),                     // phone
-        String(userDetailedStructure.profileUpdate || ''),             // profile_update
-        String(userDetailedStructure.registrationSource || ''),        // registration_source
-        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
-        String(userDetailedStructure.regNurseRegMidwifeNumber || ''),  // regnurseregmidwifenumber
-        String(userDetailedStructure.role || ''),                      // role
-        String(userDetailedStructure.roleAssign || ''),                // role_assign
-        String(userDetailedStructure.roleForInService || ''),          // roleforinservice
-        String(userDetailedStructure.serviceType || ''),               // service_type
-        Boolean(userDetailedStructure.userAlreadyExists || false),     // user_already_exists
-        String(userDetailedStructure.userExistingOrganisation || ''),  // user_existing_organisation
-        String(userDetailedStructure.validationStatus || ''),          // validation_status
-        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
-    ]
+    // const params = [
+    //     types.Uuid.fromString(uniqueId),                             // unique_id
+    //     String(userDetailedStructure.block || ''),                    // block
+    //     String(userDetailedStructure.courseSelection || ''),           // course_selection
+    //     String(userDetailedStructure.createAccount || ''),             // create_account
+    //     userDetailedStructure.createdOn,                               // created_on
+    //     String(userDetailedStructure.designation || ''),               // designation
+    //     String(userDetailedStructure.district || ''),                  // district
+    //     userDetailedStructure.dob,                                     // dob (Cassandra LocalDate)
+    //     String(userDetailedStructure.email || ''),                     // email
+    //     String(userDetailedStructure[ERHMS_CODE_KEY] || ''),           // erhms_code
+    //     String(userDetailedStructure.facilityCode || ''),              // facility_code
+    //     String(userDetailedStructure.facilityName || ''),              // facility_name
+    //     String(userDetailedStructure.facilityType || ''),              // facility_type
+    //     String(userDetailedStructure.facultyType || ''),               // faculty_type
+    //     String(userDetailedStructure.firstName || ''),                 // first_name
+    //     String(userDetailedStructure.instituteName || ''),             // institute_name
+    //     String(userDetailedStructure.instituteType || ''),             // institute_type
+    //     Boolean(userDetailedStructure.isUserMigrated || false),        // is_user_migrated
+    //     String(userDetailedStructure.lastName || ''),                  // last_name
+    //     String(userDetailedStructure.organisationId || ''),            // organisation_id
+    //     String(userDetailedStructure.organisationName || ''),          // organisation_name
+    //     String(userDetailedStructure.phone || ''),                     // phone
+    //     String(userDetailedStructure.profileUpdate || ''),             // profile_update
+    //     String(userDetailedStructure.registrationSource || ''),        // registration_source
+    //     String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
+    //     String(userDetailedStructure.regNurseRegMidwifeNumber || ''),  // regnurseregmidwifenumber
+    //     String(userDetailedStructure.role || ''),                      // role
+    //     String(userDetailedStructure.roleAssign || ''),                // role_assign
+    //     String(userDetailedStructure.roleForInService || ''),          // roleforinservice
+    //     String(userDetailedStructure.serviceType || ''),               // service_type
+    //     Boolean(userDetailedStructure.userAlreadyExists || false),     // user_already_exists
+    //     String(userDetailedStructure.userExistingOrganisation || ''),  // user_existing_organisation
+    //     String(userDetailedStructure.validationStatus || ''),          // validation_status
+    //     String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
+    // ]
 
     try {
-        logError('Cassandra insert data', JSON.stringify(params))
-        await client.execute(cassandraQuery, params, { prepare: true })
+        // logError('Cassandra insert data', JSON.stringify(params))
+        // await client.execute(cassandraQuery, params, { prepare: true })
 
         // Insert into PostgreSQL
         const postgresQuery = `INSERT INTO mp_registration_data (
@@ -1020,8 +1020,10 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             user_already_exists,
             user_existing_organisation,
             validation_status,
-            validation_status_failed_reason
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)`
+            validation_status_failed_reason,
+            etl_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+        ON CONFLICT (unique_id) DO NOTHING`
 
         const postgresParams = [
             uniqueId,
@@ -1041,7 +1043,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userDetailedStructure.firstName,
             userDetailedStructure.instituteName,
             userDetailedStructure.instituteType,
-            userDetailedStructure.isUserMigrated || false,
+            String(Boolean(userDetailedStructure.isUserMigrated)),
             userDetailedStructure.lastName,
             userDetailedStructure.organisationId,
             userDetailedStructure.organisationName,
@@ -1054,10 +1056,11 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userDetailedStructure.roleAssign || '',
             userDetailedStructure.roleForInService,
             userDetailedStructure.serviceType,
-            userDetailedStructure.userAlreadyExists || false,
+            String(Boolean(userDetailedStructure.userAlreadyExists)),
             userDetailedStructure.userExistingOrganisation || '',
             userDetailedStructure.validationStatus || '',
             userDetailedStructure.validationStatusFailedReason || '',
+            new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
         ]
 
         logError('PostgreSQL insert data', JSON.stringify(postgresParams))

@@ -16,11 +16,11 @@ import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
 
 const pgPool = new (require('pg')).Pool({
-  database: CONSTANTS.POSTGRES_DATABASE,
-  host: CONSTANTS.POSTGRES_HOST,
-  password: CONSTANTS.POSTGRES_PASSWORD,
-  port: CONSTANTS.POSTGRES_PORT,
-  user: CONSTANTS.POSTGRES_USER,
+  database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+  host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+  password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+  port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+  user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
 })
 
 // Type Interfaces
@@ -310,32 +310,34 @@ const updateUserStatusInDatabase = async (
     }
 
     // Insert into Cassandra
-    const cassandraQuery = `
-      INSERT INTO sunbird.user_registration_audit (
-        create_account, created_on, email, first_name, is_user_migrated,
-        last_name, organisation_id, organisation_name, phone, profile_update,
-        registration_success_message, role_assign, unique_id, user_already_exists,
-        user_existing_organisation, validation_status, validation_status_failed_reason
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
-    const params = Object.values(record)
-    await client.execute(cassandraQuery, params, { prepare: true })
-    logInfo('User journey status inserted successfully into Cassandra audit log')
+    // const cassandraQuery = `
+    //   INSERT INTO sunbird.user_registration_audit (
+    //     create_account, created_on, email, first_name, is_user_migrated,
+    //     last_name, organisation_id, organisation_name, phone, profile_update,
+    //     registration_success_message, role_assign, unique_id, user_already_exists,
+    //     user_existing_organisation, validation_status, validation_status_failed_reason
+    //   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    // `
+    // const params = Object.values(record)
+    // await client.execute(cassandraQuery, params, { prepare: true })
+    // logInfo('User journey status inserted successfully into Cassandra audit log')
 
     // Insert into PostgreSQL
     const postgresQuery = `INSERT INTO user_registration_audit (
       create_account, created_on, email, first_name, is_user_migrated,
       last_name, organisation_id, organisation_name, phone, profile_update,
       registration_success_message, role_assign, unique_id, user_already_exists,
-      user_existing_organisation, validation_status, validation_status_failed_reason
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
+      user_existing_organisation, validation_status, validation_status_failed_reason,
+      etl_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    ON CONFLICT (unique_id) DO NOTHING`
 
     const postgresParams = [
       record.create_account,
       record.created_on,
       record.email,
       record.first_name,
-      record.is_user_migrated,
+      String(Boolean(record.is_user_migrated)),
       record.last_name,
       record.organisation_id,
       record.organisation_name,
@@ -344,10 +346,11 @@ const updateUserStatusInDatabase = async (
       record.registration_success_message,
       record.role_assign,
       uniqueId,
-      record.user_already_exists,
+      String(Boolean(record.user_already_exists)),
       record.user_existing_organisation,
       record.validation_status,
       record.validation_status_failed_reason,
+      new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
     ]
 
     await pgPool.query(postgresQuery, postgresParams)

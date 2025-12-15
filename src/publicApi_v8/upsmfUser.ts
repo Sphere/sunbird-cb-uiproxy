@@ -9,11 +9,11 @@ import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 
 const pgPool = new (require('pg')).Pool({
-    database: CONSTANTS.POSTGRES_DATABASE,
-    host: CONSTANTS.POSTGRES_HOST,
-    password: CONSTANTS.POSTGRES_PASSWORD,
-    port: CONSTANTS.POSTGRES_PORT,
-    user: CONSTANTS.POSTGRES_USER,
+    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
 })
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/upsmfUtils'
 export const upsmfUserCreation = express.Router()
@@ -916,17 +916,17 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
 
-    const query = `
-    INSERT INTO sunbird.upsmf_registration_data (
-      unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
-      erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
-      institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
-      phone, profile_update, registration_source, registration_success_message,
-      regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
-      upsmf_registration_number, user_already_exists, user_existing_organisation,
-      validation_status, validation_status_failed_reason
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `
+    //     const query = `
+    //     INSERT INTO sunbird.upsmf_registration_data (
+    //       unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
+    //       erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
+    //       institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
+    //       phone, profile_update, registration_source, registration_success_message,
+    //       regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
+    //       upsmf_registration_number, user_already_exists, user_existing_organisation,
+    //       validation_status, validation_status_failed_reason
+    //     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    //   `
 
     const params = [
         types.Uuid.fromString(uuidv4()),                      // unique_id
@@ -969,7 +969,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     try {
         logError('Cassandra insert data', JSON.stringify(params))
-        await client.execute(query, params, { prepare: true })
+        // await client.execute(query, params, { prepare: true })
 
         // Insert into PostgreSQL
         const postgresQuery = `INSERT INTO upsmf_registration_data (
@@ -979,8 +979,9 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
           phone, profile_update, registration_source, registration_success_message,
           regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
           upsmf_registration_number, user_already_exists, user_existing_organisation,
-          validation_status, validation_status_failed_reason
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)`
+          validation_status, validation_status_failed_reason, etl_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+        ON CONFLICT (unique_id) DO NOTHING`
 
         const uniqueId = uuidv4()
         const postgresParams = [
@@ -1002,7 +1003,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userDetailedStructure.hrmsId,
             userDetailedStructure.instituteName,
             userDetailedStructure.instituteType,
-            userDetailedStructure.isUserMigrated || false,
+            String(Boolean(userDetailedStructure.isUserMigrated)),
             userDetailedStructure.lastName,
             userDetailedStructure.organisationId,
             userDetailedStructure.organisationName,
@@ -1016,10 +1017,11 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userDetailedStructure.roleForInService,
             userDetailedStructure.serviceType,
             userDetailedStructure.upsmfRegistrationNumber,
-            userDetailedStructure.userAlreadyExists || false,
+            String(Boolean(userDetailedStructure.userAlreadyExists)),
             userDetailedStructure.userExistingOrganisation || '',
             userDetailedStructure.validationStatus || '',
             userDetailedStructure.validationStatusFailedReason || '',
+            new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
         ]
 
         logError('PostgreSQL insert data', JSON.stringify(postgresParams))
