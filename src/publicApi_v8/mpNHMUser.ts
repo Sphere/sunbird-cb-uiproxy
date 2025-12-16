@@ -8,6 +8,13 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
+const pgPool = new (require('pg')).Pool({
+    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
+})
 export const mpNHMUserCreation = express.Router()
 const dayjs = require('dayjs')
 const { types } = cassandra
@@ -39,11 +46,6 @@ interface UserDetails {
     serviceType?: 'Regular' | 'Contractual' | 'Private'
 
 }
-const client = new cassandra.Client({
-    contactPoints: [CONSTANTS.CASSANDRA_IP],
-    keyspace: 'sunbird',
-    localDataCenter: 'datacenter1',
-})
 const ERHMS_CODE_KEY = 'ERHMS-code'
 const GOV_KEY = 'Government'
 const serviceSchemaJoi = Joi.object({
@@ -928,10 +930,11 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ...userJourneyStatus,
     }
 
-    logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
+    const uniqueId = uuidv4()
 
-    const query = `
-        INSERT INTO sunbird.mp_registration_data (
+    try {
+        // Insert into PostgreSQL
+        const postgresQuery = `INSERT INTO mp_registration_data (
             unique_id,
             block,
             block_others,
@@ -967,54 +970,57 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             user_already_exists,
             user_existing_organisation,
             validation_status,
-            validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
+            validation_status_failed_reason,
+            etl_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+        ON CONFLICT (unique_id) DO NOTHING`
 
-    const params = [
-        types.Uuid.fromString(uuidv4()),                             // unique_id
-        String(userDetailedStructure.block || ''),                    // block
-        String(userDetailedStructure.blockOthers || ''),              // block_others
-        String(userDetailedStructure.courseSelection || ''),           // course_selection
-        String(userDetailedStructure.createAccount || ''),             // create_account
-        userDetailedStructure.createdOn,                               // created_on
-        String(userDetailedStructure.designation || ''),               // designation
-        String(userDetailedStructure.district || ''),                  // district
-        userDetailedStructure.dob,                                     // dob (Cassandra LocalDate)
-        String(userDetailedStructure.email || ''),                     // email
-        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),           // erhms_code
-        String(userDetailedStructure.facilityCode || ''),              // facility_code
-        String(userDetailedStructure.facilityName || ''),              // facility_name
-        String(userDetailedStructure.facilityNameOthers || ''),        // facility_name_others
-        String(userDetailedStructure.facilityType || ''),              // facility_type
-        String(userDetailedStructure.facultyType || ''),               // faculty_type
-        String(userDetailedStructure.firstName || ''),                 // first_name
-        String(userDetailedStructure.instituteName || ''),             // institute_name
-        String(userDetailedStructure.instituteType || ''),             // institute_type
-        Boolean(userDetailedStructure.isUserMigrated || false),        // is_user_migrated
-        String(userDetailedStructure.lastName || ''),                  // last_name
-        String(userDetailedStructure.organisationId || ''),            // organisation_id
-        String(userDetailedStructure.organisationName || ''),          // organisation_name
-        String(userDetailedStructure.phone || ''),                     // phone
-        String(userDetailedStructure.profileUpdate || ''),             // profile_update
-        String(userDetailedStructure.registrationSource || ''),        // registration_source
-        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
-        String(userDetailedStructure.regNurseRegMidwifeNumber || ''),  // regnurseregmidwifenumber
-        String(userDetailedStructure.role || ''),                      // role
-        String(userDetailedStructure.roleAssign || ''),                // role_assign
-        String(userDetailedStructure.roleForInService || ''),          // roleforinservice
-        String(userDetailedStructure.serviceType || ''),               // service_type
-        Boolean(userDetailedStructure.userAlreadyExists || false),     // user_already_exists
-        String(userDetailedStructure.userExistingOrganisation || ''),  // user_existing_organisation
-        String(userDetailedStructure.validationStatus || ''),          // validation_status
-        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
-    ]
+        const postgresParams = [
+            uniqueId,                                                       // 1. unique_id
+            String(userDetailedStructure.block || ''),                      // 2. block
+            String(userDetailedStructure.blockOthers || ''),                // 3. block_others
+            String(userDetailedStructure.courseSelection || ''),            // 4. course_selection
+            String(userDetailedStructure.createAccount || ''),              // 5. create_account
+            userDetailedStructure.createdOn,                                // 6. created_on
+            String(userDetailedStructure.designation || ''),                // 7. designation
+            String(userDetailedStructure.district || ''),                   // 8. district
+            userDetailedStructure.dob,                                      // 9. dob
+            String(userDetailedStructure.email || ''),                      // 10. email
+            String(userDetailedStructure[ERHMS_CODE_KEY] || ''),            // 11. erhms_code
+            String(userDetailedStructure.facilityCode || ''),               // 12. facility_code
+            String(userDetailedStructure.facilityName || ''),               // 13. facility_name
+            String(userDetailedStructure.facilityNameOthers || ''),         // 14. facility_name_others
+            String(userDetailedStructure.facilityType || ''),               // 15. facility_type
+            String(userDetailedStructure.facultyType || ''),                // 16. faculty_type
+            String(userDetailedStructure.firstName || ''),                  // 17. first_name
+            String(userDetailedStructure.instituteName || ''),              // 18. institute_name
+            String(userDetailedStructure.instituteType || ''),              // 19. institute_type
+            String(Boolean(userDetailedStructure.isUserMigrated || false)), // 20. is_user_migrated
+            String(userDetailedStructure.lastName || ''),                   // 21. last_name
+            String(userDetailedStructure.organisationId || ''),             // 22. organisation_id
+            String(userDetailedStructure.organisationName || ''),           // 23. organisation_name
+            String(userDetailedStructure.phone || ''),                      // 24. phone
+            String(userDetailedStructure.profileUpdate || ''),              // 25. profile_update
+            String(userDetailedStructure.registrationSource || ''),         // 26. registration_source
+            String(userDetailedStructure.registrationSuccessMessage || ''), // 27. registration_success_message
+            String(userDetailedStructure.regNurseRegMidwifeNumber || ''),   // 28. regnurseregmidwifenumber
+            String(userDetailedStructure.role || ''),                       // 29. role
+            String(userDetailedStructure.roleAssign || ''),                 // 30. role_assign
+            String(userDetailedStructure.roleForInService || ''),           // 31. roleforinservice
+            String(userDetailedStructure.serviceType || ''),                // 32. service_type
+            String(Boolean(userDetailedStructure.userAlreadyExists || false)), // 33. user_already_exists
+            String(userDetailedStructure.userExistingOrganisation || ''),   // 34. user_existing_organisation
+            String(userDetailedStructure.validationStatus || ''),           // 35. validation_status
+            String(userDetailedStructure.validationStatusFailedReason || ''), // 36. validation_status_failed_reason
+            new Date(),                                                     // 37. etl_updated_at
+        ]
 
-    try {
-        await client.execute(query, params, { prepare: true })
+        logInfo('PostgreSQL insert data for MP registration', JSON.stringify(postgresParams))
+        await pgPool.query(postgresQuery, postgresParams)
+
         return true
     } catch (error) {
-        logError('Cassandra insert error', JSON.stringify(error))
+        logError('PostgreSQL insert error', JSON.stringify(error))
         return false
     }
 }

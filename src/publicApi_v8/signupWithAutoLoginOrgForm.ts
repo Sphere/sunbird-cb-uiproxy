@@ -15,6 +15,14 @@ import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
 
+const pgPool = new (require('pg')).Pool({
+  database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+  host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+  password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+  port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+  user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
+})
+
 // Type Interfaces
 interface ProfileData {
   channelName?: string
@@ -88,12 +96,6 @@ const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
 // Cassandra client setup
 const { types } = cassandra
-const client = new cassandra.Client({
-  contactPoints: [CONSTANTS.CASSANDRA_IP],
-  keyspace: 'sunbird',
-  localDataCenter: 'datacenter1',
-})
-
 // =======================================================
 // HELPER FUNCTIONS
 // =======================================================
@@ -280,6 +282,7 @@ const updateUserStatusInDatabase = async (
   userJourneyStatus: UserJourneyStatus
 ): Promise<void> => {
   try {
+    const uniqueId = uuidv4()
     const record = {
       create_account: userJourneyStatus.createAccount || '',
       created_on: new Date(),
@@ -293,24 +296,59 @@ const updateUserStatusInDatabase = async (
       profile_update: userJourneyStatus.profileUpdate || '',
       registration_success_message: userJourneyStatus.registrationSuccessMessage || '',
       role_assign: userJourneyStatus.roleAssign || '',
-      unique_id: types.Uuid.fromString(uuidv4()),
+      unique_id: types.Uuid.fromString(uniqueId),
       user_already_exists: Boolean(userJourneyStatus.userAlreadyExists),
       user_existing_organisation: userJourneyStatus.userExistingOrganisation || '',
       validation_status: userJourneyStatus.validationStatus || 'success',
       validation_status_failed_reason: userJourneyStatus.validationStatusFailedReason || '',
     }
 
-    const query = `
-      INSERT INTO sunbird.user_registration_audit (
-        create_account, created_on, email, first_name, is_user_migrated,
-        last_name, organisation_id, organisation_name, phone, profile_update,
-        registration_success_message, role_assign, unique_id, user_already_exists,
-        user_existing_organisation, validation_status, validation_status_failed_reason
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
-    const params = Object.values(record)
-    await client.execute(query, params, { prepare: true })
-    logInfo('User journey status inserted successfully into audit log')
+    // Insert into Cassandra
+    // const cassandraQuery = `
+    //   INSERT INTO sunbird.user_registration_audit (
+    //     create_account, created_on, email, first_name, is_user_migrated,
+    //     last_name, organisation_id, organisation_name, phone, profile_update,
+    //     registration_success_message, role_assign, unique_id, user_already_exists,
+    //     user_existing_organisation, validation_status, validation_status_failed_reason
+    //   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    // `
+    // const params = Object.values(record)
+    // await client.execute(cassandraQuery, params, { prepare: true })
+    // logInfo('User journey status inserted successfully into Cassandra audit log')
+
+    // Insert into PostgreSQL
+    const postgresQuery = `INSERT INTO user_registration_audit (
+      create_account, created_on, email, first_name, is_user_migrated,
+      last_name, organisation_id, organisation_name, phone, profile_update,
+      registration_success_message, role_assign, unique_id, user_already_exists,
+      user_existing_organisation, validation_status, validation_status_failed_reason,
+      etl_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    ON CONFLICT (unique_id) DO NOTHING`
+
+    const postgresParams = [
+      record.create_account,
+      record.created_on,
+      record.email,
+      record.first_name,
+      String(Boolean(record.is_user_migrated)),
+      record.last_name,
+      record.organisation_id,
+      record.organisation_name,
+      record.phone,
+      record.profile_update,
+      record.registration_success_message,
+      record.role_assign,
+      uniqueId,
+      String(Boolean(record.user_already_exists)),
+      record.user_existing_organisation,
+      record.validation_status,
+      record.validation_status_failed_reason,
+      new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
+    ]
+
+    await pgPool.query(postgresQuery, postgresParams)
+    logInfo('User journey status inserted successfully into PostgreSQL audit log')
   } catch (error) {
     logError('Error inserting user journey status', JSON.stringify(error))
     // Don't throw - logging failure shouldn't stop registration
