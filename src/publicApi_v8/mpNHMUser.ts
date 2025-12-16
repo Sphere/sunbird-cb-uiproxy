@@ -26,6 +26,8 @@ interface UserDetails {
     facilityName?: string
     facilityCode?: string
     block?: string
+    blockOthers?: string
+    facilityNameOthers?: string
     ehrmsNumber?: string
     // tslint:disable-next-line: all
     role: 'Student' | 'Faculty' | 'ANM-MP' | 'CHO-MP' | 'Trainer-MP',
@@ -172,6 +174,16 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'block is required',
         }),
 
+    blockOthers: Joi.string()
+        .when('block', {
+            is: 'Other',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            'any.required': 'Block name is required when block is set to Other',
+        }),
+
     facilityCode: Joi.string()
         .when('roleForInService', {
             is: GOV_KEY,
@@ -185,6 +197,17 @@ const serviceSchemaJoi = Joi.object({
     facilityName: Joi.string().optional().messages({
         'any.required': 'Facility name is required',
     }),
+
+    facilityNameOthers: Joi.string()
+        .when('facilityName', {
+            is: 'Others',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            'any.required': 'Facility name is required when facility name is set to Others',
+        }),
+
     facilityType: Joi.string()
         .when('roleForInService', {
             is: GOV_KEY,
@@ -643,11 +666,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             {
                                 [ERHMS_CODE_KEY]: '',
                                 block: user?.block || '',
+                                blockOthers: user?.blockOthers || '',
                                 completePostalAddress: '',
                                 designation: 'ANM-Student-MP',
                                 doj: '',
                                 facilityCode: '',
                                 facilityName: '',
+                                facilityNameOthers: user?.facilityNameOthers || '',
                                 facilityType: '',
                                 facultyType: '',
                                 instituteName: '',
@@ -702,11 +727,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
+                                    blockOthers: user?.blockOthers || '',
                                     completePostalAddress: '',
                                     designation: 'ANM-Student-MP',
                                     doj: '',
                                     facilityCode: user?.facilityCode || '',
                                     facilityName: user?.facilityName || '',
+                                    facilityNameOthers: user?.facilityNameOthers || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: '',
                                     instituteName: user?.instituteName || '',
@@ -763,11 +790,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
+                                    blockOthers: user?.blockOthers || '',
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-MP',
                                     doj: '',
                                     facilityCode: user?.facilityCode || '',
                                     facilityName: user?.facilityName || '',
+                                    facilityNameOthers: user?.facilityNameOthers || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType,
                                     instituteName: user?.instituteName || '',
@@ -823,11 +852,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
+                                    blockOthers: user?.blockOthers || '',
                                     completePostalAddress: '',
                                     designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
                                     facilityCode: user?.facilityCode || '',
                                     facilityName: user?.facilityName || '',
+                                    facilityNameOthers: user?.facilityNameOthers || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType || '',
                                     instituteName: '',
@@ -868,6 +899,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
     const userDetailedStructure = {
         [ERHMS_CODE_KEY]: userDetails.hrmsId || '',
         block: userDetails?.block || '',
+        blockOthers: userDetails?.blockOthers || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
         designation: getDetailsAsPerRole(userDetails).designation || '',
@@ -878,6 +910,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         email: userDetails.email || '',
         facilityCode: userDetails?.facilityCode || '',
         facilityName: userDetails?.facilityName || '',
+        facilityNameOthers: userDetails?.facilityNameOthers || '',
         facilityType: userDetails.facilityType || '',
         facultyType: userDetails.facultyType || '',
         firstName: userDetails.firstName || '',
@@ -901,6 +934,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         INSERT INTO sunbird.mp_registration_data (
             unique_id,
             block,
+            block_others,
             course_selection,
             create_account,
             created_on,
@@ -911,6 +945,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             erhms_code,
             facility_code,
             facility_name,
+            facility_name_others,
             facility_type,
             faculty_type,
             first_name,
@@ -933,12 +968,13 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             user_existing_organisation,
             validation_status,
             validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 
     const params = [
         types.Uuid.fromString(uuidv4()),                             // unique_id
         String(userDetailedStructure.block || ''),                    // block
+        String(userDetailedStructure.blockOthers || ''),              // block_others
         String(userDetailedStructure.courseSelection || ''),           // course_selection
         String(userDetailedStructure.createAccount || ''),             // create_account
         userDetailedStructure.createdOn,                               // created_on
@@ -949,6 +985,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         String(userDetailedStructure[ERHMS_CODE_KEY] || ''),           // erhms_code
         String(userDetailedStructure.facilityCode || ''),              // facility_code
         String(userDetailedStructure.facilityName || ''),              // facility_name
+        String(userDetailedStructure.facilityNameOthers || ''),        // facility_name_others
         String(userDetailedStructure.facilityType || ''),              // facility_type
         String(userDetailedStructure.facultyType || ''),               // faculty_type
         String(userDetailedStructure.firstName || ''),                 // first_name
