@@ -9,15 +9,15 @@ import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
 const pgPool = new (require('pg')).Pool({
+    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
     database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
     host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
-    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
-    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
-    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
-    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
     idleTimeoutMillis: 30000,        // 30 seconds idle before closing
     max: 20,                          // Max 20 connections in pool
+    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
     statement_timeout: 30000,         // 30 seconds for query execution
+    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
 })
 
 // Add error handling for pool
@@ -1056,7 +1056,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
                 // Wait before retry (exponential backoff)
                 const waitTime = Math.pow(2, retryCount) * 1000
                 logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
-                await new Promise(resolve => setTimeout(resolve, waitTime))
+                await new Promise((resolve) => setTimeout(resolve, waitTime))
             }
         }
 
