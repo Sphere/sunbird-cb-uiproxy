@@ -8,12 +8,30 @@ import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 
 const pgPool = new (require('pg')).Pool({
+    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
     database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
     host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
+    max: 20,                          // Max 20 connections in pool
     password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
     port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+    statement_timeout: 30000,         // 30 seconds for query execution
     user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
 })
+
+// Add error handling for pool
+pgPool.on('error', (error) => {
+    logError('Unexpected error on idle client in pool', JSON.stringify(error))
+})
+
+pgPool.on('connect', () => {
+    logInfo('New PostgreSQL connection established')
+})
+
+pgPool.on('remove', () => {
+    logInfo('PostgreSQL connection removed from pool')
+})
+
 export const bnrcUserCreation = express.Router()
 
 interface UserDetails {
@@ -1009,10 +1027,32 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ]
 
         try {
-            await pgPool.query(pgQuery, pgParams)
-            logInfo('PostgreSQL insert successful for BNRC registration>>>>', uniqueId)
+            const maxRetries = 2
+            let retryCount = 0
+
+            while (retryCount < maxRetries) {
+                try {
+                    logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, uniqueId)
+                    await pgPool.query(pgQuery, pgParams)
+                    logInfo('PostgreSQL insert successful for BNRC registration>>>>', uniqueId)
+                    break
+                } catch (queryError) {
+                    retryCount++
+                    logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify(queryError))
+
+                    if (retryCount >= maxRetries) {
+                        logError('PostgreSQL insert failed after max retries', JSON.stringify(queryError))
+                        break
+                    }
+
+                    // Wait before retry (1s, 2s)
+                    const waitTime = retryCount * 1000
+                    logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
+                    await new Promise(resolve => setTimeout(resolve, waitTime))
+                }
+            }
         } catch (pgError) {
-            logError('Error inserting into PostgreSQL>>>>', JSON.stringify(pgError))
+            logError('Unexpected error in PostgreSQL insert', JSON.stringify(pgError))
         }
 
         return true

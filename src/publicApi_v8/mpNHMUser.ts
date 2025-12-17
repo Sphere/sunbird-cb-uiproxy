@@ -1034,7 +1034,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             new Date(),                                                     // 37. etl_updated_at
         ]
 
-        const maxRetries = 3
+        const maxRetries = 2
         let retryCount = 0
 
         while (retryCount < maxRetries) {
@@ -1053,8 +1053,8 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
                     return false
                 }
 
-                // Wait before retry (exponential backoff)
-                const waitTime = Math.pow(2, retryCount) * 1000
+                // Wait before retry (1s, 2s)
+                const waitTime = retryCount * 1000
                 logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
                 await new Promise((resolve) => setTimeout(resolve, waitTime))
             }
