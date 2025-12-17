@@ -14,7 +14,25 @@ const pgPool = new (require('pg')).Pool({
     password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
     port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
     user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
+    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
+    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
+    max: 20,                          // Max 20 connections in pool
+    statement_timeout: 30000,         // 30 seconds for query execution
 })
+
+// Add error handling for pool
+pgPool.on('error', (error) => {
+    logError('Unexpected error on idle client in pool', JSON.stringify(error))
+})
+
+pgPool.on('connect', () => {
+    logInfo('New PostgreSQL connection established')
+})
+
+pgPool.on('remove', () => {
+    logInfo('PostgreSQL connection removed from pool')
+})
+
 export const mpNHMUserCreation = express.Router()
 const dayjs = require('dayjs')
 const { types } = cassandra
@@ -588,8 +606,8 @@ const createUser = async (userDetails: UserDetails) => {
             headers: {
                 authorization: CONSTANTS.SB_API_KEY,
             },
-
             method: 'POST',
+            timeout: 60000, // 60 second timeout
             url: API_END_POINTS.createUser,
         })
         if (userCreationResponse.data.result.userId) {
@@ -622,6 +640,7 @@ const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
+            timeout: 60000, // 60 second timeout
             url: API_END_POINTS.assignRole,
         })
         if (roleAssignResponse.data.result.response == 'SUCCESS') {
@@ -1015,12 +1034,35 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             new Date(),                                                     // 37. etl_updated_at
         ]
 
-        logInfo('PostgreSQL insert data for MP registration', JSON.stringify(postgresParams))
-        await pgPool.query(postgresQuery, postgresParams)
+        const maxRetries = 3
+        let retryCount = 0
 
-        return true
+        while (retryCount < maxRetries) {
+            try {
+                logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, uniqueId)
+                await pgPool.query(postgresQuery, postgresParams)
+                logInfo('PostgreSQL insert successful for MP registration', uniqueId)
+                return true
+            } catch (queryError) {
+                retryCount++
+                logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify(queryError))
+
+                if (retryCount >= maxRetries) {
+                    logError('PostgreSQL insert failed after max retries', JSON.stringify(queryError))
+                    // Don't throw - allow registration to continue even if DB insert fails
+                    return false
+                }
+
+                // Wait before retry (exponential backoff)
+                const waitTime = Math.pow(2, retryCount) * 1000
+                logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
+                await new Promise(resolve => setTimeout(resolve, waitTime))
+            }
+        }
+
+        return false
     } catch (error) {
-        logError('PostgreSQL insert error', JSON.stringify(error))
+        logError('Unexpected error in updateUserStatusInDatabase', JSON.stringify(error))
         return false
     }
 }
