@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import http from 'http'
 import { createProxyServer } from 'http-proxy'
 import {
   extractUserIdFromRequest,
@@ -6,7 +7,7 @@ import {
 } from '../utils/requestExtract'
 import { returnData } from './dataAlterer'
 import { CONSTANTS } from './env'
-import { logInfo } from './logger'
+import { logError, logInfo } from './logger'
 
 const proxyCreator = (timeout = 10000) =>
   createProxyServer({
@@ -15,14 +16,48 @@ const proxyCreator = (timeout = 10000) =>
 const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
 const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
+const CONTENT_TYPE_KEY = 'content-type'
+const CONTENT_LENGTH_KEY_LOWER = 'content-length'
+const AUTH_TOKEN_KEY = 'x-authenticated-user-token'
+const AUTH_USER_ID_KEY = 'x-authenticated-userid'
+const CONTENT_LENGTH_KEY = 'Content-Length'
+
+/**
+ * Upload-dedicated proxy — streams multipart data without JSON conversion.
+ * Safe for large CSV / binary / form-data uploads.
+ */
+const uploadProxy = createProxyServer({
+  agent: new http.Agent({ keepAlive: true }),
+  changeOrigin: true,
+  ignorePath: false,
+  secure: false,
+})
+
+uploadProxy.on('error', (err, _req, _res) => {
+  const errorMessage = err instanceof Error ? err.message : String(err)
+  logError('[UPLOAD PROXY ERROR]', errorMessage)
+})
+
+// /**
+//  * Backup validation: Ensures multipart/form-data uploads bypass body parsing.
+//  * Works in conjunction with server.ts skipBodyParser middleware (line 205).
+//  * Prevents double-parsing of stream data.
+//  */
+// // tslint:disable-next-line: no-any
+// uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
+//   const contentType = req.headers[CONTENT_TYPE_KEY] || ''
+//   if (contentType.startsWith('multipart/form-data')) {
+//     return // Stream passes through unmodified to backend
+//   }
+// })
 
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
   proxyReq.setHeader('X-Channel-Id', '0132317968766894088')
   // tslint:disable-next-line: max-line-length
   proxyReq.setHeader('Authorization', CONSTANTS.SB_API_KEY)
-  proxyReq.setHeader('x-authenticated-user-token', extractUserToken(req))
-  proxyReq.setHeader('x-authenticated-userid', extractUserIdFromRequest(req))
+  proxyReq.setHeader(AUTH_TOKEN_KEY, extractUserToken(req))
+  proxyReq.setHeader(AUTH_USER_ID_KEY, extractUserIdFromRequest(req))
 
   // condition has been added to set the session in nodebb req header
   // condition don't require for nodebb as of now, we manage authentication through API key and uid will be passed for each req.
@@ -32,7 +67,7 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 
   if (req.body) {
     const bodyData = JSON.stringify(req.body)
-    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData))
+    proxyReq.setHeader(CONTENT_LENGTH_KEY, Buffer.byteLength(bodyData))
     proxyReq.write(bodyData)
   }
 })
@@ -341,6 +376,37 @@ function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
 
+/**
+ * Extracts and builds proxy headers with authentication and content info.
+ * Consolidates header preparation logic used across proxy functions.
+ */
+function buildProxyHeaders(
+  userToken?: string,
+  userId?: string,
+  contentType?: string,
+  contentLength?: string
+): { [key: string]: string } {
+  const headers: { [key: string]: string } = {}
+
+  if (userToken) {
+    headers[AUTH_TOKEN_KEY] = userToken
+  }
+  if (userId) {
+    headers[AUTH_USER_ID_KEY] = userId
+  }
+  if (CONSTANTS?.SB_API_KEY) {
+    headers.Authorization = CONSTANTS.SB_API_KEY
+  }
+  if (contentType) {
+    headers['Content-Type'] = contentType
+  }
+  if (contentLength) {
+    headers[CONTENT_LENGTH_KEY] = contentLength
+  }
+
+  return headers
+}
+
 export function proxyCreatorSunbirdSearch(
   route: Router,
   targetUrl: string,
@@ -470,5 +536,129 @@ export function proxyCreatorDownloadCertificate(
       target: targetUrl + subStr,
     })
   })
+  return route
+}
+
+/**
+ * Streams large file uploads (CSV, binary, form-data) to ETL-FRAC backend.
+ * Does NOT parse request body - safe for large files.
+ * Kong path rewriting: /api/entity/v1/upload → /v1/entity/upload
+ *
+ * @param route Express router to attach proxy handler
+ * @param targetUrl Backend service URL
+ * @param timeout Request timeout (default: 500000ms)
+ * @returns Configured express router with upload proxy handler
+ */
+export function proxyCreatorEtlFracUpload(
+  route: Router,
+  targetUrl: string,
+  timeout = 500000
+): Router {
+  // tslint:disable-next-line: no-any
+  route.all('/*', (req: any, res: any) => {
+    // Extract auth and headers once
+    const xUserId = extractUserIdFromRequest(req)
+    const xAuthToken = extractUserToken(req)
+    const contentType = req.headers[CONTENT_TYPE_KEY]
+    const contentLength = req.headers[CONTENT_LENGTH_KEY_LOWER]
+
+    // tslint:disable-next-line: no-console
+    console.log('REQ_URL_ORIGINAL proxyCreatorEtlFracUpload', req.originalUrl)
+
+    // Rewrite path for Kong routing
+    let rewrittenPath = req.originalUrl.replace('/proxies/v8', '')
+    if (rewrittenPath === '/api/entity/v1/upload') {
+      rewrittenPath = '/v1/entity/upload'
+    }
+
+    const finalTarget = targetUrl + rewrittenPath
+
+    // Track incoming stream size
+    let bytesReceived = 0
+    req.on('data', (chunk: Buffer) => {
+      bytesReceived += chunk.length
+    })
+
+    req.on('end', () => {
+      logInfo('Upload completed. Size: ' + bytesReceived + ' bytes')
+    })
+
+    req.on('error', (err: Error) => {
+      logError('Upload stream error:', err.message)
+    })
+
+    // tslint:disable-next-line: no-console
+    console.log('REQ_URL_FINAL proxyCreatorEtlFracUpload', finalTarget)
+
+    // Forward stream to backend with auth headers
+    // tslint:disable-next-line: no-any
+    uploadProxy.web(req, res, {
+      changeOrigin: true,
+      headers: buildProxyHeaders(xAuthToken, xUserId, contentType, contentLength),
+      ignorePath: true,
+      secure: false,
+      target: finalTarget,
+      timeout,
+    })
+  })
+
+  return route
+}
+
+/**
+ * Proxies entity API requests to ETL-FRAC backend.
+ * Handles search, create, update, mapping, hierarchy operations.
+ * Kong path rewriting: /api/entity/v1/* → /v1/entity/*
+ *
+ * @param route Express router to attach proxy handler
+ * @param targetUrl Backend service URL
+ * @returns Configured express router with entity proxy handler
+ */
+export function proxyCreatorEtlFrac(
+  route: Router,
+  targetUrl: string
+): Router {
+  // tslint:disable-next-line: no-any
+  route.all('/*', (req: any, res: any) => {
+    // Strip proxy prefix and extract user data once
+    let url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
+    const originalUrl = url
+    const userId = extractUserIdFromRequest(req)
+    const userToken = extractUserToken(req)
+
+    // Rewrite entity API paths for Kong routing
+    const rewriteMatch = /^\/api\/entity\/v1\/(search|create|update|mapping|hierarchy)/.test(url)
+    if (rewriteMatch) {
+      url = url.replace('/api/entity/v1/', '/v1/entity/')
+      logInfo('Path rewrite: ' + originalUrl + ' -> ' + url)
+    }
+
+    const finalTarget = targetUrl + url
+
+    // Forward request to backend
+    proxy.web(req, res, {
+      changeOrigin: true,
+      headers: buildProxyHeaders(userToken, userId),
+      ignorePath: true,
+      target: finalTarget,
+    })
+
+    // Log successful responses
+    // tslint:disable-next-line: no-any
+    const originalSend = res.send
+    // tslint:disable-next-line: no-any
+    res.send = function(data: string | Buffer) {
+      if (res.statusCode < 400) {
+        logInfo('Response: ' + url + ' [' + res.statusCode + ']')
+      }
+      return originalSend.call(this, data)
+    }
+
+    // Error handling
+    res.on('error', (err: Error) => {
+      logError('Entity proxy error: ' + url + ' - ' + (err?.message || 'Unknown'))
+    })
+  })
+
   return route
 }

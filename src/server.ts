@@ -26,11 +26,15 @@ import { logError, logInfo, logSuccess } from './utils/logger'
 const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
 import fs from 'fs'
+// tslint:disable-next-line: comment-format
+// import path from 'path'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
 const { frameworkAPI } = require('@project-sunbird/ext-framework-server/api')
 const frameworkConfig = require('./configs/framework.config')
 
-const publicKeyPath = '/keys/access_key'
+const publicKeyPath = '/keys/access_key' // prod
+// tslint:disable-next-line: comment-format
+// const publicKeyPath = path.join(__dirname, '/keys/access_key') // local
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
@@ -87,6 +91,12 @@ export class Server {
     this.setKeyCloak(sessionConfig)
     this.authoringProxies()
     this.setExtFormsFramework()
+    //  Prevent body parsers from consuming multipart upload
+    // tslint:disable-next-line: no-any
+    this.app.use('/proxies/v8/api/entity/v1/upload', (req: any, _res: any, next: any) => {
+      req._is_upload_stream = true // just flag for internal logic
+      next()
+    })
     this.configureMiddleware()
     this.servePublicApi()
     this.serveAdminApi()
@@ -187,9 +197,29 @@ export class Server {
   private configureMiddleware() {
     this.app.use(connectTimeout('240s'))
     this.app.use(compression())
-    this.app.use(express.urlencoded({ extended: false, limit: '50mb' }))
-    this.app.use(express.json({ limit: '50mb' }))
-    this.app.use(fileUpload())
+    // this.app.use(express.urlencoded({ extended: false, limit: '50mb' }))
+    // this.app.use(express.json({ limit: '50mb' }))
+    // this.app.use(fileUpload())
+    // ⛔ Skip parser for upload proxy
+    // tslint:disable-next-line: no-any
+    const skipBodyParser = (req: any) => req._is_upload_stream
+
+    // Skip json / urlencoded / express-fileupload only for upload stream
+    // tslint:disable-next-line: no-any
+    this.app.use((req: any, res: any, next: any) =>
+      skipBodyParser(req) ? next() : express.urlencoded({ extended: false, limit: '50mb' })(req, res, next)
+    )
+
+    // tslint:disable-next-line: no-any
+    this.app.use((req: any, res: any, next: any) =>
+      skipBodyParser(req) ? next() : express.json({ limit: '50mb' })(req, res, next)
+    )
+
+    // tslint:disable-next-line: no-any
+    this.app.use((req: any, res: any, next: any) =>
+      skipBodyParser(req) ? next() : fileUpload()(req, res, next)
+    )
+
     // this.app.use(cors())
     this.app.use(
       '/healthcheck',
