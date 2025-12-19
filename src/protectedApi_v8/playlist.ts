@@ -70,15 +70,12 @@ playlistApi.post('/search', async (req: Request, res: Response) => {
         return res.status(response.status).json(response.data)
 
     } catch (error) {
-        // tslint:disable-next-line: no-any
-        const err = error as any
-        logError('Playlist search failed:', err)
 
-        // Handle axios error responses with proper type checking
-        if (err && err.response) {
-            logError(`Playlist API error response: Status ${err.response.status}`)
-            logError(`Playlist API error details: ${JSON.stringify(err.response.data)}`)
-            return res.status(err.response.status).json(err.response.data)
+        // Handle axios error responses
+        if (error && error.response) {
+            logError(`Playlist API error response: Status ${error.response.status}`)
+            logError(`Playlist API error details: ${JSON.stringify(error.response.data)}`)
+            return res.status(error.response.status).json(error.response.data)
         }
 
         // Handle other errors
