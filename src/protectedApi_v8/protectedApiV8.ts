@@ -31,8 +31,9 @@ import { leaderBoardApi } from './leaderboard'
 import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
+import { playlistApi } from './playlist'
 import { portalApi } from './portal-v3'
-import {profileupdatev2} from './profileupdatev2'
+import { profileupdatev2 } from './profileupdatev2'
 import { sunbirdrRcCertificate } from './rcEvents'
 import { recommendationApi } from './recommendation'
 import { recommendationEngineV2 } from './recommendationEngineV2'
@@ -108,3 +109,4 @@ protectedApiV8.use('/AI', aiServiceAPI)
 protectedApiV8.use('/rcCert', rcCert)
 protectedApiV8.use('/sunbirdrRcCertificate', sunbirdrRcCertificate)
 protectedApiV8.use('/profileupdatev2', profileupdatev2)
+protectedApiV8.use('/playlist', playlistApi)
