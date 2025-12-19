@@ -6,7 +6,6 @@ import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
 
-
 const API_END_POINTS = {
   // tslint:disable-next-line: no-any
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
