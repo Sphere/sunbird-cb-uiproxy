@@ -44,8 +44,8 @@ playlistApi.post('/search', async (req: Request, res: Response) => {
         if (!requestBody || !requestBody.request) {
             logInfo('Playlist search validation failed: Missing request body')
             return res.status(400).json({
-                status: 'error',
                 message: ERROR_MESSAGES.MISSING_REQUEST_BODY,
+                status: 'error',
             })
         }
 
@@ -69,20 +69,22 @@ playlistApi.post('/search', async (req: Request, res: Response) => {
         // Return the response from the playlist service
         return res.status(response.status).json(response.data)
 
-    } catch (error: any) {
-        logError('Playlist search failed:', error)
+    } catch (error) {
+        // tslint:disable-next-line: no-any
+        const err = error as any
+        logError('Playlist search failed:', err)
 
-        // Handle axios error responses
-        if (error.response) {
-            logError(`Playlist API error response: Status ${error.response.status}`)
-            logError(`Playlist API error details: ${JSON.stringify(error.response.data)}`)
-            return res.status(error.response.status).json(error.response.data)
+        // Handle axios error responses with proper type checking
+        if (err && err.response) {
+            logError(`Playlist API error response: Status ${err.response.status}`)
+            logError(`Playlist API error details: ${JSON.stringify(err.response.data)}`)
+            return res.status(err.response.status).json(err.response.data)
         }
 
         // Handle other errors
         return res.status(500).json({
-            status: 'error',
             message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+            status: 'error',
         })
     }
 })
