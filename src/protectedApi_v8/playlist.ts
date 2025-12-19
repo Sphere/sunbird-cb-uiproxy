@@ -57,7 +57,7 @@ playlistApi.post('/search', async (req: Request, res: Response) => {
             requestBody,
             {
                 headers: {
-                    'Authorization': CONSTANTS.SB_API_KEY,
+                    Authorization: CONSTANTS.SB_API_KEY,
                     'Content-Type': 'application/json',
                     'x-authenticated-user-token': extractUserToken(req),
                 },
