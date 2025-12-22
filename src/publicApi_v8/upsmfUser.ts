@@ -1040,48 +1040,49 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
         const uniqueId = uuidv4()
         const postgresParams = [
-            uniqueId,
-            userDetailedStructure.block,
-            userDetailedStructure.courseSelection,
-            userDetailedStructure.createAccount || '',
-            userDetailedStructure.createdOn,
-            userDetailedStructure.dateOfJoining,
-            userDetailedStructure.designation,
-            userDetailedStructure.district,
-            userDetailedStructure.dob instanceof Date ? userDetailedStructure.dob : userDetailedStructure.dob?.toDate?.() || userDetailedStructure.dob,
-            userDetailedStructure.email,
-            userDetailedStructure[ERHMS_CODE_KEY],
-            userDetailedStructure.facilityCode,
-            userDetailedStructure.facilityName,
-            userDetailedStructure.facilityType,
-            userDetailedStructure.facultyType,
-            userDetailedStructure.firstName,
-            userDetailedStructure.hrmsId,
-            userDetailedStructure.instituteName,
-            userDetailedStructure.instituteType,
-            String(Boolean(userDetailedStructure.isUserMigrated)),
-            userDetailedStructure.lastName,
-            userDetailedStructure.organisationId,
-            userDetailedStructure.organisationName,
-            userDetailedStructure.phone,
-            userDetailedStructure.profileUpdate || '',
-            userDetailedStructure.registrationSource,
-            userDetailedStructure.registrationSuccessMessage || '',
-            userDetailedStructure.regNurseRegMidwifeNumber,
-            userDetailedStructure.role,
-            userDetailedStructure.roleAssign || '',
-            userDetailedStructure.roleForInService,
-            userDetailedStructure.seniorityNumber,
-            userDetailedStructure.serviceType,
-            userDetailedStructure.upsmfRegistrationNumber,
-            String(Boolean(userDetailedStructure.userAlreadyExists)),
-            userDetailedStructure.userExistingOrganisation || '',
-            userDetailedStructure.validationStatus || '',
-            userDetailedStructure.validationStatusFailedReason || '',
-            new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
+            uniqueId,                                          // $1 unique_id
+            userDetailedStructure.block,                       // $2 block
+            userDetailedStructure.courseSelection,            // $3 course_selection
+            userDetailedStructure.createAccount || '',        // $4 create_account
+            userDetailedStructure.createdOn,                  // $5 created_on
+            userDetailedStructure.dateOfJoining,              // $6 date_of_joining
+            userDetailedStructure.designation,                // $7 designation
+            userDetailedStructure.district,                   // $8 district
+            userDetailedStructure.dob,                        // $9 dob (string in 'YYYY-MM-DD' format or null)
+            userDetailedStructure.email,                      // $10 email
+            userDetailedStructure[ERHMS_CODE_KEY],            // $11 erhms_code
+            userDetailedStructure.facilityCode,               // $12 facility_code
+            userDetailedStructure.facilityName,               // $13 facility_name
+            userDetailedStructure.facilityType,               // $14 facility_type
+            userDetailedStructure.facultyType,                // $15 faculty_type
+            userDetailedStructure.firstName,                  // $16 first_name
+            userDetailedStructure.hrmsId,                     // $17 hrms_id
+            userDetailedStructure.instituteName,              // $18 institute_name
+            userDetailedStructure.instituteType,              // $19 institute_type
+            String(Boolean(userDetailedStructure.isUserMigrated)), // $20 is_user_migrated
+            userDetailedStructure.lastName,                   // $21 last_name
+            userDetailedStructure.organisationId,             // $22 organisation_id
+            userDetailedStructure.organisationName,           // $23 organisation_name
+            userDetailedStructure.phone,                      // $24 phone
+            userDetailedStructure.profileUpdate || '',        // $25 profile_update
+            userDetailedStructure.registrationSource,         // $26 registration_source
+            userDetailedStructure.registrationSuccessMessage || '', // $27 registration_success_message
+            userDetailedStructure.regNurseRegMidwifeNumber,   // $28 regnurseregmidwifenumber
+            userDetailedStructure.role,                       // $29 role
+            userDetailedStructure.roleAssign || '',           // $30 role_assign
+            userDetailedStructure.roleForInService,           // $31 roleforinservice
+            userDetailedStructure.seniorityNumber,            // $32 seniority_number
+            userDetailedStructure.serviceType,                // $33 service_type
+            userDetailedStructure.upsmfRegistrationNumber,    // $34 upsmf_registration_number
+            String(Boolean(userDetailedStructure.userAlreadyExists)), // $35 user_already_exists
+            userDetailedStructure.userExistingOrganisation || '', // $36 user_existing_organisation
+            userDetailedStructure.validationStatus || '',     // $37 validation_status
+            userDetailedStructure.validationStatusFailedReason || '', // $38 validation_status_failed_reason
+            new Date(),                                        // $39 etl_updated_at
         ]
 
         logError('PostgreSQL insert data', JSON.stringify(postgresParams))
+        logError('PostgreSQL insert query', postgresQuery)
 
         const maxRetries = 2
         let retryCount = 0
@@ -1089,15 +1090,26 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         while (retryCount < maxRetries) {
             try {
                 logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, userDetailedStructure.organisationId)
-                await pgPool.query(postgresQuery, postgresParams)
-                logInfo('PostgreSQL insert successful for UPSMF registration', userDetailedStructure.organisationId)
+                const result = await pgPool.query(postgresQuery, postgresParams)
+                logInfo('PostgreSQL insert successful for UPSMF registration', JSON.stringify({ organisationId: userDetailedStructure.organisationId, result }))
                 return true
             } catch (queryError) {
                 retryCount++
-                logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify(queryError))
+                logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify({
+                    message: queryError.message,
+                    code: queryError.code,
+                    detail: queryError.detail,
+                    table: queryError.table,
+                    column: queryError.column,
+                    fullError: queryError
+                }))
 
                 if (retryCount >= maxRetries) {
-                    logError('PostgreSQL insert failed after max retries', JSON.stringify(queryError))
+                    logError('PostgreSQL insert failed after max retries', JSON.stringify({
+                        message: queryError.message,
+                        code: queryError.code,
+                        detail: queryError.detail,
+                    }))
                     return false
                 }
 
@@ -1110,7 +1122,12 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
         return false
     } catch (error) {
-        logError('Cassandra/PostgreSQL insert error', JSON.stringify(error))
+        logError('Cassandra/PostgreSQL insert error', JSON.stringify({
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            fullError: error
+        }))
         return false
     }
 }
