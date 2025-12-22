@@ -54,6 +54,7 @@ interface ProfileData {
   role?: string
   state?: string
   dob?: string
+  userId?: string
 }
 
 interface UserDetails {
@@ -305,6 +306,7 @@ const updateUserStatusInDatabase = async (
       created_on: new Date(),
       email: userDetails.email || '',
       first_name: userDetails.firstName || '',
+      institute_name: userDetails.instituteName || '',
       is_user_migrated: Boolean(userJourneyStatus.isUserMigrated),
       last_name: userDetails.lastName || '',
       organisation_id: userDetails.organisationId || '',
@@ -316,6 +318,7 @@ const updateUserStatusInDatabase = async (
       unique_id: types.Uuid.fromString(uniqueId),
       user_already_exists: Boolean(userJourneyStatus.userAlreadyExists),
       user_existing_organisation: userJourneyStatus.userExistingOrganisation || '',
+      user_id: userDetails.userId || '',
       validation_status: userJourneyStatus.validationStatus || 'success',
       validation_status_failed_reason: userJourneyStatus.validationStatusFailedReason || '',
     }
@@ -335,12 +338,12 @@ const updateUserStatusInDatabase = async (
 
     // Insert into PostgreSQL
     const postgresQuery = `INSERT INTO user_registration_audit (
-      create_account, created_on, email, first_name, is_user_migrated,
+      create_account, created_on, email, first_name, institute_name, is_user_migrated,
       last_name, organisation_id, organisation_name, phone, profile_update,
       registration_success_message, role_assign, unique_id, user_already_exists,
-      user_existing_organisation, validation_status, validation_status_failed_reason,
+      user_existing_organisation, user_id, validation_status, validation_status_failed_reason,
       etl_updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
     ON CONFLICT (unique_id) DO NOTHING`
 
     const postgresParams = [
@@ -348,6 +351,7 @@ const updateUserStatusInDatabase = async (
       record.created_on,
       record.email,
       record.first_name,
+      record.institute_name,
       String(Boolean(record.is_user_migrated)),
       record.last_name,
       record.organisation_id,
@@ -359,6 +363,7 @@ const updateUserStatusInDatabase = async (
       uniqueId,
       String(Boolean(record.user_already_exists)),
       record.user_existing_organisation,
+      record.user_id,
       record.validation_status,
       record.validation_status_failed_reason,
       new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
@@ -385,7 +390,7 @@ const updateUserStatusInDatabase = async (
         // Wait before retry (1s, 2s)
         const waitTime = retryCount * 1000
         logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
-        await new Promise(resolve => setTimeout(resolve, waitTime))
+        await new Promise((resolve) => setTimeout(resolve, waitTime))
       }
     }
   } catch (error) {
@@ -414,7 +419,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
 
     const userData = req.body
     logInfo('User Data >>>>>' + JSON.stringify(userData))
-    const { organisationId, role, channelName, state, district } = userData
+    const { organisationId, role, channelName, state, district, instituteName } = userData
 
     const firstName = userData.firstName
     const lastName = userData.lastName
@@ -461,7 +466,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
             validationStatusFailedReason: '',
           }
 
-          await updateUserStatusInDatabase(userData, userJourneyStatus)
+          await updateUserStatusInDatabase({ ...userData, userId: existingUser.identifier }, userJourneyStatus)
 
           return res.status(200).json({
             message: SUCCESS_MESSAGE,
@@ -485,6 +490,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       district,
       email: userEmail,
       firstName,
+      instituteName,
       lastName,
       organisationId,
       password,
@@ -520,7 +526,7 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     const roleAssigned = await updateRoles(userId, organisationId)
     const profileUpdated = await profileUpdate(profileData, userId)
 
-    await updateUserStatusInDatabase(profileData, {
+    await updateUserStatusInDatabase({ ...profileData, userId }, {
       createAccount: 'success',
       isUserMigrated: false,
       profileUpdate: profileUpdated ? 'success' : 'failed',
