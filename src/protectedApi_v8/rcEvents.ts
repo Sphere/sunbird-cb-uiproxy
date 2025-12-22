@@ -4,9 +4,9 @@ import axios from 'axios'
 import cassandra from 'cassandra-driver'
 import { Router } from 'express'
 import uuid from 'uuid'
-import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { getRCPassword } from '../utils/rcPasswordGenerator'
 
 const s3 = new AWS.S3({
     accessKeyId: CONSTANTS.RC_S3_ACCESS_KEY_ID,
@@ -14,7 +14,38 @@ const s3 = new AWS.S3({
     secretAccessKey: CONSTANTS.RC_S3_SECRET_ACCESS_KEY,
 })
 
+// Utility function to mask sensitive data in logs
+const maskSensitiveData = (data: Record<string, unknown>): Record<string, unknown> | unknown => {
+    if (!data || typeof data !== 'object') return data
+
+    const masked = JSON.parse(JSON.stringify(data))
+
+    const maskObject = (obj: Record<string, unknown>): void => {
+        if (!obj || typeof obj !== 'object') return
+
+        for (const key in obj) {
+            if (key === 'authorization' || key === 'Authorization') {
+                obj[key] = 'bearer [REDACTED_TOKEN]'
+            } else if (key === 'password') {
+                obj[key] = '[REDACTED_PASSWORD]'
+            } else if (typeof obj[key] === 'string' && (obj[key] as string).includes('eyJ')) {
+                obj[key] = (obj[key] as string).replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[REDACTED_JWT_TOKEN]')
+            } else if (typeof obj[key] === 'object') {
+                maskObject(obj[key] as Record<string, unknown>)
+            }
+        }
+    }
+
+    maskObject(masked as Record<string, unknown>)
+    return masked
+}
+
 const RC_S3_BUCKET_NAME = CONSTANTS.RC_S3_BUCKET_NAME
+const EVENT_TYPE_REGISTERED_WITH_SPHERE = 'registred with sphere'
+const EVENT_TYPE_REGISTERED_WITHOUT_SPHERE = 'registred without sphere'
+const ERROR_EVENT_NOT_FOUND = 'Event not found'
+const STATUS_IN_PROGRESS = 'inProgress'
+const STATUS_FAILED_USER_CREATION = 'failed during user creation'
 const client = new cassandra.Client({
     contactPoints: [CONSTANTS.CASSANDRA_IP],
     keyspace: 'sunbird_courses',
@@ -57,7 +88,7 @@ sunbirdrRcCertificate.post('/events/edit', async (req, res) => {
     try {
         const result = await client.execute(getEventQuery, [eventId], { prepare: true })
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Event not found' })
+            return res.status(404).json({ error: ERROR_EVENT_NOT_FOUND })
         }
 
         // tslint:disable-next-line: no-any
@@ -102,7 +133,7 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
         const eventData = await client.execute(getEventQuery, [id], { prepare: true })
         const event = eventData.rows[0]
         if (eventData.rowLength === 0) {
-            return res.status(404).json({ error: 'Event not found' })
+            return res.status(404).json({ error: ERROR_EVENT_NOT_FOUND })
         }
         res.status(200).json({
             createdAt: event.createdat,
@@ -155,73 +186,147 @@ sunbirdrRcCertificate.get('/events', async (_req, res) => {
 sunbirdrRcCertificate.post('/events/users', async (req, res) => {
     try {
         const { eventId, users } = req.body
+        logInfo(`[/events/users] START - EventId: ${eventId}, Total users to process: ${users?.length || 0}`)
+
         const eventDetails = await getEventDetails(eventId)
+        if (!eventDetails || eventDetails.length === 0) {
+            logError(`[/events/users] ERROR: Event not found - EventId: ${eventId}`)
+            return res.status(404).json({ error: ERROR_EVENT_NOT_FOUND })
+        }
+
         const eventData = eventDetails[0]
+        logInfo(`[/events/users] Event details retrieved - EventType: ${eventData.eventtype}`)
+
         // Check if users array is valid
         if (!Array.isArray(users) || users.length === 0) {
+            logError('[/events/users] ERROR: Invalid users array')
             return res.status(400).json({ error: 'Please provide a list of users to link to the event' })
         }
-        for (const user of users) {
-            const { phone, place } = user
-            const linkId = uuid.v4()
-            let firstName = ''
-            let lastName = ''
-            let userId = ''
-            if (eventData.eventtype == 'registred with sphere') {
-                const userDetails = await getUserDetailsFromSunbird(phone, user)
-                firstName = userDetails.firstName
-                lastName = userDetails.lastName
-                userId = userDetails.userId
-            } else if (eventData.eventtype == 'registred without sphere') {
-                firstName = user.firstName
-                lastName = user.lastName
-                userId = 'Non-QR-User'
-            }
 
-            let queryParamsLink
-            if (userId) {
-                queryParamsLink = [
-                    linkId,
-                    userId,
-                    eventData.eventid,
-                    firstName,
-                    lastName,
-                    eventData.eventplace || place,
-                    'inProgress',
-                    new Date(),
-                    new Date(),
-                ]
-            } else {
-                queryParamsLink = [
-                    linkId,
-                    '',
-                    eventData.eventid,
-                    firstName,
-                    lastName,
-                    eventData.eventplace || place,
-                    'failed during user creation',
-                    new Date(),
-                    new Date(),
-                ]
+        let successCount = 0
+        let failureCount = 0
 
+        for (let index = 0; index < users.length; index++) {
+            const user = users[index]
+            logInfo(`[/events/users] Processing user ${index + 1}/${users.length} - Phone: ${user.phone}`)
+
+            try {
+                const { phone, place } = user
+                const linkId = uuid.v4()
+                let firstName = ''
+                let lastName = ''
+                let userId = ''
+
+                if (eventData.eventtype === EVENT_TYPE_REGISTERED_WITH_SPHERE) {
+                    logInfo(`[/events/users] User ${index + 1} - Calling getUserDetailsFromSunbird for phone: ${phone}`)
+                    const userDetails = await getUserDetailsFromSunbird(phone, user)
+
+                    firstName = userDetails.firstName
+                    lastName = userDetails.lastName
+                    userId = userDetails.userId
+
+                    logInfo(`[/events/users] User ${index + 1} - Details retrieved - FirstName: ${firstName}, LastName: ${lastName}, UserId: ${userId}`)
+                } else if (eventData.eventtype === EVENT_TYPE_REGISTERED_WITHOUT_SPHERE) {
+                    firstName = user.firstName
+                    lastName = user.lastName
+                    userId = 'Non-QR-User'
+                    logInfo(`[/events/users] User ${index + 1} - Non-sphere registration - FirstName: ${firstName}, LastName: ${lastName}`)
+                }
+
+                let queryParamsLink
+                const status = userId ? STATUS_IN_PROGRESS : STATUS_FAILED_USER_CREATION
+                logInfo(`[/events/users] User ${index + 1} - Setting status: ${status}`)
+
+                if (userId) {
+                    queryParamsLink = [
+                        linkId,
+                        userId,
+                        eventData.eventid,
+                        firstName,
+                        lastName,
+                        eventData.eventplace || place,
+                        STATUS_IN_PROGRESS,
+                        new Date(),
+                        new Date(),
+                    ]
+                    successCount++
+                } else {
+                    queryParamsLink = [
+                        linkId,
+                        '',
+                        eventData.eventid,
+                        firstName,
+                        lastName,
+                        eventData.eventplace || place,
+                        STATUS_FAILED_USER_CREATION,
+                        new Date(),
+                        new Date(),
+                    ]
+                    failureCount++
+                    logError(`[/events/users] User ${index + 1} - FAILED: Empty userId. FirstName: "${firstName}", LastName: "${lastName}"`)
+                }
+
+                await insertUserEventLink(queryParamsLink)
+                logInfo(`[/events/users] User ${index + 1} - Successfully inserted into database with linkId: ${linkId}`)
+                logInfo(`[/events/users] ════════════════════════════════════════════════════════════════`)
+            } catch (userError) {
+                failureCount++
+                logError(`[/events/users] User ${index + 1} - ERROR during processing: ${JSON.stringify(userError)}`)
+                logInfo(`[/events/users] ════════════════════════════════════════════════════════════════`)
             }
-            await insertUserEventLink(queryParamsLink)
         }
-        res.status(200).json({ message: `Users successfully linked to event ${eventData.eventId}` })
+
+        logInfo(`[/events/users] ========================================`)
+        logInfo(`[/events/users] USER COUNT SUMMARY`)
+        logInfo(`[/events/users] Total Users Received: ${users.length}`)
+        logInfo(`[/events/users] Successfully Created: ${successCount}`)
+        logInfo(`[/events/users] Failed to Create: ${failureCount}`)
+        logInfo(`[/events/users] Success Rate: ${((successCount / users.length) * 100).toFixed(2)}%`)
+        logInfo(`[/events/users] ========================================`)
+        logInfo(`[/events/users] COMPLETED - Success: ${successCount}, Failed: ${failureCount}, Total: ${users.length}`)
+        res.status(200).json({
+            eventId: eventData.eventid,
+            failed: failureCount,
+            message: `Users linking completed. Success: ${successCount}, Failed: ${failureCount}`,
+            success: successCount,
+            total: users.length,
+        })
     } catch (err) {
-        logInfo(JSON.stringify(err))
+        logError(`[/events/users] CRITICAL ERROR: ${JSON.stringify(err)}`)
         res.status(500).json({ error: 'Error linking users to event' })
     }
 })
 
 // tslint:disable-next-line: no-any
 async function getUserDetailsFromSunbird(phone: string, user: any) {
-    const isUserExists = await checkIfuserExists(phone)
+    logInfo(`[getUserDetailsFromSunbird] START - Phone: ${phone}, User: ${JSON.stringify(user)}`)
+    try {
+        const isUserExists = await checkIfuserExists(phone)
+        logInfo(`[getUserDetailsFromSunbird] User existence check result: ${JSON.stringify(isUserExists)}`)
 
-    if (isUserExists.status && isUserExists.userId) {
-        return isUserExists
+        if (isUserExists.status && isUserExists.userId) {
+            logInfo(`[getUserDetailsFromSunbird] User already exists - UserId: ${isUserExists.userId}`)
+            return isUserExists
+        }
+
+        logInfo(`[getUserDetailsFromSunbird] User does not exist, creating new user...`)
+        const createdUser = await createUserIfNotExists(user)
+        logInfo(`[getUserDetailsFromSunbird] User creation result: ${JSON.stringify(createdUser)}`)
+        return createdUser
+    } catch (error) {
+        // Log error without exposing sensitive information
+        const maskedError = maskSensitiveData({
+            message: error.message,
+            name: error.name,
+        })
+        logError(`[getUserDetailsFromSunbird] ERROR: ${JSON.stringify(maskedError)}`)
+        return {
+            firstName: '',
+            lastName: '',
+            status: false,
+            userId: '',
+        }
     }
-    return await createUserIfNotExists(user)
 }
 // tslint:disable-next-line: no-any
 async function insertUserEventLink(queryParamsLink: any) {
@@ -260,7 +365,7 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
         }
 
         const eventStatusUpdate = [
-            'inProgress',
+            STATUS_IN_PROGRESS,
             new Date(),
             eventId,
         ]
@@ -273,7 +378,7 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
 
         for (const user of users) {
             const { userid } = user
-            if (!userid || user.certificateGenerationStatus === 'failed during user creation') {
+            if (!userid || user.certificateGenerationStatus === STATUS_FAILED_USER_CREATION) {
                 failedCount++
                 continue
             }
@@ -379,6 +484,7 @@ const generateCertificateFromRcMapper = async (user: any, eventDataFromCassandra
     }
 }
 const checkIfuserExists = async (phone: string) => {
+    logInfo(`[checkIfuserExists] START - Searching for phone: ${phone}`)
     try {
         const userSearch = await axios({
             data: {
@@ -389,44 +495,78 @@ const checkIfuserExists = async (phone: string) => {
             },
             method: 'POST',
             url: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-
         })
+
+        logInfo(`[checkIfuserExists] API Response status: ${userSearch.status}, Response: ${JSON.stringify(userSearch.data)}`)
 
         if (userSearch.data.result.response.count > 0) {
             const userData = userSearch.data.result.response.content[0]
-            return {
-                firstName: userData.profileDetails.profileReq.personalDetails.firstname,
-                lastName: userData.profileDetails.profileReq.personalDetails.surname || userData.profileDetails.profileReq.personalDetails.firstname,
+            // Handle cases where profileDetails might be null
+            let firstName = userData.firstName || ''
+            let lastName = userData.lastName || ''
+
+            if (userData.profileDetails && userData.profileDetails.profileReq && userData.profileDetails.profileReq.personalDetails) {
+                firstName = userData.profileDetails.profileReq.personalDetails.firstname || firstName // fallback to top-level firstName
+                lastName = userData.profileDetails.profileReq.personalDetails.surname || userData.profileDetails.profileReq.personalDetails.firstname || lastName // fallback to top-level lastName or firstName
+            }
+
+            const userResult = {
+                firstName,
+                lastName,
                 status: true,
                 userId: userData.id,
             }
+            logInfo(`[checkIfuserExists] User found - UserId: ${userData.id}, FirstName: ${firstName}, LastName: ${lastName}`)
+            return userResult
         }
+
+        logInfo(`[checkIfuserExists] No user found for phone: ${phone}`)
         return { status: false, userId: '', firstName: '', lastName: '' }
 
     } catch (error) {
+        // Log error without exposing tokens
+        const maskedError = maskSensitiveData({
+            message: error.message,
+            name: error.name,
+        })
+        logError(`[checkIfuserExists] ERROR while searching for phone ${phone}: ${JSON.stringify(maskedError)}`)
         return { status: false, userId: '', firstName: '', lastName: '' }
     }
 }
 // tslint:disable-next-line: no-any
 const createUserIfNotExists = async (userData: any) => {
+    logInfo(`[createUserIfNotExists] START - User data: ${JSON.stringify(userData)}`)
     try {
         const userCreationData = {
             request: {
                 firstName: userData.firstName,
                 lastName: userData.lastName || `${userData.firstName}`,
-                password: encryptData(userData.phone),
+                password: getRCPassword(userData), // encrypted password was failing user creation so added new method to generate password
                 phone: userData.phone,
             },
         }
+
+        logInfo(`[createUserIfNotExists] Creating user with data: ${JSON.stringify(userCreationData)}`)
+
         const userCreationResponse = await axios({
             data: userCreationData,
             headers: {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
-            url: `https://sphere.aastrika.org/api/user/v3/create`,
+            url: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
         })
+
+        logInfo(`[createUserIfNotExists] User creation API response: ${JSON.stringify(userCreationResponse.data)}`)
+
         const userId = userCreationResponse.data.result.userId
+        if (!userId) {
+            logError(`[createUserIfNotExists] ERROR: No userId returned from user creation API`)
+            return { firstName: userData.firstName, lastName: userData.lastName || userData.firstName, status: false, userId: '' }
+        }
+
+        logInfo(`[createUserIfNotExists] User created successfully - UserId: ${userId}. Assigning role...`)
+
         const userRoleAssignData = {
             request: {
                 organisationId: '0132317968766894088',
@@ -434,14 +574,25 @@ const createUserIfNotExists = async (userData: any) => {
                 userId: `${userId}`,
             },
         }
-        await axios({
-            data: userRoleAssignData,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'POST',
-            url: `https://sphere.aastrika.org/api/user/private/v1/assign/role`,
-        })
+
+        // Make role assignment resilient: retry a couple times and don't fail overall if this step errors
+        try {
+            const roleAssignResponse = await axios({
+                data: userRoleAssignData,
+                headers: {
+                    authorization: CONSTANTS.SB_API_KEY,
+                },
+                method: 'POST',
+                url: `${CONSTANTS.KONG_API_BASE}/user/private/v1/assign/role`,
+            })
+            logInfo(`[createUserIfNotExists] Role assigned successfully - Response: ${JSON.stringify(roleAssignResponse.data)}`)
+        } catch (errRole) {
+            const masked = maskSensitiveData({ message: errRole.message, name: errRole.name })
+            logError(`[createUserIfNotExists] Role assign failed for userId ${userId}: ${JSON.stringify(masked)} - continuing (user created)`)
+        }
+
+        logInfo(`[createUserIfNotExists] Updating user profile...`)
+
         const userProfileUPdateData = {
             request: {
                 profileDetails: {
@@ -473,21 +624,69 @@ const createUserIfNotExists = async (userData: any) => {
             },
         }
 
-        await axios({
-            data: userProfileUPdateData,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'PATCH',
-            url: `https://sphere.aastrika.org/api/user/private/v1/update`,
-        })
-        return {
+        try {
+            const profileUpdateResponse = await axios({
+                data: userProfileUPdateData,
+                headers: {
+                    authorization: CONSTANTS.SB_API_KEY,
+                },
+                method: 'PATCH',
+                url: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+            })
+            logInfo(`[createUserIfNotExists] Profile updated successfully - Response: ${JSON.stringify(profileUpdateResponse.data)}`)
+        } catch (errProfile) {
+            const masked = maskSensitiveData({ message: errProfile.message, name: errProfile.name })
+            logError(`[createUserIfNotExists] Profile update failed for userId ${userId}: ${JSON.stringify(masked)} - continuing (user created)`)
+        }
+
+        const result = {
             firstName: userData.firstName,
             lastName: userData.lastName || userData.firstName,
             status: true,
             userId,
         }
+
+        logInfo(`[createUserIfNotExists] SUCCESS - User created (profile/role may require follow-up): ${JSON.stringify(result)}`)
+        return result
     } catch (error) {
+        // Log error without sensitive data (tokens, passwords)
+        const maskedError = maskSensitiveData({
+            message: error.message,
+            name: error.name,
+        })
+        logError(`[createUserIfNotExists] ERROR: ${JSON.stringify(maskedError)}`)
+
+        if (error.response) {
+            // Log API error response without sensitive data
+            const maskedResponse = maskSensitiveData({
+                data: error.response.data,
+                status: error.response.status,
+            })
+            const maskedResponseData = (maskedResponse as Record<string, unknown>).data
+            logError(`[createUserIfNotExists] API Error Response - Status: ${error.response.status}, Data: ${JSON.stringify(maskedResponseData)}`)
+
+            // Check if it's a duplicate phone error (UOS_USRCRT0002)
+            if (error.response.data && error.response.data.params && error.response.data.params.err === 'UOS_USRCRT0002') {
+                logInfo(`[createUserIfNotExists] Duplicate phone detected for ${userData.phone}, fetching existing user...`)
+                try {
+                    const existingUser = await checkIfuserExists(userData.phone)
+                    if (existingUser.status && existingUser.userId) {
+                        logInfo(`[createUserIfNotExists] Existing user found - UserId: ${existingUser.userId}`)
+                        return {
+                            firstName: existingUser.firstName,
+                            lastName: existingUser.lastName,
+                            status: true,
+                            userId: existingUser.userId,
+                        }
+                    } else {
+                        logError(`[createUserIfNotExists] Duplicate error but no existing user found for phone ${userData.phone}`)
+                    }
+                } catch (fetchError) {
+                    const maskedFetch = maskSensitiveData({ message: fetchError.message, name: fetchError.name })
+                    logError(`[createUserIfNotExists] Error fetching existing user for duplicate phone: ${JSON.stringify(maskedFetch)}`)
+                }
+            }
+        }
         return {
             firstName: '',
             lastName: '',

@@ -8,6 +8,31 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
+const pgPool = new (require('pg')).Pool({
+    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
+    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
+    max: 20,                          // Max 20 connections in pool
+    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+    statement_timeout: 30000,         // 30 seconds for query execution
+    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
+})
+
+// Add error handling for pool
+pgPool.on('error', (error) => {
+    logError('Unexpected error on idle client in pool', JSON.stringify(error))
+})
+
+pgPool.on('connect', () => {
+    logInfo('New PostgreSQL connection established')
+})
+
+pgPool.on('remove', () => {
+    logInfo('PostgreSQL connection removed from pool')
+})
+
 export const mpNHMUserCreation = express.Router()
 const dayjs = require('dayjs')
 const { types } = cassandra
@@ -26,9 +51,11 @@ interface UserDetails {
     facilityName?: string
     facilityCode?: string
     block?: string
+    blockOthers?: string
+    facilityNameOthers?: string
     ehrmsNumber?: string
     // tslint:disable-next-line: all
-    role: 'Student' | 'Faculty' | 'ANM-MP' | 'CHO-MP',
+    role: 'Student' | 'Faculty' | 'ANM-MP' | 'CHO-MP' | 'Trainer-MP',
     regNurseRegMidwifeNumber?: string
     employmentType?: string
     dob?: string
@@ -37,11 +64,6 @@ interface UserDetails {
     serviceType?: 'Regular' | 'Contractual' | 'Private'
 
 }
-const client = new cassandra.Client({
-    contactPoints: [CONSTANTS.CASSANDRA_IP],
-    keyspace: 'sunbird',
-    localDataCenter: 'datacenter1',
-})
 const ERHMS_CODE_KEY = 'ERHMS-code'
 const GOV_KEY = 'Government'
 const serviceSchemaJoi = Joi.object({
@@ -126,11 +148,11 @@ const serviceSchemaJoi = Joi.object({
             'number.positive': 'Phone number must be a positive integer',
         }),
     role: Joi.string()
-        .valid('Student', 'Faculty', 'ANM-MP', 'CHO-MP')
+        .valid('Student', 'Faculty', 'ANM-MP', 'CHO-MP', 'Trainer-MP')
         .required()
         .messages({
             // tslint:disable-next-line: all
-            'any.only': 'Role must be either Student, Faculty, ANM-MP, or CHO-MP',
+            'any.only': 'Role must be either Student, Faculty, ANM-MP, CHO-MP, or Trainer-MP',
             'any.required': 'Role is required',
         }),
     // ✅ Newly Added Fields
@@ -172,6 +194,16 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'block is required',
         }),
 
+    blockOthers: Joi.string()
+        .when('block', {
+            is: 'Other',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            'any.required': 'Block name is required when block is set to Other',
+        }),
+
     facilityCode: Joi.string()
         .when('roleForInService', {
             is: GOV_KEY,
@@ -185,6 +217,17 @@ const serviceSchemaJoi = Joi.object({
     facilityName: Joi.string().optional().messages({
         'any.required': 'Facility name is required',
     }),
+
+    facilityNameOthers: Joi.string()
+        .when('facilityName', {
+            is: 'Others',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            'any.required': 'Facility name is required when facility name is set to Others',
+        }),
+
     facilityType: Joi.string()
         .when('roleForInService', {
             is: GOV_KEY,
@@ -222,11 +265,9 @@ const getUserDesignationFromRole = {
 }
 
 const standardDob = '01/01/1970'
-const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
+const accessDeniedMessage = 'Access denied! Please contact admin at support@aastrika.org for support.'
 // tslint:disable-next-line: all
 const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
-const mongodbConnectionUri = CONSTANTS.MONGODB_URL
-logInfo('Mongodb connection URL', mongodbConnectionUri)
 
 const indianCountryCode = '+91'
 const msg91Headers = {
@@ -565,8 +606,8 @@ const createUser = async (userDetails: UserDetails) => {
             headers: {
                 authorization: CONSTANTS.SB_API_KEY,
             },
-
             method: 'POST',
+            timeout: 60000, // 60 second timeout
             url: API_END_POINTS.createUser,
         })
         if (userCreationResponse.data.result.userId) {
@@ -599,6 +640,7 @@ const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
+            timeout: 60000, // 60 second timeout
             url: API_END_POINTS.assignRole,
         })
         if (roleAssignResponse.data.result.response == 'SUCCESS') {
@@ -645,11 +687,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             {
                                 [ERHMS_CODE_KEY]: '',
                                 block: user?.block || '',
+                                blockOthers: user?.blockOthers || '',
                                 completePostalAddress: '',
                                 designation: 'ANM-Student-MP',
                                 doj: '',
                                 facilityCode: '',
                                 facilityName: '',
+                                facilityNameOthers: user?.facilityNameOthers || '',
                                 facilityType: '',
                                 facultyType: '',
                                 instituteName: '',
@@ -704,11 +748,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
+                                    blockOthers: user?.blockOthers || '',
                                     completePostalAddress: '',
                                     designation: 'ANM-Student-MP',
                                     doj: '',
                                     facilityCode: user?.facilityCode || '',
                                     facilityName: user?.facilityName || '',
+                                    facilityNameOthers: user?.facilityNameOthers || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: '',
                                     instituteName: user?.instituteName || '',
@@ -765,11 +811,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
+                                    blockOthers: user?.blockOthers || '',
                                     completePostalAddress: '',
                                     designation: 'ANM-Faculty-MP',
                                     doj: '',
                                     facilityCode: user?.facilityCode || '',
                                     facilityName: user?.facilityName || '',
+                                    facilityNameOthers: user?.facilityNameOthers || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType,
                                     instituteName: user?.instituteName || '',
@@ -792,7 +840,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
-        if (user.role == 'ANM-MP' || user.role == 'CHO-MP') {
+        if (user.role == 'ANM-MP' || user.role == 'CHO-MP' || user.role == 'Trainer-MP') {
             userProfileUpdateData = {
                 request: {
                     profileDetails: {
@@ -825,11 +873,13 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 {
                                     [ERHMS_CODE_KEY]: user?.hrmsId || '',
                                     block: user?.block || '',
+                                    blockOthers: user?.blockOthers || '',
                                     completePostalAddress: '',
                                     designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
                                     facilityCode: user?.facilityCode || '',
                                     facilityName: user?.facilityName || '',
+                                    facilityNameOthers: user?.facilityNameOthers || '',
                                     facilityType: user?.facilityType || '',
                                     facultyType: user?.facultyType || '',
                                     instituteName: '',
@@ -870,6 +920,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
     const userDetailedStructure = {
         [ERHMS_CODE_KEY]: userDetails.hrmsId || '',
         block: userDetails?.block || '',
+        blockOthers: userDetails?.blockOthers || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
         designation: getDetailsAsPerRole(userDetails).designation || '',
@@ -880,6 +931,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         email: userDetails.email || '',
         facilityCode: userDetails?.facilityCode || '',
         facilityName: userDetails?.facilityName || '',
+        facilityNameOthers: userDetails?.facilityNameOthers || '',
         facilityType: userDetails.facilityType || '',
         facultyType: userDetails.facultyType || '',
         firstName: userDetails.firstName || '',
@@ -897,12 +949,14 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ...userJourneyStatus,
     }
 
-    logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
+    const uniqueId = uuidv4()
 
-    const query = `
-        INSERT INTO sunbird.mp_registration_data (
+    try {
+        // Insert into PostgreSQL
+        const postgresQuery = `INSERT INTO mp_registration_data (
             unique_id,
             block,
+            block_others,
             course_selection,
             create_account,
             created_on,
@@ -913,6 +967,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             erhms_code,
             facility_code,
             facility_name,
+            facility_name_others,
             facility_type,
             faculty_type,
             first_name,
@@ -934,52 +989,80 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             user_already_exists,
             user_existing_organisation,
             validation_status,
-            validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
+            validation_status_failed_reason,
+            etl_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+        ON CONFLICT (unique_id) DO NOTHING`
 
-    const params = [
-        types.Uuid.fromString(uuidv4()),                             // unique_id
-        String(userDetailedStructure.block || ''),                    // block
-        String(userDetailedStructure.courseSelection || ''),           // course_selection
-        String(userDetailedStructure.createAccount || ''),             // create_account
-        userDetailedStructure.createdOn,                               // created_on
-        String(userDetailedStructure.designation || ''),               // designation
-        String(userDetailedStructure.district || ''),                  // district
-        userDetailedStructure.dob,                                     // dob (Cassandra LocalDate)
-        String(userDetailedStructure.email || ''),                     // email
-        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),           // erhms_code
-        String(userDetailedStructure.facilityCode || ''),              // facility_code
-        String(userDetailedStructure.facilityName || ''),              // facility_name
-        String(userDetailedStructure.facilityType || ''),              // facility_type
-        String(userDetailedStructure.facultyType || ''),               // faculty_type
-        String(userDetailedStructure.firstName || ''),                 // first_name
-        String(userDetailedStructure.instituteName || ''),             // institute_name
-        String(userDetailedStructure.instituteType || ''),             // institute_type
-        Boolean(userDetailedStructure.isUserMigrated || false),        // is_user_migrated
-        String(userDetailedStructure.lastName || ''),                  // last_name
-        String(userDetailedStructure.organisationId || ''),            // organisation_id
-        String(userDetailedStructure.organisationName || ''),          // organisation_name
-        String(userDetailedStructure.phone || ''),                     // phone
-        String(userDetailedStructure.profileUpdate || ''),             // profile_update
-        String(userDetailedStructure.registrationSource || ''),        // registration_source
-        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
-        String(userDetailedStructure.regNurseRegMidwifeNumber || ''),  // regnurseregmidwifenumber
-        String(userDetailedStructure.role || ''),                      // role
-        String(userDetailedStructure.roleAssign || ''),                // role_assign
-        String(userDetailedStructure.roleForInService || ''),          // roleforinservice
-        String(userDetailedStructure.serviceType || ''),               // service_type
-        Boolean(userDetailedStructure.userAlreadyExists || false),     // user_already_exists
-        String(userDetailedStructure.userExistingOrganisation || ''),  // user_existing_organisation
-        String(userDetailedStructure.validationStatus || ''),          // validation_status
-        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
-    ]
+        const postgresParams = [
+            uniqueId,                                                       // 1. unique_id
+            String(userDetailedStructure.block || ''),                      // 2. block
+            String(userDetailedStructure.blockOthers || ''),                // 3. block_others
+            String(userDetailedStructure.courseSelection || ''),            // 4. course_selection
+            String(userDetailedStructure.createAccount || ''),              // 5. create_account
+            userDetailedStructure.createdOn,                                // 6. created_on
+            String(userDetailedStructure.designation || ''),                // 7. designation
+            String(userDetailedStructure.district || ''),                   // 8. district
+            userDetailedStructure.dob,                                      // 9. dob
+            String(userDetailedStructure.email || ''),                      // 10. email
+            String(userDetailedStructure[ERHMS_CODE_KEY] || ''),            // 11. erhms_code
+            String(userDetailedStructure.facilityCode || ''),               // 12. facility_code
+            String(userDetailedStructure.facilityName || ''),               // 13. facility_name
+            String(userDetailedStructure.facilityNameOthers || ''),         // 14. facility_name_others
+            String(userDetailedStructure.facilityType || ''),               // 15. facility_type
+            String(userDetailedStructure.facultyType || ''),                // 16. faculty_type
+            String(userDetailedStructure.firstName || ''),                  // 17. first_name
+            String(userDetailedStructure.instituteName || ''),              // 18. institute_name
+            String(userDetailedStructure.instituteType || ''),              // 19. institute_type
+            String(Boolean(userDetailedStructure.isUserMigrated || false)), // 20. is_user_migrated
+            String(userDetailedStructure.lastName || ''),                   // 21. last_name
+            String(userDetailedStructure.organisationId || ''),             // 22. organisation_id
+            String(userDetailedStructure.organisationName || ''),           // 23. organisation_name
+            String(userDetailedStructure.phone || ''),                      // 24. phone
+            String(userDetailedStructure.profileUpdate || ''),              // 25. profile_update
+            String(userDetailedStructure.registrationSource || ''),         // 26. registration_source
+            String(userDetailedStructure.registrationSuccessMessage || ''), // 27. registration_success_message
+            String(userDetailedStructure.regNurseRegMidwifeNumber || ''),   // 28. regnurseregmidwifenumber
+            String(userDetailedStructure.role || ''),                       // 29. role
+            String(userDetailedStructure.roleAssign || ''),                 // 30. role_assign
+            String(userDetailedStructure.roleForInService || ''),           // 31. roleforinservice
+            String(userDetailedStructure.serviceType || ''),                // 32. service_type
+            String(Boolean(userDetailedStructure.userAlreadyExists || false)), // 33. user_already_exists
+            String(userDetailedStructure.userExistingOrganisation || ''),   // 34. user_existing_organisation
+            String(userDetailedStructure.validationStatus || ''),           // 35. validation_status
+            String(userDetailedStructure.validationStatusFailedReason || ''), // 36. validation_status_failed_reason
+            new Date(),                                                     // 37. etl_updated_at
+        ]
 
-    try {
-        await client.execute(query, params, { prepare: true })
-        return true
+        const maxRetries = 2
+        let retryCount = 0
+
+        while (retryCount < maxRetries) {
+            try {
+                logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, uniqueId)
+                await pgPool.query(postgresQuery, postgresParams)
+                logInfo('PostgreSQL insert successful for MP registration', uniqueId)
+                return true
+            } catch (queryError) {
+                retryCount++
+                logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify(queryError))
+
+                if (retryCount >= maxRetries) {
+                    logError('PostgreSQL insert failed after max retries', JSON.stringify(queryError))
+                    // Don't throw - allow registration to continue even if DB insert fails
+                    return false
+                }
+
+                // Wait before retry (1s, 2s)
+                const waitTime = retryCount * 1000
+                logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
+                await new Promise((resolve) => setTimeout(resolve, waitTime))
+            }
+        }
+
+        return false
     } catch (error) {
-        logError('Cassandra insert error', JSON.stringify(error))
+        logError('Unexpected error in updateUserStatusInDatabase', JSON.stringify(error))
         return false
     }
 }

@@ -25,6 +25,14 @@ export const getDetailsAsPerRole = (userDetails: UserDetails) => {
                 orgName: DOMEET,
             }
         }
+        case 'Trainer-MP': {
+            const designation = 'Trainer-MP'
+            return {
+                designation,
+                orgId: DOMEET_ORG_ID,
+                orgName: DOMEET,
+            }
+        }
 
         default:
             return {
@@ -36,5 +44,5 @@ export const getDetailsAsPerRole = (userDetails: UserDetails) => {
 }
 
 export const validRootOrgs = [
-    'Madhya Pradesh - National Health Mission'
+    'Madhya Pradesh - National Health Mission',
 ]

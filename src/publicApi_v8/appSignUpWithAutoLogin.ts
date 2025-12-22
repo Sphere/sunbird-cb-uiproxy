@@ -244,7 +244,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
 
     let userOtpVerified = false
     if (mobileNumber) {
-      logInfo('Validate otp for phone', mobileNumber, validOtp)
+      logInfo('VALIDATE_OTP: for phone', mobileNumber, validOtp)
       const verifyOtpResponse = await axios({
         headers: msg91Headers,
         method: 'GET',
@@ -254,7 +254,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         },
         url: API_END_POINTS.msg91VerifyOtp,
       })
-      logInfo('validate OTP response phone', JSON.stringify(verifyOtpResponse.data))
+      logInfo('VALIDATE_OTP: response phone', JSON.stringify(verifyOtpResponse.data))
       if (verifyOtpResponse.data.type !== 'success') {
         return res.status(400).json({
           message: 'Phone OTP validation failed try again',
@@ -263,7 +263,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       userOtpVerified = true
     }
     if (email) {
-      logInfo('Validate otp for email')
+      logInfo('VALIDATE_OTP: for email', email, validOtp)
       const verifyOtpResponse = await validateOTP(
         userUUId,
         email,
@@ -278,7 +278,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       userOtpVerified = true
     }
     if (userOtpVerified) {
-      logInfo('OTP validated')
+      logInfo('VALIDATE_OTP: OTP validated')
       await updateRoles(userUUId)
       try {
         const transformedData = qs.stringify({
@@ -288,7 +288,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
           scope: 'offline_access',
           username: mobileNumber ? mobileNumber : email,
         })
-        logInfo('Entered into authorization part.' + transformedData)
+        logInfo('VALIDATE_OTP:Entered into authorization part.' + transformedData)
         const authTokenResponse = await axios({
           ...axiosRequestConfig,
           data: transformedData,
@@ -307,6 +307,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       }
     }
   } catch (error) {
+    logInfo('VALIDATE_OTP: in validate otp >>>>>>' + error)
     res.status(500).send({
       message: VALIDATION_FAIL,
       status: 'failed',

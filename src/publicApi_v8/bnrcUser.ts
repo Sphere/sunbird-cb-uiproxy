@@ -1,14 +1,38 @@
 /* eslint-disable */
 import axios from 'axios'
-import cassandra from 'cassandra-driver'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
+
+const pgPool = new (require('pg')).Pool({
+    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
+    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
+    max: 20,                          // Max 20 connections in pool
+    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+    statement_timeout: 30000,         // 30 seconds for query execution
+    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
+})
+
+// Add error handling for pool
+pgPool.on('error', (error) => {
+    logError('Unexpected error on idle client in pool', JSON.stringify(error))
+})
+
+pgPool.on('connect', () => {
+    logInfo('New PostgreSQL connection established')
+})
+
+pgPool.on('remove', () => {
+    logInfo('PostgreSQL connection removed from pool')
+})
+
 export const bnrcUserCreation = express.Router()
-const { types } = cassandra
 
 interface UserDetails {
     block?: string
@@ -33,11 +57,7 @@ interface UserDetails {
     role: 'Student' | 'Faculty' | 'In Service',
     serviceType?: string
 }
-const client = new cassandra.Client({
-    contactPoints: [CONSTANTS.CASSANDRA_IP],
-    keyspace: 'sunbird',
-    localDataCenter: 'datacenter1',
-})
+
 const shortHands = {
     cho: 'CHO',
     privateHealthFacility: 'Private Health Facility',
@@ -272,8 +292,7 @@ const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
 // tslint:disable-next-line: all
 const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
-const mongodbConnectionUri = CONSTANTS.MONGODB_URL
-logInfo('Mongodb connection URL', mongodbConnectionUri)
+
 bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {
         createAccount: 'failed',
@@ -386,10 +405,10 @@ bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
             userJourneyStatus.profileUpdate = 'success'
         }
         // Step 4 Send Success Response Message
-        const sendMessageResponse = await sendRegistrationMessage(phone)
-        if (sendMessageResponse) {
-            userJourneyStatus.registrationSuccessMessage = 'success'
-        }
+        // const sendMessageResponse = await sendRegistrationMessage(phone)
+        // if (sendMessageResponse) {
+        userJourneyStatus.registrationSuccessMessage = 'success'
+        // }
         // Step 5 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
         logInfo('User Journey Status', JSON.stringify(userJourneyStatus))
@@ -526,35 +545,35 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
         })
     }
 })
-const sendRegistrationMessage = async (phone: number) => {
-    try {
-        const messageBody = {
-            recipients: [
-                {
-                    mobiles: `91${phone}`,
-                },
-            ],
-            template_id: CONSTANTS.BNRC_MSG91_TEMPLATE_ID,
+// const sendRegistrationMessage = async (phone: number) => {
+//     try {
+//         const messageBody = {
+//             recipients: [
+//                 {
+//                     mobiles: `91${phone}`,
+//                 },
+//             ],
+//             template_id: CONSTANTS.BNRC_MSG91_TEMPLATE_ID,
 
-        }
-        const sendMessageResponse = await axios({
-            data: messageBody,
-            headers: {
-                authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-                'content-type': 'application/JSON',
-            },
-            method: 'post',
-            url: 'https://control.msg91.com/api/v5/flow/',
-        })
-        if (sendMessageResponse.data.type == 'success') {
-            return true
-        }
-        return false
-    } catch (error) {
-        logError('Error while sending message to user', JSON.stringify(error))
-        return false
-    }
-}
+//         }
+//         const sendMessageResponse = await axios({
+//             data: messageBody,
+//             headers: {
+//                 authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+//                 'content-type': 'application/JSON',
+//             },
+//             method: 'post',
+//             url: 'https://control.msg91.com/api/v5/flow/',
+//         })
+//         if (sendMessageResponse.data.type == 'success') {
+//             return true
+//         }
+//         return false
+//     } catch (error) {
+//         logError('Error while sending message to user', JSON.stringify(error))
+//         return false
+//     }
+// }
 const getUserDetails = async (phone: number) => {
     try {
         const userDetails = await axios({
@@ -941,19 +960,24 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     const userFinalStatus = { ...userDetailedStructure, ...userJourneyStatus }
 
+    const uniqueId = uuidv4()
+
     try {
-        const query = `INSERT INTO sunbird.bnrc_registration_data (
+
+        // PostgreSQL Insert (Dual-write for migration) - bnrc_registration_data_prod
+        const pgQuery = `INSERT INTO bnrc_registration_data_prod (
             unique_id, block, bnrc_registration_number, course_selection, create_account, created_on,
             designation, district, email, facility_name, faculty_type, first_name, hrms_id,
             institute_name, institute_type, is_user_migrated, last_name, nin, organisation_id,
             organisation_name, phone, private_facility_type, profile_update, public_facility_type,
             registration_source, registration_success_message, role, role_assign, role_for_in_service,
             service_type, user_already_exists, user_existing_organisation, validation_status,
-            validation_status_failed_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            validation_status_failed_reason, etl_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+        ON CONFLICT (unique_id) DO NOTHING`
 
-        const params = [
-            types.Uuid.fromString(uuidv4()),
+        const pgParams = [
+            uniqueId,
             userFinalStatus.block,
             userFinalStatus.bnrcRegistrationNumber,
             userFinalStatus.courseSelection,
@@ -962,8 +986,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userFinalStatus.designation,
             userFinalStatus.district,
             userFinalStatus.email,
-
-            // ✅ handle facilityName (stringify if object, else keep string)
             userFinalStatus.facilityName
                 ? (typeof userFinalStatus.facilityName === 'object'
                     ? (userFinalStatus.facilityName.name
@@ -971,16 +993,13 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
                         : JSON.stringify(userFinalStatus.facilityName))
                     : String(userFinalStatus.facilityName))
                 : '',
-
             userFinalStatus.facultyType,
             userFinalStatus.firstName,
             userFinalStatus.hrmsId,
             userFinalStatus.instituteName,
             userFinalStatus.instituteType,
-            Boolean(userFinalStatus.isUserMigrated),
+            String(Boolean(userFinalStatus.isUserMigrated)),
             userFinalStatus.lastName,
-
-            // ✅ handle nin (convert object/number to string)
             userFinalStatus.nin
                 ? (typeof userFinalStatus.nin === 'object'
                     ? (userFinalStatus.nin.nin
@@ -988,10 +1007,9 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
                         : JSON.stringify(userFinalStatus.nin))
                     : String(userFinalStatus.nin))
                 : '',
-
             userFinalStatus.organisationId,
             userFinalStatus.organisationName,
-            String(userFinalStatus.phone || ''),   // ✅ always string
+            String(userFinalStatus.phone || ''),
             userFinalStatus.privateFacilityType,
             userFinalStatus.profileUpdate || '',
             userFinalStatus.publicFacilityType,
@@ -1001,17 +1019,44 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userFinalStatus.roleAssign || '',
             userFinalStatus.roleForInService,
             userFinalStatus.serviceType,
-            Boolean(userFinalStatus.userAlreadyExists),
+            String(Boolean(userFinalStatus.userAlreadyExists)),
             userFinalStatus.userExistingOrganisation || '',
             userFinalStatus.validationStatus || '',
             userFinalStatus.validationStatusFailedReason || '',
+            new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
         ]
 
-        logInfo('Cassandra insert data', JSON.stringify(params))
-        await client.execute(query, params, { prepare: true })
+        try {
+            const maxRetries = 2
+            let retryCount = 0
+
+            while (retryCount < maxRetries) {
+                try {
+                    logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, uniqueId)
+                    await pgPool.query(pgQuery, pgParams)
+                    logInfo('PostgreSQL insert successful for BNRC registration>>>>', uniqueId)
+                    break
+                } catch (queryError) {
+                    retryCount++
+                    logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify(queryError))
+
+                    if (retryCount >= maxRetries) {
+                        logError('PostgreSQL insert failed after max retries', JSON.stringify(queryError))
+                        break
+                    }
+
+                    // Wait before retry (1s, 2s)
+                    const waitTime = retryCount * 1000
+                    logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
+                    await new Promise(resolve => setTimeout(resolve, waitTime))
+                }
+            }
+        } catch (pgError) {
+            logError('Unexpected error in PostgreSQL insert', JSON.stringify(pgError))
+        }
+
         return true
     } catch (error) {
-        // ✅ full log for debugging
         logError('Error inserting into Cassandra', JSON.stringify(error))
         return false
     }

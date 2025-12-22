@@ -7,6 +7,32 @@ import { v4 as uuidv4 } from 'uuid'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
+
+const pgPool = new (require('pg')).Pool({
+    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
+    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
+    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
+    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
+    max: 20,                          // Max 20 connections in pool
+    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
+    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
+    statement_timeout: 30000,         // 30 seconds for query execution
+    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
+})
+
+// Add error handling for pool
+pgPool.on('error', (error) => {
+    logError('Unexpected error on idle client in pool', JSON.stringify(error))
+})
+
+pgPool.on('connect', () => {
+    logInfo('New PostgreSQL connection established')
+})
+
+pgPool.on('remove', () => {
+    logInfo('PostgreSQL connection removed from pool')
+})
+
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/upsmfUtils'
 export const upsmfUserCreation = express.Router()
 const dayjs = require('dayjs')
@@ -38,11 +64,6 @@ interface UserDetails {
     serviceType?: 'Regular' | 'Contractual' | 'Private'
 
 }
-const client = new cassandra.Client({
-    contactPoints: [CONSTANTS.CASSANDRA_IP],
-    keyspace: 'sunbird',
-    localDataCenter: 'datacenter1',
-})
 const ERHMS_CODE_KEY = 'ERHMS-code'
 const GOV_KEY = 'Government'
 const serviceSchemaJoi = Joi.object({
@@ -230,8 +251,6 @@ const standardDob = '01/01/1970'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
 // tslint:disable-next-line: all
 const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
-const mongodbConnectionUri = CONSTANTS.MONGODB_URL
-logInfo('Mongodb connection URL', mongodbConnectionUri)
 
 const indianCountryCode = '+91'
 const msg91Headers = {
@@ -361,7 +380,7 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
         // Step 4 Send Success Response Message
         // const sendMessageResponse = await sendRegistrationMessage(phone)
         // if (sendMessageResponse) {
-        //     userJourneyStatus.registrationSuccessMessage = 'success'
+        userJourneyStatus.registrationSuccessMessage = 'success'
         // }
         // Step 4 Insert User Status in Database
         await updateUserStatusInDatabase(userFormDetails, userJourneyStatus)
@@ -910,18 +929,6 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
     logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
 
-    const query = `
-    INSERT INTO sunbird.upsmf_registration_data (
-      unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
-      erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
-      institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
-      phone, profile_update, registration_source, registration_success_message,
-      regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
-      upsmf_registration_number, user_already_exists, user_existing_organisation,
-      validation_status, validation_status_failed_reason
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `
-
     const params = [
         types.Uuid.fromString(uuidv4()),                      // unique_id
         String(userDetailedStructure.block || ''),            // block
@@ -962,10 +969,90 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
     ]
 
     try {
-        await client.execute(query, params, { prepare: true })
-        return true
+        logError('Cassandra insert data', JSON.stringify(params))
+        // Insert into PostgreSQL
+        const postgresQuery = `INSERT INTO upsmf_registration_data (
+          unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
+          erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
+          institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
+          phone, profile_update, registration_source, registration_success_message,
+          regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
+          upsmf_registration_number, user_already_exists, user_existing_organisation,
+          validation_status, validation_status_failed_reason, etl_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+        ON CONFLICT (unique_id) DO NOTHING`
+
+        const uniqueId = uuidv4()
+        const postgresParams = [
+            uniqueId,
+            userDetailedStructure.block,
+            userDetailedStructure.courseSelection,
+            userDetailedStructure.createAccount || '',
+            userDetailedStructure.createdOn,
+            userDetailedStructure.designation,
+            userDetailedStructure.district,
+            userDetailedStructure.dob instanceof Date ? userDetailedStructure.dob : userDetailedStructure.dob?.toDate?.() || userDetailedStructure.dob,
+            userDetailedStructure.email,
+            userDetailedStructure[ERHMS_CODE_KEY],
+            userDetailedStructure.facilityCode,
+            userDetailedStructure.facilityName,
+            userDetailedStructure.facilityType,
+            userDetailedStructure.facultyType,
+            userDetailedStructure.firstName,
+            userDetailedStructure.hrmsId,
+            userDetailedStructure.instituteName,
+            userDetailedStructure.instituteType,
+            String(Boolean(userDetailedStructure.isUserMigrated)),
+            userDetailedStructure.lastName,
+            userDetailedStructure.organisationId,
+            userDetailedStructure.organisationName,
+            userDetailedStructure.phone,
+            userDetailedStructure.profileUpdate || '',
+            userDetailedStructure.registrationSource,
+            userDetailedStructure.registrationSuccessMessage || '',
+            userDetailedStructure.regNurseRegMidwifeNumber,
+            userDetailedStructure.role,
+            userDetailedStructure.roleAssign || '',
+            userDetailedStructure.roleForInService,
+            userDetailedStructure.serviceType,
+            userDetailedStructure.upsmfRegistrationNumber,
+            String(Boolean(userDetailedStructure.userAlreadyExists)),
+            userDetailedStructure.userExistingOrganisation || '',
+            userDetailedStructure.validationStatus || '',
+            userDetailedStructure.validationStatusFailedReason || '',
+            new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
+        ]
+
+        logError('PostgreSQL insert data', JSON.stringify(postgresParams))
+
+        const maxRetries = 2
+        let retryCount = 0
+
+        while (retryCount < maxRetries) {
+            try {
+                logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, userDetailedStructure.organisationId)
+                await pgPool.query(postgresQuery, postgresParams)
+                logInfo('PostgreSQL insert successful for UPSMF registration', userDetailedStructure.organisationId)
+                return true
+            } catch (queryError) {
+                retryCount++
+                logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify(queryError))
+
+                if (retryCount >= maxRetries) {
+                    logError('PostgreSQL insert failed after max retries', JSON.stringify(queryError))
+                    return false
+                }
+
+                // Wait before retry (1s, 2s)
+                const waitTime = retryCount * 1000
+                logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
+                await new Promise(resolve => setTimeout(resolve, waitTime))
+            }
+        }
+
+        return false
     } catch (error) {
-        logError('Cassandra insert error', JSON.stringify(error))
+        logError('Cassandra/PostgreSQL insert error', JSON.stringify(error))
         return false
     }
 }
