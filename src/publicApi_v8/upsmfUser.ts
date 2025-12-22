@@ -251,6 +251,16 @@ const serviceSchemaJoi = Joi.object({
     roleForInService: Joi.string().optional().messages({
         'any.required': 'Role for In-Service is required',
     }),
+    dateOfJoining: Joi.string()
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            'any.required': 'Date of Joining is required for Medical Officer-UP role',
+        }),
+    seniorityNumber: Joi.string().allow('', null).optional(),
 
 })
 const API_END_POINTS = {
