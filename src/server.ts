@@ -27,14 +27,11 @@ const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
 import fs from 'fs'
 // tslint:disable-next-line: comment-format
-// import path from 'path'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
 const { frameworkAPI } = require('@project-sunbird/ext-framework-server/api')
 const frameworkConfig = require('./configs/framework.config')
-
-const publicKeyPath = '/keys/access_key' // prod
-// tslint:disable-next-line: comment-format
-// const publicKeyPath = path.join(__dirname, '/keys/access_key') // local
+// Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
+const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
@@ -93,7 +90,7 @@ export class Server {
     this.setExtFormsFramework()
     //  Prevent body parsers from consuming multipart upload
     // tslint:disable-next-line: no-any
-    this.app.use('/proxies/v8/api/entity/v1/upload', (req: any, _res: any, next: any) => {
+    this.app.use('/proxies/v8/entity/v1/upload', (req: any, _res: any, next: any) => {
       req._is_upload_stream = true // just flag for internal logic
       next()
     })
@@ -287,8 +284,8 @@ export class Server {
     frameworkAPI.bootstrap(frameworkConfig, this.app).then((data: any) => {
       logInfo('Successfuly bootstrapped frameworkAPI', data)
     })
-    // tslint:disable-next-line: no-any
-    .catch((error: any ) => logError('Error in frameworkAPI bootstrap', error))
+      // tslint:disable-next-line: no-any
+      .catch((error: any) => logError('Error in frameworkAPI bootstrap', error))
   }
 
   private servePublicApi() {

@@ -1,5 +1,4 @@
 import { Router } from 'express'
-import http from 'http'
 import { createProxyServer } from 'http-proxy'
 import {
   extractUserIdFromRequest,
@@ -25,12 +24,12 @@ const CONTENT_LENGTH_KEY = 'Content-Length'
 /**
  * Upload-dedicated proxy — streams multipart data without JSON conversion.
  * Safe for large CSV / binary / form-data uploads.
+ * Auto-detects HTTP/HTTPS based on target URL.
  */
 const uploadProxy = createProxyServer({
-  agent: new http.Agent({ keepAlive: true }),
   changeOrigin: true,
   ignorePath: false,
-  secure: false,
+  secure: true, // Allow self-signed certificates if needed
 })
 
 uploadProxy.on('error', (err, _req, _res) => {
@@ -540,14 +539,20 @@ export function proxyCreatorDownloadCertificate(
 }
 
 /**
- * Streams large file uploads (CSV, binary, form-data) to ETL-FRAC backend.
- * Does NOT parse request body - safe for large files.
- * Kong path rewriting: /api/entity/v1/upload → /v1/entity/upload
+ * Proxy handler for large file uploads to entity service via Kong Gateway.
+ * Streams files without parsing - safe for multi-GB uploads.
  *
- * @param route Express router to attach proxy handler
- * @param targetUrl Backend service URL
- * @param timeout Request timeout (default: 500000ms)
- * @returns Configured express router with upload proxy handler
+ * @description Routes file uploads through Kong API Gateway to FRAC ETL service.
+ * Flow: Client → /proxies/v8/entity/v1/upload → Kong → FRAC /v1/entity/upload
+ * Note: Body parsing is disabled for this route (see server.ts middleware).
+ *
+ * @param {Router} route - Express router instance
+ * @param {string} targetUrl - Kong API base URL (e.g., https://aastrika-stage.tarento.com/api)
+ * @param {number} [timeout=500000] - Upload timeout in milliseconds (default: 8.3 min)
+ * @returns {Router} Configured router with upload streaming proxy
+ *
+ * @example
+ * proxyCreatorEtlFracUpload(express.Router(), 'https://kong.example.com/api', 600000)
  */
 export function proxyCreatorEtlFracUpload(
   route: Router,
@@ -556,48 +561,26 @@ export function proxyCreatorEtlFracUpload(
 ): Router {
   // tslint:disable-next-line: no-any
   route.all('/*', (req: any, res: any) => {
-    // Extract auth and headers once
+    // Extract authentication headers
     const xUserId = extractUserIdFromRequest(req)
     const xAuthToken = extractUserToken(req)
     const contentType = req.headers[CONTENT_TYPE_KEY]
     const contentLength = req.headers[CONTENT_LENGTH_KEY_LOWER]
 
-    // tslint:disable-next-line: no-console
-    console.log('REQ_URL_ORIGINAL proxyCreatorEtlFracUpload', req.originalUrl)
+    // Build Kong URL: KONG_API_BASE + /entity/v1/upload
+    // Kong URI: /entity/v1/upload → FRAC ETL: /v1/entity/upload
+    const path = req.originalUrl.replace('/proxies/v8', '')
+    const targetEndpoint = targetUrl + path
 
-    // Rewrite path for Kong routing
-    let rewrittenPath = req.originalUrl.replace('/proxies/v8', '')
-    if (rewrittenPath === '/api/entity/v1/upload') {
-      rewrittenPath = '/v1/entity/upload'
-    }
+    logInfo(`Entity upload: ${path} → ${targetEndpoint}`)
 
-    const finalTarget = targetUrl + rewrittenPath
-
-    // Track incoming stream size
-    let bytesReceived = 0
-    req.on('data', (chunk: Buffer) => {
-      bytesReceived += chunk.length
-    })
-
-    req.on('end', () => {
-      logInfo('Upload completed. Size: ' + bytesReceived + ' bytes')
-    })
-
-    req.on('error', (err: Error) => {
-      logError('Upload stream error:', err.message)
-    })
-
-    // tslint:disable-next-line: no-console
-    console.log('REQ_URL_FINAL proxyCreatorEtlFracUpload', finalTarget)
-
-    // Forward stream to backend with auth headers
+    // Stream upload to Kong without parsing (preserves multipart data)
     // tslint:disable-next-line: no-any
     uploadProxy.web(req, res, {
       changeOrigin: true,
       headers: buildProxyHeaders(xAuthToken, xUserId, contentType, contentLength),
       ignorePath: true,
-      secure: false,
-      target: finalTarget,
+      target: targetEndpoint,
       timeout,
     })
   })
@@ -606,13 +589,19 @@ export function proxyCreatorEtlFracUpload(
 }
 
 /**
- * Proxies entity API requests to ETL-FRAC backend.
- * Handles search, create, update, mapping, hierarchy operations.
- * Kong path rewriting: /api/entity/v1/* → /v1/entity/*
+ * Proxy handler for entity API operations via Kong Gateway.
+ * Supports: search, create, update, mapping, hierarchy.
  *
- * @param route Express router to attach proxy handler
- * @param targetUrl Backend service URL
- * @returns Configured express router with entity proxy handler
+ * @description Routes entity CRUD operations through Kong for centralized auth and rate limiting.
+ * Flow: Client → /proxies/v8/entity/v1/{operation} → Kong → FRAC /v1/entity/{operation}
+ * Auto-adds authentication headers: x-authenticated-user-token, x-authenticated-userid.
+ *
+ * @param {Router} route - Express router instance
+ * @param {string} targetUrl - Kong API base URL (e.g., https://aastrika-stage.tarento.com/api)
+ * @returns {Router} Configured router with entity API proxy
+ *
+ * @example
+ * proxyCreatorEtlFrac(express.Router(), 'https://kong.example.com/api')
  */
 export function proxyCreatorEtlFrac(
   route: Router,
@@ -620,43 +609,39 @@ export function proxyCreatorEtlFrac(
 ): Router {
   // tslint:disable-next-line: no-any
   route.all('/*', (req: any, res: any) => {
-    // Strip proxy prefix and extract user data once
-    let url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
-    const originalUrl = url
+    // Extract request path and authentication
     const userId = extractUserIdFromRequest(req)
     const userToken = extractUserToken(req)
 
-    // Rewrite entity API paths for Kong routing
-    const rewriteMatch = /^\/api\/entity\/v1\/(search|create|update|mapping|hierarchy)/.test(url)
-    if (rewriteMatch) {
-      url = url.replace('/api/entity/v1/', '/v1/entity/')
-      logInfo('Path rewrite: ' + originalUrl + ' -> ' + url)
-    }
+    // Build Kong URL: KONG_API_BASE + /entity/v1/{operation}
+    // Kong URI: /entity/v1/search → FRAC ETL: /v1/entity/search
+    const path = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
+    const targetEndpoint = targetUrl + path
 
-    const finalTarget = targetUrl + url
+    logInfo(`Entity API: ${path} → Kong`)
 
-    // Forward request to backend
+    // Forward request to Kong with authentication headers
     proxy.web(req, res, {
       changeOrigin: true,
       headers: buildProxyHeaders(userToken, userId),
       ignorePath: true,
-      target: finalTarget,
+      target: targetEndpoint,
     })
 
-    // Log successful responses
+    // Log successful responses for debugging
     // tslint:disable-next-line: no-any
     const originalSend = res.send
     // tslint:disable-next-line: no-any
     res.send = function(data: string | Buffer) {
       if (res.statusCode < 400) {
-        logInfo('Response: ' + url + ' [' + res.statusCode + ']')
+        logInfo(`Entity API response: ${path} [${res.statusCode}]`)
       }
       return originalSend.call(this, data)
     }
 
-    // Error handling
+    // Log errors for troubleshooting
     res.on('error', (err: Error) => {
-      logError('Entity proxy error: ' + url + ' - ' + (err?.message || 'Unknown'))
+      logError(`Entity API error: ${path} - ${err?.message || 'Unknown'}`)
     })
   })
 
