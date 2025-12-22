@@ -1,6 +1,5 @@
 /* eslint-disable */
 import axios from 'axios'
-import cassandra from 'cassandra-driver'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
@@ -36,7 +35,6 @@ pgPool.on('remove', () => {
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/upsmfUtils'
 export const upsmfUserCreation = express.Router()
 const dayjs = require('dayjs')
-const { types } = cassandra
 
 interface UserDetails {
     courseSelection?: string
@@ -79,12 +77,22 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'Course selection is required for Student and Faculty roles',
         }),
+    dateOfJoining: Joi.string()
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            'any.required': 'Date of Joining is required for Medical Officer-UP role',
+        }),
     district: Joi.string()
         .required()
         .messages({
             // tslint:disable-next-line: all
             'any.required': 'District is required',
         }),
+
     dob: Joi.string()
         .when('role', {
             is: Joi.valid('ANM-UP'),
@@ -251,15 +259,7 @@ const serviceSchemaJoi = Joi.object({
     roleForInService: Joi.string().optional().messages({
         'any.required': 'Role for In-Service is required',
     }),
-    dateOfJoining: Joi.string()
-        .when('role', {
-            is: 'Medical Officer-UP',
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            'any.required': 'Date of Joining is required for Medical Officer-UP role',
-        }),
+
     seniorityNumber: Joi.string().allow('', null).optional(),
 
 })
@@ -1001,9 +1001,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         dateOfJoining: userDetails?.dateOfJoining || '',
         designation: getDetailsAsPerRole(userDetails).designation || '',
         district: userDetails.district || '',
-        dob: userDetails?.dob
-            ? types.LocalDate.fromString(dayjs(userDetails.dob).format('YYYY-MM-DD'))
-            : null,
+        dob: userDetails?.dob ? dayjs(userDetails.dob).format('YYYY-MM-DD') : null,
         email: userDetails.email || '',
         facilityCode: userDetails?.facilityCode || '',
         facilityName: userDetails?.facilityName || '',
@@ -1027,49 +1025,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ...userJourneyStatus,
     }
 
-    logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
-
-    const params = [
-        types.Uuid.fromString(uuidv4()),                      // unique_id
-        String(userDetailedStructure.block || ''),            // block
-        String(userDetailedStructure.courseSelection || ''),  // course_selection
-        String(userDetailedStructure.createAccount || ''),    // create_account
-        userDetailedStructure.createdOn,                      // created_on
-        String(userDetailedStructure.designation || ''),      // designation
-        String(userDetailedStructure.district || ''),         // district
-        userDetailedStructure.dob,                            // dob (LocalDate or null)
-        String(userDetailedStructure.email || ''),            // email
-        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),  // erhms_code
-        String(userDetailedStructure.facilityCode || ''),     // facility_code
-        String(userDetailedStructure.facilityName || ''),     // facility_name
-        String(userDetailedStructure.facilityType || ''),     // facility_type
-        String(userDetailedStructure.facultyType || ''),      // faculty_type
-        String(userDetailedStructure.firstName || ''),        // first_name
-        String(userDetailedStructure.hrmsId || ''),           // hrms_id
-        String(userDetailedStructure.instituteName || ''),    // institute_name
-        String(userDetailedStructure.instituteType || ''),    // institute_type
-        Boolean(userDetailedStructure.isUserMigrated || false), // is_user_migrated
-        String(userDetailedStructure.lastName || ''),         // last_name
-        String(userDetailedStructure.organisationId || ''),   // organisation_id
-        String(userDetailedStructure.organisationName || ''), // organisation_name
-        String(userDetailedStructure.phone || ''),            // phone
-        String(userDetailedStructure.profileUpdate || ''),    // profile_update
-        String(userDetailedStructure.registrationSource || ''), // registration_source
-        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
-        String(userDetailedStructure.regNurseRegMidwifeNumber || ''), // regnurseregmidwifenumber
-        String(userDetailedStructure.role || ''),             // role
-        String(userDetailedStructure.roleAssign || ''),       // role_assign
-        String(userDetailedStructure.roleForInService || ''), // roleforinservice
-        String(userDetailedStructure.serviceType || ''),      // service_type
-        String(userDetailedStructure.upsmfRegistrationNumber || ''), // upsmf_registration_number
-        Boolean(userDetailedStructure.userAlreadyExists || false), // user_already_exists
-        String(userDetailedStructure.userExistingOrganisation || ''), // user_existing_organisation
-        String(userDetailedStructure.validationStatus || ''), // validation_status
-        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
-    ]
-
     try {
-        logError('Cassandra insert data', JSON.stringify(params))
         // Insert into PostgreSQL
         const postgresQuery = `INSERT INTO upsmf_registration_data (
           unique_id, block, course_selection, create_account, created_on, date_of_joining, designation, district, dob, email,
