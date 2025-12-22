@@ -998,7 +998,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         block: userDetails?.block || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
-        dateOfJoining: userDetails?.dateOfJoining || '',
+        dateOfJoining: userDetails?.dateOfJoining || null,
         designation: getDetailsAsPerRole(userDetails).designation || '',
         district: userDetails.district || '',
         dob: userDetails?.dob ? dayjs(userDetails.dob).format('YYYY-MM-DD') : null,
