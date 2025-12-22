@@ -40,6 +40,7 @@ const { types } = cassandra
 
 interface UserDetails {
     courseSelection?: string
+    dateOfJoining?: string
     district: string
     email: string
     firstName: string
@@ -55,7 +56,7 @@ interface UserDetails {
     block?: string
     ehrmsNumber?: string
     // tslint:disable-next-line: all
-    role: 'Student' | 'Faculty' | 'ANM-UP',
+    role: 'Student' | 'Faculty' | 'ANM-UP' | 'Medical Officer-UP',
     regNurseRegMidwifeNumber?: string
     employmentType?: string
     dob?: string
@@ -150,11 +151,11 @@ const serviceSchemaJoi = Joi.object({
             'number.positive': 'Phone number must be a positive integer',
         }),
     role: Joi.string()
-        .valid('Student', 'Faculty', 'ANM-UP')
+        .valid('Student', 'Faculty', 'ANM-UP', 'Medical Officer-UP')
         .required()
         .messages({
             // tslint:disable-next-line: all
-            'any.only': 'Role must be either Student, Faculty, or ANM-UP',
+            'any.only': 'Role must be either Student, Faculty, ANM-UP, or Medical Officer-UP',
             'any.required': 'Role is required',
         }),
     upsmfRegistrationNumber: Joi.string().allow('', null).optional(),
@@ -245,6 +246,8 @@ const getUserDesignationFromRole = {
     Faculty: 'ANM-Faculty-UP',
     // tslint:disable-next-line: all
     Student: 'ANM-Student-UP',
+    // tslint:disable-next-line: all
+    'Medical Officer-UP': 'Medical Officer-UP',
 }
 
 const standardDob = '01/01/1970'
@@ -880,6 +883,67 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 },
             }
         }
+        if (user.role == 'Medical Officer-UP') {
+            userProfileUpdateData = {
+                request: {
+                    profileDetails: {
+                        preferences: {
+                            language: 'hi',
+                        },
+                        profileReq: {
+                            academics: [
+                                {
+                                    nameOfInstitute: '',
+                                    nameOfQualification: '',
+                                    type: 'GRADUATE',
+                                    yearOfPassing: '',
+                                },
+                            ],
+                            id: userId,
+                            personalDetails: {
+                                dob: user?.dob,
+                                email: user.email,
+                                firstname: user.firstName,
+                                gender: '',
+                                knownLanguages: [],
+                                mobile: JSON.stringify(user.phone),
+                                postalAddress: `India, Uttar Pradesh, ${user.district}`,
+                                regNurseRegMidwifeNumber: 'NA',
+                                registrationSource,
+                                surname: user.lastName || user.firstName,
+                            },
+                            professionalDetails: [
+                                {
+                                    [ERHMS_CODE_KEY]: user?.hrmsId || '',
+                                    block: user?.block || '',
+                                    completePostalAddress: '',
+                                    designation: 'Medical Officer-UP',
+                                    doj: user?.dateOfJoining || '',
+                                    facilityCode: user?.facilityCode || '',
+                                    facilityName: user?.facilityName || '',
+                                    facilityType: user?.facilityType || '',
+                                    facultyType: '',
+                                    instituteName: '',
+                                    instituteType: '',
+                                    name: getDetailsAsPerRole(user).orgName,
+                                    nameOther: '',
+                                    orgType: 'Government',
+                                    profession: 'Healthcare Worker',
+                                    professionOtherSpecify: '',
+                                    qualification: '',
+                                    roleForInService: user?.roleForInService || '',
+                                    serviceType: user?.serviceType || '',
+                                    upsmfRegistrationNumber: '',
+                                },
+
+                            ],
+                            userId,
+                        },
+                    },
+                    userId,
+                },
+            }
+        }
         await axios({
             data: userProfileUpdateData,
             headers: {
@@ -900,6 +964,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         block: userDetails?.block || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
+        dateOfJoining: userDetails?.dateOfJoining || '',
         designation: getDetailsAsPerRole(userDetails).designation || '',
         district: userDetails.district || '',
         dob: userDetails?.dob
@@ -972,14 +1037,14 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         logError('Cassandra insert data', JSON.stringify(params))
         // Insert into PostgreSQL
         const postgresQuery = `INSERT INTO upsmf_registration_data (
-          unique_id, block, course_selection, create_account, created_on, designation, district, dob, email,
+          unique_id, block, course_selection, create_account, created_on, date_of_joining, designation, district, dob, email,
           erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
           institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
           phone, profile_update, registration_source, registration_success_message,
           regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
           upsmf_registration_number, user_already_exists, user_existing_organisation,
           validation_status, validation_status_failed_reason, etl_updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)
         ON CONFLICT (unique_id) DO NOTHING`
 
         const uniqueId = uuidv4()
@@ -989,6 +1054,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userDetailedStructure.courseSelection,
             userDetailedStructure.createAccount || '',
             userDetailedStructure.createdOn,
+            userDetailedStructure.dateOfJoining,
             userDetailedStructure.designation,
             userDetailedStructure.district,
             userDetailedStructure.dob instanceof Date ? userDetailedStructure.dob : userDetailedStructure.dob?.toDate?.() || userDetailedStructure.dob,
@@ -1046,7 +1112,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
                 // Wait before retry (1s, 2s)
                 const waitTime = retryCount * 1000
                 logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
-                await new Promise(resolve => setTimeout(resolve, waitTime))
+                await new Promise((resolve) => setTimeout(resolve, waitTime))
             }
         }
 
