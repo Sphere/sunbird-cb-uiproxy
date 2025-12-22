@@ -427,7 +427,6 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
     const userPhone = userData.phone || ''
     const password = userData.password || encryptData(userEmail || userPhone)
 
-
     const resultEmail = await fetchUserBymobileorEmail(userEmail, 'email')
     const resultPhone = await fetchUserBymobileorEmail(userPhone, 'phone')
 
@@ -491,13 +490,13 @@ signupWithAutoLoginOrgForm.post('/register', async (req, res) => {
       district,
       email: userEmail,
       firstName,
+      instituteName,
       lastName,
       organisationId,
       password,
       phone: userPhone,
       role,
       state,
-      instituteName
     }
     logInfo('Profile Data before creation >>>>>' + JSON.stringify(profileData))
 
