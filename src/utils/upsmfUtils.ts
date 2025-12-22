@@ -65,6 +65,15 @@ export const getDetailsAsPerRole = (userDetails: UserDetails) => {
             }
         }
 
+        case 'Medical Officer-UP': {
+            const designation = 'Medical Officer-UP'
+            return {
+                designation,
+                orgId: '0142443633580769283117',
+                orgName: 'State Institute of Health and Family Welfare, Department of Health & Family Welfare, UP',
+            }
+        }
+
         default:
             return {
                 designation: 'NA',
