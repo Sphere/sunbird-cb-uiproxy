@@ -1096,19 +1096,19 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             } catch (queryError) {
                 retryCount++
                 logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify({
-                    message: queryError.message,
                     code: queryError.code,
-                    detail: queryError.detail,
-                    table: queryError.table,
                     column: queryError.column,
-                    fullError: queryError
+                    detail: queryError.detail,
+                    fullError: queryError,
+                    message: queryError.message,
+                    table: queryError.table,
                 }))
 
                 if (retryCount >= maxRetries) {
                     logError('PostgreSQL insert failed after max retries', JSON.stringify({
-                        message: queryError.message,
                         code: queryError.code,
                         detail: queryError.detail,
+                        message: queryError.message,
                     }))
                     return false
                 }
@@ -1123,10 +1123,10 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         return false
     } catch (error) {
         logError('Cassandra/PostgreSQL insert error', JSON.stringify({
-            message: error.message,
             code: error.code,
             detail: error.detail,
-            fullError: error
+            fullError: error,
+            message: error.message,
         }))
         return false
     }
