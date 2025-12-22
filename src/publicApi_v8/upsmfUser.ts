@@ -50,6 +50,7 @@ interface UserDetails {
     instituteType?: string
     lastName: string
     phone: number
+    seniorityNumber?: string
     upsmfRegistrationNumber?: string
     facilityName?: string
     facilityCode?: string
@@ -168,59 +169,81 @@ const serviceSchemaJoi = Joi.object({
     employmentType: Joi.string().allow('', null).optional(),
 
     serviceType: Joi.string()
-        .valid('Regular', 'Contractual', 'Private')
-        .required()
-        .messages({
-            'any.only': 'Service type must be Regular, Contractual, or Private',
-            'any.required': 'Service type is required',
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string()
+                .valid('Regular', 'Contractual', 'Private')
+                .required()
+                .messages({
+                    'any.only': 'Service type must be Regular, Contractual, or Private',
+                    'any.required': 'Service type is required',
+                }),
+            then: Joi.string().allow('', null).optional(),
         }),
 
     hrmsId: Joi.string()
-        .when('roleForInService', {
-            is: GOV_KEY,
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .pattern(/^\d{5,8}$/)
-        .required()
-        .messages({
-            'any.required': 'EHRMS Number is required',
-            'string.pattern.base': 'EHRMS Number must be 5–8 digits',
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string()
+                .when('roleForInService', {
+                    is: GOV_KEY,
+                    otherwise: Joi.string().allow('', null).optional(),
+                    then: Joi.string().required(),
+                })
+                .pattern(/^\d{5,8}$/)
+                .required()
+                .messages({
+                    'any.required': 'EHRMS Number is required',
+                    'string.pattern.base': 'EHRMS Number must be 5–8 digits',
+                }),
+            then: Joi.string().allow('', null).optional(),
         }),
 
     block: Joi.string()
-        .when('roleForInService', {
-            is: GOV_KEY,
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'block is required',
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string()
+                .when('roleForInService', {
+                    is: GOV_KEY,
+                    otherwise: Joi.string().allow('', null).optional(),
+                    then: Joi.string().required(),
+                })
+                .messages({
+                    'any.required': 'block is required',
+                }),
+            then: Joi.string().allow('', null).optional(),
         }),
 
     facilityCode: Joi.string()
-        .when('roleForInService', {
-            is: GOV_KEY,
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Facility Code is required',
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string()
+                .when('roleForInService', {
+                    is: GOV_KEY,
+                    otherwise: Joi.string().allow('', null).optional(),
+                    then: Joi.string().required(),
+                })
+                .messages({
+                    'any.required': 'Facility Code is required',
+                }),
+            then: Joi.string().allow('', null).optional(),
         }),
     facilityName: Joi.string().optional().messages({
         'any.required': 'Facility name is required',
     }),
     facilityType: Joi.string()
-        .when('roleForInService', {
-            is: GOV_KEY,
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Facility Type is required',
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string()
+                .when('roleForInService', {
+                    is: GOV_KEY,
+                    otherwise: Joi.string().allow('', null).optional(),
+                    then: Joi.string().required(),
+                })
+                .messages({
+                    'any.required': 'Facility Type is required',
+                }),
+            then: Joi.string().allow('', null).optional(),
         }),
     regNurseRegMidwifeNumber: Joi.string().optional().messages({
         'any.required': 'RNRM Number is required',
@@ -292,6 +315,7 @@ upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
             })
         }
         const isUserExists = await getUserDetails(phone)
+        logInfo('User existence check result for phone:', JSON.stringify(isUserExists))
         if (isUserExists.message === 'success' && isUserExists.userDetails) {
             userJourneyStatus.userAlreadyExists = true
             // tslint:disable-next-line: all
@@ -987,6 +1011,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         registrationSource: 'Self Registration',
         role: userDetails.role || '',
         roleForInService: userDetails?.roleForInService || '',
+        seniorityNumber: userDetails?.seniorityNumber || '',
         serviceType: userDetails?.serviceType || '',
         upsmfRegistrationNumber: userDetails.upsmfRegistrationNumber || '',
         ...userJourneyStatus,
@@ -1041,10 +1066,10 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
           erhms_code, facility_code, facility_name, facility_type, faculty_type, first_name, hrms_id,
           institute_name, institute_type, is_user_migrated, last_name, organisation_id, organisation_name,
           phone, profile_update, registration_source, registration_success_message,
-          regnurseregmidwifenumber, role, role_assign, roleforinservice, service_type,
+          regnurseregmidwifenumber, role, role_assign, roleforinservice, seniority_number, service_type,
           upsmf_registration_number, user_already_exists, user_existing_organisation,
           validation_status, validation_status_failed_reason, etl_updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)
         ON CONFLICT (unique_id) DO NOTHING`
 
         const uniqueId = uuidv4()
@@ -1080,6 +1105,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userDetailedStructure.role,
             userDetailedStructure.roleAssign || '',
             userDetailedStructure.roleForInService,
+            userDetailedStructure.seniorityNumber,
             userDetailedStructure.serviceType,
             userDetailedStructure.upsmfRegistrationNumber,
             String(Boolean(userDetailedStructure.userAlreadyExists)),
