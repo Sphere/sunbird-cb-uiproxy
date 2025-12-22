@@ -1553,7 +1553,7 @@ export const API_LIST = {
       ],
     },
     '/protected/v8/playlist/search': {
-      chainsNeeded: [CHECK.ROLE],
+      checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
