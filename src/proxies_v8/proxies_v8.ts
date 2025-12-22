@@ -354,18 +354,13 @@ proxiesV8.use(
   '/org/*',
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
-// proxiesV8.use(
-//   '/api/entity/v1/upload',
-//   proxyCreatorEtlFracUpload(express.Router(), `${CONSTANTS.FRAC_ETL_API_BASE}`)
-// )'
-
 proxiesV8.use(
-  '/api/entity/v1/upload',
-  proxyCreatorEtlFracUpload(express.Router(), CONSTANTS.FRAC_ETL_API_BASE)
+  '/entity/v1/upload',
+  proxyCreatorEtlFracUpload(express.Router(), CONSTANTS.KONG_API_BASE)
 )
 proxiesV8.use(
-  '/api/entity/v1/*',
-  proxyCreatorEtlFrac(express.Router(), `${CONSTANTS.FRAC_ETL_API_BASE}`)
+  '/entity/v1/*',
+  proxyCreatorEtlFrac(express.Router(), CONSTANTS.KONG_API_BASE)
 )
 proxiesV8.post('/userData/v1/bulkUpload', async (req, res) => {
   if (req.files) {
@@ -554,10 +549,10 @@ proxiesV8.post('/notifyContentState', async (req, res) => {
   }
   logInfo(
     'Received req url is -> ' +
-      req.protocol +
-      '://' +
-      req.get('host') +
-      req.originalUrl
+    req.protocol +
+    '://' +
+    req.get('host') +
+    req.originalUrl
   )
   let contentBody = ''
   let emailSubject = ''

@@ -27,7 +27,6 @@ const cookieParser = require('cookie-parser')
 const healthcheck = require('express-healthcheck')
 import fs from 'fs'
 // tslint:disable-next-line: comment-format
-// import path from 'path'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
 const { frameworkAPI } = require('@project-sunbird/ext-framework-server/api')
 const frameworkConfig = require('./configs/framework.config')
@@ -91,7 +90,7 @@ export class Server {
     this.setExtFormsFramework()
     //  Prevent body parsers from consuming multipart upload
     // tslint:disable-next-line: no-any
-    this.app.use('/proxies/v8/api/entity/v1/upload', (req: any, _res: any, next: any) => {
+    this.app.use('/proxies/v8/entity/v1/upload', (req: any, _res: any, next: any) => {
       req._is_upload_stream = true // just flag for internal logic
       next()
     })
