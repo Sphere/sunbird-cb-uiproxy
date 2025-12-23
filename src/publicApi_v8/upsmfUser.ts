@@ -1,6 +1,5 @@
 /* eslint-disable */
 import axios from 'axios'
-import cassandra from 'cassandra-driver'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
@@ -36,7 +35,6 @@ pgPool.on('remove', () => {
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/upsmfUtils'
 export const upsmfUserCreation = express.Router()
 const dayjs = require('dayjs')
-const { types } = cassandra
 
 interface UserDetails {
     courseSelection?: string
@@ -79,12 +77,22 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'Course selection is required for Student and Faculty roles',
         }),
+    dateOfJoining: Joi.string()
+        .when('role', {
+            is: 'Medical Officer-UP',
+            otherwise: Joi.string().allow('', null).optional(),
+            then: Joi.string().required(),
+        })
+        .messages({
+            'any.required': 'Date of Joining is required for Medical Officer-UP role',
+        }),
     district: Joi.string()
         .required()
         .messages({
             // tslint:disable-next-line: all
             'any.required': 'District is required',
         }),
+
     dob: Joi.string()
         .when('role', {
             is: Joi.valid('ANM-UP'),
@@ -251,6 +259,8 @@ const serviceSchemaJoi = Joi.object({
     roleForInService: Joi.string().optional().messages({
         'any.required': 'Role for In-Service is required',
     }),
+
+    seniorityNumber: Joi.string().allow('', null).optional(),
 
 })
 const API_END_POINTS = {
@@ -988,12 +998,10 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         block: userDetails?.block || '',
         courseSelection: userDetails.courseSelection || '',
         createdOn: new Date(),
-        dateOfJoining: userDetails?.dateOfJoining || '',
+        dateOfJoining: userDetails?.dateOfJoining || null,
         designation: getDetailsAsPerRole(userDetails).designation || '',
         district: userDetails.district || '',
-        dob: userDetails?.dob
-            ? types.LocalDate.fromString(dayjs(userDetails.dob).format('YYYY-MM-DD'))
-            : null,
+        dob: userDetails?.dob ? dayjs(userDetails.dob).format('YYYY-MM-DD') : null,
         email: userDetails.email || '',
         facilityCode: userDetails?.facilityCode || '',
         facilityName: userDetails?.facilityName || '',
@@ -1017,49 +1025,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         ...userJourneyStatus,
     }
 
-    logError('User detailed structure for cassandra', JSON.stringify(userDetailedStructure))
-
-    const params = [
-        types.Uuid.fromString(uuidv4()),                      // unique_id
-        String(userDetailedStructure.block || ''),            // block
-        String(userDetailedStructure.courseSelection || ''),  // course_selection
-        String(userDetailedStructure.createAccount || ''),    // create_account
-        userDetailedStructure.createdOn,                      // created_on
-        String(userDetailedStructure.designation || ''),      // designation
-        String(userDetailedStructure.district || ''),         // district
-        userDetailedStructure.dob,                            // dob (LocalDate or null)
-        String(userDetailedStructure.email || ''),            // email
-        String(userDetailedStructure[ERHMS_CODE_KEY] || ''),  // erhms_code
-        String(userDetailedStructure.facilityCode || ''),     // facility_code
-        String(userDetailedStructure.facilityName || ''),     // facility_name
-        String(userDetailedStructure.facilityType || ''),     // facility_type
-        String(userDetailedStructure.facultyType || ''),      // faculty_type
-        String(userDetailedStructure.firstName || ''),        // first_name
-        String(userDetailedStructure.hrmsId || ''),           // hrms_id
-        String(userDetailedStructure.instituteName || ''),    // institute_name
-        String(userDetailedStructure.instituteType || ''),    // institute_type
-        Boolean(userDetailedStructure.isUserMigrated || false), // is_user_migrated
-        String(userDetailedStructure.lastName || ''),         // last_name
-        String(userDetailedStructure.organisationId || ''),   // organisation_id
-        String(userDetailedStructure.organisationName || ''), // organisation_name
-        String(userDetailedStructure.phone || ''),            // phone
-        String(userDetailedStructure.profileUpdate || ''),    // profile_update
-        String(userDetailedStructure.registrationSource || ''), // registration_source
-        String(userDetailedStructure.registrationSuccessMessage || ''), // registration_success_message
-        String(userDetailedStructure.regNurseRegMidwifeNumber || ''), // regnurseregmidwifenumber
-        String(userDetailedStructure.role || ''),             // role
-        String(userDetailedStructure.roleAssign || ''),       // role_assign
-        String(userDetailedStructure.roleForInService || ''), // roleforinservice
-        String(userDetailedStructure.serviceType || ''),      // service_type
-        String(userDetailedStructure.upsmfRegistrationNumber || ''), // upsmf_registration_number
-        Boolean(userDetailedStructure.userAlreadyExists || false), // user_already_exists
-        String(userDetailedStructure.userExistingOrganisation || ''), // user_existing_organisation
-        String(userDetailedStructure.validationStatus || ''), // validation_status
-        String(userDetailedStructure.validationStatusFailedReason || ''), // validation_status_failed_reason
-    ]
-
     try {
-        logError('Cassandra insert data', JSON.stringify(params))
         // Insert into PostgreSQL
         const postgresQuery = `INSERT INTO upsmf_registration_data (
           unique_id, block, course_selection, create_account, created_on, date_of_joining, designation, district, dob, email,
@@ -1074,48 +1040,49 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
         const uniqueId = uuidv4()
         const postgresParams = [
-            uniqueId,
-            userDetailedStructure.block,
-            userDetailedStructure.courseSelection,
-            userDetailedStructure.createAccount || '',
-            userDetailedStructure.createdOn,
-            userDetailedStructure.dateOfJoining,
-            userDetailedStructure.designation,
-            userDetailedStructure.district,
-            userDetailedStructure.dob instanceof Date ? userDetailedStructure.dob : userDetailedStructure.dob?.toDate?.() || userDetailedStructure.dob,
-            userDetailedStructure.email,
-            userDetailedStructure[ERHMS_CODE_KEY],
-            userDetailedStructure.facilityCode,
-            userDetailedStructure.facilityName,
-            userDetailedStructure.facilityType,
-            userDetailedStructure.facultyType,
-            userDetailedStructure.firstName,
-            userDetailedStructure.hrmsId,
-            userDetailedStructure.instituteName,
-            userDetailedStructure.instituteType,
-            String(Boolean(userDetailedStructure.isUserMigrated)),
-            userDetailedStructure.lastName,
-            userDetailedStructure.organisationId,
-            userDetailedStructure.organisationName,
-            userDetailedStructure.phone,
-            userDetailedStructure.profileUpdate || '',
-            userDetailedStructure.registrationSource,
-            userDetailedStructure.registrationSuccessMessage || '',
-            userDetailedStructure.regNurseRegMidwifeNumber,
-            userDetailedStructure.role,
-            userDetailedStructure.roleAssign || '',
-            userDetailedStructure.roleForInService,
-            userDetailedStructure.seniorityNumber,
-            userDetailedStructure.serviceType,
-            userDetailedStructure.upsmfRegistrationNumber,
-            String(Boolean(userDetailedStructure.userAlreadyExists)),
-            userDetailedStructure.userExistingOrganisation || '',
-            userDetailedStructure.validationStatus || '',
-            userDetailedStructure.validationStatusFailedReason || '',
-            new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
+            uniqueId,                                          // $1 unique_id
+            userDetailedStructure.block,                       // $2 block
+            userDetailedStructure.courseSelection,            // $3 course_selection
+            userDetailedStructure.createAccount || '',        // $4 create_account
+            userDetailedStructure.createdOn,                  // $5 created_on
+            userDetailedStructure.dateOfJoining,              // $6 date_of_joining
+            userDetailedStructure.designation,                // $7 designation
+            userDetailedStructure.district,                   // $8 district
+            userDetailedStructure.dob,                        // $9 dob (string in 'YYYY-MM-DD' format or null)
+            userDetailedStructure.email,                      // $10 email
+            userDetailedStructure[ERHMS_CODE_KEY],            // $11 erhms_code
+            userDetailedStructure.facilityCode,               // $12 facility_code
+            userDetailedStructure.facilityName,               // $13 facility_name
+            userDetailedStructure.facilityType,               // $14 facility_type
+            userDetailedStructure.facultyType,                // $15 faculty_type
+            userDetailedStructure.firstName,                  // $16 first_name
+            userDetailedStructure.hrmsId,                     // $17 hrms_id
+            userDetailedStructure.instituteName,              // $18 institute_name
+            userDetailedStructure.instituteType,              // $19 institute_type
+            String(Boolean(userDetailedStructure.isUserMigrated)), // $20 is_user_migrated
+            userDetailedStructure.lastName,                   // $21 last_name
+            userDetailedStructure.organisationId,             // $22 organisation_id
+            userDetailedStructure.organisationName,           // $23 organisation_name
+            userDetailedStructure.phone,                      // $24 phone
+            userDetailedStructure.profileUpdate || '',        // $25 profile_update
+            userDetailedStructure.registrationSource,         // $26 registration_source
+            userDetailedStructure.registrationSuccessMessage || '', // $27 registration_success_message
+            userDetailedStructure.regNurseRegMidwifeNumber,   // $28 regnurseregmidwifenumber
+            userDetailedStructure.role,                       // $29 role
+            userDetailedStructure.roleAssign || '',           // $30 role_assign
+            userDetailedStructure.roleForInService,           // $31 roleforinservice
+            userDetailedStructure.seniorityNumber,            // $32 seniority_number
+            userDetailedStructure.serviceType,                // $33 service_type
+            userDetailedStructure.upsmfRegistrationNumber,    // $34 upsmf_registration_number
+            String(Boolean(userDetailedStructure.userAlreadyExists)), // $35 user_already_exists
+            userDetailedStructure.userExistingOrganisation || '', // $36 user_existing_organisation
+            userDetailedStructure.validationStatus || '',     // $37 validation_status
+            userDetailedStructure.validationStatusFailedReason || '', // $38 validation_status_failed_reason
+            new Date(),                                        // $39 etl_updated_at
         ]
 
         logError('PostgreSQL insert data', JSON.stringify(postgresParams))
+        logError('PostgreSQL insert query', postgresQuery)
 
         const maxRetries = 2
         let retryCount = 0
@@ -1123,15 +1090,26 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         while (retryCount < maxRetries) {
             try {
                 logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, userDetailedStructure.organisationId)
-                await pgPool.query(postgresQuery, postgresParams)
-                logInfo('PostgreSQL insert successful for UPSMF registration', userDetailedStructure.organisationId)
+                const result = await pgPool.query(postgresQuery, postgresParams)
+                logInfo('PostgreSQL insert successful for UPSMF registration', JSON.stringify({ organisationId: userDetailedStructure.organisationId, result }))
                 return true
             } catch (queryError) {
                 retryCount++
-                logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify(queryError))
+                logError(`PostgreSQL insert error (attempt ${retryCount}/${maxRetries})`, JSON.stringify({
+                    code: queryError.code,
+                    column: queryError.column,
+                    detail: queryError.detail,
+                    fullError: queryError,
+                    message: queryError.message,
+                    table: queryError.table,
+                }))
 
                 if (retryCount >= maxRetries) {
-                    logError('PostgreSQL insert failed after max retries', JSON.stringify(queryError))
+                    logError('PostgreSQL insert failed after max retries', JSON.stringify({
+                        code: queryError.code,
+                        detail: queryError.detail,
+                        message: queryError.message,
+                    }))
                     return false
                 }
 
@@ -1144,7 +1122,12 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 
         return false
     } catch (error) {
-        logError('Cassandra/PostgreSQL insert error', JSON.stringify(error))
+        logError('Cassandra/PostgreSQL insert error', JSON.stringify({
+            code: error.code,
+            detail: error.detail,
+            fullError: error,
+            message: error.message,
+        }))
         return false
     }
 }
