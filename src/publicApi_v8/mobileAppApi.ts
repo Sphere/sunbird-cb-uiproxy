@@ -78,7 +78,8 @@ const getHeaders = (req: any) => {
 const DEFAULT_ERROR_STATUS = 500;
 const DEFAULT_ERROR_MSG = 'Something went wrong fetching results';
 
-const publicKeyPath = '/keys/access_key';
+// Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
+const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key';
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8');
 const beginKey = '-----BEGIN PUBLIC KEY-----\n';
 const endKey = '\n-----END PUBLIC KEY-----';
@@ -513,7 +514,7 @@ mobileAppApi.post('/v2/updateProgress', async (req, res) => {
     logInfo('Check req body of update progress v2 for mobile >> ' + req.body);
     logInfo(
       'Check req body of update progress v2 for mobile before fix >> ' +
-        JSON.stringify(req.body)
+      JSON.stringify(req.body)
     );
     const accesTokenResult = verifyToken(req, res);
     const userId = accesTokenResult.userId;
@@ -804,7 +805,7 @@ mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
       } else {
         throw new Error(
           _.get(response.data, 'params.errmsg') ||
-            _.get(response.data, 'params.err')
+          _.get(response.data, 'params.err')
         );
       }
     }

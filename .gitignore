@@ -34,3 +34,4 @@ coverage
 Thumbs.db
 /nodemon/nodemon-aastar-dev.json
 /src/keys
+/src/publicApi_v8/keys

@@ -29,8 +29,8 @@ import fs from 'fs'
 import { apiWhiteListLogger, isAllowed } from './utils/apiWhiteList'
 const { frameworkAPI } = require('@project-sunbird/ext-framework-server/api')
 const frameworkConfig = require('./configs/framework.config')
-
-const publicKeyPath = '/keys/access_key'
+// Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
+const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
@@ -257,8 +257,8 @@ export class Server {
     frameworkAPI.bootstrap(frameworkConfig, this.app).then((data: any) => {
       logInfo('Successfuly bootstrapped frameworkAPI', data)
     })
-    // tslint:disable-next-line: no-any
-    .catch((error: any ) => logError('Error in frameworkAPI bootstrap', error))
+      // tslint:disable-next-line: no-any
+      .catch((error: any) => logError('Error in frameworkAPI bootstrap', error))
   }
 
   private servePublicApi() {

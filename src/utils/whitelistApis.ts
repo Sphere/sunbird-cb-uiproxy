@@ -1552,6 +1552,11 @@ export const API_LIST = {
         ROLE.PUBLIC,
       ],
     },
+    '/protected/v8/playlist/search': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -1834,5 +1839,6 @@ export const API_LIST = {
     '/v1/form/list',
     '/proxies/v8/ext-forms/v1/form/fetchAll',
     '/v1/form/fetchAll',
+    '/protected/v8/playlist/search',
   ],
 }
