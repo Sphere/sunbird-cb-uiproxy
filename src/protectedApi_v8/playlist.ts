@@ -21,6 +21,13 @@ const ERROR_MESSAGES = {
     MISSING_REQUEST_BODY: 'Missing request body or request object',
 }
 
+// ---- HTTP HEADERS ----
+const HEADERS = {
+    CONTENT_TYPE: 'Content-Type',
+    CONTENT_TYPE_JSON: 'application/json',
+    USER_TOKEN: 'x-authenticated-user-token',
+}
+
 export const playlistApi = Router()
 
 /**
@@ -62,8 +69,8 @@ playlistApi.post('/search', async (req: Request, res: Response) => {
             {
                 headers: {
                     Authorization: CONSTANTS.SB_API_KEY,
-                    'Content-Type': 'application/json',
-                    'x-authenticated-user-token': extractUserToken(req),
+                    [HEADERS.CONTENT_TYPE]: HEADERS.CONTENT_TYPE_JSON,
+                    [HEADERS.USER_TOKEN]: extractUserToken(req),
                 },
             }
         )
@@ -148,8 +155,8 @@ playlistApi.post('/create', async (req: Request, res: Response) => {
             {
                 headers: {
                     Authorization: CONSTANTS.SB_API_KEY,
-                    'Content-Type': 'application/json',
-                    'x-authenticated-user-token': extractUserToken(req),
+                    [HEADERS.CONTENT_TYPE]: HEADERS.CONTENT_TYPE_JSON,
+                    [HEADERS.USER_TOKEN]: extractUserToken(req),
                 },
             }
         )
@@ -245,8 +252,8 @@ playlistApi.put('/update', async (req: Request, res: Response) => {
             {
                 headers: {
                     Authorization: CONSTANTS.SB_API_KEY,
-                    'Content-Type': 'application/json',
-                    'x-authenticated-user-token': extractUserToken(req),
+                    [HEADERS.CONTENT_TYPE]: HEADERS.CONTENT_TYPE_JSON,
+                    [HEADERS.USER_TOKEN]: extractUserToken(req),
                 },
             }
         )
