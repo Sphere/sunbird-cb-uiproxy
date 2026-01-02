@@ -1587,6 +1587,16 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/playlist/create': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/playlist/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -1875,5 +1885,8 @@ export const API_LIST = {
     '/proxies/v8/entity/v1/search',
     '/proxies/v8/entity/v1/upload',
     '/proxies/v8/entity/v1/mapping',
+    '/protected/v8/playlist/search',
+    '/protected/v8/playlist/create',
+    '/protected/v8/playlist/update',
   ],
 }

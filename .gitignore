@@ -33,6 +33,7 @@ coverage
 .DS_Store
 Thumbs.db
 /nodemon/nodemon-aastar-dev.json
+/nodemon/nodemon-aastar-stage.json
 /src/keys
 /src/publicApi_v8/keys
 /nodemon/nodemon-aastar-stage.json
