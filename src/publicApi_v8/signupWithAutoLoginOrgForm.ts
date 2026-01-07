@@ -211,6 +211,8 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
       ...axiosRequestConfig,
       data: {
         request: {
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
           profileDetails: {
             preferences: { language: 'en' },
             profileReq: {
@@ -244,8 +246,6 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
               userId,
             },
           },
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
           userId,
         },
       },

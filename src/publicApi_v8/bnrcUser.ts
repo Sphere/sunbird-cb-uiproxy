@@ -667,6 +667,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
     try {
         let userProfileUpdateData = {
             request: {
+                firstName: user.firstName,
+                lastName: user.lastName || user.firstName,
                 profileDetails: {
                     preferences: {
                         language: 'hi',
@@ -722,14 +724,14 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         userId,
                     },
                 },
-                firstName: user.firstName,
-                lastName: user.lastName || user.firstName,
                 userId,
             },
         }
         if (user.role == 'Student') {
             userProfileUpdateData = {
                 request: {
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -788,8 +790,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             userId,
                         },
                     },
-                    firstName: user.firstName,
-                    lastName: user.lastName || user.firstName,
                     userId,
                 },
             }
@@ -797,6 +797,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         if (user.role == 'Faculty') {
             userProfileUpdateData = {
                 request: {
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -852,8 +854,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             userId: `${userId}`,
                         },
                     },
-                    firstName: user.firstName,
-                    lastName: user.lastName || user.firstName,
                     userId: `${userId}`,
                 },
             }
@@ -863,6 +863,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         if (user.role == "In Service") {
             userProfileUpdateData = {
                 request: {
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -918,8 +920,6 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             userId,
                         },
                     },
-                    firstName: user.firstName,
-                    lastName: user.lastName || user.firstName,
                     userId,
                 },
             }
@@ -1056,7 +1056,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
                     // Wait before retry (1s, 2s)
                     const waitTime = retryCount * 1000
                     logInfo(`Retrying PostgreSQL insert in ${waitTime}ms`)
-                    await new Promise(resolve => setTimeout(resolve, waitTime))
+                    await new Promise((resolve) => setTimeout(resolve, waitTime))
                 }
             }
         } catch (pgError) {
