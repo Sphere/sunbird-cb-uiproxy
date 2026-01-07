@@ -730,6 +730,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                         userId,
                     },
                 },
+                firstName: user.firstName,
+                lastName: user.lastName || user.firstName,
                 userId,
             },
         }
@@ -790,6 +792,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             userId,
                         },
                     },
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     userId,
                 },
             }
@@ -852,6 +856,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             userId: `${userId}`,
                         },
                     },
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     userId: `${userId}`,
                 },
             }
@@ -913,6 +919,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             userId,
                         },
                     },
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     userId,
                 },
             }
@@ -974,6 +982,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                             userId,
                         },
                     },
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     userId,
                 },
             }

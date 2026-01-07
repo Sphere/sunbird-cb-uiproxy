@@ -280,6 +280,8 @@ const userProfileUpdate = async (axiosRequestConfig, userId, tnnmcUserData) => {
                             userId: userId,
                         },
                     },
+                    firstName: firstName,
+                    lastName: lastName,
                     userId: userId,
                 },
             },
