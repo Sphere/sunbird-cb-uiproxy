@@ -245,6 +245,8 @@ const userProfileUpdate = async (axiosRequestConfig, userId, tnnmcUserData) => {
             ...axiosRequestConfig,
             data: {
                 request: {
+                    firstName: firstName,
+                    lastName: lastName,
                     profileDetails: {
                         preferences: {
                             language: 'en',
