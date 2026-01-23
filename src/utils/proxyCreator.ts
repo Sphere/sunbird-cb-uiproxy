@@ -39,19 +39,19 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 })
 
 // tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
+proxy.on('proxyRes', (proxyRes: any, req: any, res: any) => {
+  // Handle nodebb auth token
   if (req.originalUrl.includes('/discussion/user/v1/create')) {
     const nodebb_auth_token = proxyRes.headers.nodebb_auth_token
     if (req.session) {
       req.session.nodebb_authorization_token = nodebb_auth_token
     }
   }
-})
 
-// tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
   // tslint:disable-next-line: no-any
   const tempBody: any = []
+
+  // Handle hierarchy response transformation
   if (
     req.originalUrl.includes('/hierarchy') &&
     req.originalUrl.includes('?mode=edit&src=sunbird')
@@ -65,10 +65,30 @@ proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
     proxyRes.on('end', () => {
       const tempdata = tempBody.toString()
       const updateRes = returnData(JSON.parse(tempdata), null, 'hierarchy')
-      _res.end(JSON.stringify(updateRes))
+      res.end(JSON.stringify(updateRes))
     })
-  } else {
-    return _res
+    return
+  }
+
+  // Handle content/v3/read CDN replacement
+  if (req.originalUrl.includes('/content/v3/read')) {
+    logInfo('[CDN Proxy] Intercepting content/v3/read response')
+    // tslint:disable-next-line: no-any
+    proxyRes.on('data', (chunk: any) => {
+      tempBody.push(chunk)
+    })
+    proxyRes.on('end', () => {
+      try {
+        const responseData = JSON.parse(tempBody.toString())
+        logInfo('[CDN Proxy] Parsed response, applying CDN replacement')
+        const replacedData = replaceCdnUrls(responseData)
+        logInfo('[CDN Proxy] CDN replacement completed')
+        res.end(JSON.stringify(replacedData))
+      } catch (error) {
+        logInfo(`[CDN Proxy] Error processing response: ${error}`)
+        res.end(tempBody.toString())
+      }
+    })
   }
 })
 
@@ -213,40 +233,6 @@ export function proxyCreatorSunbird(
   return route
 }
 
-// tslint:disable-next-line: no-any
-function setupCdnReplacementInterceptor(res: any, originalSend: any): void {
-  // tslint:disable-next-line: no-any
-  res.send = function(data: any) {
-    logInfo(`[proxyCreatorKnowledge] Response received, applying CDN replacement`)
-    try {
-      // Replace CDN URLs if response is JSON
-      let processedData = data
-      if (typeof data === 'string') {
-        try {
-          const jsonData = JSON.parse(data)
-          logInfo(`[proxyCreatorKnowledge] Parsed JSON response`)
-          processedData = JSON.stringify(replaceCdnUrls(jsonData))
-          logInfo(`[proxyCreatorKnowledge] CDN replacement applied to JSON`)
-        } catch (e) {
-          // If not JSON, leave as is
-          logInfo(`[proxyCreatorKnowledge] Response is not JSON, leaving as is`)
-          processedData = data
-        }
-      } else if (typeof data === 'object') {
-        logInfo(`[proxyCreatorKnowledge] Response is object, applying CDN replacement`)
-        processedData = replaceCdnUrls(data)
-        logInfo(`[proxyCreatorKnowledge] CDN replacement applied to object`)
-      }
-
-      // Call original send with processed data
-      return originalSend.call(this, processedData)
-    } catch (error) {
-      logInfo(`[proxyCreatorKnowledge] Error in CDN replacement: ${error}`)
-      return originalSend.call(this, data)
-    }
-  }
-}
-
 // tslint:disable-next-line: cyclomatic-complexity
 export function proxyCreatorKnowledge(
   route: Router,
@@ -256,10 +242,6 @@ export function proxyCreatorKnowledge(
   route.all('/*', async (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
     logInfo(`[proxyCreatorKnowledge] URL: ${url}`)
-
-    // Intercept and modify response for content/v3/read
-    const interceptResponse = url.includes('content/v3/read')
-    logInfo(`[proxyCreatorKnowledge] Intercept response: ${interceptResponse}`)
 
     if (url.includes('hierarchy/add')) {
       const updateSlug = '/private/content/v3/hierarchy/add'
@@ -272,18 +254,6 @@ export function proxyCreatorKnowledge(
     } else {
       // tslint:disable-next-line: no-console
       console.log('REQ_URL_ORIGINAL proxyCreatorKnowledge', targetUrl + url)
-
-      if (interceptResponse) {
-        logInfo(`[proxyCreatorKnowledge] Setting up CDN replacement interceptor for: ${url}`)
-        logInfo(`[proxyCreatorKnowledge] S3_DOMAIN: ${CONSTANTS.S3_DOMAIN}`)
-        logInfo(`[proxyCreatorKnowledge] CDN_DOMAIN: ${CONSTANTS.CDN_DOMAIN}`)
-
-        // Store original send function
-        // tslint:disable-next-line: no-any
-        const originalSend = res.send
-        setupCdnReplacementInterceptor(res, originalSend)
-      }
-
       proxy.web(req, res, {
         changeOrigin: true,
         ignorePath: true,
