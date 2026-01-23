@@ -4,6 +4,7 @@ import {
   extractUserIdFromRequest,
   extractUserToken,
 } from '../utils/requestExtract'
+import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { returnData } from './dataAlterer'
 import { CONSTANTS } from './env'
 import { logInfo } from './logger'
@@ -219,53 +220,12 @@ export function proxyCreatorKnowledge(
 ): Router {
   route.all('/*', async (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
-    // Code for checklist threshold checks for preventing publish
-    // if (url.includes('content/v3/publish')) {
-    //   try {
-    //     const scoringThreshold = 75
-    //     const newUrlArray = url.split('/')
-    //     const courseId = newUrlArray[newUrlArray.length - 1]
-    //     const courseHierarchyData = await axios({
-    //       headers: {
-    //         Authorization: CONSTANTS.SB_API_KEY,
-    //       },
-    //       method: 'GET',
-    //       url: `${CONSTANTS.HTTPS_HOST}/api/private/content/v3/hierarchy/${courseId}?mode=edit`,
-    //     })
-    //     const resourceMimetype =
-    //       courseHierarchyData.data.result.content.mimeType
-    //     if (resourceMimetype == 'application/vnd.ekstep.content-collection') {
-    //       const courseScore = await axios({
-    //         data: {
-    //           getLatestRecordEnabled: true,
-    //           resourceId: courseId,
-    //           resourceType: 'content',
-    //         },
-    //         headers: {
-    //           Authorization: CONSTANTS.SB_API_KEY,
-    //           org: 'aastar',
-    //           rootOrg: 'aastar',
-    //         },
-    //         method: 'POST',
-    //         url: `${CONSTANTS.HTTPS_HOST}/api/scoring/v1/fetch`,
-    //       })
-    //       const scoreObtained =
-    //         courseScore.data.result.resources[0].finalWeightedScore
-    //       if (scoreObtained < scoringThreshold) {
-    //         res.status(200).json({
-    //           message: 'Publish operation aborted',
-    //           status: 'Aborted',
-    //         })
-    //         return
-    //       }
-    //     }
-    //   } catch (error) {
-    //     res.status(400).json({
-    //       message: 'Publish operation failed',
-    //       status: 'Failed',
-    //     })
-    //   }
-    // }
+    logInfo(`[proxyCreatorKnowledge] URL: ${url}`)
+
+    // Intercept and modify response for content/v3/read
+    const interceptResponse = url.includes('content/v3/read')
+    logInfo(`[proxyCreatorKnowledge] Intercept response: ${interceptResponse}`)
+
     if (url.includes('hierarchy/add')) {
       const updateSlug = '/private/content/v3/hierarchy/add'
       logInfo('Targeturl value >>>>>>>>> ' + targetUrl + updateSlug)
@@ -277,6 +237,47 @@ export function proxyCreatorKnowledge(
     } else {
       // tslint:disable-next-line: no-console
       console.log('REQ_URL_ORIGINAL proxyCreatorKnowledge', targetUrl + url)
+
+      if (interceptResponse) {
+        logInfo(`[proxyCreatorKnowledge] Setting up CDN replacement interceptor for: ${url}`)
+        logInfo(`[proxyCreatorKnowledge] S3_DOMAIN: ${CONSTANTS.S3_DOMAIN}`)
+        logInfo(`[proxyCreatorKnowledge] CDN_DOMAIN: ${CONSTANTS.CDN_DOMAIN}`)
+
+        // Store original send function
+        const originalSend = res.send
+
+        // Override send function to intercept response
+        res.send = function (data: any) {
+          logInfo(`[proxyCreatorKnowledge] Response received, applying CDN replacement`)
+          try {
+            // Replace CDN URLs if response is JSON
+            let processedData = data
+            if (typeof data === 'string') {
+              try {
+                const jsonData = JSON.parse(data)
+                logInfo(`[proxyCreatorKnowledge] Parsed JSON response`)
+                processedData = JSON.stringify(replaceCdnUrls(jsonData))
+                logInfo(`[proxyCreatorKnowledge] CDN replacement applied to JSON`)
+              } catch (e) {
+                // If not JSON, leave as is
+                logInfo(`[proxyCreatorKnowledge] Response is not JSON, leaving as is`)
+                processedData = data
+              }
+            } else if (typeof data === 'object') {
+              logInfo(`[proxyCreatorKnowledge] Response is object, applying CDN replacement`)
+              processedData = replaceCdnUrls(data)
+              logInfo(`[proxyCreatorKnowledge] CDN replacement applied to object`)
+            }
+
+            // Call original send with processed data
+            return originalSend.call(this, processedData)
+          } catch (error) {
+            logInfo(`[proxyCreatorKnowledge] Error in CDN replacement: ${error}`)
+            return originalSend.call(this, data)
+          }
+        }
+      }
+
       proxy.web(req, res, {
         changeOrigin: true,
         ignorePath: true,
