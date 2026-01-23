@@ -3,6 +3,7 @@
  */
 
 import { CONSTANTS } from '../../utils/env'
+import { logInfo } from '../../utils/logger'
 
 /**
  * Recursively replace S3 URLs with CDN URLs in an object
@@ -11,13 +12,23 @@ import { CONSTANTS } from '../../utils/env'
  */
 export function replaceCdnUrls(obj: unknown): unknown {
     // Only proceed if both S3_DOMAIN and CDN_DOMAIN are configured
+    logInfo(`CDN Replacer - S3_DOMAIN: ${CONSTANTS.S3_DOMAIN}`)
+    logInfo(`CDN Replacer - CDN_DOMAIN: ${CONSTANTS.CDN_DOMAIN}`)
+
     if (!CONSTANTS.S3_DOMAIN || !CONSTANTS.CDN_DOMAIN) {
+        logInfo('CDN Replacer - Skipping replacement: Missing S3_DOMAIN or CDN_DOMAIN')
         return obj
     }
 
     if (typeof obj === 'string') {
         // Replace S3 URL with CDN URL
-        return obj.replace(new RegExp(CONSTANTS.S3_DOMAIN, 'g'), CONSTANTS.CDN_DOMAIN)
+        if (obj.includes(CONSTANTS.S3_DOMAIN)) {
+            logInfo(`CDN Replacer - Replacing URL: ${obj}`)
+            const replaced = obj.replace(new RegExp(CONSTANTS.S3_DOMAIN, 'g'), CONSTANTS.CDN_DOMAIN)
+            logInfo(`CDN Replacer - Replaced to: ${replaced}`)
+            return replaced
+        }
+        return obj
     }
 
     if (Array.isArray(obj)) {
