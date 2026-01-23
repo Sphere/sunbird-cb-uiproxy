@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import { createProxyServer } from 'http-proxy'
+import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import {
   extractUserIdFromRequest,
   extractUserToken,
 } from '../utils/requestExtract'
-import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { returnData } from './dataAlterer'
 import { CONSTANTS } from './env'
 import { logInfo } from './logger'
@@ -213,6 +213,41 @@ export function proxyCreatorSunbird(
   return route
 }
 
+// tslint:disable-next-line: no-any
+function setupCdnReplacementInterceptor(res: any, originalSend: any): void {
+  // tslint:disable-next-line: no-any
+  res.send = function(data: any) {
+    logInfo(`[proxyCreatorKnowledge] Response received, applying CDN replacement`)
+    try {
+      // Replace CDN URLs if response is JSON
+      let processedData = data
+      if (typeof data === 'string') {
+        try {
+          const jsonData = JSON.parse(data)
+          logInfo(`[proxyCreatorKnowledge] Parsed JSON response`)
+          processedData = JSON.stringify(replaceCdnUrls(jsonData))
+          logInfo(`[proxyCreatorKnowledge] CDN replacement applied to JSON`)
+        } catch (e) {
+          // If not JSON, leave as is
+          logInfo(`[proxyCreatorKnowledge] Response is not JSON, leaving as is`)
+          processedData = data
+        }
+      } else if (typeof data === 'object') {
+        logInfo(`[proxyCreatorKnowledge] Response is object, applying CDN replacement`)
+        processedData = replaceCdnUrls(data)
+        logInfo(`[proxyCreatorKnowledge] CDN replacement applied to object`)
+      }
+
+      // Call original send with processed data
+      return originalSend.call(this, processedData)
+    } catch (error) {
+      logInfo(`[proxyCreatorKnowledge] Error in CDN replacement: ${error}`)
+      return originalSend.call(this, data)
+    }
+  }
+}
+
+// tslint:disable-next-line: cyclomatic-complexity
 export function proxyCreatorKnowledge(
   route: Router,
   targetUrl: string,
@@ -244,38 +279,9 @@ export function proxyCreatorKnowledge(
         logInfo(`[proxyCreatorKnowledge] CDN_DOMAIN: ${CONSTANTS.CDN_DOMAIN}`)
 
         // Store original send function
+        // tslint:disable-next-line: no-any
         const originalSend = res.send
-
-        // Override send function to intercept response
-        res.send = function (data: any) {
-          logInfo(`[proxyCreatorKnowledge] Response received, applying CDN replacement`)
-          try {
-            // Replace CDN URLs if response is JSON
-            let processedData = data
-            if (typeof data === 'string') {
-              try {
-                const jsonData = JSON.parse(data)
-                logInfo(`[proxyCreatorKnowledge] Parsed JSON response`)
-                processedData = JSON.stringify(replaceCdnUrls(jsonData))
-                logInfo(`[proxyCreatorKnowledge] CDN replacement applied to JSON`)
-              } catch (e) {
-                // If not JSON, leave as is
-                logInfo(`[proxyCreatorKnowledge] Response is not JSON, leaving as is`)
-                processedData = data
-              }
-            } else if (typeof data === 'object') {
-              logInfo(`[proxyCreatorKnowledge] Response is object, applying CDN replacement`)
-              processedData = replaceCdnUrls(data)
-              logInfo(`[proxyCreatorKnowledge] CDN replacement applied to object`)
-            }
-
-            // Call original send with processed data
-            return originalSend.call(this, processedData)
-          } catch (error) {
-            logInfo(`[proxyCreatorKnowledge] Error in CDN replacement: ${error}`)
-            return originalSend.call(this, data)
-          }
-        }
+        setupCdnReplacementInterceptor(res, originalSend)
       }
 
       proxy.web(req, res, {
