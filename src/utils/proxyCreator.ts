@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import { createProxyServer } from 'http-proxy'
-import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import {
   extractUserIdFromRequest,
   extractUserToken,
@@ -48,9 +47,6 @@ proxy.on('proxyRes', (proxyRes: any, req: any, res: any) => {
     }
   }
 
-  // tslint:disable-next-line: no-any
-  const tempBody: any = []
-
   // Handle hierarchy response transformation
   if (
     req.originalUrl.includes('/hierarchy') &&
@@ -59,6 +55,8 @@ proxy.on('proxyRes', (proxyRes: any, req: any, res: any) => {
     // tslint:disable-next-line: no-console
     console.log('Enter into the response of hierarchy')
     // tslint:disable-next-line: no-any
+    const tempBody: any = []
+    // tslint:disable-next-line: no-any
     proxyRes.on('data', (chunk: any) => {
       tempBody.push(chunk)
     })
@@ -66,28 +64,6 @@ proxy.on('proxyRes', (proxyRes: any, req: any, res: any) => {
       const tempdata = tempBody.toString()
       const updateRes = returnData(JSON.parse(tempdata), null, 'hierarchy')
       res.end(JSON.stringify(updateRes))
-    })
-    return
-  }
-
-  // Handle content/v3/read CDN replacement
-  if (req.originalUrl.includes('/content/v3/read')) {
-    logInfo('[CDN Proxy] Intercepting content/v3/read response')
-    // tslint:disable-next-line: no-any
-    proxyRes.on('data', (chunk: any) => {
-      tempBody.push(chunk)
-    })
-    proxyRes.on('end', () => {
-      try {
-        const responseData = JSON.parse(tempBody.toString())
-        logInfo('[CDN Proxy] Parsed response, applying CDN replacement')
-        const replacedData = replaceCdnUrls(responseData)
-        logInfo('[CDN Proxy] CDN replacement completed')
-        res.end(JSON.stringify(replacedData))
-      } catch (error) {
-        logInfo(`[CDN Proxy] Error processing response: ${error}`)
-        res.end(tempBody.toString())
-      }
     })
   }
 })
