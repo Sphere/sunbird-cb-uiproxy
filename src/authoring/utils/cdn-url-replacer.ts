@@ -1,5 +1,5 @@
 /**
- * Utility to replace S3 URLs with CloudFront CDN URLs in response data
+ * Recursively replace S3 URLs with CloudFront CDN URLs in response data
  */
 
 import { CONSTANTS } from '../../utils/env'
@@ -10,9 +10,14 @@ import { CONSTANTS } from '../../utils/env'
  * @returns The modified object with replaced URLs
  */
 export function replaceCdnUrls(obj: unknown): unknown {
+    // Only proceed if both S3_DOMAIN and CDN_DOMAIN are configured
+    if (!CONSTANTS.S3_DOMAIN || !CONSTANTS.CDN_DOMAIN) {
+        return obj
+    }
+
     if (typeof obj === 'string') {
         // Replace S3 URL with CDN URL
-        return obj.replace(CONSTANTS.S3_DOMAIN, CONSTANTS.CDN_DOMAIN)
+        return obj.replace(new RegExp(CONSTANTS.S3_DOMAIN, 'g'), CONSTANTS.CDN_DOMAIN)
     }
 
     if (Array.isArray(obj)) {
