@@ -10,13 +10,16 @@ import jwt from 'jsonwebtoken'
 import morgan from 'morgan'
 import { Server as SocketServer } from 'socket.io'
 import { io as ClientSocket } from 'socket.io-client'
+import axios from 'axios'
 import { adminApiV8 } from './admin/selfServicePortal'
 import { authContent } from './authoring/authContent'
 import { authIapBackend } from './authoring/authIapBackend'
 import { authNotification } from './authoring/authNotification'
 import { authSearch } from './authoring/authSearch'
 import { authApi } from './authoring/content'
+import { replaceCdnUrls } from './authoring/utils/cdn-url-replacer'
 import { getSessionConfig } from './configs/session.config'
+import { axiosRequestConfig } from './configs/request.config'
 import { protectedApiV8 } from './protectedApi_v8/protectedApiV8'
 import { proxiesV8 } from './proxies_v8/proxies_v8'
 import { publicApiV8 } from './publicApi_v8/publicApiV8'
@@ -87,6 +90,7 @@ export class Server {
     this.setKeyCloak(sessionConfig)
     this.authoringProxies()
     this.setExtFormsFramework()
+    this.configureCdnUrlReplacement()
     this.configureMiddleware()
     this.servePublicApi()
     this.serveAdminApi()
@@ -259,6 +263,48 @@ export class Server {
     })
       // tslint:disable-next-line: no-any
       .catch((error: any) => logError('Error in frameworkAPI bootstrap', error))
+  }
+
+  private configureCdnUrlReplacement() {
+    // Handler for /api/content/v1/read endpoint with CDN URL replacement
+    // tslint:disable-next-line: no-any
+    this.app.get('/api/content/v1/read/*', async (req: any, res: any) => {
+      try {
+        const contentId = req.originalUrl.split('/').pop()
+        logInfo('[API Content Read] Intercepting /api/content/v1/read for ID:', contentId)
+
+        const backendUrl = `${CONSTANTS.KONG_API_BASE}/content/v1/read/${contentId}`
+        logInfo('[API Content Read] Backend URL:', backendUrl)
+
+        const response = await axios({
+          ...axiosRequestConfig,
+          headers: {
+            Authorization: CONSTANTS.SB_API_KEY,
+          },
+          method: 'GET',
+          url: backendUrl,
+        })
+
+        // Apply CDN URL replacement to response data
+        let responseData = response.data
+        try {
+          logInfo('[API Content Read] Applying CDN URL replacement')
+          responseData = replaceCdnUrls(response.data)
+          logInfo('[API Content Read] CDN replacement completed successfully')
+        } catch (replacementError) {
+          logInfo('[API Content Read] Error during CDN replacement:', JSON.stringify(replacementError))
+          // Continue with original response data if replacement fails
+          responseData = response.data
+        }
+
+        res.status(response.status).send(responseData)
+      } catch (error) {
+        logInfo('[API Content Read] Error fetching content:', JSON.stringify(error))
+        res.status((error && error.response && error.response.status) || 500).send(
+          (error && error.response && error.response.data) || { error: 'Failed to fetch content' }
+        )
+      }
+    })
   }
 
   private servePublicApi() {
