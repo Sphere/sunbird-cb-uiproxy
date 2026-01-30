@@ -266,6 +266,15 @@ export class Server {
   }
 
   private configureCdnUrlReplacement() {
+    // Log ALL requests to understand routing
+    // tslint:disable-next-line: no-any
+    this.app.use((req: any, _res: any, next: any) => {
+      if (req.url.includes('/api/') || req.url.includes('/content/v1/read')) {
+        logInfo('[CATCH-ALL] Request received:', req.method, req.originalUrl, req.url)
+      }
+      next()
+    })
+
     // Handler for /api/content/v1/read endpoint with CDN URL replacement
     // tslint:disable-next-line: no-any
     this.app.get('/api/content/v1/read/*', async (req: any, res: any) => {
