@@ -22,12 +22,26 @@ export function replaceCdnUrls(obj: unknown): unknown {
 
     if (typeof obj === 'string') {
         // Replace S3 URL with CDN URL
-        if (obj.includes(CONSTANTS.S3_DOMAIN)) {
+        // Support multiple S3 bucket domains: sunbirdcontent*, s3*.amazonaws.com
+        const s3Pattern = /https:\/\/[^/]*\.s3[^/]*\.amazonaws\.com\//g
+
+        if (s3Pattern.test(obj)) {
             logInfo(`[replaceCdnUrls] Found S3 URL, replacing: ${obj.substring(0, 100)}...`)
-            const replaced = obj.replace(new RegExp(CONSTANTS.S3_DOMAIN, 'g'), CONSTANTS.CDN_DOMAIN)
+            // Match any S3 bucket URL and replace with CDN
+            const replaced = obj.replace(/https:\/\/[^/]*\.s3[^/]*\.amazonaws\.com\//g, CONSTANTS.CDN_DOMAIN)
             logInfo(`[replaceCdnUrls] Replaced to: ${replaced.substring(0, 100)}...`)
             return replaced
         }
+
+        // Fallback: Also check for exact S3_DOMAIN match if configured
+        if (CONSTANTS.S3_DOMAIN && obj.includes(CONSTANTS.S3_DOMAIN)) {
+            logInfo(`[replaceCdnUrls] Found S3 URL (fallback), replacing: ${obj.substring(0, 100)}...`)
+            const escapedS3Domain = CONSTANTS.S3_DOMAIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const replaced = obj.replace(new RegExp(escapedS3Domain, 'g'), CONSTANTS.CDN_DOMAIN)
+            logInfo(`[replaceCdnUrls] Replaced to: ${replaced.substring(0, 100)}...`)
+            return replaced
+        }
+
         return obj
     }
 
