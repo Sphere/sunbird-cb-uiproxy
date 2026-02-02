@@ -172,6 +172,47 @@ mobileAppApi.get('/kong/course/v1/hierarchy/*', async (req, res) => {
   }
 })
 
+// CDN URL replacement handler for content/v1/read endpoint
+// tslint:disable-next-line: no-any
+mobileAppApi.get('/kong/content/v1/read/*', async (req, res) => {
+  try {
+    const contentId = req.originalUrl.split('/').pop()?.split('?')[0]
+    logInfo('[Content Mobile API] Intercepting content/v1/read for ID:', contentId)
+
+    const backendUrl = `${CONSTANTS.KONG_API_BASE}/content/v1/read/${contentId}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`
+    logInfo('[Content Mobile API] Backend URL:', backendUrl)
+
+    const response = await axios({
+      ...axiosRequestConfig,
+      headers: {
+        Authorization: CONSTANTS.SB_API_KEY,
+      },
+      method: 'GET',
+      params: req.query,
+      url: `${CONSTANTS.KONG_API_BASE}/content/v1/read/${contentId}`,
+    })
+
+    // Apply CDN URL replacement to response data
+    let responseData = response.data
+    try {
+      logInfo('[Content Mobile API] Applying CDN URL replacement')
+      responseData = replaceCdnUrls(response.data)
+      logInfo('[Content Mobile API] CDN replacement completed successfully')
+    } catch (replacementError) {
+      logInfo('[Content Mobile API] Error during CDN replacement:', JSON.stringify(replacementError))
+      // Continue with original response data if replacement fails
+      responseData = response.data
+    }
+
+    res.status(response.status).send(responseData)
+  } catch (error) {
+    logInfo('[Content Mobile API] Error fetching content:', JSON.stringify(error))
+    res.status((error && error.response && error.response.status) || 500).send(
+      (error && error.response && error.response.data) || { error: 'Failed to fetch content' }
+    )
+  }
+})
+
 // Generic kong proxy for other endpoints (without CDN replacement)
 // tslint:disable-next-line: no-any
 mobileAppApi.use(async (req, res, next) => {
