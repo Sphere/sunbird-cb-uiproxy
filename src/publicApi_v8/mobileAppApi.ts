@@ -133,7 +133,9 @@ const cassandraClient = new cassandra.Client({
 })
 // CDN URL replacement handler for course/v1/hierarchy endpoint
 // tslint:disable-next-line: no-any
-mobileAppApi.get('/kong/course/v1/hierarchy/*', async (req, res) => {
+// This route is defined to replace CDN URLs in the response of course hierarchy API
+// going forward v1/hierarchy API will be deprecated and v2/hierarchy will be used
+mobileAppApi.get('/kong/course/v2/hierarchy/*', async (req, res) => {
   try {
     const hierarchyId = req.originalUrl.split('/').pop()?.split('?')[0]
     logInfo('[Hierarchy Mobile API] Intercepting course/v1/hierarchy for ID:', hierarchyId)
