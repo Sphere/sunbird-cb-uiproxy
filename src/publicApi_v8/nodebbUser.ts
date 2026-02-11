@@ -64,13 +64,18 @@ export const fetchnodebbUserDetails = async (
   userName: string,
   fullname: string,
   // tslint:disable-next-line: no-any
-  req: any
+  req: any,
+  // tslint:disable-next-line: no-any
+  session?: any
 ) => {
 
   try {
     // Check cache first
     const cachedUserId = getCachedUser(identifier)
     if (cachedUserId) {
+      if (session) {
+        session.nodebbUid = cachedUserId
+      }
       return cachedUserId
     }
 
@@ -109,6 +114,11 @@ export const fetchnodebbUserDetails = async (
       userId,
     })
     logInfo(`User cached for identifier: ${identifier}, Cache size: ${userCache.size}/${MAX_CACHE_SIZE}`)
+
+    // Update session if provided
+    if (session) {
+      session.nodebbUid = userId
+    }
 
     return userId
   } catch (e) {

@@ -29,7 +29,14 @@ export const setRolesData = async (reqObj: any, body: any) => {
   const userData: any = body
   const fullName = userData.result.response.firstName + ' ' + userData.result.response.lastName
   const userName = userData.result.response.userName
-  const discussionReponse = await fetchnodebbUserDetails(userData.result.response.id, userName, fullName, userData.result.response)
+
+  // Fire and forget NodeBB user creation - don't block authentication on it
+  // Session will be updated asynchronously when NodeBB responds
+  fetchnodebbUserDetails(userData.result.response.id, userName, fullName, userData.result.response, reqObj.session)
+    .catch((err) => {
+      logError('Non-critical: NodeBB user creation failed: ' + JSON.stringify(err))
+    })
+
   // logInfo('>>>> userData >>>>>>>>>>>> ' + JSON.stringify(userData))
 
   if (reqObj.session) {
@@ -41,7 +48,7 @@ export const setRolesData = async (reqObj: any, body: any) => {
     reqObj.session.userRoles = ROLE ? ROLE : []
     reqObj.session.orgs = userData.result.response.organisations
     reqObj.session.rootOrgId = userData.result.response.rootOrgId
-    reqObj.session.nodebbUid = discussionReponse
+    reqObj.session.nodebbUid = null // Will be populated asynchronously
     // userData.roles.push(ROLE)
     if (!_.includes(reqObj.session.userRoles, 'PUBLIC')) {
       reqObj.session.userRoles.push('PUBLIC')
