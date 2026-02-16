@@ -5,6 +5,7 @@ import { returnData } from '../../utils/dataAlterer'
 import { logError, logInfo } from '../../utils/logger'
 import { ERROR } from '../constants/error'
 import { IUploadS3Request, IUploadS3Response } from '../models/response/custom-s3-upload'
+import { replaceCdnUrls } from '../utils/cdn-url-replacer'
 import { decoder } from '../utils/decode'
 import { getOrg, getRootOrg } from '../utils/header'
 import { readJSONData } from '../utils/read-meta-and-json'
@@ -195,6 +196,8 @@ authApi.get('/content/v3/read/:id', async (req: Request, res: Response) => {
       if (response.data.params.status === 'successful') {
         response.data = returnData(response.data, 'result')
       }
+      // Replace S3 URLs with CDN URLs revisit once upgraded to sunbird 5
+      response.data = replaceCdnUrls(response.data)
       res.status(response.status).send(response.data)
     })
     .catch((error) => {

@@ -72,19 +72,16 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 })
 
 // tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
+proxy.on('proxyRes', (proxyRes: any, req: any, res: any) => {
+  // Handle nodebb auth token
   if (req.originalUrl.includes('/discussion/user/v1/create')) {
     const nodebb_auth_token = proxyRes.headers.nodebb_auth_token
     if (req.session) {
       req.session.nodebb_authorization_token = nodebb_auth_token
     }
   }
-})
 
-// tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
-  // tslint:disable-next-line: no-any
-  const tempBody: any = []
+  // Handle hierarchy response transformation
   if (
     req.originalUrl.includes('/hierarchy') &&
     req.originalUrl.includes('?mode=edit&src=sunbird')
@@ -92,16 +89,16 @@ proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
     // tslint:disable-next-line: no-console
     console.log('Enter into the response of hierarchy')
     // tslint:disable-next-line: no-any
+    const tempBody: any = []
+    // tslint:disable-next-line: no-any
     proxyRes.on('data', (chunk: any) => {
       tempBody.push(chunk)
     })
     proxyRes.on('end', () => {
       const tempdata = tempBody.toString()
       const updateRes = returnData(JSON.parse(tempdata), null, 'hierarchy')
-      _res.end(JSON.stringify(updateRes))
+      res.end(JSON.stringify(updateRes))
     })
-  } else {
-    return _res
   }
 })
 
@@ -246,6 +243,7 @@ export function proxyCreatorSunbird(
   return route
 }
 
+// tslint:disable-next-line: cyclomatic-complexity
 export function proxyCreatorKnowledge(
   route: Router,
   targetUrl: string,
@@ -253,53 +251,8 @@ export function proxyCreatorKnowledge(
 ): Router {
   route.all('/*', async (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
-    // Code for checklist threshold checks for preventing publish
-    // if (url.includes('content/v3/publish')) {
-    //   try {
-    //     const scoringThreshold = 75
-    //     const newUrlArray = url.split('/')
-    //     const courseId = newUrlArray[newUrlArray.length - 1]
-    //     const courseHierarchyData = await axios({
-    //       headers: {
-    //         Authorization: CONSTANTS.SB_API_KEY,
-    //       },
-    //       method: 'GET',
-    //       url: `${CONSTANTS.HTTPS_HOST}/api/private/content/v3/hierarchy/${courseId}?mode=edit`,
-    //     })
-    //     const resourceMimetype =
-    //       courseHierarchyData.data.result.content.mimeType
-    //     if (resourceMimetype == 'application/vnd.ekstep.content-collection') {
-    //       const courseScore = await axios({
-    //         data: {
-    //           getLatestRecordEnabled: true,
-    //           resourceId: courseId,
-    //           resourceType: 'content',
-    //         },
-    //         headers: {
-    //           Authorization: CONSTANTS.SB_API_KEY,
-    //           org: 'aastar',
-    //           rootOrg: 'aastar',
-    //         },
-    //         method: 'POST',
-    //         url: `${CONSTANTS.HTTPS_HOST}/api/scoring/v1/fetch`,
-    //       })
-    //       const scoreObtained =
-    //         courseScore.data.result.resources[0].finalWeightedScore
-    //       if (scoreObtained < scoringThreshold) {
-    //         res.status(200).json({
-    //           message: 'Publish operation aborted',
-    //           status: 'Aborted',
-    //         })
-    //         return
-    //       }
-    //     }
-    //   } catch (error) {
-    //     res.status(400).json({
-    //       message: 'Publish operation failed',
-    //       status: 'Failed',
-    //     })
-    //   }
-    // }
+    logInfo(`[proxyCreatorKnowledge] URL: ${url}`)
+
     if (url.includes('hierarchy/add')) {
       const updateSlug = '/private/content/v3/hierarchy/add'
       logInfo('Targeturl value >>>>>>>>> ' + targetUrl + updateSlug)
