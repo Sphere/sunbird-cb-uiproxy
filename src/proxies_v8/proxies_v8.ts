@@ -4,6 +4,7 @@ import { UploadedFile } from 'express-fileupload'
 import FormData from 'form-data'
 import _ from 'lodash'
 import request from 'request'
+import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
@@ -38,6 +39,14 @@ const API_END_POINTS = {
   contentNotificationEmail: `${CONSTANTS.NOTIFICATION_SERVIC_API_BASE}/v1/notification/send/sync`,
   logoutKeycloak: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/logout`,
 }
+
+const CDN_REPLACE_PREFIX = '[CDN Replace]'
+const AUTHENTICATED_USER_TOKEN = 'x-authenticated-user-token'
+const AUTHENTICATED_USER_ID = 'x-authenticated-userid'
+const DEFAULT_ORG = 'aastar'
+
+// tslint:disable-next-line: no-any
+const getReqHeader = (req: any, header: string, defaultValue = '') => req.get(header) || defaultValue
 
 export const proxiesV8 = express.Router()
 
@@ -331,6 +340,46 @@ proxiesV8.use(
   '/action/content/v3/hierarchyUpdate',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
+
+// CDN URL replacement handler for content/v3/read
+// tslint:disable-next-line: no-any
+proxiesV8.get('/action/content/v3/read/*', (req, res, next) => {
+  const contentId = req.originalUrl.split('/').pop()
+  logInfo(`${CDN_REPLACE_PREFIX} Intercepting content/v3/read for ID: ${contentId}`)
+
+  axios({
+    ...axiosRequestConfig,
+    headers: {
+      Authorization: CONSTANTS.SB_API_KEY,
+      hostPath: getReqHeader(req, 'hostPath'),
+      locale: getReqHeader(req, 'locale', 'en'),
+      org: getReqHeader(req, 'org', DEFAULT_ORG),
+      rootOrg: getReqHeader(req, 'rootOrg', DEFAULT_ORG),
+      wid: getReqHeader(req, 'wid'),
+      // tslint:disable-next-line: all
+      [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
+      [AUTHENTICATED_USER_ID]: extractUserIdFromRequest(req),
+    },
+    method: 'get',
+    url: `${CONSTANTS.KNOWLEDGE_MW_API_BASE}/action/content/v3/read/${contentId}`,
+  })
+    .then((response) => {
+      logInfo(`${CDN_REPLACE_PREFIX} Response received, applying CDN URL replacement`)
+      try {
+        const replacedData = replaceCdnUrls(response.data)
+        logInfo(`${CDN_REPLACE_PREFIX} CDN replacement completed successfully`)
+        res.json(replacedData)
+      } catch (error) {
+        logInfo(`${CDN_REPLACE_PREFIX} Error during replacement: ${error}`)
+        res.json(response.data)
+      }
+    })
+    .catch((error) => {
+      logInfo(`${CDN_REPLACE_PREFIX} Error fetching content: ${error}`)
+      next(error)
+    })
+})
+
 proxiesV8.use(
   '/action/*',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KNOWLEDGE_MW_API_BASE}`)
@@ -362,7 +411,7 @@ proxiesV8.post('/userData/v1/bulkUpload', async (req, res) => {
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         // tslint:disable-next-line: all
-        "x-authenticated-user-token": extractUserToken(req),
+        [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
       },
       method: 'GET',
       url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
@@ -389,8 +438,8 @@ proxiesV8.post('/userData/v1/bulkUpload', async (req, res) => {
           "x-authenticated-user-channel": channel,
           'x-authenticated-user-orgid': rootOrgId,
           'x-authenticated-user-orgname': channel,
-          'x-authenticated-user-token': extractUserToken(req),
-          'x-authenticated-userid': extractUserIdFromRequest(req),
+          [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
+          [AUTHENTICATED_USER_ID]: extractUserIdFromRequest(req),
         },
         host: 'kong',
         path: url,
@@ -428,7 +477,7 @@ proxiesV8.get('/userData/v1/bulkUpload', async (req, res) => {
     headers: {
       Authorization: CONSTANTS.SB_API_KEY,
       // tslint:disable-next-line: all
-      "x-authenticated-user-token": extractUserToken(req),
+      [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
     },
     method: 'GET',
     url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
@@ -450,8 +499,8 @@ proxiesV8.get('/userData/v1/bulkUpload', async (req, res) => {
       "x-authenticated-user-channel": channel,
       'x-authenticated-user-orgid': rootOrgId,
       'x-authenticated-user-orgname': channel,
-      'x-authenticated-user-token': extractUserToken(req),
-      'x-authenticated-userid': extractUserIdFromRequest(req),
+      [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
+      [AUTHENTICATED_USER_ID]: extractUserIdFromRequest(req),
     },
     method: 'GET',
     url,
@@ -539,10 +588,10 @@ proxiesV8.post('/notifyContentState', async (req, res) => {
   }
   logInfo(
     'Received req url is -> ' +
-      req.protocol +
-      '://' +
-      req.get('host') +
-      req.originalUrl
+    req.protocol +
+    '://' +
+    req.get('host') +
+    req.originalUrl
   )
   let contentBody = ''
   let emailSubject = ''
