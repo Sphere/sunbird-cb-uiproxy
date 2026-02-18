@@ -14,6 +14,7 @@ import {
   ilpProxyCreatorRoute,
   proxyContent,
   proxyContentLearnerVM,
+  proxyCreatorDiscussionSunbird,
   proxyCreatorDownloadCertificate,
   proxyCreatorEtlFrac,
   proxyCreatorEtlFracUpload,
@@ -570,7 +571,7 @@ proxiesV8.use(
 proxiesV8.use(
   '/discussion/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
+  proxyCreatorDiscussionSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
 proxiesV8.use('/forms/*',
