@@ -75,6 +75,39 @@ proxiesV8.get('/getContentsv2/*', (req, res) => {
   return request(sunbirdUrl).pipe(res)
 })
 
+/**
+ * Routes external CDN/S3 PDF URLs through the backend proxy to avoid CORS errors.
+ * The browser cannot fetch PDFs directly from static.sphere.aastrika.org (or S3)
+ * when running on a different origin because those servers don't return CORS headers.
+ *
+ * This mirrors the proxy pattern used in the UI's getProxiedPdfUrl() method and
+ * ensures all external content requests go through the backend with proper CORS headers.
+ */
+// tslint:disable-next-line: no-any
+proxiesV8.get('/getContentsv3/*', (req, res) => {
+  const path = removePrefix('/proxies/v8/getContentsv3/', req.originalUrl)
+  logInfo('New getcontents v3 sunbird URL >>>>>>>>>>> ', path)
+
+  // Known CDN domains that need CORS header injection
+  const knownCdnDomains = [
+    'https://static.sphere.aastrika.org',
+    'https://sunbirdcontent-stage.s3-ap-south-1.amazonaws.com',
+    'https://sunbirdcontent.s3-ap-south-1.amazonaws.com',
+  ]
+
+  // Default to static.sphere.aastrika.org if no specific domain info available
+  const sunbirdUrl = knownCdnDomains[0] + '/' + path
+  logInfo('New getcontents v3 sunbird URL >>>>>>>>>>> ', sunbirdUrl)
+
+  // Add CORS headers to allow cross-origin requests from the UI
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Max-Age', '86400')
+
+  return request(sunbirdUrl).pipe(res)
+})
+
 proxiesV8.get('/logout/user', (req, res, next) => {
   const keycloakUrl = API_END_POINTS.logoutKeycloak
   const redirectUrl = `${CONSTANTS.HTTPS_HOST}` + '/public/home'
