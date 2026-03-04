@@ -79,8 +79,20 @@ proxiesV8.get('/getContentsv2/*', (req, res) => {
 
 proxiesV8.get('/getContentsv3/*', (req, res) => {
   const path = removePrefix(PROXY_BASE_PATH + 'getContentsv3/', req.originalUrl)
-  const sunbirdUrl = CONSTANTS.CDN_DOMAIN + path
+  const sunbirdUrl = CONSTANTS.CDN_DOMAIN + '/' + path
   logInfo(LOG_CDN_URL, sunbirdUrl)
+
+  // Add CORS headers to allow cross-origin requests from the UI
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Max-Age', '86400')
+
+  // Set appropriate content-type for PDFs
+  if (path.endsWith('.pdf')) {
+    res.setHeader('Content-Type', 'application/pdf')
+  }
+
   return request(sunbirdUrl).pipe(res)
 })
 
