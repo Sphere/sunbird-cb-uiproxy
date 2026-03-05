@@ -341,16 +341,36 @@ function delay(ms) {
 }
 // tslint:disable-next-line: no-any
 
-async function tryGenerateCertificateWithRetry(user, eventDetails, templateId, retries = 2) {
-    for (let attempt = 1; attempt <= retries; attempt++) {
+async function tryGenerateCertificateWithRetry(user, eventDetails, templateId, maxRetries = 3) {
+    const maxAttempts = maxRetries
+    let lastError = null
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
             const result = await generateCertificateFromRcMapper(user, eventDetails, user.userid, templateId)
-            if (result) return true
+            if (result === true) {
+                logInfo(`[tryGenerateCertificateWithRetry] SUCCESS on attempt ${attempt} for user ${user.userid}`)
+                return true
+            } else if (result === false) {
+                // Permanent failure - don't retry
+                logError(`[tryGenerateCertificateWithRetry] Permanent failure for user ${user.userid} on attempt ${attempt}`)
+                return false
+            }
         } catch (e) {
-            logInfo(`Attempt ${attempt} failed for user ${user.userid}: ${e.message}`)
+            lastError = e
+            const isLastAttempt = attempt === maxAttempts
+            logError(`[tryGenerateCertificateWithRetry] Attempt ${attempt}/${maxAttempts} failed for user ${user.userid}: ${e.message}`)
+
+            if (!isLastAttempt) {
+                // Exponential backoff: 500ms, 1000ms, 2000ms
+                const backoffDelay = Math.pow(2, attempt - 1) * 500
+                logInfo(`[tryGenerateCertificateWithRetry] Retrying in ${backoffDelay}ms...`)
+                await delay(backoffDelay)
+            }
         }
-        await delay(200)
     }
+
+    logError(`[tryGenerateCertificateWithRetry] FAILED after ${maxAttempts} attempts for user ${user.userid}. Last error: ${lastError?.message}`)
     return false
 }
 
@@ -375,17 +395,26 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
 
         let successCount = 0
         let failedCount = 0
+        const processingDelay = 300 // Add 300ms delay between users to avoid rate limiting
 
-        for (const user of users) {
+        logInfo(`[/events/generateCertificates] Starting certificate generation for ${users.length} users`)
+
+        for (let userIndex = 0; userIndex < users.length; userIndex++) {
+            const user = users[userIndex]
             const { userid } = user
+
             if (!userid || user.certificateGenerationStatus === STATUS_FAILED_USER_CREATION) {
+                logInfo(`[/events/generateCertificates] Skipping user ${userIndex + 1}/${users.length}: userid=${userid}, status=${user.certificateGenerationStatus}`)
                 failedCount++
                 continue
             }
 
             try {
+                logInfo(`[/events/generateCertificates] Processing user ${userIndex + 1}/${users.length}: ${user.firstname} ${user.lastname} (${userid})`)
+
                 const certificateGenerationStatus = await tryGenerateCertificateWithRetry(user, eventDetails, templateId)
                 const status = certificateGenerationStatus ? 'success' : 'failed during certificate generation'
+
                 const queryParams = [
                     status,
                     new Date(),
@@ -394,15 +423,25 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
                     eventId,
                     user.linkid,
                 ]
+
                 await updateCertificateStatus(queryParams)
+
                 if (certificateGenerationStatus) {
                     successCount++
+                    logInfo(`[/events/generateCertificates] SUCCESS: User ${userIndex + 1}/${users.length} - ${userid}`)
                 } else {
                     failedCount++
+                    logError(`[/events/generateCertificates] FAILED: User ${userIndex + 1}/${users.length} - ${userid}`)
                 }
+
+                // Add rate limiting delay between user processing (except for last user)
+                if (userIndex < users.length - 1) {
+                    await delay(processingDelay)
+                }
+
             } catch (err) {
-                logInfo(`Error generating certificate for userId ${userid}: ${JSON.stringify(err)}`)
                 failedCount++
+                logError(`[/events/generateCertificates] EXCEPTION for user ${userIndex + 1}/${users.length} (${userid}): ${JSON.stringify(err)}`)
             }
         }
 
@@ -450,37 +489,104 @@ async function updateCertificateStatus(queryParams: any): Promise<void> {
 // tslint:disable-next-line: no-any
 const generateCertificateFromRcMapper = async (user: any, eventDataFromCassandra: any, userId: string, templateId: string) => {
     try {
+        // Validate input data
+        if (!eventDataFromCassandra || !eventDataFromCassandra[0]) {
+            logError(`[generateCertificateFromRcMapper] ERROR: Invalid event data for user ${user.userid}`)
+            return false
+        }
+
+        if (!user.firstname) {
+            logError(`[generateCertificateFromRcMapper] ERROR: User ${user.userid} missing firstName`)
+            return false
+        }
+
         const eventData = eventDataFromCassandra[0]
-        const userCertificateGenerateResponse = await axios({
+        const firstName = String(user.firstname || '').trim()
+        const lastName = String(user.lastname || user.firstname || '').trim()
 
-            data: {
-                certificateName: eventData.eventname,
-                eventId: eventData.eventid,
-                rcCertificateGenerationBody: {
-                    date: new Date(eventData.eventdate).toLocaleDateString('en-IN').replace(/\//g, '-'),
-                    name: `${user.firstname} ${user.lastname || ''}`,
-                    place: eventData.eventplace,
-                    'workshop-name': eventData.eventname,
-                },
-                templateId,
-                userId,
-                userName: `${user.firstname} ${user.lastname || ''}`,
-
+        const requestData = {
+            certificateName: eventData.eventname,
+            eventId: eventData.eventid,
+            rcCertificateGenerationBody: {
+                date: new Date(eventData.eventdate).toLocaleDateString('en-IN').replace(/\//g, '-'),
+                name: `${firstName} ${lastName}`,
+                place: eventData.eventplace,
+                'workshop-name': eventData.eventname,
             },
+            templateId,
+            userId,
+            userName: `${firstName} ${lastName}`,
+        }
+
+        logInfo(`[generateCertificateFromRcMapper] Calling Certificate API for user ${user.userid} (${firstName} ${lastName})`)
+
+        const userCertificateGenerateResponse = await axios({
+            data: requestData,
             headers: {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
             url: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/generateUserCertificatesFromRc`,
-
         })
-        if (userCertificateGenerateResponse.data.certificateUrl) {
+
+        // Validate response
+        logInfo(`[generateCertificateFromRcMapper] API Response Status: ${userCertificateGenerateResponse.status} for user ${user.userid}`)
+
+        if (userCertificateGenerateResponse.status !== 200 && userCertificateGenerateResponse.status !== 201) {
+            logError(`[generateCertificateFromRcMapper] ERROR: Unexpected status ${userCertificateGenerateResponse.status} for user ${user.userid}`)
+            return false
+        }
+
+        if (!userCertificateGenerateResponse.data) {
+            logError(`[generateCertificateFromRcMapper] ERROR: No response data from Certificate API for user ${user.userid}`)
+            return false
+        }
+
+        const responseData = userCertificateGenerateResponse.data
+        logInfo(`[generateCertificateFromRcMapper] API Response for user ${user.userid}: ${JSON.stringify(responseData)}`)
+
+        if (responseData.certificateUrl) {
+            logInfo(`[generateCertificateFromRcMapper] SUCCESS: Certificate generated for user ${user.userid} - URL: ${responseData.certificateUrl}`)
             return true
         }
+
+        // Check for error in response
+        if (responseData.error || responseData.message === 'FAILED') {
+            logError(`[generateCertificateFromRcMapper] ERROR from API for user ${user.userid}: ${responseData.error || responseData.message}`)
+            return false
+        }
+
+        logError(`[generateCertificateFromRcMapper] ERROR: No certificateUrl in response for user ${user.userid}`)
         return false
+
     } catch (error) {
-        logInfo(JSON.stringify(error))
-        return false
+        // Distinguish between different error types
+        let errorMsg = 'Unknown error'
+        let isTransient = false
+
+        if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+            errorMsg = `Timeout: ${error.message}`
+            isTransient = true
+        } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+            errorMsg = `Connection error: ${error.message}`
+            isTransient = true
+        } else if (error.response) {
+            // HTTP error response
+            errorMsg = `HTTP ${error.response.status}: ${error.response.statusText}`
+            if (error.response.data) {
+                errorMsg += ` - ${JSON.stringify(error.response.data)}`
+            }
+            // 5xx errors are transient, 4xx are usually not
+            isTransient = error.response.status >= 500
+        } else if (error.message) {
+            errorMsg = error.message
+        }
+
+        logError(`[generateCertificateFromRcMapper] Exception for user ${user.userid} (transient: ${isTransient}): ${errorMsg}`)
+
+        // Return null to distinguish from false (permanent failure)
+        // This will trigger retry in the calling function
+        throw error
     }
 }
 const checkIfuserExists = async (phone: string) => {
