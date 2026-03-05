@@ -172,6 +172,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/entity/v1/delete': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/proxies/v8/registry/api/v1/DocumentType/search': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1876,5 +1881,6 @@ export const API_LIST = {
     '/proxies/v8/entity/v1/upload',
     '/proxies/v8/entity/v1/mapping',
     '/proxies/v8/entity/v1/mapping/search',
+    '/proxies/v8/entity/v1/delete',
   ],
 }
