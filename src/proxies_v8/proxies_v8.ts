@@ -47,6 +47,8 @@ const CDN_REPLACE_PREFIX = '[CDN Replace]'
 const AUTHENTICATED_USER_TOKEN = 'x-authenticated-user-token'
 const AUTHENTICATED_USER_ID = 'x-authenticated-userid'
 const DEFAULT_ORG = 'aastar'
+const PROXY_BASE_PATH = '/proxies/v8/'
+const LOG_CDN_URL = 'New getcontents sunbird URL >>>>>>>>>>> '
 
 // tslint:disable-next-line: no-any
 const getReqHeader = (req: any, header: string, defaultValue = '') => req.get(header) || defaultValue
@@ -63,17 +65,36 @@ proxiesV8.get('/getContent', getContentProxyCreatorRoute(express.Router()))
 
 // tslint:disable-next-line: no-any
 proxiesV8.get('/getContents/*', (req, res) => {
-  const path = removePrefix('/proxies/v8/getContents/', req.originalUrl)
+  const path = removePrefix(PROXY_BASE_PATH + 'getContents/', req.originalUrl)
   const sunbirdUrl = CONSTANTS.S3_BUCKET_URL + path
-  logInfo('New getcontents sunbird URL >>>>>>>>>>> ', sunbirdUrl)
+  logInfo(LOG_CDN_URL, sunbirdUrl)
   return request(sunbirdUrl).pipe(res)
 })
 // tslint:disable-next-line: no-any
 proxiesV8.get('/getContentsv2/*', (req, res) => {
-  const path = removePrefix('/proxies/v8/getContentsv2/', req.originalUrl)
+  const path = removePrefix(PROXY_BASE_PATH + 'getContentsv2/', req.originalUrl)
   logInfo('New getcontents v2 sunbird URL >>>>>>>>>>> ', path)
   const sunbirdUrl = 'https://dfi54poqd0g4h.cloudfront.net/' + path
-  logInfo('New getcontents sunbird URL >>>>>>>>>>> ', sunbirdUrl)
+  logInfo(LOG_CDN_URL, sunbirdUrl)
+  return request(sunbirdUrl).pipe(res)
+})
+
+proxiesV8.get('/getContentsv3/*', (req, res) => {
+  const path = removePrefix(PROXY_BASE_PATH + 'getContentsv3/', req.originalUrl)
+  const sunbirdUrl = CONSTANTS.CDN_DOMAIN + '/' + path
+  logInfo(LOG_CDN_URL, sunbirdUrl)
+
+  // Add CORS headers to allow cross-origin requests from the UI
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Max-Age', '86400')
+
+  // Set appropriate content-type for PDFs
+  if (path.endsWith('.pdf')) {
+    res.setHeader('Content-Type', 'application/pdf')
+  }
+
   return request(sunbirdUrl).pipe(res)
 })
 
