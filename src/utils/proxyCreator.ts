@@ -39,18 +39,6 @@ uploadProxy.on('error', (err, _req, _res) => {
   logError('[UPLOAD PROXY ERROR]', errorMessage)
 })
 
-// /**
-//  * Backup validation: Ensures multipart/form-data uploads bypass body parsing.
-//  * Works in conjunction with server.ts skipBodyParser middleware (line 205).
-//  * Prevents double-parsing of stream data.
-//  */
-// // tslint:disable-next-line: no-any
-// uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
-//   const contentType = req.headers[CONTENT_TYPE_KEY] || ''
-//   if (contentType.startsWith('multipart/form-data')) {
-//     return // Stream passes through unmodified to backend
-//   }
-// })
 
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
@@ -705,7 +693,7 @@ export function proxyCreatorEtlFrac(
     // tslint:disable-next-line: no-any
     const originalSend = res.send
     // tslint:disable-next-line: no-any
-    res.send = function(data: string | Buffer) {
+    res.send = function (data: string | Buffer) {
       if (res.statusCode < 400) {
         logInfo(`Entity API response: ${path} [${res.statusCode}]`)
       }
