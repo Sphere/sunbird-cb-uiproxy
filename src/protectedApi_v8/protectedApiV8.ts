@@ -31,8 +31,9 @@ import { leaderBoardApi } from './leaderboard'
 import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
+import { playlistApi } from './playlist'
 import { portalApi } from './portal-v3'
-import {profileupdatev2} from './profileupdatev2'
+import { profileupdatev2 } from './profileupdatev2'
 import { sunbirdrRcCertificate } from './rcEvents'
 import { recommendationApi } from './recommendation'
 import { recommendationEngineV2 } from './recommendationEngineV2'
@@ -44,6 +45,7 @@ import { socialApi } from './social'
 import { trainingApi } from './training'
 import { translateApi } from './translate'
 import { updateProgressv2 } from './updateProgressv2'
+import { updateProgressv3 } from './updateProgressv3'
 import { rcCert } from './user/rc-certificate'
 import { user } from './user/user'
 import { userEnrolledInSource } from './userEnrolledInSource'
@@ -100,6 +102,7 @@ protectedApiV8.use('/assessment', assessmentApi)
 protectedApiV8.use('/autoEnrollmentv2', autoEnrollmentApiv2)
 protectedApiV8.use('/autoCompletev2', autoCompletev2)
 protectedApiV8.use('/updateProgressv2', updateProgressv2)
+protectedApiV8.use('/updateProgressv3', updateProgressv3)
 protectedApiV8.use('/recommendationEngineV2', recommendationEngineV2)
 protectedApiV8.use('/creatorCertificateTemplate', creatorCertificateTemplate)
 protectedApiV8.use('/userEnrolledInSource', userEnrolledInSource)
@@ -108,3 +111,4 @@ protectedApiV8.use('/AI', aiServiceAPI)
 protectedApiV8.use('/rcCert', rcCert)
 protectedApiV8.use('/sunbirdrRcCertificate', sunbirdrRcCertificate)
 protectedApiV8.use('/profileupdatev2', profileupdatev2)
+protectedApiV8.use('/playlist', playlistApi)

@@ -656,6 +656,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
     try {
         let userProfileUpdateData = {
             request: {
+                firstName: user.firstName,
+                lastName: user.lastName || user.firstName,
                 profileDetails: {
                     preferences: {
                         language: 'hi',
@@ -718,6 +720,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         if (user.role == 'Student') {
             userProfileUpdateData = {
                 request: {
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -780,6 +784,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         if (user.role == 'Faculty') {
             userProfileUpdateData = {
                 request: {
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     profileDetails: {
                         preferences: {
                             language: 'hi',
@@ -843,6 +849,8 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         if (user.role == 'ANM-MP' || user.role == 'CHO-MP' || user.role == 'Trainer-MP') {
             userProfileUpdateData = {
                 request: {
+                    firstName: user.firstName,
+                    lastName: user.lastName || user.firstName,
                     profileDetails: {
                         preferences: {
                             language: 'hi',

@@ -1089,6 +1089,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/updateProgressv3/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/frac/addDataNodeBulk': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1427,6 +1432,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/user/v1/leaderboard': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/proxies/v8/user/v1/admin/passbook': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1591,6 +1601,21 @@ export const API_LIST = {
       ROLE_CHECK: [
         ROLE.PUBLIC,
       ],
+    },
+    '/protected/v8/playlist/search': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/playlist/create': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/playlist/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
     },
   },
   URL_PATTERN: [
@@ -1795,6 +1820,7 @@ export const API_LIST = {
     '/protected/v8/user/profileDetails/updateUser',
     '/protected/v8/user/profileDetails/v2/updateUser',
     '/protected/v8/updateProgressv2/update',
+    '/protected/v8/updateProgressv3/update',
     '/protected/v8/frac/addDataNodeBulk',
     '/protected/v8/roleactivity/:txt',
     '/protected/v8/connections/update/connection',
@@ -1859,6 +1885,7 @@ export const API_LIST = {
     '/proxies/v8/action/framework/v3/category/retire/:id',
     '/proxies/v8/action/framework/v3/term/create',
     '/proxies/v8/user/v1/passbook',
+    '/proxies/v8/user/v1/leaderboard',
     '/proxies/v8/user/v1/admin/passbook',
     '/public/v8/publicTelemetry',
     '/public/v8/publicTelemetry/telemetry',
@@ -1882,5 +1909,8 @@ export const API_LIST = {
     '/proxies/v8/entity/v1/mapping',
     '/proxies/v8/entity/v1/mapping/search',
     '/proxies/v8/entity/v1/delete',
+    '/protected/v8/playlist/search',
+    '/protected/v8/playlist/create',
+    '/protected/v8/playlist/update',
   ],
 }

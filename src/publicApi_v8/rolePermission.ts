@@ -3,7 +3,6 @@ import _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
-import { fetchnodebbUserDetails } from './nodebbUser'
 const ROLE = [
   'CBC_ADMIN',
   'CBC_MEMBER',
@@ -27,22 +26,14 @@ const ROLE = [
 export const setRolesData = async (reqObj: any, body: any) => {
   // tslint:disable-next-line: no-any
   const userData: any = body
-  const fullName = userData.result.response.firstName + ' ' + userData.result.response.lastName
-  const userName = userData.result.response.userName
-  const discussionReponse = await fetchnodebbUserDetails(userData.result.response.id, userName, fullName, userData.result.response)
-  // logInfo('>>>> userData >>>>>>>>>>>> ' + JSON.stringify(userData))
+  const userId = userData.result.response.id
 
   if (reqObj.session) {
-    reqObj.session.userId = userData.result.response.id
-      ? userData.result.response.id
-      : userData.result.response.userId
+    reqObj.session.userId = userId || userData.result.response.userId
     reqObj.session.userName = userData.result.response.userName
-    // reqObj.session.userRoles = userData.result.response.roles
     reqObj.session.userRoles = ROLE ? ROLE : []
     reqObj.session.orgs = userData.result.response.organisations
     reqObj.session.rootOrgId = userData.result.response.rootOrgId
-    reqObj.session.nodebbUid = discussionReponse
-    // userData.roles.push(ROLE)
     if (!_.includes(reqObj.session.userRoles, 'PUBLIC')) {
       reqObj.session.userRoles.push('PUBLIC')
     }

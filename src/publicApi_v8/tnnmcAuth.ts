@@ -203,6 +203,8 @@ tnnmcAuth.post('/login', async (req: any, res: Response) => {
                                 userId: responseCreateUser.data.result.userId,
                             },
                         },
+                        firstName,
+                        lastName,
                         userId: responseCreateUser.data.result.userId,
                     },
                 },

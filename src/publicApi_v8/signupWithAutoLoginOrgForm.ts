@@ -1,5 +1,4 @@
 import axios from 'axios'
-import cassandra from 'cassandra-driver'
 import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
@@ -112,8 +111,6 @@ const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
-// Cassandra client setup
-const { types } = cassandra
 // =======================================================
 // HELPER FUNCTIONS
 // =======================================================
@@ -214,6 +211,8 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
       ...axiosRequestConfig,
       data: {
         request: {
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
           profileDetails: {
             preferences: { language: 'en' },
             profileReq: {
@@ -304,6 +303,7 @@ const updateUserStatusInDatabase = async (
     const record = {
       create_account: userJourneyStatus.createAccount || '',
       created_on: new Date(),
+      district: userDetails.district || '',
       email: userDetails.email || '',
       first_name: userDetails.firstName || '',
       institute_name: userDetails.instituteName || '',
@@ -314,8 +314,10 @@ const updateUserStatusInDatabase = async (
       phone: String(userDetails.phone || ''),
       profile_update: userJourneyStatus.profileUpdate || '',
       registration_success_message: userJourneyStatus.registrationSuccessMessage || '',
+      role: userDetails.role || '',
       role_assign: userJourneyStatus.roleAssign || '',
-      unique_id: types.Uuid.fromString(uniqueId),
+      state: userDetails.state || '',
+      unique_id: uniqueId,
       user_already_exists: Boolean(userJourneyStatus.userAlreadyExists),
       user_existing_organisation: userJourneyStatus.userExistingOrganisation || '',
       user_id: userDetails.userId || '',
@@ -323,50 +325,40 @@ const updateUserStatusInDatabase = async (
       validation_status_failed_reason: userJourneyStatus.validationStatusFailedReason || '',
     }
 
-    // Insert into Cassandra
-    // const cassandraQuery = `
-    //   INSERT INTO sunbird.user_registration_audit (
-    //     create_account, created_on, email, first_name, is_user_migrated,
-    //     last_name, organisation_id, organisation_name, phone, profile_update,
-    //     registration_success_message, role_assign, unique_id, user_already_exists,
-    //     user_existing_organisation, validation_status, validation_status_failed_reason
-    //   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    // `
-    // const params = Object.values(record)
-    // await client.execute(cassandraQuery, params, { prepare: true })
-    // logInfo('User journey status inserted successfully into Cassandra audit log')
-
     // Insert into PostgreSQL
     const postgresQuery = `INSERT INTO user_registration_audit (
-      create_account, created_on, email, first_name, institute_name, is_user_migrated,
+      create_account, created_on, district, email, first_name, institute_name, is_user_migrated,
       last_name, organisation_id, organisation_name, phone, profile_update,
-      registration_success_message, role_assign, unique_id, user_already_exists,
+      registration_success_message, role, role_assign, state, unique_id, user_already_exists,
       user_existing_organisation, user_id, validation_status, validation_status_failed_reason,
       etl_updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
     ON CONFLICT (unique_id) DO NOTHING`
 
     const postgresParams = [
-      record.create_account,
-      record.created_on,
-      record.email,
-      record.first_name,
-      record.institute_name,
-      String(Boolean(record.is_user_migrated)),
-      record.last_name,
-      record.organisation_id,
-      record.organisation_name,
-      record.phone,
-      record.profile_update,
-      record.registration_success_message,
-      record.role_assign,
-      uniqueId,
-      String(Boolean(record.user_already_exists)),
-      record.user_existing_organisation,
-      record.user_id,
-      record.validation_status,
-      record.validation_status_failed_reason,
-      new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
+      record.create_account,                          // $1
+      record.created_on,                              // $2
+      record.district,                                // $3
+      record.email,                                   // $4
+      record.first_name,                              // $5
+      record.institute_name,                          // $6
+      String(Boolean(record.is_user_migrated)),       // $7
+      record.last_name,                               // $8
+      record.organisation_id,                         // $9
+      record.organisation_name,                       // $10
+      record.phone,                                   // $11
+      record.profile_update,                          // $12
+      record.registration_success_message,            // $13
+      record.role,                                    // $14
+      record.role_assign,                             // $15
+      record.state,                                   // $16
+      uniqueId,                                       // $17
+      String(Boolean(record.user_already_exists)),    // $18
+      record.user_existing_organisation,              // $19
+      record.user_id,                                 // $20
+      record.validation_status,                       // $21
+      record.validation_status_failed_reason,         // $22
+      new Date(),                                     // $23 - etl_updated_at
     ]
 
     const maxRetries = 2

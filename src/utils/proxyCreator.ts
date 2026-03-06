@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { createProxyServer } from 'http-proxy'
+import jwt_decode from 'jwt-decode'
+import { fetchnodebbUserDetails } from '../publicApi_v8/nodebbUser'
 import {
   extractUserIdFromRequest,
   extractUserToken,
@@ -72,19 +74,16 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 })
 
 // tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
+proxy.on('proxyRes', (proxyRes: any, req: any, res: any) => {
+  // Handle nodebb auth token
   if (req.originalUrl.includes('/discussion/user/v1/create')) {
     const nodebb_auth_token = proxyRes.headers.nodebb_auth_token
     if (req.session) {
       req.session.nodebb_authorization_token = nodebb_auth_token
     }
   }
-})
 
-// tslint:disable-next-line: no-any
-proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
-  // tslint:disable-next-line: no-any
-  const tempBody: any = []
+  // Handle hierarchy response transformation
   if (
     req.originalUrl.includes('/hierarchy') &&
     req.originalUrl.includes('?mode=edit&src=sunbird')
@@ -92,16 +91,16 @@ proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
     // tslint:disable-next-line: no-console
     console.log('Enter into the response of hierarchy')
     // tslint:disable-next-line: no-any
+    const tempBody: any = []
+    // tslint:disable-next-line: no-any
     proxyRes.on('data', (chunk: any) => {
       tempBody.push(chunk)
     })
     proxyRes.on('end', () => {
       const tempdata = tempBody.toString()
       const updateRes = returnData(JSON.parse(tempdata), null, 'hierarchy')
-      _res.end(JSON.stringify(updateRes))
+      res.end(JSON.stringify(updateRes))
     })
-  } else {
-    return _res
   }
 })
 
@@ -246,6 +245,125 @@ export function proxyCreatorSunbird(
   return route
 }
 
+// tslint:disable-next-line: cyclomatic-complexity
+export function proxyCreatorDiscussionSunbird(
+  route: Router,
+  targetUrl: string,
+  _timeout = 10000
+): Router {
+  // tslint:disable-next-line: no-any
+  route.all('/*', async (req: any, res) => {
+    try {
+      logInfo('[proxyCreatorDiscussionSunbird] ===== START - Discussion API Request =====')
+      logInfo('[proxyCreatorDiscussionSunbird] Original URL: ' + req.originalUrl)
+      logInfo('[proxyCreatorDiscussionSunbird] Request method: ' + req.method)
+      logInfo('[proxyCreatorDiscussionSunbird] Target URL: ' + targetUrl)
+
+      const accessToken = extractUserToken(req)
+      logInfo('[proxyCreatorDiscussionSunbird] Access token extracted: ' + (!!accessToken))
+
+      if (!accessToken) {
+        logInfo('[proxyCreatorDiscussionSunbird] ERROR: Access token not found')
+        throw new Error('Access token not found')
+      }
+
+      // Decode token to get user details
+      logInfo('[proxyCreatorDiscussionSunbird] Attempting to decode JWT token...')
+      // tslint:disable-next-line: no-any
+      const decodedToken: any = jwt_decode(accessToken.toString())
+      logInfo('[proxyCreatorDiscussionSunbird] Token decoded successfully')
+      logInfo('[proxyCreatorDiscussionSunbird] Token subject (sub): ' + decodedToken.sub)
+
+      const decodedTokenArray = decodedToken.sub.split(':')
+      const userId = decodedTokenArray[decodedTokenArray.length - 1]
+      logInfo('[proxyCreatorDiscussionSunbird] Extracted userId: ' + userId)
+
+      // Fetch NodeBB user details
+      logInfo('[proxyCreatorDiscussionSunbird] Calling fetchnodebbUserDetails...')
+      const nodebbUserId = await fetchnodebbUserDetails(
+        userId,
+        decodedToken.preferred_username,
+        decodedToken.name,
+        decodedToken,
+        req.session
+      )
+
+      logInfo('[proxyCreatorDiscussionSunbird] NodeBB UID: ' + nodebbUserId)
+
+      // Clean and normalize URL
+      const normalizedUrl = cleanDiscussionUrl(req.originalUrl)
+      logInfo('[proxyCreatorDiscussionSunbird] Normalized URL: ' + normalizedUrl)
+
+      // Add NodeBB UID as query parameter
+      const finalUrl = appendNodebbUid(normalizedUrl, nodebbUserId)
+      logInfo('[proxyCreatorDiscussionSunbird] Final target URL: ' + (targetUrl + finalUrl))
+      logInfo('[proxyCreatorDiscussionSunbird] Initiating proxy request...')
+
+      proxy.web(req, res, {
+        changeOrigin: true,
+        ignorePath: true,
+        target: targetUrl + finalUrl,
+      })
+
+      logInfo('[proxyCreatorDiscussionSunbird] ===== SUCCESS - Proxy request initiated =====')
+    } catch (error) {
+      logInfo('[proxyCreatorDiscussionSunbird] ===== ERROR OCCURRED =====')
+      if (error instanceof Error) {
+        logInfo('[proxyCreatorDiscussionSunbird] Error type: ' + error.name)
+        logInfo('[proxyCreatorDiscussionSunbird] Error message: ' + error.message)
+        logInfo('[proxyCreatorDiscussionSunbird] Stack trace: ' + error.stack)
+      } else {
+        logInfo('[proxyCreatorDiscussionSunbird] Full error: ' + JSON.stringify(error))
+      }
+      res.status(401).send('Unauthorized')
+    }
+  })
+  return route
+}
+
+// Helper function to clean discussion URLs
+function cleanDiscussionUrl(originalUrl: string): string {
+  let url = originalUrl
+
+  // Clean up /uid if present
+  if (url.includes('/uid')) {
+    url = url.replace(/\/uid/g, '')
+  }
+
+  // Handle discussion topic duplicate path issue
+  if (url.includes('discussion/topic')) {
+    const topic = url.toString().split('/')
+    if (topic[5] === topic[6]) {
+      url =
+        topic[0] +
+        '/' +
+        topic[1] +
+        '/' +
+        topic[2] +
+        '/' +
+        topic[3] +
+        '/' +
+        topic[4] +
+        '/' +
+        topic[5] +
+        '/' +
+        topic[7]
+    }
+  }
+
+  return url
+}
+
+// Helper function to append NodeBB UID to URL
+function appendNodebbUid(url: string, nodebbUserId: string | boolean): string {
+  const prefix = removePrefix(`${PROXY_SLUG}`, url)
+  if (url.includes('?')) {
+    return prefix + '&_uid=' + nodebbUserId
+  }
+  return prefix + '?_uid=' + nodebbUserId
+}
+
+// tslint:disable-next-line: cyclomatic-complexity
 export function proxyCreatorKnowledge(
   route: Router,
   targetUrl: string,
@@ -253,53 +371,8 @@ export function proxyCreatorKnowledge(
 ): Router {
   route.all('/*', async (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
-    // Code for checklist threshold checks for preventing publish
-    // if (url.includes('content/v3/publish')) {
-    //   try {
-    //     const scoringThreshold = 75
-    //     const newUrlArray = url.split('/')
-    //     const courseId = newUrlArray[newUrlArray.length - 1]
-    //     const courseHierarchyData = await axios({
-    //       headers: {
-    //         Authorization: CONSTANTS.SB_API_KEY,
-    //       },
-    //       method: 'GET',
-    //       url: `${CONSTANTS.HTTPS_HOST}/api/private/content/v3/hierarchy/${courseId}?mode=edit`,
-    //     })
-    //     const resourceMimetype =
-    //       courseHierarchyData.data.result.content.mimeType
-    //     if (resourceMimetype == 'application/vnd.ekstep.content-collection') {
-    //       const courseScore = await axios({
-    //         data: {
-    //           getLatestRecordEnabled: true,
-    //           resourceId: courseId,
-    //           resourceType: 'content',
-    //         },
-    //         headers: {
-    //           Authorization: CONSTANTS.SB_API_KEY,
-    //           org: 'aastar',
-    //           rootOrg: 'aastar',
-    //         },
-    //         method: 'POST',
-    //         url: `${CONSTANTS.HTTPS_HOST}/api/scoring/v1/fetch`,
-    //       })
-    //       const scoreObtained =
-    //         courseScore.data.result.resources[0].finalWeightedScore
-    //       if (scoreObtained < scoringThreshold) {
-    //         res.status(200).json({
-    //           message: 'Publish operation aborted',
-    //           status: 'Aborted',
-    //         })
-    //         return
-    //       }
-    //     }
-    //   } catch (error) {
-    //     res.status(400).json({
-    //       message: 'Publish operation failed',
-    //       status: 'Failed',
-    //     })
-    //   }
-    // }
+    logInfo(`[proxyCreatorKnowledge] URL: ${url}`)
+
     if (url.includes('hierarchy/add')) {
       const updateSlug = '/private/content/v3/hierarchy/add'
       logInfo('Targeturl value >>>>>>>>> ' + targetUrl + updateSlug)

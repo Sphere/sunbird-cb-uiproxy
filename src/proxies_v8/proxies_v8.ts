@@ -4,6 +4,7 @@ import { UploadedFile } from 'express-fileupload'
 import FormData from 'form-data'
 import _ from 'lodash'
 import request from 'request'
+import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
@@ -13,6 +14,7 @@ import {
   ilpProxyCreatorRoute,
   proxyContent,
   proxyContentLearnerVM,
+  proxyCreatorDiscussionSunbird,
   proxyCreatorDownloadCertificate,
   proxyCreatorEtlFrac,
   proxyCreatorEtlFracUpload,
@@ -41,6 +43,16 @@ const API_END_POINTS = {
   logoutKeycloak: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/logout`,
 }
 
+const CDN_REPLACE_PREFIX = '[CDN Replace]'
+const AUTHENTICATED_USER_TOKEN = 'x-authenticated-user-token'
+const AUTHENTICATED_USER_ID = 'x-authenticated-userid'
+const DEFAULT_ORG = 'aastar'
+const PROXY_BASE_PATH = '/proxies/v8/'
+const LOG_CDN_URL = 'New getcontents sunbird URL >>>>>>>>>>> '
+
+// tslint:disable-next-line: no-any
+const getReqHeader = (req: any, header: string, defaultValue = '') => req.get(header) || defaultValue
+
 export const proxiesV8 = express.Router()
 
 proxiesV8.get('/', (_req, res) => {
@@ -53,17 +65,36 @@ proxiesV8.get('/getContent', getContentProxyCreatorRoute(express.Router()))
 
 // tslint:disable-next-line: no-any
 proxiesV8.get('/getContents/*', (req, res) => {
-  const path = removePrefix('/proxies/v8/getContents/', req.originalUrl)
+  const path = removePrefix(PROXY_BASE_PATH + 'getContents/', req.originalUrl)
   const sunbirdUrl = CONSTANTS.S3_BUCKET_URL + path
-  logInfo('New getcontents sunbird URL >>>>>>>>>>> ', sunbirdUrl)
+  logInfo(LOG_CDN_URL, sunbirdUrl)
   return request(sunbirdUrl).pipe(res)
 })
 // tslint:disable-next-line: no-any
 proxiesV8.get('/getContentsv2/*', (req, res) => {
-  const path = removePrefix('/proxies/v8/getContentsv2/', req.originalUrl)
+  const path = removePrefix(PROXY_BASE_PATH + 'getContentsv2/', req.originalUrl)
   logInfo('New getcontents v2 sunbird URL >>>>>>>>>>> ', path)
   const sunbirdUrl = 'https://dfi54poqd0g4h.cloudfront.net/' + path
-  logInfo('New getcontents sunbird URL >>>>>>>>>>> ', sunbirdUrl)
+  logInfo(LOG_CDN_URL, sunbirdUrl)
+  return request(sunbirdUrl).pipe(res)
+})
+
+proxiesV8.get('/getContentsv3/*', (req, res) => {
+  const path = removePrefix(PROXY_BASE_PATH + 'getContentsv3/', req.originalUrl)
+  const sunbirdUrl = CONSTANTS.CDN_DOMAIN + '/' + path
+  logInfo(LOG_CDN_URL, sunbirdUrl)
+
+  // Add CORS headers to allow cross-origin requests from the UI
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Max-Age', '86400')
+
+  // Set appropriate content-type for PDFs
+  if (path.endsWith('.pdf')) {
+    res.setHeader('Content-Type', 'application/pdf')
+  }
+
   return request(sunbirdUrl).pipe(res)
 })
 
@@ -333,6 +364,46 @@ proxiesV8.use(
   '/action/content/v3/hierarchyUpdate',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
+
+// CDN URL replacement handler for content/v3/read
+// tslint:disable-next-line: no-any
+proxiesV8.get('/action/content/v3/read/*', (req, res, next) => {
+  const contentId = req.originalUrl.split('/').pop()
+  logInfo(`${CDN_REPLACE_PREFIX} Intercepting content/v3/read for ID: ${contentId}`)
+
+  axios({
+    ...axiosRequestConfig,
+    headers: {
+      Authorization: CONSTANTS.SB_API_KEY,
+      hostPath: getReqHeader(req, 'hostPath'),
+      locale: getReqHeader(req, 'locale', 'en'),
+      org: getReqHeader(req, 'org', DEFAULT_ORG),
+      rootOrg: getReqHeader(req, 'rootOrg', DEFAULT_ORG),
+      wid: getReqHeader(req, 'wid'),
+      // tslint:disable-next-line: all
+      [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
+      [AUTHENTICATED_USER_ID]: extractUserIdFromRequest(req),
+    },
+    method: 'get',
+    url: `${CONSTANTS.KNOWLEDGE_MW_API_BASE}/action/content/v3/read/${contentId}`,
+  })
+    .then((response) => {
+      logInfo(`${CDN_REPLACE_PREFIX} Response received, applying CDN URL replacement`)
+      try {
+        const replacedData = replaceCdnUrls(response.data)
+        logInfo(`${CDN_REPLACE_PREFIX} CDN replacement completed successfully`)
+        res.json(replacedData)
+      } catch (error) {
+        logInfo(`${CDN_REPLACE_PREFIX} Error during replacement: ${error}`)
+        res.json(response.data)
+      }
+    })
+    .catch((error) => {
+      logInfo(`${CDN_REPLACE_PREFIX} Error fetching content: ${error}`)
+      next(error)
+    })
+})
+
 proxiesV8.use(
   '/action/*',
   proxyCreatorKnowledge(express.Router(), `${CONSTANTS.KNOWLEDGE_MW_API_BASE}`)
@@ -372,7 +443,7 @@ proxiesV8.post('/userData/v1/bulkUpload', async (req, res) => {
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         // tslint:disable-next-line: all
-        "x-authenticated-user-token": extractUserToken(req),
+        [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
       },
       method: 'GET',
       url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
@@ -399,8 +470,8 @@ proxiesV8.post('/userData/v1/bulkUpload', async (req, res) => {
           "x-authenticated-user-channel": channel,
           'x-authenticated-user-orgid': rootOrgId,
           'x-authenticated-user-orgname': channel,
-          'x-authenticated-user-token': extractUserToken(req),
-          'x-authenticated-userid': extractUserIdFromRequest(req),
+          [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
+          [AUTHENTICATED_USER_ID]: extractUserIdFromRequest(req),
         },
         host: 'kong',
         path: url,
@@ -438,7 +509,7 @@ proxiesV8.get('/userData/v1/bulkUpload', async (req, res) => {
     headers: {
       Authorization: CONSTANTS.SB_API_KEY,
       // tslint:disable-next-line: all
-      "x-authenticated-user-token": extractUserToken(req),
+      [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
     },
     method: 'GET',
     url: `${CONSTANTS.KONG_API_BASE}/user/v2/read/${userId}`,
@@ -460,8 +531,8 @@ proxiesV8.get('/userData/v1/bulkUpload', async (req, res) => {
       "x-authenticated-user-channel": channel,
       'x-authenticated-user-orgid': rootOrgId,
       'x-authenticated-user-orgname': channel,
-      'x-authenticated-user-token': extractUserToken(req),
-      'x-authenticated-userid': extractUserIdFromRequest(req),
+      [AUTHENTICATED_USER_TOKEN]: extractUserToken(req),
+      [AUTHENTICATED_USER_ID]: extractUserIdFromRequest(req),
     },
     method: 'GET',
     url,
@@ -521,7 +592,7 @@ proxiesV8.use(
 proxiesV8.use(
   '/discussion/*',
   // tslint:disable-next-line: max-line-length
-  proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
+  proxyCreatorDiscussionSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
 )
 
 proxiesV8.use('/forms/*',
