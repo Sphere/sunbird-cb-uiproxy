@@ -8,7 +8,7 @@ import {
 } from '../utils/requestExtract'
 import { returnData } from './dataAlterer'
 import { CONSTANTS } from './env'
-import { logInfo } from './logger'
+import { logError, logInfo } from './logger'
 
 const proxyCreator = (timeout = 10000) =>
   createProxyServer({
@@ -17,14 +17,36 @@ const proxyCreator = (timeout = 10000) =>
 const proxy = createProxyServer({})
 const PROXY_SLUG = '/proxies/v8'
 const PROXY_SLUG_FORMS = '/proxies/v8/ext-forms'
+const CONTENT_TYPE_KEY = 'content-type'
+const CONTENT_LENGTH_KEY_LOWER = 'content-length'
+const AUTH_TOKEN_KEY = 'x-authenticated-user-token'
+const AUTH_USER_ID_KEY = 'x-authenticated-userid'
+const CONTENT_LENGTH_KEY = 'Content-Length'
+
+/**
+ * Upload-dedicated proxy — streams multipart data without JSON conversion.
+ * Safe for large CSV / binary / form-data uploads.
+ * Auto-detects HTTP/HTTPS based on target URL.
+ */
+const uploadProxy = createProxyServer({
+  changeOrigin: true,
+  ignorePath: false,
+  secure: true, // Allow self-signed certificates if needed
+})
+
+uploadProxy.on('error', (err, _req, _res) => {
+  const errorMessage = err instanceof Error ? err.message : String(err)
+  logError('[UPLOAD PROXY ERROR]', errorMessage)
+})
+
 
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
   proxyReq.setHeader('X-Channel-Id', '0132317968766894088')
   // tslint:disable-next-line: max-line-length
   proxyReq.setHeader('Authorization', CONSTANTS.SB_API_KEY)
-  proxyReq.setHeader('x-authenticated-user-token', extractUserToken(req))
-  proxyReq.setHeader('x-authenticated-userid', extractUserIdFromRequest(req))
+  proxyReq.setHeader(AUTH_TOKEN_KEY, extractUserToken(req))
+  proxyReq.setHeader(AUTH_USER_ID_KEY, extractUserIdFromRequest(req))
 
   // condition has been added to set the session in nodebb req header
   // condition don't require for nodebb as of now, we manage authentication through API key and uid will be passed for each req.
@@ -34,7 +56,7 @@ proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
 
   if (req.body) {
     const bodyData = JSON.stringify(req.body)
-    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData))
+    proxyReq.setHeader(CONTENT_LENGTH_KEY, Buffer.byteLength(bodyData))
     proxyReq.write(bodyData)
   }
 })
@@ -414,6 +436,37 @@ function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }
 
+/**
+ * Extracts and builds proxy headers with authentication and content info.
+ * Consolidates header preparation logic used across proxy functions.
+ */
+function buildProxyHeaders(
+  userToken?: string,
+  userId?: string,
+  contentType?: string,
+  contentLength?: string
+): { [key: string]: string } {
+  const headers: { [key: string]: string } = {}
+
+  if (userToken) {
+    headers[AUTH_TOKEN_KEY] = userToken
+  }
+  if (userId) {
+    headers[AUTH_USER_ID_KEY] = userId
+  }
+  if (CONSTANTS?.SB_API_KEY) {
+    headers.Authorization = CONSTANTS.SB_API_KEY
+  }
+  if (contentType) {
+    headers['Content-Type'] = contentType
+  }
+  if (contentLength) {
+    headers[CONTENT_LENGTH_KEY] = contentLength
+  }
+
+  return headers
+}
+
 export function proxyCreatorSunbirdSearch(
   route: Router,
   targetUrl: string,
@@ -543,5 +596,115 @@ export function proxyCreatorDownloadCertificate(
       target: targetUrl + subStr,
     })
   })
+  return route
+}
+
+/**
+ * Proxy handler for large file uploads to entity service via Kong Gateway.
+ * Streams files without parsing - safe for multi-GB uploads.
+ *
+ * @description Routes file uploads through Kong API Gateway to FRAC ETL service.
+ * Flow: Client → /proxies/v8/entity/v1/upload → Kong → FRAC /v1/entity/upload
+ * Note: Body parsing is disabled for this route (see server.ts middleware).
+ *
+ * @param {Router} route - Express router instance
+ * @param {string} targetUrl - Kong API base URL (e.g., https://aastrika-stage.tarento.com/api)
+ * @param {number} [timeout=500000] - Upload timeout in milliseconds (default: 8.3 min)
+ * @returns {Router} Configured router with upload streaming proxy
+ *
+ * @example
+ * proxyCreatorEtlFracUpload(express.Router(), 'https://kong.example.com/api', 600000)
+ */
+export function proxyCreatorEtlFracUpload(
+  route: Router,
+  targetUrl: string,
+  timeout = 500000
+): Router {
+  // tslint:disable-next-line: no-any
+  route.all('/*', (req: any, res: any) => {
+    // Extract authentication headers
+    const xUserId = extractUserIdFromRequest(req)
+    const xAuthToken = extractUserToken(req)
+    const contentType = req.headers[CONTENT_TYPE_KEY]
+    const contentLength = req.headers[CONTENT_LENGTH_KEY_LOWER]
+
+    // Build Kong URL: KONG_API_BASE + /entity/v1/upload
+    // Kong URI: /entity/v1/upload → FRAC ETL: /v1/entity/upload
+    const path = req.originalUrl.replace('/proxies/v8', '')
+    const targetEndpoint = targetUrl + path
+
+    logInfo(`Entity upload: ${path} → ${targetEndpoint}`)
+
+    // Stream upload to Kong without parsing (preserves multipart data)
+    // tslint:disable-next-line: no-any
+    uploadProxy.web(req, res, {
+      changeOrigin: true,
+      headers: buildProxyHeaders(xAuthToken, xUserId, contentType, contentLength),
+      ignorePath: true,
+      target: targetEndpoint,
+      timeout,
+    })
+  })
+
+  return route
+}
+
+/**
+ * Proxy handler for entity API operations via Kong Gateway.
+ * Supports: search, create, update, mapping, hierarchy.
+ *
+ * @description Routes entity CRUD operations through Kong for centralized auth and rate limiting.
+ * Flow: Client → /proxies/v8/entity/v1/{operation} → Kong → FRAC /v1/entity/{operation}
+ * Auto-adds authentication headers: x-authenticated-user-token, x-authenticated-userid.
+ *
+ * @param {Router} route - Express router instance
+ * @param {string} targetUrl - Kong API base URL (e.g., https://aastrika-stage.tarento.com/api)
+ * @returns {Router} Configured router with entity API proxy
+ *
+ * @example
+ * proxyCreatorEtlFrac(express.Router(), 'https://kong.example.com/api')
+ */
+export function proxyCreatorEtlFrac(
+  route: Router,
+  targetUrl: string
+): Router {
+  // tslint:disable-next-line: no-any
+  route.all('/*', (req: any, res: any) => {
+    // Extract request path and authentication
+    const userId = extractUserIdFromRequest(req)
+    const userToken = extractUserToken(req)
+
+    // Build Kong URL: KONG_API_BASE + /entity/v1/{operation}
+    // Kong URI: /entity/v1/search → FRAC ETL: /v1/entity/search
+    const path = removePrefix(`${PROXY_SLUG}`, req.originalUrl)
+    const targetEndpoint = targetUrl + path
+
+    logInfo(`Entity API: ${path} → Kong`)
+
+    // Forward request to Kong with authentication headers
+    proxy.web(req, res, {
+      changeOrigin: true,
+      headers: buildProxyHeaders(userToken, userId),
+      ignorePath: true,
+      target: targetEndpoint,
+    })
+
+    // Log successful responses for debugging
+    // tslint:disable-next-line: no-any
+    const originalSend = res.send
+    // tslint:disable-next-line: no-any
+    res.send = function (data: string | Buffer) {
+      if (res.statusCode < 400) {
+        logInfo(`Entity API response: ${path} [${res.statusCode}]`)
+      }
+      return originalSend.call(this, data)
+    }
+
+    // Log errors for troubleshooting
+    res.on('error', (err: Error) => {
+      logError(`Entity API error: ${path} - ${err?.message || 'Unknown'}`)
+    })
+  })
+
   return route
 }

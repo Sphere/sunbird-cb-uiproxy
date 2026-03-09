@@ -91,6 +91,7 @@ export const CONSTANTS = {
   KNOWLEDGE_MW_API_BASE:
     env.KNOWLEDGE_MW_API_BASE || 'http://knowledge-mw-service:5000',
   KONG_API_BASE: env.KONG_API_BASE || 'https://sphere.aastrika.org/api',
+  FRAC_ETL_API_BASE: env.FRAC_ETL_API_BASE || 'http://frac-etl-service:8083',
   MSG_91_AUTH_KEY_SSO: env.MSG_91_AUTH_KEY_SSO || '',
   MSG91BASE: env.MSG91BASE || 'http://localhost:3300',
   MSG91KEY: env.MSG91KEY || 'http://localhost:3301',
