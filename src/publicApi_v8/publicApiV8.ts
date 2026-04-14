@@ -14,8 +14,10 @@ import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
 import { googleAuth } from './googleSignInRoutes'
 import { homePage } from './home'
+import {maharastraNursingCouncilAuth} from './maharastraNursingCouncilAuth'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { mobileAppApi } from './mobileAppApi'
+import { mpNHMUserCreation } from './mpNHMUser'
 import { publicCertificateFlinkv2 } from './publicCertifcateFlinkv2'
 import { publicContentApi } from './publicContent'
 import { publicReadForm } from './publicReadForm'
@@ -35,7 +37,6 @@ import { upsmfUserCreation } from './upsmfUser'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
-import { mpNHMUserCreation } from './mpNHMUser'
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
@@ -81,6 +82,7 @@ publicApiV8.use('/testUserOtp', userOtp)
 publicApiV8.use('/ssoLogin', ssoLogin)
 publicApiV8.use('/tnai', tnaiAuth)
 publicApiV8.use('/tnnmc', tnnmcAuth)
+publicApiV8.use('/maharastraNursingCouncil', maharastraNursingCouncilAuth)
 publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
 publicApiV8.use('/ratingsSearch', ratingsSearch)
