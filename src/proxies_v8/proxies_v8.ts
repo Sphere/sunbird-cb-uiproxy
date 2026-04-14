@@ -16,6 +16,8 @@ import {
   proxyContentLearnerVM,
   proxyCreatorDiscussionSunbird,
   proxyCreatorDownloadCertificate,
+  proxyCreatorEtlFrac,
+  proxyCreatorEtlFracUpload,
   proxyCreatorForms,
   proxyCreatorKnowledge,
   proxyCreatorLearner,
@@ -422,6 +424,14 @@ proxiesV8.use(
 proxiesV8.use(
   '/org/*',
   proxyCreatorSunbird(express.Router(), `${CONSTANTS.KONG_API_BASE}`)
+)
+proxiesV8.use(
+  '/entity/v1/upload',
+  proxyCreatorEtlFracUpload(express.Router(), CONSTANTS.KONG_API_BASE)
+)
+proxiesV8.use(
+  '/entity/v1/*',
+  proxyCreatorEtlFrac(express.Router(), CONSTANTS.KONG_API_BASE)
 )
 proxiesV8.post('/userData/v1/bulkUpload', async (req, res) => {
   if (req.files) {
