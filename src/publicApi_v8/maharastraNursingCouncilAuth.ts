@@ -155,10 +155,11 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
             return res.status(401).json({ message: AUTH_FAIL, status: 'error' })
         }
 
-        const { firstName, lastName, email, phone, rmNumber } = jwtPayload
+        const { firstName, lastName, email, phone, rmNumber, designation } = jwtPayload
         logInfo('[MNC] /login: JWT payload extracted | email:', email,
             '| phone:', phone ? 'present' : 'absent',
-            '| rmNumber:', rmNumber || 'absent')
+            '| rmNumber:', rmNumber || 'absent',
+            '| designation:', designation || 'absent')
 
         if (!email) {
             logError('[MNC] /login: email missing in JWT payload')
@@ -171,6 +172,7 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
             email,
             mobile: phone || '',
             rmnumber: rmNumber || '',
+            designation: designation || '',
             dob: '',
         }
 
@@ -366,7 +368,7 @@ const userProfileUpdate = async (axiosRequestConfig, userId, mncUserData, existi
                             professionalDetails: (existingProfileReq && existingProfileReq.professionalDetails) || [
                                 {
                                     profession: 'Healthcare Worker',
-                                    designation: 'ANM',
+                                    designation: mncUserData.designation || 'ANM',
                                     orgType: 'Public/Government Sector',
                                 },
                             ],
