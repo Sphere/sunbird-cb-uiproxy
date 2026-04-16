@@ -155,11 +155,12 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
             return res.status(401).json({ message: AUTH_FAIL, status: 'error' })
         }
 
-        const { firstName, lastName, email, phone, rmNumber, designation } = jwtPayload
+        const { firstName, lastName, email, phone, rmNumber, designation, uuid } = jwtPayload
         logInfo('[MNC] /login: JWT payload extracted | email:', email,
             '| phone:', phone ? 'present' : 'absent',
             '| rmNumber:', rmNumber || 'absent',
-            '| designation:', designation || 'absent')
+            '| designation:', designation || 'absent',
+            '| uuid:', uuid || 'absent')
 
         if (!email) {
             logError('[MNC] /login: email missing in JWT payload')
@@ -173,6 +174,7 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
             mobile: phone || '',
             rmnumber: rmNumber || '',
             designation: designation || '',
+            uuid: uuid || '',
             dob: '',
         }
 
@@ -331,9 +333,45 @@ const userProfileUpdate = async (axiosRequestConfig, userId, mncUserData, existi
         firstName = lastName = trimmedName
     }
 
-    // Carry forward existing profile sections to avoid overwriting user-entered data
-    const existingProfileReq = existingUser && _.get(existingUser, 'userDetails.profileDetails.profileReq')
-    const existingPreferences = existingUser && _.get(existingUser, 'userDetails.profileDetails.preferences')
+    // Read existing nested objects — all are spread first so unknown keys are never dropped
+    const existingProfileDetails = _.get(existingUser, 'userDetails.profileDetails') || {}
+    const existingProfileReq = existingProfileDetails.profileReq || {}
+    const existingPersonalDetails = existingProfileReq.personalDetails || {}
+
+    // Merge personal details: spread existing first, then overlay only MNC-provided fields
+    const personalDetails = {
+        ...existingPersonalDetails,
+        ...(mncUserData.email && { email: mncUserData.email, primaryEmail: mncUserData.email }),
+        ...(mncUserData.mobile && { phone: mncUserData.mobile, mobile: mncUserData.mobile }),
+        ...(firstName && { firstname: firstName }),
+        ...(lastName && { surname: lastName }),
+        ...(mncUserData.rmnumber && { regNurseRegMidwifeNumber: mncUserData.rmnumber.toString() }),
+        postalAddress: existingPersonalDetails.postalAddress || 'India,Maharastra,Mumbai',
+        dob: existingPersonalDetails.dob || mncUserData.dob || '01/01/2000',
+    }
+
+    // Merge professional details: spread existing first entry, overlay only MNC-provided fields;
+    // all other entries and all other keys in the first entry are preserved untouched
+    let professionalDetails: any[]
+    if (existingProfileReq.professionalDetails && existingProfileReq.professionalDetails.length > 0) {
+        professionalDetails = existingProfileReq.professionalDetails.map((detail: any, index: number) => {
+            if (index !== 0) { return detail }
+            return {
+                ...detail,
+                ...(mncUserData.designation && { designation: mncUserData.designation }),
+                ...(mncUserData.uuid && { uuid: mncUserData.uuid }),
+            }
+        })
+    } else {
+        professionalDetails = [
+            {
+                profession: 'Healthcare Worker',
+                designation: mncUserData.designation || 'ANM',
+                orgType: 'Public/Government Sector',
+                uuid: mncUserData.uuid || '',
+            },
+        ]
+    }
 
     try {
         const result = await axios({
@@ -343,9 +381,13 @@ const userProfileUpdate = async (axiosRequestConfig, userId, mncUserData, existi
                     firstName,
                     lastName,
                     profileDetails: {
-                        preferences: existingPreferences || { language: 'en' },
+                        // Spread entire existing profileDetails so unknown top-level keys are kept
+                        ...existingProfileDetails,
+                        preferences: existingProfileDetails.preferences || { language: 'en' },
                         profileReq: {
-                            academics: (existingProfileReq && existingProfileReq.academics) || [
+                            // Spread entire existing profileReq so unknown keys are kept
+                            ...existingProfileReq,
+                            academics: existingProfileReq.academics || [
                                 {
                                     nameOfInstitute: '',
                                     nameOfQualification: '',
@@ -354,24 +396,8 @@ const userProfileUpdate = async (axiosRequestConfig, userId, mncUserData, existi
                                 },
                             ],
                             id: userId,
-                            personalDetails: {
-                                email: mncUserData.email,
-                                primaryEmail: mncUserData.email,
-                                phone: mncUserData.mobile,
-                                mobile: mncUserData.mobile,
-                                firstname: firstName,
-                                surname: lastName,
-                                regNurseRegMidwifeNumber: mncUserData.rmnumber != null ? mncUserData.rmnumber.toString() : '',
-                                postalAddress: (existingProfileReq && existingProfileReq.personalDetails && existingProfileReq.personalDetails.postalAddress) || 'India,Maharastra,Mumbai',
-                                dob: (existingProfileReq && existingProfileReq.personalDetails && existingProfileReq.personalDetails.dob) || mncUserData.dob || '01/01/2000',
-                            },
-                            professionalDetails: (existingProfileReq && existingProfileReq.professionalDetails) || [
-                                {
-                                    profession: 'Healthcare Worker',
-                                    designation: mncUserData.designation || 'ANM',
-                                    orgType: 'Public/Government Sector',
-                                },
-                            ],
+                            personalDetails,
+                            professionalDetails,
                             userId,
                         },
                     },
