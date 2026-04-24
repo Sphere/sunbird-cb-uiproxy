@@ -346,7 +346,7 @@ const userProfileUpdate = async (axiosRequestConfig, userId, mncUserData, existi
         ...(firstName && { firstname: firstName }),
         ...(lastName && { surname: lastName }),
         ...(mncUserData.rmnumber && { regNurseRegMidwifeNumber: mncUserData.rmnumber.toString() }),
-        postalAddress: existingPersonalDetails.postalAddress || 'India,Maharastra,Mumbai',
+        postalAddress: existingPersonalDetails.postalAddress || 'India,Maharashtra,Mumbai City',
         dob: existingPersonalDetails.dob || mncUserData.dob || '01/01/2000',
     }
 
