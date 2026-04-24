@@ -49,12 +49,8 @@ const handleNewUserRegistration = async (mncUserData) => {
     const [firstName, ...rest] = trimmedName.split(' ')
     const lastName = rest.length ? rest.join(' ') : firstName
 
-    // Use email as the primary identifier; fall back to phone if email is absent
-    const primaryIdentifier = mncUserData.email
-        ? { email: mncUserData.email }
-        : { phone: mncUserData.mobile, phoneVerified: true }
     logInfo('[MNC] handleNewUserRegistration: creating user | firstName:', firstName, '| lastName:', lastName,
-        '| identifierType:', mncUserData.email ? 'email' : 'phone')
+        '| hasPhone:', String(!!mncUserData.mobile), '| hasEmail:', String(!!mncUserData.email))
 
     const responseCreateUser = await axios({
         ...axiosRequestConfig,
@@ -64,7 +60,9 @@ const handleNewUserRegistration = async (mncUserData) => {
                 firstName,
                 lastName,
                 password: randomPassword,
-                ...primaryIdentifier,
+                ...(mncUserData.mobile
+                    ? { phone: mncUserData.mobile, phoneVerified: true }
+                    : { email: mncUserData.email }),
                 tcStatus: false,
             },
         },
@@ -162,14 +160,14 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
             '| designation:', designation || 'absent',
             '| uuid:', uuid || 'absent')
 
-        if (!email) {
-            logError('[MNC] /login: email missing in JWT payload')
-            return res.status(400).json({ message: 'Email is required in token payload.', status: 'error' })
+        if (!email && !phone) {
+            logError('[MNC] /login: both email and phone missing in JWT payload')
+            return res.status(400).json({ message: 'Email or phone is required in token payload.', status: 'error' })
         }
 
         // Normalise JWT fields to the internal shape expected by all helpers
         const mncUserData = {
-            name: `${firstName} ${lastName}`.trim(),
+            name: `${firstName || ''} ${lastName || ''}`.trim(),
             email,
             mobile: phone || '',
             rmnumber: rmNumber || '',
@@ -230,13 +228,15 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
         }
 
         // Step 6: Generate a Keycloak token using the MNC client (password grant)
-        logInfo('[MNC] /login: generating Keycloak token for email:', email)
+        // Phone is the primary identifier; email is the fallback
+        const keycloakUsername = phone || email
+        logInfo('[MNC] /login: generating Keycloak token | username identifier:', phone ? 'phone' : 'email')
         const encodedData = qs.stringify({
             client_id: 'MNC',
             client_secret: CONSTANTS.KEYCLOAK_CLIENT_SECRET_MNC,
             grant_type: 'password',
             scope: 'offline_access',
-            username: email,
+            username: keycloakUsername,
         })
 
         const authTokenResponse = await axios({
