@@ -1602,7 +1602,7 @@ mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
 mobileAppApi.post('/contentSearch', async (req, res) => {
   try {
     logInfo('Inside contentSearch API new end Point')
-    
+
     const courseSearchRequestData = req.body
 
     // Call content search service

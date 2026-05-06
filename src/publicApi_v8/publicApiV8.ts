@@ -16,6 +16,7 @@ import { googleAuth } from './googleSignInRoutes'
 import { homePage } from './home'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { mobileAppApi } from './mobileAppApi'
+import { mpNHMUserCreation } from './mpNHMUser'
 import { publicCertificateFlinkv2 } from './publicCertifcateFlinkv2'
 import { publicContentApi } from './publicContent'
 import { publicReadForm } from './publicReadForm'
@@ -35,7 +36,6 @@ import { upsmfUserCreation } from './upsmfUser'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
-import { mpNHMUserCreation } from './mpNHMUser'
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
