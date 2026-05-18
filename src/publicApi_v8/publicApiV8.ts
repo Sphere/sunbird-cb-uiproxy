@@ -14,6 +14,7 @@ import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
 import { googleAuth } from './googleSignInRoutes'
 import { homePage } from './home'
+import {maharastraNursingCouncilAuth} from './maharastraNursingCouncilAuth'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { mobileAppApi } from './mobileAppApi'
 import { mpNHMUserCreation } from './mpNHMUser'
@@ -81,6 +82,7 @@ publicApiV8.use('/testUserOtp', userOtp)
 publicApiV8.use('/ssoLogin', ssoLogin)
 publicApiV8.use('/tnai', tnaiAuth)
 publicApiV8.use('/tnnmc', tnnmcAuth)
+publicApiV8.use('/maharastraNursingCouncil', maharastraNursingCouncilAuth)
 publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
 publicApiV8.use('/ratingsSearch', ratingsSearch)
