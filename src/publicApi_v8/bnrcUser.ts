@@ -52,7 +52,7 @@ interface UserDetails {
     privateFacilityType?: string
     publicFacilityType?: string
     // tslint:disable-next-line: all
-    roleForInService?: 'Public Health Facility' | 'Private Health Facility'
+    roleForInService?: 'Public Health Facility' | 'Private Health Facility' | 'CHO' | 'Staff Nurses'
     // tslint:disable-next-line: all
     role: 'Student' | 'Faculty' | 'In Service',
     serviceType?: string
@@ -62,6 +62,7 @@ const shortHands = {
     cho: 'CHO',
     privateHealthFacility: 'Private Health Facility',
     publicHealthFacility: 'Public Health Facility',
+    staffNurses: 'Staff Nurses',
 }
 const healthBihar = 'State Health Society Bihar'
 const serviceSchemaJoi = Joi.object({
@@ -164,7 +165,7 @@ const serviceSchemaJoi = Joi.object({
         }),
 
     roleForInService: Joi.string()
-        .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility, shortHands.cho)
+        .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility, shortHands.cho, shortHands.staffNurses)
         .when('role', {
             is: Joi.not('Student', 'Faculty'),
             otherwise: Joi.string().allow('', null).optional(),
