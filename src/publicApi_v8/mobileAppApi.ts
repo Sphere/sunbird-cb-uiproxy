@@ -20,7 +20,6 @@ import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { searchContent } from './contentSearchService'
 import { fetchnodebbUserDetails } from './nodebbUser'
-import { getContentWithRatings } from './ratingSummary'
 import { getCurrentUserRoles } from './rolePermission'
 
 // ... other imports ...
@@ -1603,22 +1602,12 @@ mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
 mobileAppApi.post('/contentSearch', async (req, res) => {
   try {
     logInfo('Inside contentSearch API new end Point')
-    const { rating } = req.query
+
     const courseSearchRequestData = req.body
 
     // Call content search service
     const searchResponse = await searchContent(courseSearchRequestData)
-
-    // Use the helper method to enrich with ratings if needed
-    const enrichedResult = await getContentWithRatings(
-      searchResponse.result,
-      rating === 'true'
-    )
-
-    return res.status(200).json({
-      ...searchResponse,
-      result: enrichedResult,
-    })
+    return res.status(200).json(searchResponse)
   } catch (error) {
     logError('Error in /contentSearch: ' + JSON.stringify(error))
     return res.status(500).json({
