@@ -265,6 +265,10 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
                 designation = 'CHO-Bihar'
                 orgId = '01403709013603123234776'
                 orgName = healthBihar
+            } else if (userDetails.roleForInService === 'Staff Nurses') {
+                designation = 'Staff-Nurse-Bihar'
+                orgId = '01403709013603123234776'
+                orgName = healthBihar
             }
             break
         default:
