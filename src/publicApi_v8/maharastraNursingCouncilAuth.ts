@@ -267,6 +267,12 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
             // Load roles into session so downstream middleware can authorise requests
             await getCurrentUserRoles(req, accessToken)
             logInfo('[MNC] /login: session set, user roles loaded | userId:', userId)
+
+            // Force session persist before responding — without this the redirect arrives
+            // before the session store is updated and the read API still sees the previous user's session
+            await new Promise<void>((resolve, reject) => {
+                req.session.save((err: any) => err ? reject(err) : resolve())
+            })
         } else {
             logError('[MNC] /login: Keycloak token response empty | email:', email)
             return res.status(302).json({ msg: AUTH_FAIL, status: 'error' })
