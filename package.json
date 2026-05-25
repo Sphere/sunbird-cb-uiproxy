@@ -49,6 +49,7 @@
     "express-fileupload": "^1.1.4",
     "express-healthcheck": "^0.1.0",
     "express-session": "^1.16.1",
+    "firebase-admin": "11.11.1",
     "form-data": "^3.0.0",
     "fs": "0.0.1-security",
     "google-auth-library": "^7.10.0",

@@ -21,6 +21,7 @@ import { requestValidator } from '../utils/requestValidator'
 import { searchContent } from './contentSearchService'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
+import { getFirebaseApp } from './firebase-manager';
 
 // ... other imports ...
 const cassandra = require('cassandra-driver')
@@ -79,8 +80,9 @@ const DEFAULT_ERROR_STATUS = 500
 const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
 
 // Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
-const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
-const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+// const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
+// const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
+const publicKeyValue = `MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuwcGoL2BPXrJkVszg55p8PhbGbJh66DTZiueGnRnjScyIwhYwvxmMErFv3U8jWC+r9esR2hppjRB6V/FQRWb6z11iWfSkD3+kdKlfgDo44+Z7ExKkhBbagsH9umlpy9M31V/a0rCoMFTR/5Lw/r7jF7LxIkKm1hxbomQcU2vj3xLJbbm32u7iVY9IXHuJbNFNtYe+YW7pWo58GKH3oFpv2mQqDVxAUPaSC4YsmPpbEm5650Dxnk0JV8l8JY6f6WpAD0VCi8nmdESfb3HoIiyO51L7MHdi7K8ef/ugtDq/LgmzZG2oWwHmxXcMgpfwwjjTHwZWMsxqOjpeSPPv9oZGwIDAQAB`
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
 const publicKey = beginKey + publicKeyValue + endKey
@@ -1824,5 +1826,53 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
         error: SERVER_ERROR_MSG,
       }
     )
+  }
+})
+
+mobileAppApi.post('/send-by-topic', async (req, res) => {
+  try {
+    const { topic, title, body, data} = req.body
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        error: 'Topic is required',
+      })
+    }
+    const firebaseApp = getFirebaseApp()
+    const message: any = {
+      topic,
+      notification: {
+        title: title || 'Notification',
+        body: body || '',
+      },
+      data: data || {},
+      android: {
+        priority: 'high',
+        notification: {
+          channel_id: 'default',
+          sound: 'default',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+          },
+        },
+      },
+    }
+    const response = await firebaseApp.messaging().send(message)
+    return res.json({
+      success: true,
+      topic,
+      messageId: response,
+    })
+  } catch (error) {
+    console.error('Topic Notification Error:', error)
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to send topic notification',
+      details: error.message,
+    })
   }
 })
