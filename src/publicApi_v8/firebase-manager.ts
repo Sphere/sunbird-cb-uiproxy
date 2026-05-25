@@ -1,12 +1,12 @@
-import * as admin from 'firebase-admin';
+import * as admin from 'firebase-admin'
 import { CONSTANTS } from '../utils/env'
 
-let firebaseApp: admin.app.App | null = null;
+let firebaseApp: admin.app.App | null = null
 
 export function getFirebaseApp(): admin.app.App {
 
   if (firebaseApp) {
-    return firebaseApp;
+    return firebaseApp
   }
   const FIREBASE_CONFIG: any = {
        type: CONSTANTS.FIREBASE_TYPE,
@@ -23,7 +23,7 @@ export function getFirebaseApp(): admin.app.App {
   }
   firebaseApp = admin.initializeApp({
     credential: admin.credential.cert(FIREBASE_CONFIG),
-  });
+  })
 
-  return firebaseApp;
+  return firebaseApp
 }
