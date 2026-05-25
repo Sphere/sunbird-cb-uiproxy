@@ -19,9 +19,9 @@ import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { searchContent } from './contentSearchService'
+import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
-import { getFirebaseApp } from './firebase-manager';
 
 // ... other imports ...
 const cassandra = require('cassandra-driver')
