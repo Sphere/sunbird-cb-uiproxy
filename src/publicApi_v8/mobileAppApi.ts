@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { Router } from 'express'
 import express from 'express'
+import * as admin from 'firebase-admin'
 import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
@@ -19,6 +20,7 @@ import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
 import { searchContent } from './contentSearchService'
+import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
 
@@ -1824,5 +1826,51 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
         error: SERVER_ERROR_MSG,
       }
     )
+  }
+})
+
+mobileAppApi.post('/send-by-topic', async (req, res) => {
+  try {
+    const { topic, title, body, data} = req.body
+    if (!topic) {
+      return res.status(400).json({
+        error: 'Topic is required',
+        success: false,
+      })
+    }
+    const firebaseApp = getFirebaseApp()
+    const message: admin.messaging.Message = {
+      android: {
+        notification: {
+          sound: 'default',
+        },
+        priority: 'high',
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+          },
+        },
+      },
+      data: data || {},
+      notification: {
+        body: body || '',
+        title: title || 'Notification',
+      },
+      topic,
+    }
+    const response = await firebaseApp.messaging().send(message)
+    return res.json({
+      messageId: response,
+      success: true,
+      topic,
+    })
+  } catch (error: unknown) {
+    return res.status(500).json({
+      details: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Failed to send topic notification',
+      success: false,
+    })
   }
 })
