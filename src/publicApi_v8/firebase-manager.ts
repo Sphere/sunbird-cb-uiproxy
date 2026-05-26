@@ -11,7 +11,7 @@ export function getFirebaseApp(): admin.app.App {
 
   const FIREBASE_CONFIG: admin.ServiceAccount = {
     clientEmail: CONSTANTS.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    privateKey: CONSTANTS.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     projectId: CONSTANTS.FIREBASE_PROJECT_ID,
   }
 
