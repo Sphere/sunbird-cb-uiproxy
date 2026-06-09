@@ -76,14 +76,10 @@ validateCertificate.post('/validate', async (req, res) => {
         if (response.data.responseCode === 'OK') {
             logInfo('Log of validate certificate if OK :')
             const result = response.data.result
-            // The recipient userId lives inside the certificate result. Paths vary by
-            // deployment, so confirm the correct one against this logged result and trim below.
-            logInfo('Validate certificate result >>>>>>' + JSON.stringify(result))
+            // The recipient userId lives at result.response.json.recipient.identity
             const recipientId =
-                _.get(result, 'recipient.id') ||
-                _.get(result, 'recipient.identity') ||
-                _.get(result, 'json.recipient.id') ||
-                _.get(result, 'json.recipient.identity') ||
+                _.get(result, 'response.json.recipient.identity') ||
+                _.get(result, 'response.json.recipient.id') ||
                 ''
             if (recipientId) {
                 const contactDetails = await getUserContactDetails(recipientId)
