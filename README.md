@@ -69,29 +69,69 @@ Browser / Mobile App
 ```
 
 **Databases used internally:**
-- **Cassandra** — session store
-- **MongoDB** — application data
-- **PostgreSQL** — relational data
-- **Elasticsearch** — search indexing
+
+#### Cassandra — Most heavily used
+
+Primary role: HTTP session persistence + Sunbird's main transactional store.
+
+| Use Case | Keyspace | Table(s) |
+|---|---|---|
+| HTTP session persistence | `portal` | `sessions` (via `cassandra-store`) |
+| Event lifecycle (create / update / retrieve) | `sunbird` | `rc_events`, `rc_events_users` |
+| OTP authentication | `sunbird` | `otp` |
+| Assessment submission tracking | `sunbird_courses` | `user_assessment_info` |
+| User identity / Keycloak UUID mapping | `bodhi` | `eagle_unique_identifiers`, `eagle_uuid_master` |
+| Bulk user upload tracking | `sunbird` | `user_sso_bulkupload_v2` |
+| User access paths & permissions | `bodhi` | `user_access_paths`, `bulk_user_upload_detail` |
+| User profile journey audit trail | `sunbird` | `user_profile_journey` |
+
+Key files: `src/configs/session.config.ts`, `src/protectedApi_v8/rcEvents.ts`, `src/publicApi_v8/userOtp.ts`, `src/utils/assessmentSubmitHelper.ts`, `src/utils/keycloak-user-creation.ts`, `src/protectedApi_v8/admin/bulkUploadUser.ts`, `src/protectedApi_v8/admin/userRegistration.ts`, `src/protectedApi_v8/user/profile-details.ts`
+
+#### PostgreSQL — Competency data + State-specific registrations
+
+| Use Case | Table | Files |
+|---|---|---|
+| Competency/skill node lookup (feeds Elasticsearch filters) | `public.data_node` | `publicSearch.ts`, `courseRecommendation.ts`, `recommendationEngineV2.ts` |
+| Madhya Pradesh NHM user registration | `mp_registration_data` | `publicApi_v8/mpNHMUser.ts` |
+| Bihar NRHM (BNRC) user registration | `bnrc_registration_data_prod` | `publicApi_v8/bnrcUser.ts` |
+
+The `data_node` table is the bridge between search and recommendations: APIs first do an `ILIKE` query on `data_node` to resolve competency IDs, then use those IDs to build Elasticsearch `terms` filters across competency levels 1–5.
+
+#### Elasticsearch — Search & Autocomplete
+
+| Use Case | Index | Files | Access Method |
+|---|---|---|---|
+| User autocomplete (firstName / lastName matching) | `user_alias` | `protectedApi_v8/autoCompletev2.ts` | `elasticsearch` npm client |
+| Homepage and content search autocomplete | content indices | `publicApi_v8/home.ts`, `protectedApi_v8/content.ts` | HTTP (`axios` → `ES_BASE`) |
+| Infosys radio content search | `lexcontentindex` | `protectedApi_v8/infyradio.ts` | HTTP (`axios` → `ES_BASE`) |
+| Topic autocomplete | `lex_topic` | `protectedApi_v8/user/topic.ts` | HTTP (`axios` → `ES_BASE`) |
+
+#### MongoDB — Declared but not actively used
+
+`MONGODB_URL` is defined in `src/utils/env.ts` but no MongoDB client, collections, or queries exist in the codebase. Reserved for future use.
 
 ---
 
 ## Tech Stack
 
-| Category | Technology |
-|---|---|
-| Runtime | Node.js |
-| Language | TypeScript |
-| Framework | Express.js 4.x |
-| Authentication | Keycloak (JWT), Google OAuth |
-| Real-time | Socket.IO 4.x |
-| Databases | MongoDB, PostgreSQL, Cassandra, Elasticsearch |
-| Cloud | AWS S3, Firebase |
-| Build | Gulp, TypeScript compiler |
-| Package Manager | Yarn |
-| Process Manager | Node cluster / Nodemon |
-| Containerization | Docker |
-| CI/CD | Jenkins |
+| Category | Technology | Version |
+|---|---|---|
+| Runtime | Node.js | 20.19.2 |
+| Language | TypeScript | 4.2.4 |
+| Framework | Express.js | 4.22.2 |
+| Authentication | Keycloak (`keycloak-connect`), Google OAuth (`google-auth-library`) | 7.0.1 / 7.10.0 |
+| JWT | `jsonwebtoken` | 9.0.2 |
+| Real-time | Socket.IO | 4.8.1 |
+| HTTP Client | Axios | 0.19.1 |
+| Databases | Cassandra (`cassandra-driver`), PostgreSQL (`pg`), Elasticsearch | 4.6.4 / 8.11.3 / 16.7.2 |
+| Cloud | AWS SDK, Firebase Admin | 2.1693.0 / 11.11.1 |
+| Logging | Pino | 6.11.3 |
+| Utilities | Lodash | 4.18.1 |
+| Build | Gulp | 4.0.2 |
+| Package Manager | Yarn | 1.22.22 |
+| Process Manager | Node cluster / Nodemon | — / 1.19.1 |
+| Containerization | Docker | — |
+| CI/CD | Jenkins | — |
 
 ---
 
