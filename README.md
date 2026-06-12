@@ -80,9 +80,7 @@ Primary role: HTTP session persistence + Sunbird's main transactional store.
 | Event lifecycle (create / update / retrieve) | `sunbird` | `rc_events`, `rc_events_users` |
 | OTP authentication | `sunbird` | `otp` |
 | Assessment submission tracking | `sunbird_courses` | `user_assessment_info` |
-| User identity / Keycloak UUID mapping | `bodhi` | `eagle_unique_identifiers`, `eagle_uuid_master` |
 | Bulk user upload tracking | `sunbird` | `user_sso_bulkupload_v2` |
-| User access paths & permissions | `bodhi` | `user_access_paths`, `bulk_user_upload_detail` |
 | User profile journey audit trail | `sunbird` | `user_profile_journey` |
 
 Key files: `src/configs/session.config.ts`, `src/protectedApi_v8/rcEvents.ts`, `src/publicApi_v8/userOtp.ts`, `src/utils/assessmentSubmitHelper.ts`, `src/utils/keycloak-user-creation.ts`, `src/protectedApi_v8/admin/bulkUploadUser.ts`, `src/protectedApi_v8/admin/userRegistration.ts`, `src/protectedApi_v8/user/profile-details.ts`
@@ -105,11 +103,6 @@ The `data_node` table is the bridge between search and recommendations: APIs fir
 | Homepage and content search autocomplete | content indices | `publicApi_v8/home.ts`, `protectedApi_v8/content.ts` | HTTP (`axios` → `ES_BASE`) |
 | Infosys radio content search | `lexcontentindex` | `protectedApi_v8/infyradio.ts` | HTTP (`axios` → `ES_BASE`) |
 | Topic autocomplete | `lex_topic` | `protectedApi_v8/user/topic.ts` | HTTP (`axios` → `ES_BASE`) |
-
-#### MongoDB — Declared but not actively used
-
-`MONGODB_URL` is defined in `src/utils/env.ts` but no MongoDB client, collections, or queries exist in the codebase. Reserved for future use.
-
 ---
 
 ## Tech Stack
@@ -172,7 +165,7 @@ Copy `env-file` and populate with your values. Key variables:
 | `KONG_API_BASE` | Kong API gateway base URL | `https://sphere.aastrika.org/api` |
 | `KNOWLEDGE_MW_API_BASE` | Knowledge middleware base URL | — |
 | `SUNBIRD_PROXY_API_BASE` | Sunbird API gateway base URL | — |
-| `CASSANDRA_IP` | Cassandra host IP | `10.0.75.1` |
+| `CASSANDRA_IP` | Cassandra host IP | - |
 | `CASSANDRA_KEYSPACE` | Cassandra keyspace | — |
 | `CASSANDRA_USERNAME` | Cassandra username | — |
 | `CASSANDRA_PASSWORD` | Cassandra password | — |

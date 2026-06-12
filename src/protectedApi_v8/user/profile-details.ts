@@ -265,7 +265,7 @@ const failedToReadUser = 'Failed to read newly created user details.'
 const failedToCreateUserInOpenSaber =
   'Not able to create User Registry in Opensaber'
 const createUserFailed = 'ERROR CREATING USER >'
-const fetchUserMongodbFailed =
+const fetchDecryptionServiceFailed =
   'Error while fetching data from decryptionService'
 const failedToUpdateUser = 'Failed to update user profile data.'
 const unknownError = 'Failed due to unknown reason'
@@ -419,7 +419,7 @@ profileDeatailsApi.post('/completeUserInfo', async (req, res) => {
     })
     res.status(userData.status || 200).send(userData.data)
   } catch (err) {
-    logError(fetchUserMongodbFailed, err)
+    logError(fetchDecryptionServiceFailed, err)
     res
       .status((err && err.response && err.response.status) || 500)
       .send(err.message || 'Something went wrong')
