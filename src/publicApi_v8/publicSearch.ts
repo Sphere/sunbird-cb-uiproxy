@@ -8,11 +8,7 @@ import { logInfo } from '../utils/logger'
 
 export const publicSearch = Router()
 
-const API_END_POINTS = {
-  search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
-  searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-
-}
+import { API_END_POINTS } from './apiConstants'
 const postgresConnectionDetails = {
   database: CONSTANTS.POSTGRES_DATABASE,
   host: CONSTANTS.POSTGRES_HOST,

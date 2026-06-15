@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
+import { API_END_POINTS } from './apiConstants'
 
 const pgPool = new (require('pg')).Pool({
     connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
@@ -208,16 +209,6 @@ const serviceSchemaJoi = Joi.object({
         }),
     serviceType: Joi.string().allow('', null).optional(),
 })
-const API_END_POINTS = {
-    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
 const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
@@ -626,7 +617,7 @@ const createUser = async (userDetails: UserDetails) => {
             },
 
             method: 'POST',
-            url: API_END_POINTS.createUser,
+            url: API_END_POINTS.httpsCreateUser,
         })
         if (userCreationResponse.data.result.userId) {
             return {
@@ -935,7 +926,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
-            url: API_END_POINTS.profileUpdate,
+            url: API_END_POINTS.httpsProfileUpdate,
         })
         return true
     } catch (error) {
@@ -1112,7 +1103,7 @@ const migrateUserToBnrc = async (userDetails, userFormDetails) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
-            url: API_END_POINTS.profileUpdate,
+            url: API_END_POINTS.httpsProfileUpdate,
         })
         if (migrateUserResponse.data.result.response == 'success') {
             return true

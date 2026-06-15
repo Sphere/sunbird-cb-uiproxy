@@ -4,9 +4,7 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
-const API_END_POINTS = {
-    getWAPdf: (userId: string, waId: string) => `${CONSTANTS.SB_EXT_API_BASE_2}/v1/workallocation/getWAPdf/${userId}/${waId}`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const workallocationPublic = Router()
 

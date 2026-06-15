@@ -11,11 +11,7 @@ import { getContentDetails} from '../protectedApi_v8/content'
 import { getFilters } from '../service/catalog'
 import { CONSTANTS } from '../utils/env'
 import { ERROR } from '../utils/message'
-const API_END_POINTS = {
-  searchAutoComplete: `${CONSTANTS.ES_BASE}`,
-  searchV6: `${CONSTANTS.SEARCH_API_BASE}/v6/search`,
-
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const homePage = Router()
 

@@ -6,10 +6,7 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { getCurrentUserRoles } from './rolePermission'
-const API_END_POINTS = {
-  generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-  verfifyToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/userinfo`,
-}
+import { API_END_POINTS } from './apiConstants'
 // tslint:disable-next-line: no-any
 export const authorizationV2Api = async (
   username: string,
