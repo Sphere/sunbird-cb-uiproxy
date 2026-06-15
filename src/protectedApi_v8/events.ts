@@ -1,15 +1,13 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
-
-const EVENTS_BASE_API = `${CONSTANTS.CONTENT_API_BASE}/live-events`
+import { API_END_POINTS } from './apiConstants'
 
 export const eventsApi = Router()
 
 eventsApi.get('/', async (_req, res) => {
   try {
-    const response = await axios.get(EVENTS_BASE_API, {
+    const response = await axios.get(API_END_POINTS.liveEvents, {
       ...axiosRequestConfig,
     })
     res.send((response.data))

@@ -24,42 +24,9 @@ import {
 const cassandra = require('cassandra-driver')
 
 import { v4 as uuidv4 } from 'uuid'
+import { API_END_POINTS } from '../apiConstants'
 const dateFormat = require('dateformat')
 
-const API_END_POINTS = {
-  completeUserInfo: `${CONSTANTS.DECRYPTION_API_BASE}/user_search`,
-  createOSUserRegistry: (userId: string) =>
-    `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/create/profile?userId=${userId}`,
-  createSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/v1/user/signup`,
-  createUserRegistry: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/createUserRegistry`,
-  getMasterLanguages: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getMasterLanguages`,
-  getMasterNationalities: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getMasterNationalities`,
-  getOSUserRegistryById: (userId: string) =>
-    `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/search/profile?userId=${userId}`,
-  getProfilePageMeta: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getProfilePageMeta`,
-  getUserRegistry: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getUserRegistry`,
-  getUserRegistryById: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getUserRegistryById`,
-  kongCreateUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  kongSearchUser: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
-  kongSendWelcomeEmail: `${CONSTANTS.KONG_API_BASE}/private/user/v1/notification/email`,
-  kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
-  kongUserRead: (userId: string) =>
-    `${CONSTANTS.KONG_API_BASE}/user/v1/read/${userId}`,
-  kongUserResetPassword: `${CONSTANTS.KONG_API_BASE}/private/user/v1/password/reset`,
-  // tslint:disable-next-line: object-literal-sort-keys
-  migrateRegistry: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/migrateRegistry`,
-  resetPassword: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/password/reset`,
-  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  sendWelcomeEmail: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/notification/email`,
-  setUserProfileStatus: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/setUserProfileStatus`,
-  telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
-
-  updateOSUserRegistry: (userId: string) =>
-    `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/update/profile?userId=${userId}`,
-  userProfileStatus: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/userProfileStatus`,
-  userRead: (userId: string) =>
-    `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/v2/read/${userId}`,
-}
 
 export async function getUserProfileStatus(wid: string) {
   try {

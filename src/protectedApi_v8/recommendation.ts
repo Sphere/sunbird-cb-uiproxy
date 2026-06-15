@@ -4,22 +4,11 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { EContentTypes, IContent } from '../models/content.model'
 import { IPaginatedApiResponse } from '../models/paginatedApi.model'
 import { processContent, shuffleContent } from '../utils/contentHelpers'
-import { CONSTANTS } from '../utils/env'
 import { getStringifiedQueryParams } from '../utils/helpers'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserEmailFromRequest, extractUserIdFromRequest } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-  interest: (userId: string) => `${CONSTANTS.RECOMMENDATION_API_BASE}/${userId}/recommendations/interest`,
-  interestV2: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/users`,
-  recommendations: CONSTANTS.RECOMMENDATION_API_BASE,
-  searchV6: `${CONSTANTS.SB_EXT_API_BASE}/v6/search`,
-  usage: CONSTANTS.RECOMMENDATION_API_BASE + '/v1/recommendation',
-  // interest: (userId: string) => `${CONSTANTS.SB_EXT_API_BASE}/${userId}/recommendations/interest`,
-  // recommendations: CONSTANTS.SB_EXT_API_BASE,
-  // usage: CONSTANTS.SB_EXT_API_BASE + '/v1/recommendation',
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const recommendationApi = Router()
 
@@ -41,7 +30,7 @@ recommendationApi.get('/', async (req, res) => {
     }
     const recommendationCategory = decodedFilters.recommendationCategory
     // tslint:disable-next-line: max-line-length
-    const url = `${API_END_POINTS.recommendations}/${extractUserIdFromRequest(
+    const url = `${API_END_POINTS.recommendationBase}/${extractUserIdFromRequest(
       req
     )}/recommendations?type=${recommendationCategory}`
     const response = await axios({
@@ -96,7 +85,7 @@ recommendationApi.get('/interestBased', async (req, res) => {
       pageNumber: pageNo,
       pageSize,
     })
-    const url = `${API_END_POINTS.interest(extractUserIdFromRequest(req))}?${queryParams}`
+    const url = `${API_END_POINTS.recommendationInterest(extractUserIdFromRequest(req))}?${queryParams}`
     const response = await axios.get(url, {
       ...axiosRequestConfig,
       headers: {
@@ -138,7 +127,7 @@ recommendationApi.get('/keyword', async (req, res) => {
   try {
     const userId = extractUserIdFromRequest(req)
     const rootOrg = req.header('rootOrg')
-    const response = await axios.get(`${API_END_POINTS.interestV2}/${userId}/interests`, {
+    const response = await axios.get(`${API_END_POINTS.sbExtUsersBase}/${userId}/interests`, {
       ...axiosRequestConfig,
       headers: { rootOrg },
     })
@@ -204,7 +193,7 @@ recommendationApi.get('/usageBased', async (req, res) => {
       resourceCount: pageSize,
       userId: extractUserIdFromRequest(req),
     })
-    const url = `${API_END_POINTS.usage}/${extractUserEmailFromRequest(req)}/usage?${queryParams}`
+    const url = `${API_END_POINTS.recommendationUsage}/${extractUserEmailFromRequest(req)}/usage?${queryParams}`
     const response = await axios({
       ...axiosRequestConfig,
       headers: {
@@ -262,7 +251,7 @@ recommendationApi.get('/:recommendationType', async (req, res) => {
       sourceFields,
       type: recommendationCategory,
     }
-    const url = `${API_END_POINTS.recommendations}/${extractUserIdFromRequest(req)}/recommendations/${recommendationType}`
+    const url = `${API_END_POINTS.recommendationBase}/${extractUserIdFromRequest(req)}/recommendations/${recommendationType}`
     if (recommendationType === 'latest') {
       params.learningMode = 'Self-Paced'
       if (rootOrg === 'iGOT' && org === 'iGOT Ltd') {

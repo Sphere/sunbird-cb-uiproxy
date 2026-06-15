@@ -10,15 +10,9 @@ import { getUserByEmail } from '../discussionHub/users'
 import { createDiscussionHubUser } from '../discussionHub/writeApi'
 import { getRoles , getUserStatus} from '../portal-v3'
 import { getProfileStatus } from './profile-registry'
+import { API_END_POINTS } from '../apiConstants'
 
 export const detailsApi = Router()
-
-const API_END_POINTS = {
-  detail: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/wid`,
-  emailId: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/email`,
-  managerDetails: `${CONSTANTS.USER_PROFILE_API_BASE}/user`,
-  pidProfile: `${CONSTANTS.USER_PROFILE_API_BASE}/user/get-update`,
-}
 
 detailsApi.get('/', async (req, res) => {
   try {

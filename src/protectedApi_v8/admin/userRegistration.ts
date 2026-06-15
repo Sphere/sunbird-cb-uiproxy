@@ -2,7 +2,6 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import {
   createKeycloakUser,
   getAuthToken,
@@ -13,16 +12,7 @@ import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
 import { wTokenApiMock } from '../user/details'
 import { updateRolesV2Mock } from '../user/roles'
-
-const REGISTRATION_BASE = `${CONSTANTS.SB_EXT_API_BASE_2}/v1/content-sources`
-const API_ENDPOINTS = {
-  deregisterUsers: (source: string) =>
-    `${REGISTRATION_BASE}/${source}/deregistered-users`,
-  getDepartment: `${CONSTANTS.USER_PROFILE_API_BASE}/user/department`,
-  listUsers: (source: string) => `${REGISTRATION_BASE}/${source}/users`,
-  registrationStatus: REGISTRATION_BASE,
-  updateDepartment: `${CONSTANTS.USER_PROFILE_API_BASE}/user/department/update`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const userRegistrationApi = Router()
 
@@ -30,7 +20,7 @@ userRegistrationApi.get('/listUsers/:source', async (req, res) => {
   try {
     const rootOrg = req.header('rootOrg')
     const source = req.params.source
-    const response = await axios.get(API_ENDPOINTS.listUsers(source), {
+    const response = await axios.get(API_END_POINTS.listUsers(source), {
       headers: { rootOrg },
     })
     res.json(response.data)
@@ -47,7 +37,7 @@ userRegistrationApi.post('/deregisterUsers/:source', async (req, res) => {
     const rootOrg = req.header('rootOrg')
     const source = req.params.source
     const response = await axios.post(
-      API_ENDPOINTS.deregisterUsers(source),
+      API_END_POINTS.deregisterUsers(source),
       req.body,
       { headers: { rootOrg } }
     )
@@ -64,7 +54,7 @@ userRegistrationApi.get('/getAllSources', async (req, res) => {
   try {
     const rootOrg = req.header('rootOrg')
     const response = await axios.get(
-      `${API_ENDPOINTS.registrationStatus}?registrationProvided=false`,
+      `${API_END_POINTS.registrationStatus}?registrationProvided=false`,
       {
         ...axiosRequestConfig,
         headers: { rootOrg },
@@ -87,7 +77,7 @@ userRegistrationApi.get('/getSourceDetail/:id', async (req, res) => {
     const rootOrg = req.header('rootOrg')
     const source = req.params.id
     const response = await axios.get(
-      `${API_ENDPOINTS.registrationStatus}/${source}`,
+      `${API_END_POINTS.registrationStatus}/${source}`,
       {
         ...axiosRequestConfig,
         headers: { rootOrg },
@@ -110,7 +100,7 @@ userRegistrationApi.get(
       const uuid = extractUserIdFromRequest(req)
       const rootOrg = req.header('rootOrg')
       const response = await axios.get(
-        `${API_ENDPOINTS.registrationStatus}/${source}/users/${uuid}`,
+        `${API_END_POINTS.registrationStatus}/${source}/users/${uuid}`,
         {
           ...axiosRequestConfig,
           headers: { rootOrg },
@@ -131,7 +121,7 @@ userRegistrationApi.post('/register', async (req, res) => {
     const source = req.body.source
     const rootOrg = req.header('rootOrg')
     const response = await axios.post(
-      `${API_ENDPOINTS.registrationStatus}/${source}/users`,
+      `${API_END_POINTS.registrationStatus}/${source}/users`,
       req.body.items,
       {
         ...axiosRequestConfig,
@@ -322,7 +312,7 @@ userRegistrationApi.get('/user/department', async (req, res) => {
     const rootOrg = req.header('rootOrg')
     const org = req.header('org')
     const response = await axios.post(
-      `${API_ENDPOINTS.getDepartment}`,
+      `${API_END_POINTS.getDepartment}`,
       { wid },
       {
         ...axiosRequestConfig,
@@ -348,7 +338,7 @@ userRegistrationApi.post('/user/department/update', async (req, res) => {
     const rootOrg = req.header('rootOrg')
     const org = req.header('org')
     const response = await axios.post(
-      `${API_ENDPOINTS.updateDepartment}`,
+      `${API_END_POINTS.updateDepartment}`,
       { userId, departmentName },
       {
         ...axiosRequestConfig,

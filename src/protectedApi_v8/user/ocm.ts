@@ -1,12 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
-const API_END_POINTS = {
-  user: CONSTANTS.SB_EXT_API_BASE + '/v1/users/',
-}
 
 export const ocmApi = Router()
 

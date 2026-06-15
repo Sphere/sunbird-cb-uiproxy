@@ -1,18 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-  attendedCourses: (userId: string, sourceFields?: string) =>
-    `${CONSTANTS.ATTENDANCE_API_BASE}/v1/users/${userId}/attended-content?source_fields=${sourceFields}`,
-  attendedUsers: (contentId: string) =>
-    `${CONSTANTS.ATTENDANCE_API_BASE}/v1/content/${contentId}/attended-users`,
-  verifyAttendedUsers: (userId: string, contentIds: string) =>
-    `${CONSTANTS.ATTENDANCE_API_BASE}/v1/users/${userId}/verify-attendence?content_id=${contentIds}`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const attendedContentApi = Router()
 

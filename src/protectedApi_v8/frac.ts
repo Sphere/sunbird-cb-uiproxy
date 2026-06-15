@@ -3,21 +3,9 @@ import axios from 'axios'
 import { Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
+import { API_END_POINTS } from './apiConstants'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
-
-const API_END_POINTS = {
-  addDataNode: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/addDataNode`,
-  addDataNodeBulk: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/addDataNodeBulk`,
-  getActivity: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/getAllNodes?type=ACTIVITY&status=VERIFIED`,
-  getCompetencyArea: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/getAllNodes?type=COMPETENCYAREA`,
-  getDictionary: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/getAllNodes?type=COMPETENCY&status=VERIFIED`,
-  getNodeById: (id: string, type: string) =>
-    `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/getNodeById?id=${id}&type=${type}&isDetail=true`,
-  getRole: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/getAllNodes?type=ROLE&status=VERIFIED`,
-  searchNodes: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/searchNodes`,
-}
 
 export const fracApi = Router()
 const unknownError = 'Failed due to unknown reason'

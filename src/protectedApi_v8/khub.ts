@@ -2,17 +2,9 @@ import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
 import { IKhubItemSearch, IKHubResultHome } from '../models/khub.model'
-import { CONSTANTS } from '../utils/env'
 import { getStringifiedQueryParams } from '../utils/helpers'
 import { ERROR } from '../utils/message'
-
-const apiEndpoints = {
-  morelikeApi: `${CONSTANTS.KHUB_SEARCH_BASE}/api/v1/moreLikeThis`,
-  relatedResources: (contentId: string, contentType: string) =>
-    `${CONSTANTS.KHUB_SEARCH_BASE}/api/v1/moreLikeThis/${contentId}?contentType=${contentType}`,
-  searchApi: `${CONSTANTS.KHUB_SEARCH_BASE}/api/v1/search`,
-  topicsApi: `${CONSTANTS.KHUB_SEARCH_BASE}/api/v1/topic`,
-}
+import { API_END_POINTS } from './apiConstants'
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 export const knowledgeHubApi = Router()
 
@@ -27,7 +19,7 @@ knowledgeHubApi.get('/fetchRelatedResources/:contentId/:contentType', async (req
     }
 
     const response = await axios
-      .get(apiEndpoints.relatedResources(contentId, contentType), {
+      .get(API_END_POINTS.khubRelatedResources(contentId, contentType), {
         ...axiosRequestConfig,
         headers: { rootOrg, org },
       })
@@ -50,7 +42,7 @@ knowledgeHubApi.get('/home/', async (req: Request, res: Response) => {
       size: req.query.size,
     })
     let url: string
-    url = `${apiEndpoints.searchApi}?${queryParams}`
+    url = `${API_END_POINTS.khubSearch}?${queryParams}`
     const searchData: IKHubResultHome = await axios
       .get<IKHubResultHome>(url, axiosRequestConfig)
       .then((response) => response.data)
@@ -79,7 +71,7 @@ knowledgeHubApi.get('/search/:query/:from/:size/:category', async (req: Request,
       size,
     })
     let url: string
-    url = `${apiEndpoints.searchApi}?${queryParams}`
+    url = `${API_END_POINTS.khubSearch}?${queryParams}`
     const searchResultData: IKhubItemSearch = await axios
       .get<IKhubItemSearch>(url, axiosRequestConfig)
       .then((response) => {
@@ -101,7 +93,7 @@ knowledgeHubApi.get('/item/:id', async (req: Request, res: Response) => {
       filter: `"itemId":["${req.params.id}"]`,
     })
     let url: string
-    url = `${apiEndpoints.searchApi}?${queryParams}`
+    url = `${API_END_POINTS.khubSearch}?${queryParams}`
     const searchResultData: {} = await axios
       .get<{}>(url, axiosRequestConfig)
       .then((response) => response.data)
@@ -127,7 +119,7 @@ knowledgeHubApi.get('/moreLike/:category/:itemId/:source', async (req: Request, 
       source,
     })
     let url: string
-    url = `${apiEndpoints.morelikeApi}?${queryParams}`
+    url = `${API_END_POINTS.khubMoreLikeThis}?${queryParams}`
     const searchResultData: {} = await axios
       .get<{}>(url, axiosRequestConfig)
       .then((response) => response.data)
@@ -145,7 +137,7 @@ knowledgeHubApi.get('/moreLike/:category/:itemId/:source', async (req: Request, 
 knowledgeHubApi.post('/topic', async (req: Request, res: Response) => {
   try {
     let url: string
-    url = `${apiEndpoints.topicsApi}`
+    url = `${API_END_POINTS.khubTopics}`
     const searchResultData: {} = await axios
       .post<{}>(url, req.body, axiosRequestConfig)
       .then((response) => response.data)

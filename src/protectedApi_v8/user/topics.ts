@@ -1,17 +1,9 @@
 import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-const apiEndPoints = {
-  add: `${CONSTANTS.SB_EXT_API_BASE}/v1/user/topic/add`,
-  autocomplete: `${CONSTANTS.INTEREST_API_BASE}/v1/interests/auto`,
-  interestV2: `${CONSTANTS.INTEREST_API_BASE}/v1/users`,
-  modify: `${CONSTANTS.INTEREST_API_BASE}/v2/users`,
-  multiple: `${CONSTANTS.INTEREST_API_BASE}/v3/users`,
-  read: `${CONSTANTS.SB_EXT_API_BASE}/v1/user/topic/read`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
@@ -19,7 +11,7 @@ export const topicsApi = Router()
 topicsApi.get('/', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.get(`${apiEndPoints.read}/${userId}`, axiosRequestConfig)
+    const response = await axios.get(`${API_END_POINTS.topicRead}/${userId}`, axiosRequestConfig)
 
     if (
       response.data &&
@@ -50,7 +42,7 @@ topicsApi.post('/', async (req: Request, res: Response) => {
         userId,
       },
     }
-    const response = await axios.post(apiEndPoints.add, body, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.add, body, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -65,7 +57,7 @@ topicsApi.get('/v2', async (req: Request, res: Response) => {
   try {
     const userId = req.query.wid || extractUserIdFromRequest(req)
     const rootOrg = req.header('rootOrg')
-    const response = await axios.get(`${apiEndPoints.interestV2}/${userId}/interests`, {
+    const response = await axios.get(`${API_END_POINTS.interestV2}/${userId}/interests`, {
       ...axiosRequestConfig,
       headers: { rootOrg },
     })
@@ -92,7 +84,7 @@ topicsApi.delete('/', async (req: Request, res: Response) => {
       res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
-    const response = await axios.delete(`${apiEndPoints.modify}/${userId}/interests`, {
+    const response = await axios.delete(`${API_END_POINTS.modify}/${userId}/interests`, {
       ...axiosRequestConfig,
       data: req.body,
       headers: { rootOrg },
@@ -112,7 +104,7 @@ topicsApi.patch('/addMultiple', async (req: Request, res: Response) => {
   try {
     const rootOrg = req.header('rootOrg')
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.patch(`${apiEndPoints.multiple}/${userId}/interests`, req.body, {
+    const response = await axios.patch(`${API_END_POINTS.multiple}/${userId}/interests`, req.body, {
       ...axiosRequestConfig,
       headers: { rootOrg },
     })
@@ -130,7 +122,7 @@ topicsApi.patch('/', async (req: Request, res: Response) => {
   try {
     const rootOrg = req.header('rootOrg')
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.patch(`${apiEndPoints.modify}/${userId}/interests`, req.body, {
+    const response = await axios.patch(`${API_END_POINTS.modify}/${userId}/interests`, req.body, {
       ...axiosRequestConfig,
       headers: { rootOrg },
     })
@@ -150,7 +142,7 @@ topicsApi.get('/suggested', async (req: Request, res: Response) => {
     const rootOrg = req.header('rootOrg')
     const org = req.header('org')
     const langCode = req.header('locale')
-    const response = await axios.get(`${apiEndPoints.interestV2}/${userId}/interests/suggested`, {
+    const response = await axios.get(`${API_END_POINTS.interestV2}/${userId}/interests/suggested`, {
       ...axiosRequestConfig,
       headers: { rootOrg, org, langCode },
     })
@@ -174,9 +166,9 @@ topicsApi.get('/autocomplete', async (req: Request, res: Response) => {
     // tslint:disable-next-line: no-console
     console.log(
       // tslint:disable-next-line: max-line-length
-      `AUTOCOMPLETE::${apiEndPoints.autocomplete}?query=${query}    :: rootOrg:${rootOrg}, org:${org}, langCode:${langCode}`
+      `AUTOCOMPLETE::${API_END_POINTS.autocompleteinterest}?query=${query}    :: rootOrg:${rootOrg}, org:${org}, langCode:${langCode}`
     )
-    const response = await axios.get(`${apiEndPoints.autocomplete}?query=${query}`, {
+    const response = await axios.get(`${API_END_POINTS.autocompleteinterest}?query=${query}`, {
       ...axiosRequestConfig,
       headers: { rootOrg, org, langCode },
     })

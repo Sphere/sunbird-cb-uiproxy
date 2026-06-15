@@ -2,13 +2,9 @@ import axios from 'axios'
 import { Router } from 'express'
 import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-    getPosts: (term: string) => `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/recent/posts/${term}`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const postsApi = Router()
 
@@ -18,7 +14,7 @@ postsApi.get('/:term', async (req, res) => {
         const userId = extractUserIdFromRequest(req)
         logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
         const term = req.params.term
-        const url = API_ENDPOINTS.getPosts(term)
+        const url = API_END_POINTS.getPosts(term)
         const response = await axios.get(
             url,
             { ...axiosRequestConfig, headers: { rootOrg } }

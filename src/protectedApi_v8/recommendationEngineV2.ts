@@ -2,17 +2,10 @@ import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
+import { API_END_POINTS } from './apiConstants'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-  // tslint:disable-next-line: no-any
-  cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
-  recommendationAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
-  search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
-  searchAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/getcourse`,
-}
 const nullResponseStatus = {
   responseCode: 'OK',
   result: {
@@ -105,7 +98,7 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
         'Content-Type': 'application/json',
       },
       method: 'POST',
-      url: API_END_POINTS.searchAPI,
+      url: API_END_POINTS.recommendationGetCourse,
     })
     let finalConcatenatedData = []
     let courseDataPrimary = searchServiceResponse.data.results.content
@@ -136,7 +129,7 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
         data: courseSearchSecondaryData,
         headers,
         method: 'post',
-        url: API_END_POINTS.search,
+        url: API_END_POINTS.recommendationPublicContentSearch,
       })
       courseDataSecondary =
         elasticSearchResponseSecond.data.result.content || []

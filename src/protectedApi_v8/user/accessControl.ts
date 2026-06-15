@@ -1,13 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-  contents: `${CONSTANTS.ACCESS_CONTROL_API_BASE}/accesscontrol/user`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 /**
  *
@@ -20,7 +16,7 @@ export async function checkContentAccess(
 ): Promise<{ [id: string]: { hasAccess: boolean } }> {
   try {
     const response = await axios.get(
-      `${API_ENDPOINTS.contents}/${userId}/content?contentIds=${contentIds}`,
+      `${API_END_POINTS.contents}/${userId}/content?contentIds=${contentIds}`,
       axiosRequestConfig
     )
     return response.data.result.response || {}
@@ -53,7 +49,7 @@ accessControlApi.get('/', async (req, res) => {
 
   try {
     const response = await axios.get(
-      `${API_ENDPOINTS.contents}/${userId}/?rootOrg=${rootOrg}`,
+      `${API_END_POINTS.contents}/${userId}/?rootOrg=${rootOrg}`,
       axiosRequestConfig
     )
     if (response.data.result) {

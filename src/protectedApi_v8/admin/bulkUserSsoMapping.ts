@@ -2,12 +2,10 @@ import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
+import { API_END_POINTS } from '../apiConstants'
 
-const API_ENDPOINTS = {
-    kongUserSearch: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
-}
+
 
 export const bulkUserSsoMappingApi = Router()
 
@@ -42,7 +40,7 @@ bulkUserSsoMappingApi.post('/provider', async (req: any, _res) => {
                           },
                         },
                         method: 'POST',
-                        url: API_ENDPOINTS.kongUserSearch,
+                        url: API_END_POINTS.kongUserSearch,
                     })
                     logInfo('userSearch response >>>>>>>>>>>>>>>' + userSearch)
                     if (userSearch.data.result.response && userSearch.data.result.response.count > 0) {

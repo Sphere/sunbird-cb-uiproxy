@@ -1,17 +1,12 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
+import { API_END_POINTS } from './apiConstants'
 import {
   extractUserIdFromRequest,
   extractUserToken,
 } from '../utils/requestExtract'
 
-const API_END_POINTS = {
-  // tslint:disable-next-line: no-any
-  autoenrollment: (userId: any, courseId: any) =>
-    `${CONSTANTS.COHORTS_API_BASE}/v1/autoenrollment/${userId}/${courseId}`,
-}
 const unknownError = 'Failed due to unknown reason'
 
 export const autoEnrollmentApiv2 = Router()
