@@ -1,11 +1,11 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { API_END_POINTS } from './apiConstants'
 import {
   extractUserIdFromRequest,
   extractUserToken,
 } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 const unknownError = 'Failed due to unknown reason'
 

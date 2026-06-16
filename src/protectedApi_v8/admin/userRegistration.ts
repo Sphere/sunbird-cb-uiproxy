@@ -10,9 +10,9 @@ import {
 } from '../../utils/keycloak-user-creation'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 import { wTokenApiMock } from '../user/details'
 import { updateRolesV2Mock } from '../user/roles'
-import { API_END_POINTS } from '../apiConstants'
 
 export const userRegistrationApi = Router()
 

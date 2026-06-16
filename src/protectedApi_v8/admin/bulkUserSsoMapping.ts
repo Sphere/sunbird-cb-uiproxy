@@ -5,8 +5,6 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { logInfo } from '../../utils/logger'
 import { API_END_POINTS } from '../apiConstants'
 
-
-
 export const bulkUserSsoMappingApi = Router()
 
 /* tslint:disable-next-line */

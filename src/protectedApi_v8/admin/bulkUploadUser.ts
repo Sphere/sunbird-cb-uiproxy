@@ -6,10 +6,9 @@ import { axiosRequestConfig, axiosRequestConfigLong } from '../../configs/reques
 import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
 import { extractUserToken } from '../../utils/requestExtract'
-import { bulkExtendedMethod, saveExtendedData } from './bulkExtendedMethod'
 import { API_END_POINTS } from '../apiConstants'
+import { bulkExtendedMethod, saveExtendedData } from './bulkExtendedMethod'
 const cassandra = require('cassandra-driver')
-
 
 const client = new cassandra.Client({
         contactPoints: [CONSTANTS.CASSANDRA_IP],

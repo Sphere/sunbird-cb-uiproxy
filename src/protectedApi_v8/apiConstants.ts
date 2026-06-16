@@ -47,7 +47,7 @@ export const API_END_POINTS = {
 
     // From notifications.ts
     getNotifications: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/notifications`,
-    
+
     // From posts.ts
     getPosts: (term: string) => `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/recent/posts/${term}`,
 
@@ -189,7 +189,7 @@ export const API_END_POINTS = {
         `${CONSTANTS.CONTENT_API_BASE}/content/submissions/${contentId}/artifacts`,
 
     // From feedback.ts
-    feedback: CONSTANTS.SB_EXT_API_BASE + '/v1/course/feedback/add/', 
+    feedback: CONSTANTS.SB_EXT_API_BASE + '/v1/course/feedback/add/',
 
     // From feedbackV2.ts
     feedback_v1: `${CONSTANTS.FEEDBACK_API_BASE}/v1`,
@@ -250,14 +250,14 @@ export const API_END_POINTS = {
 
     // From mandatoryContent.ts
     mandatoryContentStatus: `${CONSTANTS.KONG_API_BASE}/v1/check/mandatoryContentStatus`,
-    
+
     // From miniProfile.ts
     viewprofile: `${CONSTANTS.NODE_API_BASE}/userprofiles/pathfinders/viewprofile`,
 
     // From notifications.ts
     notifications: `${CONSTANTS.NOTIFICATIONS_API_BASE}/v1`,
-    settings: (userId: string) => `${CONSTANTS.NOTIFICATIONS_API_BASE}/v1/users/${userId}/events`,    
-    
+    settings: (userId: string) => `${CONSTANTS.NOTIFICATIONS_API_BASE}/v1/users/${userId}/events`,
+
     // From ocm.ts
     user: CONSTANTS.SB_EXT_API_BASE + '/v1/users/',
 
@@ -311,7 +311,6 @@ export const API_END_POINTS = {
         `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/update/profile?userId=${userId}`,
     updateUserWorkflowRegistry: (userId: string) =>
         `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/update/workflow/profile?userId=${userId}`,
-
 
     // profile.ts
     create: `${CONSTANTS.SB_EXT_API_BASE}/v1/user/createUser`,

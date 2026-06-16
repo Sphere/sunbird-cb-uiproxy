@@ -6,11 +6,11 @@ import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 import { getUserByEmail } from '../discussionHub/users'
 import { createDiscussionHubUser } from '../discussionHub/writeApi'
 import { getRoles , getUserStatus} from '../portal-v3'
 import { getProfileStatus } from './profile-registry'
-import { API_END_POINTS } from '../apiConstants'
 
 export const detailsApi = Router()
 

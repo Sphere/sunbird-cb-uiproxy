@@ -67,7 +67,6 @@ const DETAIL_CONTENT_FIELDS = [
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
-
 export const contentApi = Router()
 
 contentApi.post('/kb/v3/reorder', async (req, res) => {

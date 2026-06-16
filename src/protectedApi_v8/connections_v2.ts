@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { Router } from 'express'
+import * as _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
@@ -7,7 +8,6 @@ import { ERROR } from '../utils/message'
 import { extractUserId, extractUserIdFromRequest } from '../utils/requestExtract'
 import { extractUserToken } from '../utils/requestExtract'
 import { API_END_POINTS } from './apiConstants'
-import * as _ from 'lodash'
 
 const unknown = 'Connections Apis:- Failed due to unknown reason'
 

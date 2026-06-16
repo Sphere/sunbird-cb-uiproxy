@@ -50,5 +50,5 @@ assessmentCompetency.post('/v1/assessment/submit', async (req, res) => {
   }
 })
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
