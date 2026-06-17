@@ -493,7 +493,7 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
   }
 })
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
 mobileAppApi.post('/cmi5/getAuthorization', async (req, res) => {
   logInfo('Check req body of cmi5 authorization>> ' + req.body)
