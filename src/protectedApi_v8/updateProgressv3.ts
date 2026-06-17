@@ -10,7 +10,6 @@ import { API_END_POINTS } from './apiConstants'
 
 export const updateProgressv3 = Router()
 
-
 updateProgressv3.patch('/update', async (req, res) => {
     try {
         logInfo('[updateProgressv3] request>> ' + JSON.stringify(req.body))

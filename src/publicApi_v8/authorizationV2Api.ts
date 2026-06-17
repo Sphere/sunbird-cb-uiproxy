@@ -3,10 +3,9 @@ import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-import { getCurrentUserRoles } from './rolePermission'
 import { API_END_POINTS } from './apiConstants'
+import { getCurrentUserRoles } from './rolePermission'
 // tslint:disable-next-line: no-any
 export const authorizationV2Api = async (
   username: string,

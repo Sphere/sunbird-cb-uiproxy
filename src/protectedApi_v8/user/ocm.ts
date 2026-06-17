@@ -4,7 +4,6 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
 import { API_END_POINTS } from '../apiConstants'
 
-
 export const ocmApi = Router()
 
 ocmApi.get('/getToDos/:id', async (req, res) => {

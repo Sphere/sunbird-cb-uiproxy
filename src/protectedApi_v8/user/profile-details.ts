@@ -27,7 +27,6 @@ import { v4 as uuidv4 } from 'uuid'
 import { API_END_POINTS } from '../apiConstants'
 const dateFormat = require('dateformat')
 
-
 export async function getUserProfileStatus(wid: string) {
   try {
     const response = await axios.post(

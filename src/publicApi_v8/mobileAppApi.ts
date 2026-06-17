@@ -19,11 +19,11 @@ import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
+import { API_END_POINTS } from './apiConstants'
 import { searchContent } from './contentSearchService'
 import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
-import { API_END_POINTS } from './apiConstants'
 
 // ... other imports ...
 const cassandra = require('cassandra-driver')

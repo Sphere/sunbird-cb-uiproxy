@@ -2,11 +2,11 @@ import axios from 'axios'
 import { Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
-import { API_END_POINTS } from './apiConstants'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractAuthorizationFromRequest, extractUserId, extractUserToken } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 const workallocationV1Path = 'v1/workallocation'
 const workallocationV2Path = 'v2/workallocation'

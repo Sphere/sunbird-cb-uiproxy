@@ -22,10 +22,10 @@ export const API_END_POINTS = {
     verfifyToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/userinfo`,
 
     // From bnrcUser.ts, mpNHMUser.ts, upsmfUser.ts
-    httpsCreateUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
     assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
+    httpsCreateUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
     httpsProfileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
+    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
     userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 
     // From certificateValidate.ts

@@ -11,7 +11,6 @@ import {
 } from '../../utils/requestExtract'
 import { API_END_POINTS } from '../apiConstants'
 
-
 export const mandatoryContent = Router()
 
 mandatoryContent.get('/checkStatus', async (req, res) => {

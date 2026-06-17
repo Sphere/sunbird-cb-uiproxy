@@ -4,6 +4,7 @@ const REGISTRATION_BASE = `${CONSTANTS.SB_EXT_API_BASE_2}/v1/content-sources`
 export const API_END_POINTS = {
     // From bulkExtendedMethod.ts
     kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+
     // From bulkUpload.ts
     assignRoleforBulkUsers: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/v1/role/assign`,
     createUserOfBulkUpload: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
@@ -393,7 +394,7 @@ export const API_END_POINTS = {
         `${CONSTANTS.ATTENDANCE_API_BASE}/v1/users/${userId}/verify-attendence?content_id=${contentIds}`,
 
     // From autoEnrollmentv2.ts
-    autoenrollment: (userId: any, courseId: any) =>
+    autoenrollment: (userId: string, courseId: string) =>
         `${CONSTANTS.COHORTS_API_BASE}/v1/autoenrollment/${userId}/${courseId}`,
 
     // From catalog.ts

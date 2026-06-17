@@ -3,9 +3,9 @@ import axios from 'axios'
 import { Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
-import { API_END_POINTS } from './apiConstants'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
+import { API_END_POINTS } from './apiConstants'
 
 export const fracApi = Router()
 const unknownError = 'Failed due to unknown reason'

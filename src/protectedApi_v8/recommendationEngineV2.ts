@@ -2,10 +2,10 @@ import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
-import { API_END_POINTS } from './apiConstants'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 const nullResponseStatus = {
   responseCode: 'OK',
   result: {

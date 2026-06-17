@@ -8,8 +8,8 @@ import { getStringifiedQueryParams } from '../../utils/helpers'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest, IAuthorizedRequest } from '../../utils/requestExtract'
-import { getMultipleContent } from '../content'
 import { API_END_POINTS } from '../apiConstants'
+import { getMultipleContent } from '../content'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
