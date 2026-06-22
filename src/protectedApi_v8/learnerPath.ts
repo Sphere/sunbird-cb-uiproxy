@@ -13,7 +13,7 @@ const API_END_POINTS = {
 
 learnerPathApi.post('/', async (req, res) => {
   try {
-    logInfo("***********  learner path post")
+    logInfo('***********  learner path post')
     logInfo('Inside learner path api (portal)', JSON.stringify(req.body))
     const learnerPathBody = req.body
     const userId = extractUserIdFromRequest(req)
@@ -39,8 +39,8 @@ learnerPathApi.post('/', async (req, res) => {
     })
   } catch (err) {
     logInfo(JSON.stringify(err))
-    res.status((err && (err as any).response && (err as any).response.status) || 500).send(
-      (err && (err as any).response && (err as any).response.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
         error: 'Something went wrong while updating or inserting learnerpath',
       }
     )
@@ -49,7 +49,7 @@ learnerPathApi.post('/', async (req, res) => {
 
 learnerPathApi.get('/', async (req, res) => {
   try {
-    logInfo("***********  learner path")
+    logInfo('***********  learner path')
     const userId = req.query.userId as string
     logInfo('Inside learner path api (portal)', JSON.stringify(userId))
     const sessionUserId = extractUserIdFromRequest(req)
@@ -75,8 +75,8 @@ learnerPathApi.get('/', async (req, res) => {
     })
   } catch (err) {
     logInfo(JSON.stringify(err))
-    res.status((err && (err as any).response && (err as any).response.status) || 500).send(
-      (err && (err as any).response && (err as any).response.data) || {
+    res.status((err && err.response && err.response.status) || 500).send(
+      (err && err.response && err.response.data) || {
         error: 'Something went wrong while fetching learnerpath',
       }
     )
