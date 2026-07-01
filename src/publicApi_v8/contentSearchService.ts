@@ -40,8 +40,8 @@ export async function searchContent(
       filters,
       limit: searchRequest.request?.limit || 20,
       offset: searchRequest.request?.offset || 1,
-      sort_by: sortMethod,
       query: searchRequest.request?.query || '',
+      sort_by: sortMethod,
     },
     sort: [{ lastUpdatedOn: 'desc' }],
   }
