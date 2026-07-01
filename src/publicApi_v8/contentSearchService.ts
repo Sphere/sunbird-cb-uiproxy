@@ -106,4 +106,3 @@ export async function searchContentV2(
     throw error
   }
 }
-
