@@ -28,6 +28,7 @@ import { eventsApi } from './events'
 import { fracApi } from './frac'
 import { knowledgeHubApi } from './khub'
 import { leaderBoardApi } from './leaderboard'
+import { learnerPathApi } from './learnerPath'
 import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
@@ -112,3 +113,4 @@ protectedApiV8.use('/rcCert', rcCert)
 protectedApiV8.use('/sunbirdrRcCertificate', sunbirdrRcCertificate)
 protectedApiV8.use('/profileupdatev2', profileupdatev2)
 protectedApiV8.use('/playlist', playlistApi)
+protectedApiV8.use('/learnerPath', learnerPathApi)

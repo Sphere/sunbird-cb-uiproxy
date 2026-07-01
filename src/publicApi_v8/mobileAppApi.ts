@@ -19,7 +19,7 @@ import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
-import { searchContent } from './contentSearchService'
+import { searchContent, searchContentV2 } from './contentSearchService'
 import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
@@ -27,6 +27,7 @@ import { getCurrentUserRoles } from './rolePermission'
 // ... other imports ...
 const cassandra = require('cassandra-driver')
 
+const INTERNAL_SERVER_ERROR = 'Internal Server Error'
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const publicCertificateFlinkv2 = Router()
@@ -242,7 +243,7 @@ mobileAppApi.use(async (req, res, next) => {
       // tslint:disable-next-line: no-any
     } catch (error) {
       logInfo('Error forwarding request:', JSON.stringify(error))
-      res.status(500).send('Internal Server Error')
+      res.status(500).send(INTERNAL_SERVER_ERROR)
     }
   } else {
     // If "/kong" is not in the URL, pass to the next route
@@ -1613,7 +1614,25 @@ mobileAppApi.post('/contentSearch', async (req, res) => {
   } catch (error) {
     logError('Error in /contentSearch: ' + JSON.stringify(error))
     return res.status(500).json({
-      error: 'Internal Server Error',
+      error: INTERNAL_SERVER_ERROR,
+      message: 'Something went wrong while fetching content search results',
+    })
+  }
+})
+
+mobileAppApi.post('/contentSearchV2', async (req, res) => {
+  try {
+    logInfo('Inside contentSearch API new end Point')
+
+    const courseSearchRequestData = req.body
+
+    // Call content search service
+    const searchResponse = await searchContentV2(courseSearchRequestData)
+    return res.status(200).json(searchResponse)
+  } catch (error) {
+    logError('Error in /contentSearch: ' + JSON.stringify(error))
+    return res.status(500).json({
+      error: INTERNAL_SERVER_ERROR,
       message: 'Something went wrong while fetching content search results',
     })
   }
