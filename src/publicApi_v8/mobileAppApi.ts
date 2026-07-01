@@ -27,6 +27,7 @@ import { getCurrentUserRoles } from './rolePermission'
 // ... other imports ...
 const cassandra = require('cassandra-driver')
 
+const INTERNAL_SERVER_ERROR = 'Internal Server Error'
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const publicCertificateFlinkv2 = Router()
@@ -242,7 +243,7 @@ mobileAppApi.use(async (req, res, next) => {
       // tslint:disable-next-line: no-any
     } catch (error) {
       logInfo('Error forwarding request:', JSON.stringify(error))
-      res.status(500).send('Internal Server Error')
+      res.status(500).send(INTERNAL_SERVER_ERROR)
     }
   } else {
     // If "/kong" is not in the URL, pass to the next route
@@ -1613,7 +1614,7 @@ mobileAppApi.post('/contentSearch', async (req, res) => {
   } catch (error) {
     logError('Error in /contentSearch: ' + JSON.stringify(error))
     return res.status(500).json({
-      error: 'Internal Server Error',
+      error: INTERNAL_SERVER_ERROR,
       message: 'Something went wrong while fetching content search results',
     })
   }
@@ -1631,7 +1632,7 @@ mobileAppApi.post('/contentSearchV2', async (req, res) => {
   } catch (error) {
     logError('Error in /contentSearch: ' + JSON.stringify(error))
     return res.status(500).json({
-      error: 'Internal Server Error',
+      error: INTERNAL_SERVER_ERROR,
       message: 'Something went wrong while fetching content search results',
     })
   }

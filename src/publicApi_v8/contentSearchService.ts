@@ -40,7 +40,7 @@ export async function searchContent(
       filters,
       limit: searchRequest.request?.limit || 20,
       offset: searchRequest.request?.offset || 1,
-      sort_by: sortMethod
+      sort_by: sortMethod,
     },
     sort: [{ lastUpdatedOn: 'desc' }],
   }
@@ -81,7 +81,7 @@ export async function searchContentV2(
       limit: searchRequest.request?.limit || 20,
       offset: searchRequest.request?.offset || 1,
       query: searchRequest.request?.query || '',
-      sort_by: sortMethod
+      sort_by: sortMethod,
     },
     sort: [{ lastUpdatedOn: 'desc' }],
   }
