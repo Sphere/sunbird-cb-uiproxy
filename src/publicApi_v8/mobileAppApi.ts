@@ -19,7 +19,7 @@ import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
-import { searchContent } from './contentSearchService'
+import { searchContent, searchContentV2 } from './contentSearchService'
 import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
@@ -1609,6 +1609,24 @@ mobileAppApi.post('/contentSearch', async (req, res) => {
 
     // Call content search service
     const searchResponse = await searchContent(courseSearchRequestData)
+    return res.status(200).json(searchResponse)
+  } catch (error) {
+    logError('Error in /contentSearch: ' + JSON.stringify(error))
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Something went wrong while fetching content search results',
+    })
+  }
+})
+
+mobileAppApi.post('/contentSearchV2', async (req, res) => {
+  try {
+    logInfo('Inside contentSearch API new end Point')
+
+    const courseSearchRequestData = req.body
+
+    // Call content search service
+    const searchResponse = await searchContentV2(courseSearchRequestData)
     return res.status(200).json(searchResponse)
   } catch (error) {
     logError('Error in /contentSearch: ' + JSON.stringify(error))

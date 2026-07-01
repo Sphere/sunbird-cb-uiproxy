@@ -40,8 +40,7 @@ export async function searchContent(
       filters,
       limit: searchRequest.request?.limit || 20,
       offset: searchRequest.request?.offset || 1,
-      query: searchRequest.request?.query || '',
-      sort_by: sortMethod,
+      sort_by: sortMethod
     },
     sort: [{ lastUpdatedOn: 'desc' }],
   }
@@ -66,3 +65,45 @@ export async function searchContent(
     throw error
   }
 }
+
+export async function searchContentV2(
+  searchRequest: ContentSearchRequest
+): Promise<ContentSearchResponse> {
+  logInfo('Inside contentSearch API new end Point ')
+  const filters = searchRequest.request?.filters || {}
+  const sortMethod = searchRequest.request?.sort_by || {
+    lastUpdatedOn: 'desc',
+  }
+
+  const requestBodyForSearch = {
+    request: {
+      filters,
+      limit: searchRequest.request?.limit || 20,
+      offset: searchRequest.request?.offset || 1,
+      query: searchRequest.request?.query || '',
+      sort_by: sortMethod
+    },
+    sort: [{ lastUpdatedOn: 'desc' }],
+  }
+
+  const headers = {
+    Authorization: CONSTANTS.SB_API_KEY,
+    ...contentTypeHeader,
+  }
+
+  try {
+    const searchResponseES = await axios({
+      ...axiosRequestConfigLong,
+      data: requestBodyForSearch,
+      headers,
+      method: 'post',
+      url: API_END_POINTS.CONTENT_SEARCH_PROXY,
+    })
+
+    return searchResponseES.data
+  } catch (error) {
+    logError('Error in searchContent: ' + JSON.stringify(error))
+    throw error
+  }
+}
+
