@@ -253,7 +253,7 @@ const API_END_POINTS = {
     msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
     msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
     msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
+    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/v1/update`,
     userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
 }
 const registrationSource = 'Self Registration'

@@ -49,7 +49,7 @@ const API_END_POINTS = {
   cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
   formHomeConfig: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/homepageconfig`,
   kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
-  profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
+  profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/v1/update`,
   ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
   ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
   ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,

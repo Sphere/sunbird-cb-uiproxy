@@ -737,7 +737,7 @@ const createUserIfNotExists = async (userData: any) => {
                     authorization: CONSTANTS.SB_API_KEY,
                 },
                 method: 'PATCH',
-                url: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+                url: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
             })
             logInfo(`[createUserIfNotExists] Profile updated successfully - Response: ${JSON.stringify(profileUpdateResponse.data)}`)
         } catch (errProfile) {

@@ -41,8 +41,8 @@ const API_END_POINTS = {
   getUserRegistryById: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/getUserRegistryById`,
   kongCreateUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
   kongSearchUser: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
-  kongSendWelcomeEmail: `${CONSTANTS.KONG_API_BASE}/private/user/v1/notification/email`,
-  kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+  kongSendWelcomeEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/notification/email`,
+  kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
   kongUserRead: (userId: string) =>
     `${CONSTANTS.KONG_API_BASE}/user/v1/read/${userId}`,
   kongUserResetPassword: `${CONSTANTS.KONG_API_BASE}/private/user/v1/password/reset`,
@@ -50,7 +50,7 @@ const API_END_POINTS = {
   migrateRegistry: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/migrateRegistry`,
   resetPassword: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/password/reset`,
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  sendWelcomeEmail: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/notification/email`,
+  sendWelcomeEmail: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/user/v1/notification/email`,
   setUserProfileStatus: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/profileDetails/setUserProfileStatus`,
   telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
 

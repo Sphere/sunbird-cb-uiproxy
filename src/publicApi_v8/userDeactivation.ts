@@ -4,7 +4,7 @@ import { CONSTANTS } from './../utils/env'
 import { logInfo } from './../utils/logger'
 const API_ENDPOINTS = {
     assignRole: `${CONSTANTS.KONG_API_BASE}/user/private/v1/assign/role`,
-    kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+    kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
     userSearch: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
 }
 export const deactivateUser = Router()

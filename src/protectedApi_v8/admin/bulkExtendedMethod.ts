@@ -5,7 +5,7 @@ import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
 
 const API_ENDPOINTS = {
-    kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+    kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
 }
 const year = '1990'
 const defaultDOB = '1990-01-01'
