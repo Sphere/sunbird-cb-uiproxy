@@ -74,7 +74,7 @@ export async function searchContentV2(
   const sortMethod = searchRequest.request?.sort_by || {
     lastUpdatedOn: 'desc',
   }
-  filters.competency = filters?.competency || false;
+  filters.competency = filters?.competency || false
 
   const requestBodyForSearch = {
     request: {

@@ -39,7 +39,6 @@ uploadProxy.on('error', (err, _req, _res) => {
   logError('[UPLOAD PROXY ERROR]', errorMessage)
 })
 
-
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
   proxyReq.setHeader('X-Channel-Id', '0132317968766894088')
@@ -693,7 +692,7 @@ export function proxyCreatorEtlFrac(
     // tslint:disable-next-line: no-any
     const originalSend = res.send
     // tslint:disable-next-line: no-any
-    res.send = function (data: string | Buffer) {
+    res.send = function(data: string | Buffer) {
       if (res.statusCode < 400) {
         logInfo(`Entity API response: ${path} [${res.statusCode}]`)
       }
