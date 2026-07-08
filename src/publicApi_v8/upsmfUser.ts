@@ -909,7 +909,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     name: getDetailsAsPerRole(user).orgName,
                                     nameOther: '',
                                     orgType: 'Government',
-                                    profession: 'ANM-UP',
+                                    profession: 'ANM_UP',
                                     professionOtherSpecify: '',
                                     qualification: '',
                                     roleForInService: user?.roleForInService || '',
