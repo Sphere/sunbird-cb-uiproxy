@@ -12,7 +12,7 @@ import { extractUserIdFromRequest } from '../../utils/requestExtract'
 
 const API_END_POINTS = {
   GET_SHARED: (userId: string) => `${CONSTANTS.SB_EXT_API_BASE_2}/v1/users/${userId}/share`,
-  SHARE: CONSTANTS.SB_EXT_API_BASE + '/v1/Notification/Send',
+  SHARE: CONSTANTS.SB_EXT_API_BASE + '/notification/v2/send',
   SHARE_CONTENT: CONSTANTS.NOTIFICATIONS_API_BASE + '/v1/notification/event',
   SHARE_V1: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/content-share`,
 }
