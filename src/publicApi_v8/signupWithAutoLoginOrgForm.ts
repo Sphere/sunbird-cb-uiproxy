@@ -669,7 +669,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
         req.session.regenerate(async () => {
           try {
             const transformedData = qs.stringify({
-              client_id: 'aastrika-sso-login',
+              client_id: CONSTANTS.APP_SSO_CLIENT_ID,
               client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
               grant_type: 'password',
               scope: 'offline_access',

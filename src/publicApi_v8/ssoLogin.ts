@@ -250,7 +250,7 @@ ssoLogin.post('/login', async (req: any, res) => {
                 try {
                     const keycloakLoginData = {
                         otp: {
-                            client_id: 'aastrika-sso-login',
+                            client_id: CONSTANTS.APP_SSO_CLIENT_ID,
                             client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
                             grant_type: 'password',
                             scope: 'offline_access',
