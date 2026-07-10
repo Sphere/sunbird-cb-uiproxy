@@ -301,7 +301,15 @@ ssoLogin.post('/login', async (req: any, res) => {
                         res.end()
                     }
                 } catch (e) {
-                    logInfo('Error throwing Cookie inside auth route : ' + e)
+                    // tslint:disable-next-line: no-any
+                    const err: any = e
+                    logError('Error throwing Cookie inside auth route : ' + err)
+                    logError(
+                        'SSO login token exchange failed. status: '
+                        + (err && err.response && err.response.status)
+                        + ' body: '
+                        + JSON.stringify(err && err.response && err.response.data)
+                    )
                     res.status(400).send({
                         error: AUTH_FAIL,
                         msg: AUTH_FAIL,
