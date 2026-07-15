@@ -74,7 +74,6 @@ const getCombinedRatingsResult = async (sourceCourses) => {
 }
 ratingsSearch.post('/getCourses', async (request, response) => {
     try {
-        const facetsDataDefault = ['duration', 'lastUpdatedOn']
         const courseSearchRequestData = request.body
         const filters = courseSearchRequestData.request.filters
         const facets = courseSearchRequestData.request.facets
@@ -84,7 +83,7 @@ ratingsSearch.post('/getCourses', async (request, response) => {
         if (!courseSearchRequestData.request.query) {
             const requestBodyForSearch = JSON.stringify({
                 request: {
-                    facets: facets || facetsDataDefault,
+                    facets,
                     filters,
                     limit: 20,
                     sort_by: sortMethod,

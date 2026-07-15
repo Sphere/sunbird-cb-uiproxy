@@ -46,7 +46,6 @@ const nullResponseStatus = {
 
 publicSearch.post('/getCourses', async (request, response) => {
   try {
-    const facetsDataDefault = ['duration', 'lastUpdatedOn']
     const courseSearchRequestData = request.body
     const filters = courseSearchRequestData.request.filters
     filters.contentType = [
@@ -59,7 +58,7 @@ publicSearch.post('/getCourses', async (request, response) => {
     if (!courseSearchRequestData.request.query) {
       const requestBodyForSearch = JSON.stringify({
         request: {
-          facets: facets || facetsDataDefault,
+          facets,
           filters,
           limit: 200,
           sort_by: sortMethod,
