@@ -480,6 +480,8 @@ profileDeatailsApi.patch('/updateUser', async (req, res) => {
         ...axiosRequestConfig,
         headers: {
           Authorization: CONSTANTS.SB_API_KEY,
+          // tslint:disable-next-line: all
+          "x-authenticated-user-token": extractUserToken(req),
         },
       }
     )
@@ -522,7 +524,11 @@ profileDeatailsApi.post('/v2/updateUser', async (req, res) => {
     // Update user profile
     const profileUpdateResponse = await axios.patch(API_END_POINTS.kongUpdateUser, req.body, {
       ...axiosRequestConfig,
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
+      headers: {
+        Authorization: CONSTANTS.SB_API_KEY,
+        // tslint:disable-next-line: all
+        "x-authenticated-user-token": extractUserToken(req),
+      },
     })
 
     // Telemetry update request
