@@ -19,7 +19,7 @@ const API_END_POINTS = {
     fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
     fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
     generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-    profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/v1/update`,
+    profileUpdate: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/update`,
     tnnmcUserDetailsUrl:
         CONSTANTS.TNNMC_USER_DETAILS_URL,
     userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,

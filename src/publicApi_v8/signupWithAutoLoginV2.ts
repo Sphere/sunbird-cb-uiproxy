@@ -23,7 +23,7 @@ const API_END_POINTS = {
   msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
   msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
   msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-  profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/v1/update`,
+  profileUpdate: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/update`,
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
   userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
   verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
@@ -128,7 +128,11 @@ const profileUpdate = async (profileData: any, userId: any) => {
       url: API_END_POINTS.profileUpdate,
     })
   } catch (error) {
-    logInfo(JSON.stringify(error))
+    logError(
+      'signupV2 profileUpdate FAILED for user ' + userId + ' : ' +
+      JSON.stringify(_.get(error, 'response.data') || _.get(error, 'message') || error)
+    )
+    return undefined
   }
 }
 export const signupWithAutoLoginV2 = Router()
@@ -169,7 +173,13 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail.data.result.userId
     await updateRoles(userId)
-    await profileUpdate(profileData, userId)
+    const profileUpdateResponse = await profileUpdate(profileData, userId)
+    if (_.get(profileUpdateResponse, 'data.result.response') !== 'SUCCESS') {
+      logError(
+        'signupV2 register: profileDetails update did NOT succeed for user ' + userId +
+        '. profileDetails will be null and the portal profile/TnC step may break.'
+      )
+    }
     if (userPhone) {
       try {
         logInfo('Autologin send otp through phone', userPhone)
