@@ -4,18 +4,11 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { IContent } from '../../models/content.model'
 import { IPaginatedApiResponse } from '../../models/paginatedApi.model'
 import { processContent } from '../../utils/contentHelpers'
-import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  GET_SHARED: (userId: string) => `${CONSTANTS.SB_EXT_API_BASE_2}/v1/users/${userId}/share`,
-  SHARE: CONSTANTS.SB_EXT_API_BASE + '/notification/v2/send',
-  SHARE_CONTENT: CONSTANTS.NOTIFICATIONS_API_BASE + '/v1/notification/event',
-  SHARE_V1: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/content-share`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const shareApi = Router()
 

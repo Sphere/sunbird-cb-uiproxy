@@ -1,14 +1,10 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logErrorHeading, logInfoHeading } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  progressUpdate: `${CONSTANTS.PROGRESS_API_BASE}` + '/v1/users',
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const realTimeProgressApi = Router()
 

@@ -3,41 +3,10 @@ import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { ITrackStatus } from '../../models/goal.model'
 import { formContentRequestObj, formGoalRequestObj, formPlaylistupdateObj, transformGoalUpsertResponse, transformToCommonGoalGroup, transformToGoalForOthers, transformToSbExtPatchRequest, transformToTrackStatus, transformToUserGoals } from '../../service/goals'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  acceptRejectGoal: (userId: string, id: string, action: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v1/users/${userId}/goals/${id}/actions?action=${action}`,
-  actionRequired: (userId: string, sourceFields: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v2/users/${userId}/goals-For-Action?sourceFields=${sourceFields}`,
-  addContentToGoal: (userId: string, id: string, contentId: string, goalType: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v3/users/${userId}/goals/${id}/contents/${contentId}?goal_type=${goalType}`,
-  common: (userId: string, groupId: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v1/users/${userId}/common-goals/${groupId}`,
-  createUpdateGoal: (userId: string) => `${CONSTANTS.GOALS_API_BASE}/v4/users/${userId}/goals`,
-  deleteUserForSharedGoal: (userId: string, goalId: string, type: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v2/users/${userId}/goals/${goalId}/recipients/unshare?goal_type=${type}`,
-  deleteUserGoal: (userId: string, goalId: string, type: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v3/users/${userId}/goals/${goalId}?goal_type=${type}`,
-  getGoalForOthers: (userId: string, sourceFields: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v2/users/${userId}/goals-for-others?sourceFields=${sourceFields}`,
-  getUserGoals: (userId: string, type: string, sourceFields: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v5/users/${userId}/goals?goal_type=${type}&sourceFields=${sourceFields}`,
-  goalGroups: (userId: string) => `${CONSTANTS.GOALS_API_BASE}/v1/users/${userId}/goal-groups`,
-  removeContentFromGoal: (userId: string, id: string, contentId: string, goalType: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v3/users/${userId}/goals/${id}/contents/${contentId}?goal_type=${goalType}`,
-  share: (userId: string, goalId: string, type: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/v1/users/${userId}/goals/${goalId}/recipients?type=${type}`,
-  sharev2: (userId: string, goalId: string, type: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v2/users/${userId}/goals/${goalId}/recipients?type=${type}`,
-  track: (userId: string, goalId: string, type: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v2/users/${userId}/goals/${goalId}?goal_type=${type}`,
-  updateDurationCommonGoal: (userId: string, id: string, type: string, duration: string) =>
-    `${CONSTANTS.GOALS_API_BASE}/v3/users/${userId}/common-goals/${id}?goal_type=${type}&duration=${duration}`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 

@@ -1,12 +1,8 @@
 import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
-
-const API_END_POINTS = {
-    telemetry: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const telemetryApi = Router()
 

@@ -2,10 +2,7 @@ import axios from 'axios'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-
-const API_END_POINTS = {
-  createOrFetchUser: `${CONSTANTS.KONG_API_BASE}/discussion/user/v1/create`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 // User cache with TTL (Time To Live)
 interface CacheEntry {

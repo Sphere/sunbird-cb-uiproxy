@@ -1,17 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
-import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
-const API_END_POINTS = {
-  ADD_ENTITIIES: `${CONSTANTS.ENTITY_API_BASE}/addEntities`,
-  ADD_ENTITY_RELATION: `${CONSTANTS.ENTITY_API_BASE}/addEntityRelation`,
-  ADD_UPDATE_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/addUpdateEntity`,
-  GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
-  GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
-  REVIEW_ENTITIIES: `${CONSTANTS.ENTITY_API_BASE}/reviewEntity`,
-}
+import { API_END_POINTS } from './apiConstants'
 const ENTITY_UPDATE_FAIL = "Sorry ! couldn't update entity."
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID."
@@ -33,7 +25,7 @@ entityCompetencyApi.post('/addUpdateEntity', async (req, res) => {
       data: req.body,
       headers: headers(req),
       method: 'POST',
-      url: API_END_POINTS.ADD_UPDATE_ENTITY,
+      url: API_END_POINTS.addUpdateEntity,
     })
     logInfo('Check re body of addUpdateEntity>> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
@@ -52,7 +44,7 @@ entityCompetencyApi.post('/addEntityRelation', async (req, res) => {
       data: req.body,
       headers: headers(req),
       method: 'POST',
-      url: API_END_POINTS.ADD_ENTITY_RELATION,
+      url: API_END_POINTS.addEntityRelation,
     })
     logInfo('Check req body of addEntityRelation>> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
@@ -70,7 +62,7 @@ entityCompetencyApi.post('/getEntityById/:id', async (req, res) => {
       data: req.body,
       headers: headers(req),
       method: 'POST',
-      url: `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
+      url: `${API_END_POINTS.getEntityById}+${req.params.id}`,
     })
     logInfo('Check req body of getEntityByID >> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
@@ -88,7 +80,7 @@ entityCompetencyApi.post('/getAllEntity', async (req, res) => {
       data: req.body,
       headers: headers(req),
       method: 'POST',
-      url: API_END_POINTS.GET_ALL_ENTITY,
+      url: API_END_POINTS.getAllEntity,
     })
     logInfo('Check req body of getAllEntity >> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
@@ -106,7 +98,7 @@ entityCompetencyApi.post('/addEntities', async (req, res) => {
       data: req.body,
       headers: headers(req),
       method: 'POST',
-      url: API_END_POINTS.ADD_ENTITIIES,
+      url: API_END_POINTS.addEntities,
     })
     logInfo('Check req body of ADD ENTITY >> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
@@ -124,7 +116,7 @@ entityCompetencyApi.post('/reviewEntity', async (req, res) => {
       data: req.body,
       headers: headers(req),
       method: 'POST',
-      url: API_END_POINTS.REVIEW_ENTITIIES,
+      url: API_END_POINTS.reviewEntity,
     })
     logInfo('Check req body of EVIEW ENTITY >> ' + req.body)
     res.status(response.data.responseCode).send(response.data)

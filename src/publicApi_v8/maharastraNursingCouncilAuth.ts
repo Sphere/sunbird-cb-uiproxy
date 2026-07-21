@@ -14,16 +14,7 @@ import { getCurrentUserRoles } from './rolePermission'
 
 const AUTH_FAIL = 'Authentication failed ! Please check credentials and try again.'
 
-const API_END_POINTS = {
-    createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-    fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-    fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-    generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-    profileUpdate: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/update`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 /** Error message shown when the user belongs to an org outside the allowed list. */
 const userOtherText = `User already exist on the Sphere platform. Please log in using your email ID. For any queries, please contact: support@aastrika.org`

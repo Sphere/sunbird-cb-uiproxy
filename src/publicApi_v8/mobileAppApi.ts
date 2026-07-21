@@ -19,6 +19,7 @@ import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { requestValidator } from '../utils/requestValidator'
+import { API_END_POINTS } from './apiConstants'
 import { searchContent, searchContentV2 } from './contentSearchService'
 import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
@@ -32,34 +33,6 @@ const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const publicCertificateFlinkv2 = Router()
 const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
-const API_END_POINTS = {
-  CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
-  CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-  DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
-  FORM_API: `${CONSTANTS.FORM_API_BASE}`,
-  GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
-  GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
-  GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
-  NOTIFICATION_ENGINE: `${CONSTANTS.NOTIFICATION_ENGINE_API_BASE}`,
-  READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
-  RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
-  SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
-  UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
-  UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
-  cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
-  formHomeConfig: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/homepageconfig`,
-  kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
-  profileUpdate: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/update`,
-  ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
-  ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
-  ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
-  rcMapperHost: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/getUserCertificateDetails`,
-  summary: (courseId) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
-  telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
-  userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
-  userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
 const PROXY_SLUG_FORMS = '/public/v8/mobileApp/ext-forms'
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID."
@@ -313,7 +286,7 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     delete req.body.request.profileDetails.profileLocation
     // Update user profile
     const profileUpdateResponse = await axios.patch(
-      API_END_POINTS.profileUpdate,
+      API_END_POINTS.httpsProfileUpdate,
       req.body,
       {
         ...axiosRequestConfig,
@@ -521,7 +494,7 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
   }
 })
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
 mobileAppApi.post('/cmi5/getAuthorization', async (req, res) => {
   logInfo('Check req body of cmi5 authorization>> ' + req.body)
@@ -1066,7 +1039,7 @@ mobileAppApi.post('/acceptTnc', async (req, res) => {
         contentTypeHeader,
       },
       method: 'PATCH',
-      url: API_END_POINTS.profileUpdate,
+      url: API_END_POINTS.httpsProfileUpdate,
     })
     res.status(200).json({
       message: 'TNC Accepted Successfully',

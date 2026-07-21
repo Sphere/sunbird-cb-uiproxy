@@ -4,14 +4,7 @@ import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-
-const API_END_POINTS = {
-    // tslint:disable-next-line: no-any
-    cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
-    recommendationAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
-    search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
-    searchAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/getcourse`,
-}
+import { API_END_POINTS } from './apiConstants'
 const nullResponseStatus = {
     responseCode: 'OK',
     result: {

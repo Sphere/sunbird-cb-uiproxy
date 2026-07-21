@@ -9,10 +9,7 @@ import { extractUserToken } from '../../utils/requestExtract'
 import {
     extractAuthorizationFromRequest
 } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-    mandatoryContentStatus: `${CONSTANTS.KONG_API_BASE}/v1/check/mandatoryContentStatus`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const mandatoryContent = Router()
 

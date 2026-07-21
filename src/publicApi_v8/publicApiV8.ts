@@ -25,7 +25,6 @@ import { publicSearch } from './publicSearch'
 import { publicTelemetry } from './publicTelemetry'
 import { ratingsSearch } from './ratingsSearch'
 import { sashakt } from './sashaktAuth'
-import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
 import { signupWithAutoLoginOrgForm } from './signupWithAutoLoginOrgForm'
 import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
@@ -54,7 +53,6 @@ publicApiV8.use(
 )
 publicApiV8.use('/competency', publicCompetencyUser)
 publicApiV8.use('/tnc', publicTnc)
-publicApiV8.use('/signup', signup)
 publicApiV8.use('/signupWithAutoLogin', signupWithAutoLogin)
 publicApiV8.use('/signupWithAutoLoginV2', signupWithAutoLoginV2)
 publicApiV8.use('/signupWithAutoLoginOrgForm', signupWithAutoLoginOrgForm)

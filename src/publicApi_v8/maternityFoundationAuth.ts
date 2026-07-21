@@ -7,20 +7,11 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
+import { API_END_POINTS } from './apiConstants'
 import { getCurrentUserRoles } from './rolePermission'
 
 const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
-const API_END_POINTS = {
-  createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-  generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-  maternityFoundationUserDetailsUrl:
-    CONSTANTS.MATERNITY_FOUNDATION_USER_DETAILS_URL,
-  profileUpdate: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/update`,
-  userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-}
 export const maternityFoundationAuth = express.Router()
 // tslint:disable-next-line: no-any
 maternityFoundationAuth.post('/login', async (req: any, res) => {

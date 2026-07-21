@@ -3,10 +3,8 @@ import axios from 'axios'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
+import { API_END_POINTS } from '../apiConstants'
 
-const API_ENDPOINTS = {
-    kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
-}
 const year = '1990'
 const defaultDOB = '1990-01-01'
 
@@ -76,7 +74,7 @@ export const bulkExtendedMethod = async (
               Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
-            url: API_ENDPOINTS.kongUpdateUser,
+            url: API_END_POINTS.kongUpdateUser,
           })
 
         logInfo('Total CSVObjects in bulkextended are >>>>>>>>>>>>> : ' + JSON.stringify(request))
@@ -148,7 +146,7 @@ export const saveExtendedData = async (
               Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
-            url: API_ENDPOINTS.kongUpdateUser,
+            url: API_END_POINTS.kongUpdateUser,
           })
 
         logInfo('Total SaveExtended CSVObjects in bulkextended are >>>>>>>>>>>>> : ' + JSON.stringify(request))

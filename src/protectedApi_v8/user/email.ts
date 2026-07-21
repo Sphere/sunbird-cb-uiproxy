@@ -1,11 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
-
-const API_END_POINTS = {
-  email: CONSTANTS.SB_EXT_API_BASE + '/notification/v2/send',
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const emailApi = Router()
 

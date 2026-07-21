@@ -18,12 +18,9 @@ import {
   ISkillQuotient,
   ITimeSpentResponse,
 } from '../../models/myAnalytics.model'
-import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-// To be passed to My Analytics APIs as the header 'validator_url'.
-const MY_ANALYTICS_VALIDATOR_URL = `${CONSTANTS.HTTPS_HOST}/apis/protected/v8/user/validate`
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
@@ -74,13 +71,13 @@ myAnalyticsApi.get('/assessments', async (req: Request, res: Response) => {
       startDate,
     })
     const response = await axios.get(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/v1/assessment?${queryParams}`,
+      `${API_END_POINTS.la1AssessmentV1}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -110,13 +107,13 @@ myAnalyticsApi.get('/certification', async (req: Request, res: Response) => {
       startDate,
     })
     const response = await axios.get(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/v1/certification?${queryParams}`,
+      `${API_END_POINTS.la1CertificationV1}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -150,13 +147,13 @@ myAnalyticsApi.get('/assessment/:contentType', async (req: Request, res: Respons
       startDate,
     })
     const response = await axios.get<IAssessmentResponse>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/assessment?${queryParams}`,
+      `${API_END_POINTS.la1Assessment}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -183,13 +180,13 @@ myAnalyticsApi.get('/timespent/:contentType', async (req: Request, res: Response
       startDate,
     })
     const response = await axios.get<ITimeSpentResponse>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/timespent?${queryParams}`,
+      `${API_END_POINTS.la1Timespent}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -218,13 +215,13 @@ myAnalyticsApi.get(
         startDate,
       })
       const response = await axios.get<INsoContentProgress>(
-        `${CONSTANTS.HTTPS_HOST}LA1/api/nsoArtifactsAndCollaborators?${queryParams}`,
+        `${API_END_POINTS.la1NsoArtifactsAndCollaborators}?${queryParams}`,
         {
           headers: {
             Authorization: req.headers.authorization,
             org: req.header('org'),
             rootOrg: req.header('rootOrg'),
-            validator_url: MY_ANALYTICS_VALIDATOR_URL,
+            validator_url: API_END_POINTS.la1ValidatorUrl,
             wid: userId,
           },
         }
@@ -243,12 +240,12 @@ myAnalyticsApi.get(
 myAnalyticsApi.get('/skills', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.get<IRequiredSkills[]>(`${CONSTANTS.HTTPS_HOST}LA1/api/skills`, {
+    const response = await axios.get<IRequiredSkills[]>(API_END_POINTS.la1Skills, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -265,12 +262,12 @@ myAnalyticsApi.get('/skills', async (req: Request, res: Response) => {
 myAnalyticsApi.get('/myskills', async (req: Request, res: Response) => {
   try {
     const userId = req.query.wid || extractUserIdFromRequest(req)
-    const response = await axios.get<IAcquiredSkills[]>(`${CONSTANTS.HTTPS_HOST}LA1/api/myskills`, {
+    const response = await axios.get<IAcquiredSkills[]>(API_END_POINTS.la1MySkills, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -288,13 +285,13 @@ myAnalyticsApi.get('/recommendedSkills', async (req: Request, res: Response) => 
   try {
     const userId = extractUserIdFromRequest(req)
     const response = await axios.get<IRecommendedSkills[]>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/recommendedSkills`,
+      API_END_POINTS.la1RecommendedSkills,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -320,13 +317,13 @@ myAnalyticsApi.get('/allSkills', async (req: Request, res: Response) => {
       searchText,
     })
     const response = await axios.get<IAllSkills[]>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/allSkills?${queryParams}`,
+      `${API_END_POINTS.la1AllSkills}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -344,12 +341,12 @@ myAnalyticsApi.get('/allSkills', async (req: Request, res: Response) => {
 myAnalyticsApi.get('/isAdmin', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.get<IAdmin>(`${CONSTANTS.HTTPS_HOST}LA1/api/isAdmin`, {
+    const response = await axios.get<IAdmin>(API_END_POINTS.la1IsAdmin, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -366,12 +363,12 @@ myAnalyticsApi.get('/isAdmin', async (req: Request, res: Response) => {
 myAnalyticsApi.get('/role/get', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.get<IRoles[]>(`${CONSTANTS.HTTPS_HOST}LA1/api/role/get`, {
+    const response = await axios.get<IRoles[]>(API_END_POINTS.la1RoleGet, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -393,13 +390,13 @@ myAnalyticsApi.get('/skillquotient', async (req: Request, res: Response) => {
       skill_id,
     })
     const response = await axios.get<ISkillQuotient>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/skillquotient?${queryParams}`,
+      `${API_END_POINTS.la1SkillQuotient}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -422,13 +419,13 @@ myAnalyticsApi.get('/rolequotient', async (req: Request, res: Response) => {
       role_id,
     })
     const response = await axios.get<ISkillQuotient>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/rolequotient?${queryParams}`,
+      `${API_END_POINTS.la1RoleQuotient}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -447,13 +444,13 @@ myAnalyticsApi.get('/skills-role/:roleId', async (req: Request, res: Response) =
     const userId = extractUserIdFromRequest(req)
     const queryParams = `role_id=${req.params.roleId}`
     const response = await axios.get<ICompassRolesResponse>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/nso/getCourseAndProgress?${queryParams}`,
+      `${API_END_POINTS.la1NsoGetCourseAndProgress}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -472,13 +469,13 @@ myAnalyticsApi.get('/role/getExisting', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
     const response = await axios.get<IExistingRoles[]>(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/role/getExisting`,
+      API_END_POINTS.la1RoleGetExisting,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -496,12 +493,12 @@ myAnalyticsApi.get('/role/getExisting', async (req: Request, res: Response) => {
 myAnalyticsApi.post('/role/add', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.post(`${CONSTANTS.HTTPS_HOST}LA1/api/role/add`, req.body, {
+    const response = await axios.post(API_END_POINTS.la1RoleAdd, req.body, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -518,12 +515,12 @@ myAnalyticsApi.post('/role/add', async (req: Request, res: Response) => {
 myAnalyticsApi.post('/skills/add', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.post(`${CONSTANTS.HTTPS_HOST}LA1/api/skills/add`, req.body, {
+    const response = await axios.post(API_END_POINTS.la1SkillsAdd, req.body, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -540,12 +537,12 @@ myAnalyticsApi.post('/skills/add', async (req: Request, res: Response) => {
 myAnalyticsApi.post('/role/shareRole', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.post(`${CONSTANTS.HTTPS_HOST}LA1/api/role/shareRole`, req.body, {
+    const response = await axios.post(API_END_POINTS.la1RoleShareRole, req.body, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -566,12 +563,12 @@ myAnalyticsApi.get('/skill/search', async (req: Request, res: Response) => {
     const queryParams = getStringifiedQueryParams({
       search_text,
     })
-    const response = await axios.get(`${CONSTANTS.HTTPS_HOST}LA1/api/skill/search?${queryParams}`, {
+    const response = await axios.get(`${API_END_POINTS.la1SkillSearch}?${queryParams}`, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -593,13 +590,13 @@ myAnalyticsApi.get('/role/delete', async (req: Request, res: Response) => {
       role_id,
     })
     const response = await axios.delete(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/role/delete?${queryParams}`,
+      `${API_END_POINTS.la1RoleDelete}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -617,12 +614,12 @@ myAnalyticsApi.get('/role/delete', async (req: Request, res: Response) => {
 myAnalyticsApi.post('/role/update', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.post(`${CONSTANTS.HTTPS_HOST}LA1/api/role/update`, req.body, {
+    const response = await axios.post(API_END_POINTS.la1RoleUpdate, req.body, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -638,12 +635,12 @@ myAnalyticsApi.post('/role/update', async (req: Request, res: Response) => {
 myAnalyticsApi.get('/isApprover', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.get(`${CONSTANTS.HTTPS_HOST}LA1/api/isApprover`, {
+    const response = await axios.get(API_END_POINTS.la1IsApprover, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -664,12 +661,12 @@ myAnalyticsApi.get('/skillData', async (req: Request, res: Response) => {
     const queryParams = getStringifiedQueryParams({
       skill_id,
     })
-    const response = await axios.get(`${CONSTANTS.HTTPS_HOST}LA1/api/skillData?${queryParams}`, {
+    const response = await axios.get(`${API_END_POINTS.la1SkillData}?${queryParams}`, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -691,12 +688,12 @@ myAnalyticsApi.get('/search', async (req: Request, res: Response) => {
       search_text,
       type,
     })
-    const response = await axios.get(`${CONSTANTS.HTTPS_HOST}LA1/api/search?${queryParams}`, {
+    const response = await axios.get(`${API_END_POINTS.la1Search}?${queryParams}`, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -718,13 +715,13 @@ myAnalyticsApi.get('/projectEndorsement/getList', async (req: Request, res: Resp
       request_type,
     })
     const response = await axios.get(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/projectEndorsement/getList?${queryParams}`,
+      `${API_END_POINTS.la1ProjectEndorsementGetList}?${queryParams}`,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -741,12 +738,12 @@ myAnalyticsApi.get('/projectEndorsement/getList', async (req: Request, res: Resp
 myAnalyticsApi.get('/projectEndorsement/get', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.get(`${CONSTANTS.HTTPS_HOST}LA1/api/projectEndorsement/get`, {
+    const response = await axios.get(API_END_POINTS.la1ProjectEndorsementGet, {
       headers: {
         Authorization: req.headers.authorization,
         org: req.header('org'),
         rootOrg: req.header('rootOrg'),
-        validator_url: MY_ANALYTICS_VALIDATOR_URL,
+        validator_url: API_END_POINTS.la1ValidatorUrl,
         wid: userId,
       },
     })
@@ -767,14 +764,14 @@ myAnalyticsApi.post('/projectEndorsement/endorseRequest', async (req: Request, r
       endorse_id,
     })
     const response = await axios.post(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/projectEndorsement/endorseRequest?${queryParams}`,
+      `${API_END_POINTS.la1ProjectEndorsementEndorseRequest}?${queryParams}`,
       req.body,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -792,14 +789,14 @@ myAnalyticsApi.post('/projectEndorsement/add', async (req: Request, res: Respons
   try {
     const userId = extractUserIdFromRequest(req)
     const response = await axios.post(
-      `${CONSTANTS.HTTPS_HOST}LA1/api/projectEndorsement/add`,
+      API_END_POINTS.la1ProjectEndorsementAdd,
       req.body,
       {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       }
@@ -827,12 +824,12 @@ export async function getMyAnalytics(req: Request, res: Response, next: Function
       startDate,
     })
     await axios
-      .get<IMyAnalytics>(`${CONSTANTS.HTTPS_HOST}LA1/api/userprogress?${queryParams}`, {
+      .get<IMyAnalytics>(`${API_END_POINTS.la1UserProgress}?${queryParams}`, {
         headers: {
           Authorization: req.headers.authorization,
           org: req.header('org'),
           rootOrg: req.header('rootOrg'),
-          validator_url: MY_ANALYTICS_VALIDATOR_URL,
+          validator_url: API_END_POINTS.la1ValidatorUrl,
           wid: userId,
         },
       })

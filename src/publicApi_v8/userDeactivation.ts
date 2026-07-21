@@ -2,11 +2,7 @@ import axios from 'axios'
 import { Router } from 'express'
 import { CONSTANTS } from './../utils/env'
 import { logInfo } from './../utils/logger'
-const API_ENDPOINTS = {
-    assignRole: `${CONSTANTS.KONG_API_BASE}/user/private/v1/assign/role`,
-    kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
-    userSearch: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
-}
+import { API_END_POINTS } from './apiConstants'
 export const deactivateUser = Router()
 const userDeactivationKey = CONSTANTS.USER_DEACTIVATION_KEY
 const userDetails = async (userId) => {
@@ -25,7 +21,7 @@ const userDetails = async (userId) => {
                 Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
-            url: API_ENDPOINTS.kongUpdateUser,
+            url: API_END_POINTS.deactivationKongUpdateUser,
         })
         const userOrgDetails = userData.data.result.response.content[0].organisations[0].organisationId
         logInfo('userOrgDetails', userOrgDetails)
@@ -54,7 +50,7 @@ const updateNullProfileDetails = async (userId) => {
                 Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
-            url: API_ENDPOINTS.kongUpdateUser,
+            url: API_END_POINTS.deactivationKongUpdateUser,
         })
         logInfo('User profile update response', userProfileUpdateResponse.data)
         if (userProfileUpdateResponse.data.responseCode == 'OK' && userProfileUpdateResponse.data.result.response == 'SUCCESS') {
@@ -83,7 +79,7 @@ const updateUserRoles = async (userId) => {
                 Authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'POST',
-            url: API_ENDPOINTS.assignRole,
+            url: API_END_POINTS.deactivationAssignRole,
         })
         logInfo('user role assign status', userRoleAssignStatus.data)
         if (userRoleAssignStatus.data.result.response == 'SUCCESS') {

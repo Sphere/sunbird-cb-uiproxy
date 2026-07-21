@@ -1,15 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
-import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-const API_END_POINTS = {
-    ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
-    ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
-    ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
-    summary: (courseId) =>
-        `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
-
-}
+import { API_END_POINTS } from './apiConstants'
 export const ratingServiceApi = Router()
 const headers = {
     'Content-Type': 'application/json',
@@ -90,7 +82,7 @@ ratingServiceApi.get('/summary', async (req, res) => {
         const response = await axios({
             headers,
             method: 'GET',
-            url: API_END_POINTS.summary(courseId),
+            url: API_END_POINTS.ratingSummary(courseId as string),
         })
         res.status(200).json(response.data)
     } catch (error) {

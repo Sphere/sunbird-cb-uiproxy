@@ -1,13 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
-
-const apiEndpoints = {
-  tnc: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/latest/terms`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const publicTnc = Router()
 
@@ -31,7 +27,7 @@ publicTnc.get('/', async (req, res) => {
         rootOrg,
       },
       method: 'GET',
-      url: apiEndpoints.tnc,
+      url: API_END_POINTS.tnc,
     })
     res.json(response.data)
   } catch (err) {

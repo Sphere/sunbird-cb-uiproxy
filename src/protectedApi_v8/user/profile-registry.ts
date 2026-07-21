@@ -4,23 +4,10 @@ import {
   axiosRequestConfig,
   axiosRequestConfigLong,
 } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 const fs = require('fs')
-
-const API_END_POINTS = {
-  createUserRegistry: (userId: string) =>
-    `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/create/profile?userId=${userId}`,
-  getUserRegistry: `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/get/profile`,
-  getUserRegistryById: (userId: string) =>
-    `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/search/profile?userId=${userId}`,
-  searchUserRegistry: `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/search/profile`,
-  updateUserRegistry: (userId: string) =>
-    `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/update/profile?userId=${userId}`,
-  updateUserWorkflowRegistry: (userId: string) =>
-    `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/update/workflow/profile?userId=${userId}`,
-}
 
 const profileStatusCheckConfig = {
   personalDetails: [
@@ -48,7 +35,7 @@ profileRegistryApi.post('/createUserRegistry', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo('Create user registry for', userId)
     const getUserIdExistresponse = await axios.get(
-      API_END_POINTS.getUserRegistryById(userId),
+      API_END_POINTS.getprofileRegistryById(userId),
       {
         ...axiosRequestConfig,
       }
@@ -71,7 +58,7 @@ profileRegistryApi.post('/createUserRegistry', async (req, res) => {
       // const data = req.body;
       // const deptName = req.body.
       const response = await axios.post(
-        API_END_POINTS.createUserRegistry(userId),
+        API_END_POINTS.createUserRegistryprofile(userId),
         { ...req.body, userId },
         {
           ...axiosRequestConfigLong,
@@ -127,7 +114,7 @@ profileRegistryApi.get('/getUserRegistry/:osid', async (req, res) => {
     const osid = req.params.osid
     logInfo('Get user registry for', osid)
     const response = await axios.post(
-      API_END_POINTS.getUserRegistry,
+      API_END_POINTS.getprofileRegistry,
       { osid },
       {
         ...axiosRequestConfig,
@@ -148,7 +135,7 @@ profileRegistryApi.get('/getUserRegistryById', async (req, res) => {
     logInfo('Get user registry by id', userId)
 
     const response = await axios.get(
-      API_END_POINTS.getUserRegistryById(userId),
+      API_END_POINTS.getprofileRegistryById(userId),
       {
         ...axiosRequestConfig,
       }
@@ -188,7 +175,7 @@ profileRegistryApi.get('/getUserRegistryByUser/:id', async (req, res) => {
     logInfo('Get user registry for', userId)
 
     const response = await axios.get(
-      API_END_POINTS.getUserRegistryById(userId),
+      API_END_POINTS.getprofileRegistryById(userId),
       {
         ...axiosRequestConfig,
       }
@@ -404,7 +391,7 @@ profileRegistryApi.post('/createUserRegistryV2/:userId', async (req, res) => {
     const userId = req.params.userId
     logInfo('Create user registry for', userId)
     const getUserIdExistresponse = await axios.get(
-      API_END_POINTS.getUserRegistryById(userId),
+      API_END_POINTS.getprofileRegistryById(userId),
       {
         ...axiosRequestConfig,
       }
@@ -427,7 +414,7 @@ profileRegistryApi.post('/createUserRegistryV2/:userId', async (req, res) => {
       // const data = req.body;
       // const deptName = req.body.
       const response = await axios.post(
-        API_END_POINTS.createUserRegistry(userId),
+        API_END_POINTS.createUserRegistryprofile(userId),
         { ...req.body, userId },
         {
           ...axiosRequestConfigLong,
@@ -444,7 +431,7 @@ profileRegistryApi.post('/createUserRegistryV2/:userId', async (req, res) => {
 export async function getProfileStatus(userId: string) {
   try {
     const response = await axios.get(
-      API_END_POINTS.getUserRegistryById(userId),
+      API_END_POINTS.getprofileRegistryById(userId),
       {
         ...axiosRequestConfig,
       }

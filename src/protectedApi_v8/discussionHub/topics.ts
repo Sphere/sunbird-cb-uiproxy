@@ -6,16 +6,7 @@ import { getUserUID, getWriteApiToken } from '../../utils/discussionHub-helper'
 import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-    getPopularTopics: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/popular`,
-    getRecentTopics: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/recent`,
-    getTopTopics: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/top`,
-    getUnreadTopics: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/unread`,
-    getUnreadTopicsTotal: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/unread/total`,
-    // tslint:disable-next-line: object-literal-sort-keys
-    getTopicDetails: (tid: number) => `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/topic/${tid}`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const topicsApi = Router()
 
@@ -24,7 +15,7 @@ topicsApi.get('/recent', async (req, res) => {
         const rootOrg = getRootOrg(req)
         const pageNo = req.query.page || 1
         const userId = extractUserIdFromRequest(req)
-        let url = API_ENDPOINTS.getRecentTopics + `?page=${pageNo}`
+        let url = API_END_POINTS.getRecentTopics + `?page=${pageNo}`
         if (CONSTANTS.DISCUSSION_CATEGORY_LIST) {
             url = url + `&` + CONSTANTS.DISCUSSION_CATEGORY_LIST
         }
@@ -46,7 +37,7 @@ topicsApi.get('/top', async (req, res) => {
         const rootOrg = getRootOrg(req)
         const userId = extractUserIdFromRequest(req)
         logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-        const url = API_ENDPOINTS.getTopTopics
+        const url = API_END_POINTS.getTopTopics
         const response = await axios.get(
             url,
             { ...axiosRequestConfig, headers: { rootOrg } }
@@ -65,7 +56,7 @@ topicsApi.get('/popular', async (req, res) => {
         const userId = extractUserIdFromRequest(req)
         const pageNo = req.query.page || 1
         logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-        const url = API_ENDPOINTS.getPopularTopics
+        const url = API_END_POINTS.getPopularTopics
         const response = await axios.get(
             `${url}?page=${pageNo}`,
             { ...axiosRequestConfig, headers: { rootOrg } }
@@ -84,7 +75,7 @@ topicsApi.get('/unread', async (req, res) => {
         const userId = extractUserIdFromRequest(req)
         logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
         const userUid = await getUserUID(userId)
-        const url = API_ENDPOINTS.getUnreadTopics + `?_uid=${userUid}`
+        const url = API_END_POINTS.getUnreadTopics + `?_uid=${userUid}`
         const response = await axios.get(
             url,
             { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
@@ -103,7 +94,7 @@ topicsApi.get('/unread/total', async (req, res) => {
         const userId = extractUserIdFromRequest(req)
         logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
         const userUid = await getUserUID(userId)
-        const url = API_ENDPOINTS.getUnreadTopicsTotal + `?_uid=${userUid}`
+        const url = API_END_POINTS.getUnreadTopicsTotal + `?_uid=${userUid}`
         const response = await axios.get(
             url,
             { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
@@ -125,7 +116,7 @@ topicsApi.get('/:tid', async (req, res) => {
         logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
         const tid = req.params.tid
         const userUid = await getUserUID(userId)
-        const url = API_ENDPOINTS.getTopicDetails(tid) + `?page=${pageNo}&_uid=${userUid}&sort=${sort}`
+        const url = API_END_POINTS.getTopicDetails(tid) + `?page=${pageNo}&_uid=${userUid}&sort=${sort}`
         const response = await axios.get(
             url,
             { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
