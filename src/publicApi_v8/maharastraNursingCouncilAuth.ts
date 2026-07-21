@@ -433,7 +433,7 @@ const userProfileUpdate = async (axiosRequestConfig, userId, mncUserData, existi
  * @returns `true` on success, `false` if the API call fails.
  */
 const migrateUserToMNC = async (userDetails) => {
-    logInfo('[MNC] migrateUserToMNC: start | userId:', userDetails.userId)
+    logInfo('[MNC] migrateUserToMNC: start | userId:', userDetails.id)
     try {
         const migrateUserResponse = await axios({
             data: {
@@ -442,7 +442,7 @@ const migrateUserToMNC = async (userDetails) => {
                     forceMigration: true,
                     notifyMigration: false,
                     softDeleteOldOrg: true,
-                    userId: userDetails.userId,
+                    userId: userDetails.id,
                 },
             },
             headers: {
@@ -453,13 +453,13 @@ const migrateUserToMNC = async (userDetails) => {
             url: API_END_POINTS.migrateUser,
         })
         if (migrateUserResponse.data.result.response == 'success') {
-            logInfo('[MNC] migrateUserToMNC: success | userId:', userDetails.userId)
+            logInfo('[MNC] migrateUserToMNC: success | userId:', userDetails.id)
             return true
         }
-        logError('[MNC] migrateUserToMNC: unexpected response | userId:', userDetails.userId,
+        logError('[MNC] migrateUserToMNC: unexpected response | userId:', userDetails.id,
             '| response:', migrateUserResponse.data.result.response)
     } catch (error) {
-        logError('[MNC] migrateUserToMNC: failed | userId:', userDetails.userId, '| error:', error.message)
+        logError('[MNC] migrateUserToMNC: failed | userId:', userDetails.id, '| error:', error.message)
         return false
     }
 }

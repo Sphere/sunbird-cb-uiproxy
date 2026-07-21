@@ -109,7 +109,7 @@ const handleExistingUserMigration = async (existingUser, tnnmcUserData) => {
         await assignRoleToUser(existingUserResult.id)
     }
 
-    await userProfileUpdate(axiosRequestConfig, existingUserResult.userId, tnnmcUserData)
+    await userProfileUpdate(axiosRequestConfig, existingUserResult.id, tnnmcUserData)
 }
 
 // Route: TNNMC Login
@@ -306,7 +306,7 @@ const migrateUserToTnnmc = async (userDetails) => {
                 forceMigration: true,
                 notifyMigration: false,
                 softDeleteOldOrg: true,
-                userId: userDetails.userId,
+                userId: userDetails.id,
             },
         }
         const migrateUserResponse = await axios({

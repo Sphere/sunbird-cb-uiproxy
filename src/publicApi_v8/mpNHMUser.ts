@@ -1083,7 +1083,7 @@ const migrateUserToMp = async (userDetails, userFormDetails) => {
                 forceMigration: true,
                 notifyMigration: false,
                 softDeleteOldOrg: true,
-                userId: userDetails.userId,
+                userId: userDetails.id,
             },
         }
         const migrateUserResponse = await axios({

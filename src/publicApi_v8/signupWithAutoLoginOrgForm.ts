@@ -271,10 +271,10 @@ const migrateUserToOrg = async (
         forceMigration: true,
         notifyMigration: false,
         softDeleteOldOrg: true,
-        userId: userDetails.userId,
+        userId: userDetails.identifier,
       },
     }
-    logInfo(`Migrating user ${userDetails.userId} to ${profileData.channelName}`)
+    logInfo(`Migrating user ${userDetails.identifier} to ${profileData.channelName}`)
     const migrateResponse = await axios({
       data: migrateData,
       headers: { Authorization: CONSTANTS.SB_API_KEY },
@@ -282,13 +282,13 @@ const migrateUserToOrg = async (
       url: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
     })
     if (migrateResponse.data?.result?.response === 'SUCCESS') {
-      logInfo(`User ${userDetails.userId} migrated successfully`)
+      logInfo(`User ${userDetails.identifier} migrated successfully`)
       return true
     }
     logError(`Migration failed: ${JSON.stringify(migrateResponse.data)}`)
     return false
   } catch (error) {
-    logError(`Error migrating user ${userDetails.userId}: ${JSON.stringify(error)}`)
+    logError(`Error migrating user ${userDetails.identifier}: ${JSON.stringify(error)}`)
     return false
   }
 }
