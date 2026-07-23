@@ -38,4 +38,21 @@ describe("publicSearch competency lookup", function () {
     assert.ok(!/from ['\"]pg['\"]/.test(src), "the pg import must be removed");
     assert.ok(!/public\.data_node/.test(src.replace(/\/\/.*$/gm, "")), "no data_node SQL should remain (comments aside)");
   });
+
+  it("only expands competencies whose name matches the query (no fuzzy over-match)", function () {
+    // FRAC strict:'false' fuzzy-matches every word in the query and returns many
+    // competencies (e.g. "Normal Labour & Birth and AMTSL" -> 57). Expanding all of
+    // them flooded results (67 vs prod's 2). The lookup must filter FRAC entities to
+    // those whose name equals the query before building competency tags.
+    assert.ok(
+      /normalizeName\s*\(\s*competency\.name\s*\)\s*!==\s*normalizedQuery/.test(src),
+      "must skip FRAC entities whose normalized name !== the normalized query"
+    );
+    assert.ok(
+      /const\s+normalizeName\s*=/.test(src) &&
+        /toLowerCase\(\)/.test(src) &&
+        /replace\(\/\\s\+\/g/.test(src),
+      "normalizeName must trim, lowercase and collapse whitespace for comparison"
+    );
+  });
 });
