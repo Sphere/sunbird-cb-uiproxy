@@ -213,17 +213,16 @@ publicSearch.post('/getCourses', async (request, response) => {
           }
         }
         if (!courseDataPrimary) courseDataPrimary = []
-        // Primary (text-match) results: drop competency-type entries (original behaviour).
-        // Secondary results ARE the competency-mapped courses the user searched for, so keep
-        // them all - some ES setups return a `competency` field on competencySearch hits, which
-        // the old blanket filter wrongly dropped (gave fewer results than prod).
-        const filteredPrimary = courseDataPrimary.filter((element) => !element.competency)
-        finalConcatenatedData = filteredPrimary.concat(courseDataSecondary)
+        finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
         if (finalConcatenatedData.length == 0) {
           response.status(200).json(nullResponseStatus)
           return
         }
-        const uniqueCourseData = _.uniqBy(finalConcatenatedData, 'identifier')
+        // Exclude only self-assessments (competency === true). Real courses whose `competency`
+        // is a truthy-but-not-true value (e.g. an empty array) must be kept - the old
+        // `!element.competency` filter wrongly dropped them (empty array is truthy in JS).
+        const finalFilteredData = finalConcatenatedData.filter((element) => element.competency !== true)
+        const uniqueCourseData = _.uniqBy(finalFilteredData, 'identifier')
 
         response.status(200).json({
           responseCode: 'OK',
