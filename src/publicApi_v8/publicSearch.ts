@@ -1,29 +1,13 @@
 import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
-import { Pool } from 'pg'
 import { axiosRequestConfigLong } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
-import { logInfo } from '../utils/logger'
+import { logError, logInfo } from '../utils/logger'
 
 export const publicSearch = Router()
 
 import { API_END_POINTS } from './apiConstants'
-const postgresConnectionDetails = {
-  database: CONSTANTS.POSTGRES_DATABASE,
-  host: CONSTANTS.POSTGRES_HOST,
-  password: CONSTANTS.POSTGRES_PASSWORD,
-  port: CONSTANTS.POSTGRES_PORT,
-  user: CONSTANTS.POSTGRES_USER,
-}
-
-const pool = new Pool({
-  database: postgresConnectionDetails.database,
-  host: postgresConnectionDetails.host,
-  password: postgresConnectionDetails.password,
-  port: Number(postgresConnectionDetails.port),
-  user: postgresConnectionDetails.user,
-})
 const headers = {
   Accept: 'application/json, text/plain, */*',
   'Content-Type': 'application/json',
@@ -38,6 +22,47 @@ const nullResponseStatus = {
     facets: [],
   },
   status: 200,
+}
+
+// tslint:disable-next-line: no-any
+const errorDetail = (e: any): string =>
+  JSON.stringify(_.get(e, 'response.data') || _.get(e, 'message') || e)
+
+// Resolve a free-text query to competency level ids (entityId-level) via the FRAC
+// entity service (replaces the old competency Postgres/data_node lookup). Returns []
+// if FRAC is unavailable, so course search degrades to the primary text-search
+// results instead of failing. entityId is language-neutral (language defaulted to
+// 'en'); course language is handled downstream by the ES filters (filters.lang).
+const getCompetencyLevelIds = async (query: string): Promise<string[]> => {
+  try {
+    const fracResponse = await axios({
+      ...axiosRequestConfigLong,
+      data: {
+        entityType: 'Competency',
+        field: ['code', 'name', 'levels'],
+        language: 'en',
+        query,
+        strict: 'false',
+      },
+      method: 'post',
+      url: `${CONSTANTS.FRAC_ETL_API_BASE}/v1/entity/search`,
+    })
+    // tslint:disable-next-line: no-any
+    const entities: any[] = _.get(fracResponse, 'data.result.entity') || []
+    const levelIds: string[] = []
+    for (const competency of entities) {
+      const levels: number[] = Array.isArray(competency.levels) && competency.levels.length > 0
+        ? competency.levels.map((lvl: { levelNumber: number }) => lvl.levelNumber)
+        : [1, 2, 3, 4, 5]
+      for (const level of levels) {
+        levelIds.push(`${competency.entityId}-${level}`)
+      }
+    }
+    return levelIds
+  } catch (fracError) {
+    logError('getCompetencyLevelIds: FRAC lookup failed, returning [] so search degrades to primary results: ' + errorDetail(fracError))
+    return []
+  }
 }
 
 publicSearch.post('/getCourses', async (request, response) => {
@@ -156,23 +181,11 @@ publicSearch.post('/getCourses', async (request, response) => {
       const facetsData = esResponsePrimaryCourses.data.result.facets
       try {
         let finalConcatenatedData = []
-        // tslint:disable-next-line: no-any
-
-        const result = await pool.query(
-          `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
-          ['Competency', '%' + courseSearchRequestData.request.query + '%']
-        )
-        // tslint:disable-next-line: no-any
-        const postgresResponseData = result.rows.map((val: any) => val.id)
+        // Resolve the search term to competency level ids (entityId-level) via FRAC.
+        // Degrades to [] on FRAC failure so search still returns the primary results.
+        const elasticSearchData = await getCompetencyLevelIds(courseSearchRequestData.request.query)
         let courseDataSecondary = []
-        if (postgresResponseData.length > 0) {
-          const elasticSearchData = []
-          for (const postgresResponse of postgresResponseData) {
-            // adding Competency Level Ids to search for all the competencies in ES
-            for (const value of [1, 2, 3, 4, 5]) {
-              elasticSearchData.push(`${postgresResponse}-${value}`)
-            }
-          }
+        if (elasticSearchData.length > 0) {
           const courseSearchSecondaryData = {
             limit: 50,
             request: {
@@ -194,12 +207,10 @@ publicSearch.post('/getCourses', async (request, response) => {
             courseDataSecondary =
               elasticSearchResponseSecond.data.result.content || []
           } catch (error) {
-            logInfo(JSON.stringify(error))
-            return response.status(500).json({
-              message: 'Something went wrong while fetching competency filtered data',
-            })
+            // competency-filtered search failed - degrade to primary text-search results
+            logError('getCourses: competency-filtered search failed, returning primary results only: ' + errorDetail(error))
+            courseDataSecondary = []
           }
-
         }
         if (!courseDataPrimary) courseDataPrimary = []
         const finalFilteredData = []
@@ -225,6 +236,7 @@ publicSearch.post('/getCourses', async (request, response) => {
           status: 200,
         })
       } catch (error) {
+        logError('getCourses: error building course search response: ' + errorDetail(error))
         response.status(400).json({
           message: 'Something went wrong while connecting search service',
         })
