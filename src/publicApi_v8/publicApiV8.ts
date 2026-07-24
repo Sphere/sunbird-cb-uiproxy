@@ -1,6 +1,7 @@
 import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { proxyCreatorRoute } from '../utils/proxyCreator'
+import { adminUserManage } from './adminUserManage'
 import { appCertificateDownload } from './appCertificateDownload'
 import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { bnrcUserCreation } from './bnrcUser'
@@ -87,3 +88,4 @@ publicApiV8.use('/ratingsSearch', ratingsSearch)
 publicApiV8.use('/upsmfUserCreation', upsmfUserCreation)
 publicApiV8.use('/mpNHMUserCreation', mpNHMUserCreation)
 publicApiV8.use('/publicReadForm', publicReadForm)
+publicApiV8.use('/adminUserManage', adminUserManage)
