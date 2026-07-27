@@ -1,0 +1,31 @@
+# Local SonarQube for pre-CI validation ONLY.
+#
+# This file is not part of the application stack. It is never built, shipped, or
+# referenced by the service, and starting/stopping it has no effect on the app.
+#
+#   docker compose -f docker-compose.sonar.yml up -d
+#   open http://localhost:9000      (admin/admin, change on first login)
+#   docker compose -f docker-compose.sonar.yml down
+#
+# On Linux you may need: sysctl -w vm.max_map_count=262144
+# Docker Desktop (macOS/Windows) handles that automatically.
+# The bundled Elasticsearch refuses to start when the disk is >95% full
+# ("flood stage watermark" in the container logs) — free space first.
+
+services:
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: uiproxy-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_logs:/opt/sonarqube/logs
+      - sonar_ext:/opt/sonarqube/extensions
+
+volumes:
+  sonar_data: {}
+  sonar_logs: {}
+  sonar_ext: {}

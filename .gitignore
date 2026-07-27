@@ -6,6 +6,10 @@
 /bazel-out
 /.scannerwork
 /.sonarlint
+# Local SonarQube credentials — never commit. Template: .env.sonar.example
+.env.sonar
+# Generated test-execution report; must not be committed as a stale artifact
+xunit.xml
 # dependencies
 /node_modules
 .nyc_output
