@@ -1,10 +1,5 @@
 name: Unit Test Runner
 on:
-  push:
-    branches:
-      - development
-      - cbrelease-4.0.1
-      - feat-sonarqube-integration
   pull_request:
     branches:
       - development
@@ -20,11 +15,10 @@ jobs:
           fetch-depth: 0
       - name: Install dependencies
         run: npm install
-      # Suite hits live endpoints on sphere.aastrika.org, so a network blip or
-      # changed content id must not stop the static analysis from running.
+      - name: Test
+        run: npm run test
       - name: Coverage
         run: npm run test-with-coverage
-        continue-on-error: true
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
