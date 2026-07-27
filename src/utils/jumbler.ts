@@ -18,10 +18,11 @@ export async function jumbler(path: string) {
       randomCount
     ).map(falseCreator)
     const questionObject = {
-      isAssessment: true,
+      isAssessment: response?.data?.isAssessment,
+      passPercentage: response?.data?.passPercentage,
       questions: questionArray,
       randomCount,
-      timeLimit: response.data.timeLimit,
+      timeLimit: response?.data?.timeLimit,
     }
     logInfo('Question format....' + questionObject)
     return questionObject
