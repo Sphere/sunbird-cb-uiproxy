@@ -18,6 +18,7 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
+import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { requestValidator } from '../utils/requestValidator'
 import { searchContent, searchContentV2 } from './contentSearchService'
 import { getFirebaseApp } from './firebase-manager'
@@ -510,7 +511,10 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
         url: API_END_POINTS.GET_ALL_ENTITY,
       })
       logInfo('Check req body of getAllEntity >> ' + req.body)
-      res.status(response.data.responseCode).send(response.data)
+      // PILOT DEMO ADD-ON: returns response.data untouched unless the pilot
+      // flag is on. Remove this wrapper + its import to drop the add-on.
+      const payload = await appendPilotMockEntity(response.data, req.body)
+      res.status(response.data.responseCode).send(payload)
     }
   } catch (error) {
     logError('Error in GET_ALL_ENTITY  >>>>>>' + error)
