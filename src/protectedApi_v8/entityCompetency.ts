@@ -2,6 +2,7 @@ import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
 import { logError, logInfo } from '../utils/logger'
+import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { extractUserToken } from '../utils/requestExtract'
 import { API_END_POINTS } from './apiConstants'
 const ENTITY_UPDATE_FAIL = "Sorry ! couldn't update entity."
@@ -83,7 +84,10 @@ entityCompetencyApi.post('/getAllEntity', async (req, res) => {
       url: API_END_POINTS.getAllEntity,
     })
     logInfo('Check req body of getAllEntity >> ' + req.body)
-    res.status(response.data.responseCode).send(response.data)
+    // PILOT DEMO ADD-ON: returns response.data untouched unless the pilot flag
+    // is on. Remove this wrapper + its import to drop the add-on entirely.
+    const payload = await appendPilotMockEntity(response.data, req.body)
+    res.status(response.data.responseCode).send(payload)
   } catch (error) {
     logError('Error in GET_ALL_ENTITY  >>>>>>' + error)
     res.status(500).send({
