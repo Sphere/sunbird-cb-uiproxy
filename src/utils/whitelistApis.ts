@@ -1094,11 +1094,6 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/protected/v8/learnerPathV2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
     '/protected/v8/frac/addDataNodeBulk': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1826,7 +1821,6 @@ export const API_LIST = {
     '/protected/v8/updateProgressv2/update',
     '/protected/v8/updateProgressv3/update',
     '/protected/v8/learnerPath',
-    '/protected/v8/learnerPathV2',
     '/protected/v8/frac/addDataNodeBulk',
     '/protected/v8/roleactivity/:txt',
     '/protected/v8/connections/update/connection',

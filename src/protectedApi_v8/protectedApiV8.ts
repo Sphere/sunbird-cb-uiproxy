@@ -29,7 +29,6 @@ import { fracApi } from './frac'
 import { knowledgeHubApi } from './khub'
 import { leaderBoardApi } from './leaderboard'
 import { learnerPathApi } from './learnerPath'
-import { learnerPathApiV2 } from './learnerPathV2'
 import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
@@ -115,4 +114,3 @@ protectedApiV8.use('/sunbirdrRcCertificate', sunbirdrRcCertificate)
 protectedApiV8.use('/profileupdatev2', profileupdatev2)
 protectedApiV8.use('/playlist', playlistApi)
 protectedApiV8.use('/learnerPath', learnerPathApi)
-protectedApiV8.use('/learnerPathV2', learnerPathApiV2)
