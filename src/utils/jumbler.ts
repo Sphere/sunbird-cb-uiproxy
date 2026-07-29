@@ -24,12 +24,22 @@ export async function jumbler(path: string) {
     const questionArray = response?.data?.isAssessment
       ? sampledQuestions.map(falseCreator)
       : sampledQuestions
-    const questionObject = {
-      isAssessment: true,
-      passPercentage: response?.data?.passPercentage || 60,
-      questions: questionArray,
-      randomCount,
-      timeLimit: response?.data?.timeLimit,
+    let questionObject = {}
+    if (response?.data?.passPercentage > 0) {
+      questionObject = {
+        isAssessment: true,
+        passPercentage: response?.data?.passPercentage,
+        questions: questionArray,
+        randomCount,
+        timeLimit: response?.data?.timeLimit,
+      }
+    } else {
+      questionObject = {
+        isAssessment: true,
+        questions: questionArray,
+        randomCount,
+        timeLimit: response?.data?.timeLimit,
+      }
     }
     logInfo('Question format....' + questionObject)
     return questionObject
