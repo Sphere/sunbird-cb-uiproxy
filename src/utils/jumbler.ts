@@ -25,7 +25,7 @@ export async function jumbler(path: string) {
       ? sampledQuestions.map(falseCreator)
       : sampledQuestions
     const questionObject = {
-      isAssessment: response?.data?.isAssessment,
+      isAssessment: true,
       passPercentage: response?.data?.passPercentage,
       questions: questionArray,
       randomCount,
