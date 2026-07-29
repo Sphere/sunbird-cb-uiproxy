@@ -26,7 +26,7 @@ export async function jumbler(path: string) {
       : sampledQuestions
     const questionObject = {
       isAssessment: true,
-      passPercentage: response?.data?.passPercentage,
+      passPercentage: response?.data?.passPercentage || 60,
       questions: questionArray,
       randomCount,
       timeLimit: response?.data?.timeLimit,
