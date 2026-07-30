@@ -1,0 +1,55 @@
+# SonarCloud analysis.
+#
+# ADDITIVE: this workflow only observes code. It does not build, package, or
+# deploy the service, and it cannot affect any deployment path.
+#
+# It deliberately does NOT run the test suite. The only suites in this repo are
+# live integration tests under test/integration/ that make real network calls to
+# a deployed environment (one of them POSTs an assessment payload), so running
+# them in CI would write data to a live system and let a flaky remote response
+# fail the pipeline. They are opt-in via `npm run test:integration`.
+#
+# Server-side setup required: the SONAR_TOKEN secret in the `sonarcloud`
+# environment. Everything else is read from sonar-project.properties.
+
+name: SonarCloud
+
+on:
+  push:
+    branches:
+      - development
+      - cbrelease-4.0.1
+      - production
+      - feat-sonarqube-integration
+  pull_request:
+    branches:
+      - development
+      - cbrelease-4.0.1
+
+jobs:
+  sonarcloud:
+    name: SonarCloud analysis
+    runs-on: ubuntu-latest
+    environment: sonarcloud
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: Sonar needs blame data to attribute "new code"
+          # correctly, which is what Clean-as-You-Code gates on.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Dependencies improve TypeScript analysis precision (type resolution).
+      # --ignore-scripts because no package lifecycle script needs to run just
+      # to analyze source, and it keeps the job from executing arbitrary code.
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io

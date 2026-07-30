@@ -38,8 +38,38 @@ function pad(text, width) {
   return str + ' '.repeat(Math.max(0, width - [...str].length))
 }
 
+/**
+ * The scanner uploads a report and returns immediately; the server processes it
+ * asynchronously. Without waiting, a report run chained straight after a scan
+ * would print the PREVIOUS analysis's numbers and look subtly wrong.
+ */
+async function waitForPendingAnalysis(config, timeoutMs = 120000) {
+  let waited = 0
+  const step = 3000
+  while (waited < timeoutMs) {
+    let activity
+    try {
+      activity = await sonarRequest(
+        'GET',
+        '/api/ce/activity_status',
+        { component: config.projectKey },
+        config
+      )
+    } catch {
+      return // status endpoint unavailable — proceed rather than block the report
+    }
+    const busy = (activity.pending || 0) + (activity.inProgress || 0)
+    if (!busy) return
+    if (waited === 0) console.log('  waiting for the server to process the analysis...')
+    await new Promise(r => setTimeout(r, step))
+    waited += step
+  }
+  console.log('  (still processing after 120s — numbers below may be stale)')
+}
+
 async function main() {
   const config = getConfig()
+  await waitForPendingAnalysis(config)
   const metricKeys = GOALS.flatMap(g => [g.newMetric, g.overallMetric]).join(',')
 
   let response

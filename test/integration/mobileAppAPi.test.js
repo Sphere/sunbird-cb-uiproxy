@@ -1,3 +1,18 @@
+/**
+ * LIVE INTEGRATION TESTS — deliberately NOT run by any CI pipeline.
+ *
+ * These make real network calls to a deployed environment, and the
+ * /competencyAssessment/submit case below POSTs a real assessment payload.
+ * Pointed at production, running this file WRITES DATA TO PRODUCTION.
+ *
+ * Quarantined out of CI so that no push can submit data to a live environment,
+ * and so a flaky production response cannot fail a build.
+ *
+ * Run explicitly, and only when you mean it:   npm run test:integration
+ *
+ * These are black-box HTTP calls that never import src/, so they contribute
+ * zero code coverage. See docs/sonarqube.md.
+ */
 const request = require("supertest")("https://sphere.aastrika.org/apis/");
 const chai = require("chai");
 const expect = chai.expect;

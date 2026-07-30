@@ -468,14 +468,34 @@ Transparent HTTP proxies forwarding to backend services.
 ## Testing
 
 ```bash
-# Run tests
-npm run test
-
-# Run tests with coverage report
-npm run test-with-coverage
+# Live integration tests — makes real network calls to a DEPLOYED environment.
+# One case POSTs an assessment payload, so against production this writes data
+# to production. Opt-in only; no CI pipeline runs these.
+npm run test:integration
 ```
 
-Coverage reports are generated in `/coverage/` (lcov format).
+There is currently no unit-test suite. The suites under `test/integration/` are
+black-box HTTP calls that never import `src/`, so they produce no code coverage.
+See [docs/sonarqube.md](docs/sonarqube.md) for what this means for the coverage
+quality gate and what building a unit-test harness would involve.
+
+---
+
+## Code quality (SonarQube / SonarCloud)
+
+```bash
+# Analyze against a local SonarQube (see docs/sonarqube.md to start one)
+npm run sonar:local
+
+# Print a Current-vs-Target table for the quality goals
+npm run sonar:report
+
+# Apply the quality gate as code (idempotent; needs an admin token)
+npm run sonar:gate
+```
+
+Full setup, CI wiring, and the move-to-server checklist:
+[docs/sonarqube.md](docs/sonarqube.md).
 
 ---
 

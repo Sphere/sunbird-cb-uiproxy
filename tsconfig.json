@@ -5,6 +5,11 @@
       "*": ["types/*"]
     },
     "skipLibCheck": true,
+    /* Only auto-include these global @types. Jest pulls in
+       @types/babel__traverse, which uses syntax TypeScript 4.2 cannot parse
+       (TS1005) and would otherwise break the application build. Test-only
+       globals live in tsconfig.spec.json. */
+    "types": ["node"],
     /* Basic Options */
     // "incremental": true,                   /* Enable incremental compilation */
     "target": "ES2020" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017', 'ES2018', 'ES2019' or 'ESNEXT'. */,
@@ -61,5 +66,8 @@
     /* Experimental Options */
     "experimentalDecorators": true /* Enables experimental support for ES7 decorators. */
     // "emitDecoratorMetadata": true,         /* Enables experimental support for emitting type metadata for decorators. */
-  }
+  },
+
+  /* Keep co-located unit tests out of the compiled build (dist/). */
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "src/test-support/**"]
 }

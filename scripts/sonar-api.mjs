@@ -118,7 +118,18 @@ export function sonarRequest(method, apiPath, params = {}, config = getConfig())
             resolvePromise(parsed)
             return
           }
-          const detail = parsed?.errors?.map(e => e.msg).join('; ') || raw.slice(0, 300)
+          // Sonar returns an empty body on 401/403, so an unexplained status
+          // code is all the caller would otherwise see.
+          const fallbackByStatus = {
+            401: 'unauthorized — token missing, invalid, or expired',
+            403: 'forbidden — the token lacks the required permission',
+            404: 'not found — check sonar.projectKey and that the project exists',
+          }
+          const detail =
+            parsed?.errors?.map(e => e.msg).join('; ') ||
+            raw.slice(0, 300) ||
+            fallbackByStatus[res.statusCode] ||
+            'no response body'
           const err = new Error(`${method} ${apiPath} -> HTTP ${res.statusCode}: ${detail}`)
           err.statusCode = res.statusCode
           err.sonarErrors = parsed?.errors || []

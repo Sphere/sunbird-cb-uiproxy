@@ -152,37 +152,42 @@ export async function createKeycloakUser(req: any) {
 // tslint:disable-next-line: no-any
 export async function getAuthToken(email: any): Promise<any> {
     logInfo('Starting to get new user token from keycloak...')
-    // tslint:disable-next-line: no-try-promise
-    try {
-        const request1 = {
-            client_id: 'portal',
-            grant_type: 'password',
-            scope: 'openid',
-            username: email,
-            // tslint:disable-next-line: object-literal-sort-keys
-            password: defaultNewUserPassword,
-        }
-
-        return new Promise((resolve, reject) => {
-            request.post({
-                url: `${CONSTANTS.HTTPS_HOST}/auth/realms/${CONSTANTS.KEYCLOAK_REALM}/protocol/openid-connect/token`,
-                // tslint:disable-next-line: object-literal-sort-keys
-                form: request1,
-            }, (err, _httpResponse, body) => {
-                if (err) {
-                    logError('err in getAuthToken api ', err)
-                    reject(err)
-                }
-                if (body) {
-                    resolve(JSON.parse(body))
-                }
-            })
-        })
-
-    } catch (err) {
-        logError('ERROR ON Keycloak openid-connect/token >', err)
-        return err
+    const request1 = {
+        client_id: 'portal',
+        grant_type: 'password',
+        scope: 'openid',
+        username: email,
+        // tslint:disable-next-line: object-literal-sort-keys
+        password: defaultNewUserPassword,
     }
+
+    // Rejections are handled by .catch() below rather than by a try/catch.
+    // The promise is RETURNED, not awaited, so a surrounding try could never
+    // observe an async rejection anyway — and the only other statement here is
+    // an object literal, which cannot throw. Handling it here also keeps the
+    // caller-visible contract intact: both call sites in userRegistration.ts
+    // rely on this promise REJECTING to surface a failure, so the error is
+    // logged and rethrown rather than returned as a resolved value.
+    return new Promise((resolve, reject) => {
+        request.post({
+            url: `${CONSTANTS.HTTPS_HOST}/auth/realms/${CONSTANTS.KEYCLOAK_REALM}/protocol/openid-connect/token`,
+            // tslint:disable-next-line: object-literal-sort-keys
+            form: request1,
+        }, (err, _httpResponse, body) => {
+            if (err) {
+                logError('err in getAuthToken api ', err)
+                reject(err)
+            }
+            if (body) {
+                resolve(JSON.parse(body))
+            }
+        })
+    })
+        // tslint:disable-next-line: no-any
+        .catch((err: any) => {
+            logError('ERROR ON Keycloak openid-connect/token >', err)
+            throw err
+        })
 }
 
 export async function UpdateKeycloakUserPassword(keycloakId: string, isTemporary: boolean) {

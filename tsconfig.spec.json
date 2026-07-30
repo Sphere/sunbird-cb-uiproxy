@@ -1,0 +1,12 @@
+{
+  /* TypeScript config used ONLY by ts-jest for co-located unit tests.
+     The main tsconfig.json restricts "types" to ["node"] so that Jest's
+     transitive @types/babel__traverse cannot break the application build;
+     tests still need the jest globals, so they are added back here. */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
