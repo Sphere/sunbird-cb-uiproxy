@@ -25,17 +25,25 @@ export async function jumbler(path: string) {
       ? sampledQuestions.map(falseCreator)
       : sampledQuestions
     let questionObject = {}
-    if (response?.data?.passPercentage) {
+    if (response?.data?.passPercentage == null || response?.data?.passPercentage == undefined) {
+      questionObject = {
+        isAssessment: true,
+        questions: questionArray,
+        randomCount,
+        timeLimit: response?.data?.timeLimit,
+      } 
+    } else if (response?.data?.isAssessment) {
       questionObject = {
         isAssessment: true,
         passPercentage: response?.data?.passPercentage,
         questions: questionArray,
         randomCount,
         timeLimit: response?.data?.timeLimit,
-      }
+      } 
     } else {
       questionObject = {
         isAssessment: true,
+        passPercentage: 0,
         questions: questionArray,
         randomCount,
         timeLimit: response?.data?.timeLimit,
