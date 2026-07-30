@@ -25,7 +25,7 @@ export async function jumbler(path: string) {
       ? sampledQuestions.map(falseCreator)
       : sampledQuestions
     let questionObject = {}
-    if (response?.data?.passPercentage > 0) {
+    if (response?.data?.passPercentage) {
       questionObject = {
         isAssessment: true,
         passPercentage: response?.data?.passPercentage,
