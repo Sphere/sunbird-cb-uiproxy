@@ -12,6 +12,16 @@ Build artifacts changed: **3 of 272** (the two above + `dist/package.json`,
 which carries only npm script names and is never executed at runtime).
 **269 of 272 compiled artifacts are byte-identical.**
 
+**Test coverage, as of this commit:** 2205 Jest tests, all passing.
+**61.1% overall coverage on SonarQube (100% on new code), gate green.**
+Coverage was 2.6% at the start of this work. Every real defect discovered
+while writing these tests is documented below (sections CHANGE 1/2, then
+A through AP) — each includes what the issue is, why it wasn't fixed
+outright, and what to check in production before treating it as resolved.
+**None of the findings below were fixed without explicit sign-off** — the
+only two behavioral changes in this entire body of work are CHANGE 1 and
+CHANGE 2.
+
 ---
 
 ## CHANGE 1 — Password generator moved to a CSPRNG
