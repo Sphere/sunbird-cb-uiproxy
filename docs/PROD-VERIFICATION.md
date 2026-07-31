@@ -1538,6 +1538,747 @@ security-relevant (account deactivation) flow:
 
 ---
 
+### AQ. `user/exercise.ts` — `POST /createContentDirectory/:contentId` never completes its response on success
+
+```ts
+const response = await axios.post(API_END_POINTS.createContentDirectory(contentId), req.body, axiosRequestConfig)
+res.status(response.status)
+// no .send()/.json()/.end() — the response object is never finished
+```
+
+`res.status(x)` only sets the status code and returns `res` for chaining —
+it does not send or end the response. Every successful call to this route
+hangs forever; only the failure path (the `catch` block, which does call
+`.send()`) ever completes. Confirmed by reading the code and by the fact
+that a live test of the success path would itself hang (not attempted, per
+the standing safety rule). Not reproduced live.
+
+A second, narrower issue in the same file: `POST
+/uploadFileToContentDirectory/:contentId` uses `form-data`'s `.submit(url,
+(err, response) => {...})` callback, which reads `response.statusCode`
+**before** checking whether `err` is set. If the submit itself fails at the
+transport level (`err` truthy, `response` undefined), this throws inside a
+plain callback with no surrounding try/catch (the outer try only protects
+the synchronous setup code before `.submit()` runs) — very likely an
+uncaught exception at the process level. Not reproduced live.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm whether `POST /createContentDirectory/:contentId` has ever
+      appeared to hang for callers on a successful upstream call — this
+      would be the case on literally every success, not an edge case.
+- [ ] Confirm whether `POST /uploadFileToContentDirectory/:contentId` has
+      correlated with any unexplained process crashes/restarts.
+
+---
+
+### AR. `publicCertifcateFlinkv2.ts` — CRITICAL: the certificate-download secret-key check does not block the request; likely CQL injection too
+
+**This is the most severe finding in this entire campaign — a real
+authentication bypass on a public, unauthenticated (except for a shared
+secret key) certificate-download endpoint.**
+
+```ts
+publicCertificateFlinkv2.get('/download', async (req, res) => {
+  const userid = req.query.userid
+  const courseid = req.query.courseid
+  const secretKey = req.query.secretKey
+
+  if (!(userid || courseid || secretKey)) {
+    res.status(400).json({ msg: '...', status: 'error', status_code: 400 })
+  }
+  const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY
+  if (certificateKey !== secretKey) {
+    res.status(400).json({ msg: 'Invalid certificate download key', status: 'error', status_code: 400 })
+  }
+  // NEITHER check above has a `return` — execution continues regardless:
+  const client = new cassandra.Client({...})
+  const query = `SELECT ... FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`
+  const certificateData = await client.execute(query)
+  ...
+  // eventually renders and serves the actual certificate image
+```
+
+Three compounding defects, confirmed by reading the code directly:
+
+1. **The secret-key check is decorative, not enforcing.** `res.status(400)`
+   is sent when the key is wrong, but with no `return`, so the handler
+   proceeds to the real Cassandra lookup, the real certificate-download call,
+   and the real image render — and serves the actual certificate at the end
+   regardless of whether the key check passed. **Anyone who knows or guesses
+   a `userid`/`courseid` pair can download that user's certificate without
+   ever supplying a valid `secretKey`.**
+2. **The "missing parameters" check uses OR, not AND**:
+   `!(userid || courseid || secretKey)` only rejects when **all three** are
+   absent — a request with only a `secretKey` and no `userid`/`courseid`
+   (or any other partial combination) sails through this check too.
+3. **Likely CQL injection**: `userid` and `courseid` are raw,
+   attacker-controlled query-string values interpolated directly into a CQL
+   query string with no parameterization (`client.execute(query)` — a single
+   string, not the parameterized `client.execute(query, params, {prepare:
+   true})` form used correctly elsewhere in this codebase, e.g.
+   `keycloak-user-creation.ts`). A crafted `userid`/`courseid` value could
+   plausibly manipulate the query.
+
+A fourth, lower-severity instance of the same missing-`return` pattern:
+`if (!certificateData) { res.status(400)... }` also has no `return`.
+
+**Because of defect 1, there is no safe way to exercise the "wrong
+secretKey" input live** — it doesn't stop at a clean 400, it falls through
+into the complete real flow (Cassandra query → certificate download →
+`node-html-to-image` render → `res.writeHead()`/`res.end()`), and when that
+flow completes, calling `writeHead()`/`end()` on an already-finished
+response throws, cascading into the same double/triple-send crash pattern
+documented throughout this file. `publicCertifcateFlinkv2.test.ts`
+therefore only exercises the correct-secretKey path live.
+
+**MUST VERIFY IN PROD — urgent, security-critical:**
+- [ ] **Treat this as a live vulnerability until confirmed otherwise.**
+      Determine whether this endpoint is internet-reachable and, if so,
+      whether certificate data for arbitrary users has been accessible
+      without the intended secret key.
+- [ ] Confirm whether `userid`/`courseid` have ever been observed containing
+      CQL special characters (quotes, etc.) in access logs — evidence of
+      injection attempts or accidental corruption.
+- [ ] If this endpoint is live, consider taking it offline or adding a
+      request-level guard (e.g. at the reverse proxy) until the missing
+      `return`s and query parameterization are fixed and deployed.
+
+---
+
+### AS. `user/dashboard.ts` — `GET /analytics/progress/:contentType` has no try/catch at all
+
+```ts
+dashboardApi.get('/analytics/progress/:contentType', async (req, res) => {
+  ...
+  const response = await axios.get(`${apiEndpoints.analytics}/api/userprogress?${queryParams}`, {...})
+  res.send(response.data)
+})
+```
+
+Unlike the other three routes in this file (each of which wraps its axios
+call in a try/catch with a 500 fallback), this one has none. An upstream
+rejection (4xx/5xx, timeout, DNS failure) becomes an unhandled promise
+rejection — no response is ever sent, and the client hangs indefinitely
+rather than getting a clean error. Confirmed by reading the code; not
+reproduced live (only the success path is tested for this route).
+
+**MUST VERIFY IN PROD:**
+- [ ] Check gateway/load-balancer logs for long-running or timed-out
+      requests to `GET /.../user/dashboard/analytics/progress/:contentType`
+      — a correlated pattern would confirm this is already happening.
+
+---
+
+### AT. `certificateValidate.ts` — `POST /validate` double-sends on either missing field, not just when both are missing
+
+```ts
+validateCertificate.post('/validate', async (req, res) => {
+    try {
+        if (!req.body.accessCode) {
+            res.status(400).json({ msg: 'AccessCode. can not be empty', ... })
+        }
+        if (!req.body.certId) {
+            res.status(400).json({ msg: 'certId. can not be empty', ... })
+        }
+        const { accessCode, certId} = req.body
+        const response = await axios({ ... })   // runs regardless of which check fired
+        ...
+        res.status(response.status).send(result)
+```
+
+Same missing-`return` family as changes Q/R/S/T/V/Z/AD/AE/AH/AN. Both validation
+checks are independent `if` blocks with no `return`, and the real `axios` call
+that follows is unconditional — so a request missing `accessCode`, or missing
+`certId`, or missing both, all fall through into the same upstream call and
+its subsequent `res.status(...).send(...)`, producing a second (or third)
+send on an already-completed response. Unlike most double-send bugs in this
+campaign, there is **no safe missing-field input** to exercise live here —
+every combination cascades. `certificateValidate.test.ts` therefore supplies
+both `accessCode` and `certId` in every test.
+
+This is a public certificate-*validation* endpoint (not the download endpoint
+in change AR) — there is no secret/auth key involved, so this is a
+crash/double-send risk, not an authorization bypass.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check application logs for `ERR_HTTP_HEADERS_SENT` (or equivalent)
+      originating from this route — evidence this is already firing on
+      malformed requests.
+
+---
+
+### AU. `appCertificateDownload.ts` — `GET /download` has the same missing-`return` double-send, and no secret-key mechanism at all
+
+```ts
+appCertificateDownload.get('/download', async (req, res) => {
+  try {
+    const certificateId = req.query.certificateId
+    if (!certificateId) {
+      res.status(400).json({ msg: 'Certificate ID can not be empty', ... })
+    }
+    const response = await axios({ ... })   // runs regardless
+```
+
+Same missing-`return` pattern as change AT: `if (!certificateId)` sends a 400
+but does not stop execution, so a request with no `certificateId` falls
+through into a real (undefined-id) upstream call and a second send once it
+resolves. Not reproduced live; every test supplies a `certificateId`.
+
+Separately, and only noted for awareness rather than confirmed as a bug: this
+route's rendering logic is structurally identical to
+`publicCertifcateFlinkv2.ts` (change AR — same SVG width/height parsing, same
+`node-html-to-image` call, same response pattern), but unlike that file, this
+one has **no secret-key check whatsoever** — the only gate on serving a
+certificate image is that `certificateId` is non-empty. This may be
+intentional (the `certificateId` itself may function as an unguessable
+capability token by design), but given change AR turned out to be a genuine
+auth bypass, this is worth an explicit product/security decision rather than
+an assumption.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check application logs for `ERR_HTTP_HEADERS_SENT` (or equivalent)
+      originating from this route.
+- [ ] Confirm with product/security whether `certificateId` is intended to be
+      the sole access control for this endpoint, or whether a secret-key
+      check (like AR's, once fixed) was meant to apply here too.
+
+---
+
+### AV. `bulkUserSsoMapping.ts` — quadratic redundant upstream calls, a response field that is always empty, and a response sent before any per-row lookup completes
+
+```ts
+for (let i = 1; i < lines.length; i++) {
+    ...
+    result.push(obj)
+    result.forEach(async (csvElement) => {   // <-- re-iterates ALL rows so far, every row
+        ...
+        const userSearch = await axios({ ...url: API_ENDPOINTS.kongUserSearch })
+        ...
+    })
+}
+...
+if (result.length > 0) {
+    _res.status(200).send({
+        message: 'Bulk Upload is Completed ! ',
+        status : 'success',
+        successUserIds : createdUserId,   // <-- declared as [], never pushed to
+    })
+}
+```
+
+Three defects, none of them a hang/crash/security bypass, all confirmed by
+reading the code:
+
+1. **Quadratic redundant upstream calls.** The `result.forEach(...)` that
+   fires a Kong `/user/v1/search` lookup per row is placed *inside* the outer
+   `for` loop instead of after it. Each time a new row is parsed and pushed,
+   the code re-iterates the *entire* `result` array accumulated so far,
+   re-triggering a search for every previously processed row again. For an
+   `n`-row CSV this issues `n(n+1)/2` upstream calls instead of `n` — e.g. a
+   100-row file fires ~5,050 Kong search requests instead of 100.
+2. **`successUserIds` is always `[]`.** `createdUserId` is declared once as
+   an empty array and returned verbatim in the response; nothing in the
+   handler ever pushes to it, regardless of how many per-row lookups actually
+   resolved to a real user. Any caller relying on this field to know which
+   rows succeeded gets no information.
+3. **The HTTP response does not wait on any per-row lookup.** `res.status(200)`
+   is sent synchronously right after the parsing loop, based only on
+   `result.length` (i.e. "did the CSV have any data rows"), never on whether
+   any Kong search actually found/mapped a user. Each per-row lookup has its
+   own try/catch, so a failure is logged, not unhandled — this is a
+   "success" being reported independent of actual mapping outcome, not a
+   crash risk.
+
+All three were safe to exercise live and are covered in
+`bulkUserSsoMapping.test.ts` (using small 1-2 row fixtures to avoid
+amplifying defect 1 in CI).
+
+**MUST VERIFY IN PROD:**
+- [ ] Check Kong's request volume/rate-limit logs for this search endpoint
+      against actual bulk-SSO-mapping CSV sizes — confirm whether the
+      quadratic amplification has caused throttling or elevated load on
+      larger uploads.
+- [ ] Confirm no downstream consumer depends on `successUserIds` being
+      populated with actual mapped user IDs.
+
+---
+
+### AW. `catalog.ts` — `POST /tags` hangs forever if `rootorg` is sent as a repeated header
+
+```ts
+catalogApi.post('/tags', async (req, res) => {
+  try {
+    const userId = extractUserIdFromRequest(req)
+    const rootOrg = req.headers.rootorg
+    if (!rootOrg) {
+      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+      return
+    }
+    const { tags, type } = req.body
+    if (typeof rootOrg === 'string') {
+      ... // the entire real logic, including every res.send/res.status, lives in here
+    }
+    // no else — if rootOrg is truthy but NOT a string, execution falls off the
+    // end of the try block having sent nothing at all
+  } catch (err) { ... }
+})
+```
+
+`req.headers.rootorg` is typed `string | string[] | undefined` — Node/Express
+represents a header as a `string[]` when the client sends it more than once
+on the wire. The handler correctly rejects a missing `rootorg` (with a
+`return`), but the entire success path is gated behind `typeof rootOrg ===
+'string'` with no `else`. A request whose `rootorg` header arrives as an
+array (truthy, so it passes the first check, but not a string) falls through
+the `if` with no response ever sent — the request hangs indefinitely. This
+is Pattern B (zero response), not a crash or auth bypass. Confirmed by
+reading the code; not reproduced live, since doing so would hang the Jest
+worker.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm whether any client, load balancer, or reverse proxy in front of
+      this service can ever forward `rootorg` as a repeated header (arrays
+      are also directly reachable via a raw HTTP client sending the header
+      twice, not just proxy behavior) — a correlated pattern of hung
+      `POST .../catalog/tags` requests would confirm this is already
+      happening.
+
+---
+
+### AX. `user/auto-complete.ts` — two independent bugs: `POST /department/:query` hangs on any upstream failure, and `GET /:query` never forwards the real upstream error body due to a typo
+
+```ts
+autocompleteApi.post('/department/:query', async (req, res) => {
+  ...
+  try {
+    ...
+    const response = await axios.post(url, req.body, { ... })
+    res.send(response.data)
+  } catch (err) {
+    return err                     // <-- Pattern B: no res.send/status at all
+  }
+})
+
+autocompleteApi.get('/:query', async (req, res) => {
+  ...
+  try {
+    ...
+  } catch (err) {
+    res.status((err && err.response && err.response.status) || 500)
+      .send((err && err.reponse && err.response.data) || {   // <-- typo: "err.reponse"
+        error: 'Failed due to unknown reason',
+      })
+  }
+})
+```
+
+Two independent, unrelated defects:
+
+1. **`POST /department/:query` — Pattern B (zero response / hang).** The
+   catch block does `return err`, which returns a value from the Express
+   handler function itself — Express ignores that return value entirely.
+   No `res.send`/`res.status`/`res.end` is ever called on a rejection from
+   the `usersByDepartment` upstream call, so the client's request hangs
+   until it times out. Every other route in this file (and every sibling
+   file) uses the standard `res.status(...).send(...)` fallback; this one
+   route is missing it entirely. Not reproduced live — doing so would hang
+   the Jest worker.
+2. **`GET /:query` — typo silently drops the real upstream error body.**
+   `err.reponse` (missing the `s` in "response") is not a property that
+   exists on any error object, so `err && err.reponse && ...` is always
+   `false`. The status code is still forwarded correctly (via the
+   correctly-spelled `err.response.status` a few lines above), but the
+   body always falls back to the generic `{ error: 'Failed due to unknown
+   reason' }` — the actual upstream error details in `err.response.data`
+   are silently discarded. This is safe to test live (no hang/crash) and
+   is confirmed in the test suite: an upstream 502 with a real error body
+   still yields status 502 but the generic body, not the upstream's actual
+   message.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check application/gateway logs for hung or timed-out requests to
+      `POST .../user/autocomplete/department/:query` — evidence defect 1 is
+      already occurring on upstream failures.
+- [ ] Confirm whether any caller of `GET .../user/autocomplete/:query`
+      depends on the real upstream error message (defect 2) for
+      diagnostics or user-facing messaging, since they've only ever
+      received the generic fallback.
+
+---
+
+### AY. `rolePermission.ts` — `setRolesData` is called fire-and-forget from `getCurrentUserRoles`, used by ~11 auth flows
+
+```ts
+export const setRolesData = async (reqObj: any, body: any) => {
+  const userData: any = body
+  const userId = userData.result.response.id   // <-- throws if `result`/`response` is missing
+  if (reqObj.session) {
+    ...
+    reqObj.session.save((error: any) => { ... })
+  }
+}
+
+export const getCurrentUserRoles = async (reqObj: any, accessToken: any) => {
+  ...
+  const authTokenResponse = await axios({ ... })   // no try/catch around this call either
+  if (authTokenResponse) {
+    setRolesData(reqObj, authTokenResponse.data)   // <-- not awaited, no .catch
+  }
+}
+```
+
+`setRolesData(reqObj, authTokenResponse.data)` is called without `await` or
+`.catch()`. If it throws — e.g. the upstream `/user/v2/read/:userId` response
+doesn't have the exact `result.response` shape expected (line 29), or
+`reqObj.session.save` isn't a function for some session-store edge case —
+the resulting rejection is never handled by `getCurrentUserRoles`, and
+because the call isn't awaited, no caller's own try/catch can catch it
+either (the rejection surfaces asynchronously, after `getCurrentUserRoles`
+has already returned). This was actually reproduced by accident while
+writing the test suite: an unawaited `setRolesData` rejection crashed the
+Jest worker process outright.
+
+**In production this is not a process-crash risk** — `src/index.ts:30-38`
+registers a global `process.on('unhandledRejection', ...)` handler that logs
+the rejection rather than letting Node's default "exit the process"
+behavior take over (that default is what killed the Jest worker, since Jest
+doesn't load `index.ts`'s handlers). The real production impact is
+different but still real: **the session's `userId`/`userName`/`userRoles`/
+`orgs`/`rootOrgId` can silently fail to be set or persisted**, and because
+the call is fire-and-forget, every caller proceeds as if it had succeeded —
+there is no way for any of the ~11 call sites (`ssoLogin.ts`, `tnaiAuth.ts`,
+`tnnmcAuth.ts`/`tnnmcAuthV2.ts`, `googleSignInRoutes.ts`,
+`authorizationV2Api.ts`, `mobileAppApi.ts`,
+`maharastraNursingCouncilAuth.ts`, `emailOrMobileLoginSignIn.ts`,
+`sashaktAuth.ts`, `signupWithAutoLogin.ts`/`signupWithAutoLoginV2.ts`/
+`signupWithAutoLoginOrgForm.ts`, `maternityFoundationAuth.ts`) to detect or
+react to the failure. Additionally, `getCurrentUserRoles`'s own axios call
+(line 59) has no try/catch of its own — a rejection there propagates to
+whatever calls `getCurrentUserRoles`, so this depends on each caller
+awaiting/catching it correctly (not verified for all 11 sites in this
+pass).
+
+Not reproduced live as a crash (per the safety rule); the test suite for
+`rolePermission.ts` calls `setRolesData`/`getCurrentUserRoles` directly with
+valid inputs instead.
+
+**MUST VERIFY IN PROD:**
+- [ ] Search logs for `Unhandled Rejection` (the exact string logged by
+      `src/index.ts:32`) correlated with `/user/v2/read/` calls — this
+      would confirm `setRolesData` is already failing silently in
+      production.
+- [ ] Confirm whether any observed session/role inconsistencies (users
+      missing expected roles, missing `rootOrgId`) correlate with this
+      silent-failure path.
+- [ ] Consider whether `setRolesData` should be awaited and its failure
+      surfaced (e.g. a 500) rather than silently swallowed, given it sets
+      session data multiple downstream routes rely on.
+
+---
+
+### AZ. `userOtp.ts` — `POST /` can double/triple-send if the Cassandra query ever resolves falsy, plus raw CQL string interpolation
+
+```ts
+const query = `SELECT * FROM sunbird.otp WHERE type='${userDetails.type}' AND key='${userDetails.key}'`
+const otpData = await client.execute(query)
+if (!otpData) {
+    res.status(400).json({ msg: 'OTP cannot be fetched', ... })   // <-- no return
+}
+res.status(200).json({ data: otpData.rows, message: 'SUCCESS' })  // <-- otpData.rows throws if otpData is falsy
+```
+
+Same missing-`return` family as changes Q/R/S/T/V/Z/AD/AE/AH/AN/AT/AU: the
+`if (!otpData)` check sends a 400 with no `return`, so execution falls
+through to `res.status(200).json({ data: otpData.rows, ... })`. If
+`otpData` is ever falsy, `otpData.rows` throws synchronously (`Cannot read
+properties of ... 'rows'`), which is caught by the outer catch and sends a
+*third* response on an already-ended connection. With the real
+`cassandra-driver`, `client.execute()` always resolves with a `ResultSet`
+object on success (never falsy), so this branch is not reachable with the
+current driver behavior — but it is still a latent double/triple-send bug
+if that assumption ever changes (driver upgrade, or a caller substituting a
+different execute path). Not reproduced live for that reason.
+
+Separately: `userDetails.type` and `userDetails.key` (attacker-controlled
+POST body values) are interpolated directly into a raw CQL query string
+with no parameterization — the same pattern already flagged as a likely
+injection vector in change AR (`publicCertifcateFlinkv2.ts`). This endpoint
+is public and gated only by a shared `extractionKey`; anyone who has (or
+guesses/leaks) that key can also submit arbitrary `type`/`key` values.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm no code path (current or planned) can make
+      `client.execute()` resolve with a falsy value for this query — if any
+      Cassandra driver upgrade changes that guarantee, this becomes a live
+      double-send risk.
+- [ ] Confirm whether `type`/`key` have ever contained CQL special
+      characters in access logs — evidence of injection attempts, and
+      consider migrating to the parameterized `client.execute(query,
+      params, {prepare: true})` form used correctly elsewhere in this
+      codebase (e.g. `keycloak-user-creation.ts`).
+
+---
+
+### BA. `contentSearchService.ts` — minor: a circular upstream error could mask itself in the log line
+
+```ts
+} catch (error) {
+    logError('Error in searchContent: ' + JSON.stringify(error))
+    throw error
+}
+```
+
+(identical shape appears twice, in `searchContent` and `searchContentV2`).
+A genuine axios error can carry circular references (e.g. `error.request`/
+`error.config` holding a reference back to an `http.Agent`/socket).
+`JSON.stringify` throws `TypeError: Converting circular structure to JSON`
+on such objects — if that happens, this `catch` block's own `JSON.stringify`
+call throws a *new* TypeError before reaching `throw error`, masking the
+real error. This is low-severity: the new TypeError still propagates up into
+`mobileAppApi.ts`'s own try/catch (which uses a safe `JSON.stringify` on the
+TypeError itself, not the circular original), so the caller still gets a
+normal 500 — only the log line's diagnostic value is lost for that one
+request. Not reproduced live (would require constructing an artificial
+circular error rather than exercising real logic).
+
+**MUST VERIFY IN PROD:** if `error.message`-only logging would be more
+robust than `JSON.stringify(error)` for genuine axios transport failures,
+consider that swap here (low priority).
+
+---
+
+### BB. `assessmentCompetency.ts` — `GET /v1/assessment/*` resolves `jumbler()` fire-and-forget, so a rejection escapes the route's own try/catch
+
+```ts
+assessmentCompetency.get('/v1/assessment/*', async (req, res) => {
+  try {
+    const path = removePrefix(...)
+    jumbler(path).then((response) => {
+      return res.send(response)
+    })                                    // <-- no .catch, not awaited
+    logInfo('New getAssessments competency >>>>>>>>>>> ', path)
+  } catch (err) { ... }
+})
+```
+
+`jumbler(path).then(...)` is called with no `.catch()` and without `await`,
+inside a `try` block. The enclosing `try/catch` only guards the synchronous
+call that starts the promise chain — it does not (and cannot) catch a
+rejection that surfaces later on that unawaited promise. If `jumbler` ever
+rejects (its own upstream call failing), that rejection becomes an unhandled
+promise rejection instead of a caught, handled error, and the client that
+made this request never receives a response — it hangs until timeout. Same
+"async logic escapes its own try/catch" shape as change AJ/AY, applied here
+to a fire-and-forget `.then()` rather than an unawaited async function call.
+
+Not reproduced live — doing so would hang the Jest worker; the test suite
+for this file only exercises the resolving path for this route.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check gateway/load-balancer logs for long-running or timed-out
+      requests to `GET .../assessmentCompetency/v1/assessment/*` — a
+      correlated pattern would confirm this is already happening when the
+      downstream `jumbler` call fails.
+
+---
+
+### BC. `publicReadForm.ts` — CRITICAL: `GET /readForm` never completes its response on ANY successful request, plus a separate missing-return double-send
+
+```ts
+publicReadForm.get('/readForm', async (req, res) => {
+  try {
+    const frameworkType = req.query.type
+    if (!(frameworkType)) {
+      res.status(400).json({ msg: 'frameworkType can not be empty', ... })
+    }                                    // <-- no return
+    const client = new cassandra.Client({ ... })
+    const query = `SELECT ... WHERE type=${frameworkType};`
+    const formData = await client.execute(query)
+    if (!formData) {
+      res.status(400).json({ msg: 'Form cannot be fetched', ... })
+    } else {
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            data: JSON.stringify(formData),
+        })
+        // <-- no res.end()/res.send() — the response is never completed
+    }
+    client.shutdown()
+  } catch (error) { ... }
+})
+```
+
+Two independent defects:
+
+1. **CRITICAL — every successful request hangs forever.** `res.writeHead(200, {...})` only flushes the status line and headers; it never calls `res.end()` (contrast with the structurally similar `publicCertifcateFlinkv2.ts`, which correctly follows `writeHead()` with `res.end(image, 'binary')` — that call is simply absent here). This means **any valid request** (a `type` present, and Cassandra returns a truthy result) leaves the HTTP connection open indefinitely — the caller never receives a response and times out. This is not a rare edge case; it is the endpoint's *only* success path.
+2. **Missing-`return` double-send**, same family as changes Q/R/S/.../AZ/BB: `if (!(frameworkType))` sends a 400 with no `return`, so a request with no `type` query param falls through into a real Cassandra client/query built with `type=undefined` interpolated raw into the CQL string, then hits the same success/failure branching below and sends a second response.
+
+Given defect 1, there is no successful-request scenario that can be safely exercised live — the response would never complete and the Jest worker would hang. Not reproduced live for either defect; the test suite for this file only checks HTTP-level status codes for the malformed/error paths where the flow reaches the outer `catch` before any response is sent.
+
+Also worth noting: `frameworkType` (the raw, unvalidated `type` query parameter) is interpolated directly into a CQL query string with no parameterization — the same pattern flagged as a likely injection vector in changes AR and AZ.
+
+**MUST VERIFY IN PROD — urgent:**
+- [ ] Confirm whether `GET /readForm` is reachable/used at all in production. If it has ever been called with a valid `type`, the caller would have experienced a hang/timeout on every attempt — check client-side timeout logs or whether this endpoint has quietly been dead code.
+- [ ] If it needs to work, add `res.end()` (or switch to `res.status(200).json(formData)`) after the `writeHead` call, and add the missing `return`.
+- [ ] Confirm whether `type` has ever contained CQL special characters in access logs.
+
+---
+
+### BD. `user/changeEmail.ts` — URGENT: an unguarded `err.response.data` access can hang or crash the process on any network-level failure
+
+```ts
+} catch (err) {
+    logError('ERROR UPDATE EMAIL ID >', err)
+    res.status((err && err.response && err.response.status) || 500).send(err.response.data)
+    //                                                                    ^^^^^^^^^^^^^^^^^^ unguarded
+}
+```
+
+`err.response.status` on the same line is correctly guarded
+(`err && err.response && err.response.status`), but the `.send(...)`
+argument, `err.response.data`, has no guard at all. On any transport-level
+failure — DNS error, `ECONNREFUSED`, timeout, i.e. an axios rejection whose
+`Error` has no `.response` property (exactly the shape produced by this
+campaign's `networkError()` test helper) — evaluating `err.response.data`
+throws `TypeError: Cannot read properties of undefined (reading 'data')`
+*before* `.send()` is ever called. That throw happens inside the `catch`
+block of an `async` Express handler with no surrounding try/catch, so it
+becomes an unhandled promise rejection: the request never receives a
+response (hangs), and depending on the process's unhandled-rejection
+policy this can also crash the Node process (Pattern D-adjacent).
+
+For comparison, the sibling file `user/preference.ts` handles the identical
+error shape safely: `.send((err && err.response && err.response.data) ||
+err)` — fully guarded with a fallback. `changeEmail.ts` is simply missing
+that guard. Not reproduced live — doing so would either hang the Jest
+worker or throw outside the test's control.
+
+**MUST VERIFY IN PROD — urgent:**
+- [ ] Confirm whether `PUT /protected/v8/user/:metaType` (change-email/
+      change-phone) has ever received a network-level upstream failure
+      (timeout/DNS/connection-refused) in production, and if so whether it
+      manifested as a hung request or a process crash/restart.
+- [ ] Add the same `(err && err.response && err.response.data) || {...}`
+      guard used by `preference.ts` and most other files in this codebase.
+
+---
+
+### BE. `extractUserIdFromRequest` can throw before any try/catch runs, in at least two route handlers (`activity.ts`, `network-hub.ts`)
+
+```ts
+// src/utils/requestExtract.ts
+export const extractUserIdFromRequest = (req: any): string => {
+  const wid = req.header('wid')
+  if (wid) { return wid }
+  return req.session.userId as string   // <-- no guard on req.session existing
+}
+```
+
+```ts
+// src/protectedApi_v8/user/activity.ts
+activity.get('/', async (req, res) => {
+  const wid = extractUserIdFromRequest(req)   // <-- called BEFORE the try block
+  ...
+  try { ... } catch (err) { ... }
+})
+```
+
+`extractUserIdFromRequest` dereferences `req.session.userId` with no guard
+on `req.session` existing. In both `activity.ts` (`GET /`) and
+`network-hub.ts`, this call sits *before* the route's own `try` block. If a
+request ever reaches one of these handlers with no `wid` header and no
+`req.session` object, the resulting `TypeError` is thrown synchronously
+inside an `async` function with nothing there to catch it — an unhandled
+promise rejection, so the request never gets a response (hangs).
+
+In practice this is likely **not reachable in normal operation**, since
+session middleware is expected to populate `req.session` (even as an empty
+object) for every request that reaches these protected routes — this would
+only manifest if session middleware were ever misconfigured, absent, or the
+session expired in a way that clears the object entirely, which is an
+infrastructure-level concern rather than a per-route bug. It is recorded
+here because it was independently surfaced twice this campaign and the
+helper itself has no defensive guard, so a future change to the session
+setup could make it reachable. Not reproduced live (this is exactly the
+kind of "logic outside try/catch, throws synchronously in an async
+handler" hazard this campaign avoids reproducing).
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm session middleware is always attached ahead of these routes
+      in `server.ts`'s actual middleware order, guaranteeing `req.session`
+      is never `undefined` by the time these handlers run.
+- [ ] Consider adding a guard directly in `extractUserIdFromRequest`
+      (`req.session && req.session.userId`) so this can never throw
+      regardless of caller order, rather than relying on every call site
+      to place the call inside its own try/catch correctly.
+
+---
+
+### BF. `resource.ts` — URGENT: `GET /` has no try/catch at all and can hang on a common query shape
+
+```ts
+userAuthKeyCloakApi.get('/', async (req, res) => {
+    const host = req.get('host')
+    let queryParam = ''
+    let isLocal = 0
+    if (!_.isEmpty(req.query)) {
+        queryParam = req.query.q
+        if (queryParam.includes('localhost')) {   // <-- throws if req.query.q is undefined
+            isLocal = 1
+        }
+    }
+    ...
+    res.redirect(redirectUrl)
+})
+```
+
+This entire route has **no try/catch anywhere**. If the request has a
+non-empty query string but no `q` key (e.g. `GET /?foo=bar`, or a nested
+query object like `GET /?q[x]=1`, which Express's query parser turns into
+`{x: '1'}`), `queryParam` becomes `undefined` (or a plain object), and
+`.includes('localhost')` throws a `TypeError` synchronously inside the
+`async` handler. Express 4 does not catch rejections/throws from async
+handlers on its own — this becomes an unhandled promise rejection, and
+`res.redirect()` is never reached. The request hangs with no response ever
+sent. Not reproduced live — doing so would hang the Jest worker; the test
+suite only exercises requests with an empty query string or a valid `q`.
+
+**MUST VERIFY IN PROD — urgent:**
+- [ ] Check gateway/load-balancer logs for hung or timed-out requests to
+      this route (mounted wherever `userAuthKeyCloakApi` is registered in
+      `server.ts`) with a query string present but no `q` parameter.
+- [ ] Wrap the handler body in a try/catch, or explicitly guard
+      `typeof queryParam === 'string'` before calling `.includes`.
+
+---
+
+### BG. `userEnrolledInSource.ts` — `GET /` missing-`return` double-send on empty `sourceName`
+
+```ts
+userEnrolledInSource.get('/', async (req, res) => {
+  try {
+    let sourceName = req.query.sourceName
+    if (!sourceName) {
+      res.status(400).json({ message: "Source name can't be empty", ... })
+    }                                    // <-- no return
+    const response = await axios({ ... })   // runs regardless
+    res.status(response.status).send(response.data)
+  } catch (err) { ... }
+})
+```
+
+Same missing-`return` family as changes Q/R/S/.../BC/BD: the empty-
+`sourceName` check sends a 400 with no `return`, so execution falls through
+into a real upstream call (with `courseSourceName: undefined`) and sends a
+second response once it resolves — a double-send crash. Not reproduced
+live for that reason; every test in the suite supplies a `sourceName`.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check application logs for `ERR_HTTP_HEADERS_SENT` (or equivalent)
+      originating from this route.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
