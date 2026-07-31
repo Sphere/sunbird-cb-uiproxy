@@ -2279,6 +2279,46 @@ live for that reason; every test in the suite supplies a `sourceName`.
 
 ---
 
+### BH. `authSearch.ts` — URGENT: unguarded `error.response` access can crash the process on any transport-level failure
+
+```ts
+authSearch.all('*', (req, res) => {
+  ...
+  axios({ ... } as AxiosRequestConfig)
+    .then((response) => {
+      res.status(response.status).send(response.data)
+    })
+    .catch((error) => {
+      res.status(error.response.status).send(error.response.data)
+      //         ^^^^^^^^^^^^^^^^^^^^^         ^^^^^^^^^^^^^^^^^^^ both unguarded
+    })
+})
+```
+
+`authSearch.all('*', ...)` is a catch-all forwarding route (every HTTP method,
+every path under wherever this router is mounted). Its `.catch()` callback
+dereferences `error.response.status`/`error.response.data` with no guard at
+all. Any transport-level failure — DNS error, `ECONNREFUSED`, timeout, i.e.
+an axios rejection whose `Error` has no `.response` property (exactly the
+shape produced by this campaign's `networkError()` test helper) — throws a
+new, unhandled `TypeError` *inside the `.catch` callback itself*. Since
+there is no further handler for that, this becomes a genuinely fatal
+unhandled promise rejection, matching the Pattern D crash class documented
+elsewhere in this campaign (e.g. `changeEmail.ts`, change BD) — except here
+every route in the file funnels through this single catch-all handler, so
+the blast radius is the whole search-proxy surface, not one endpoint. Not
+reproduced live — doing so would either hang or crash the Jest worker.
+
+**MUST VERIFY IN PROD — urgent:**
+- [ ] Confirm whether `SEARCH_API_BASE` has ever been unreachable
+      (deploy window, network partition, DNS blip) in production, and
+      whether that correlates with a process restart/crash around this
+      route.
+- [ ] Add the same `(err && err.response && ...)` guard used throughout
+      the rest of this codebase.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
