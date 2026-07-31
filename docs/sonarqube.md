@@ -161,10 +161,13 @@ docker compose -f docker-compose.sonar.yml down
 
 Runs on pushes to `development`, `cbrelease-4.0.1`, `production` and on PRs into
 the first two. Checks out with `fetch-depth: 0` (Sonar needs blame data to
-attribute new code), installs dependencies with `--ignore-scripts`, then scans
-with `SonarSource/sonarqube-scan-action`.
+attribute new code), installs dependencies with `--ignore-scripts`, runs the
+Jest unit suite with coverage (`npm run test:coverage`, producing
+`coverage/lcov.info`), then scans with `SonarSource/sonarqube-scan-action`.
 
-**It does not run the test suite** — see [Quarantined tests](#quarantined-tests).
+**It does not run `test/integration/`** — see [Quarantined tests](#quarantined-tests).
+The Jest unit suite (`src/**/*.test.ts`) is fully mocked with no network calls,
+so it runs safely in CI; only the live-network integration suite is excluded.
 
 Server-side setup: the `SONAR_TOKEN` secret in the `sonarcloud` environment.
 Everything else comes from `sonar-project.properties`.

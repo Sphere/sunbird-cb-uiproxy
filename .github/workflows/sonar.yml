@@ -3,11 +3,16 @@
 # ADDITIVE: this workflow only observes code. It does not build, package, or
 # deploy the service, and it cannot affect any deployment path.
 #
-# It deliberately does NOT run the test suite. The only suites in this repo are
-# live integration tests under test/integration/ that make real network calls to
-# a deployed environment (one of them POSTs an assessment payload), so running
-# them in CI would write data to a live system and let a flaky remote response
-# fail the pipeline. They are opt-in via `npm run test:integration`.
+# Runs the Jest unit suite (src/**/*.test.ts, co-located, fully mocked — no
+# network calls) with coverage before scanning, so real coverage data reaches
+# Sonar via sonar.javascript.lcov.reportPaths instead of reading 0%.
+#
+# The SEPARATE suites under test/integration/ are NOT run here — those make
+# real network calls to a deployed environment (one of them POSTs an
+# assessment payload), so running them in CI would write data to a live
+# system and let a flaky remote response fail the pipeline. They stay
+# opt-in via `npm run test:integration`. See "Quarantined tests" in
+# docs/sonarqube.md.
 #
 # Server-side setup required: the SONAR_TOKEN secret in the `sonarcloud`
 # environment. Everything else is read from sonar-project.properties.
@@ -21,6 +26,8 @@ on:
       - cbrelease-4.0.1
       - production
       - feat-sonarqube-integration
+      - main
+      - master
   pull_request:
     branches:
       - development
@@ -42,11 +49,21 @@ jobs:
         with:
           node-version: 20
 
-      # Dependencies improve TypeScript analysis precision (type resolution).
+      # Dependencies improve TypeScript analysis precision (type resolution)
+      # and are needed to run the Jest suite below.
       # --ignore-scripts because no package lifecycle script needs to run just
-      # to analyze source, and it keeps the job from executing arbitrary code.
+      # to analyze/test source, and it keeps the job from executing arbitrary
+      # code from a dependency's postinstall hook.
       - name: Install dependencies
         run: npm install --ignore-scripts
+
+      # Produces coverage/lcov.info, which sonar-project.properties points
+      # Sonar at (sonar.javascript.lcov.reportPaths /
+      # sonar.typescript.lcov.reportPaths). Jest's default coverageReporters
+      # already include lcov (jest.config.js) — do not override
+      # --coverageReporters here, that would silently skip regenerating it.
+      - name: Test with coverage
+        run: npm run test:coverage
 
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@v5
