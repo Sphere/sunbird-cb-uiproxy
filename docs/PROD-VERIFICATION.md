@@ -2708,6 +2708,58 @@ for awareness if this function is touched again.
 
 ---
 
+### BU. `env.ts` — `POST_ASSESSMENT_BASE`'s fallback default is a real, publicly-registered external domain, not the loopback host
+
+```ts
+POST_ASSESSMENT_BASE: env.POST_ASSESSMENT_BASE || 'http://localhost.com',
+```
+
+Found while investigating SonarCloud's 17 `http://`-related security hotspots
+in this file (see `docs/DUPLICATE-CODE-CLEANUP.md`-adjacent review, prompted
+by a report from another user's Sonar run). Every other fallback in this file
+follows the pattern `http://localhost:<port>` or an internal service name —
+both fail safely (connection refused) if ever reached unconfigured in a real
+deployment, since nothing in that environment listens there. `localhost.com`
+is different: it is **not** the loopback address — it is a real, live,
+third-party-registered domain on the public internet. If
+`POST_ASSESSMENT_API_BASE` is ever unset in a deployed environment, this
+fallback would silently send real network requests to that external domain
+instead of failing loudly, which is a materially different risk profile from
+every sibling default in this file. Not changed — this is a source-file edit
+outside this campaign's scope without explicit sign-off.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm `POST_ASSESSMENT_API_BASE` is set in every real deployment
+      (it should already be, given the assessment-submission flow is live),
+      and consider whether the fallback should instead be an obviously-inert
+      value (e.g. `http://localhost:0`) so a missing env var fails fast
+      rather than silently reaching an external host.
+
+---
+
+### BV. `env.ts` — `NETWORK_SERVICE_BACKEND`'s fallback default is a malformed URL (missing `//`)
+
+```ts
+NETWORK_SERVICE_BACKEND: env.NETWOR_SERVICE_API_BASE || 'http:localhost:7001',
+```
+
+Found in the same review as change BU. `'http:localhost:7001'` is missing
+the `//` after the scheme, so it is not a well-formed URL — if this fallback
+is ever actually used (i.e. `NETWOR_SERVICE_API_BASE` — itself apparently a
+typo'd env var name, missing the `K` in `NETWORK` — is unset), any URL
+parser or HTTP client consuming it would either throw or misinterpret it,
+unlike every sibling `http://localhost:<port>` default in this file. Not
+changed — outside this campaign's scope without explicit sign-off.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm whether the deployed env var is actually named
+      `NETWOR_SERVICE_API_BASE` (matching the typo in code) or
+      `NETWORK_SERVICE_API_BASE` (the presumably-intended name) — if the
+      latter, this fallback has silently never been reachable by the
+      intended env var name in any environment that set it correctly.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
