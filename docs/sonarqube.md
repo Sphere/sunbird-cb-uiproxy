@@ -32,6 +32,15 @@ ratchets upward as code is touched.
 > than our 60% target. `npm run sonar:gate` creates a separate gate with the
 > correct value — do not just assign "Sonar way".
 
+**Overall coverage floor: ≥ 80%.** Added once the Phase 1/2 Jest coverage
+campaign pushed the whole-repo figure to 81%. This is the one condition in
+the gate that is **not** new-code-scoped — Clean-as-You-Code alone can't
+prevent the absolute number from drifting down again (a PR that only
+touches already-covered lines could still let the overall percentage slip
+if untested code is added elsewhere without being flagged as "new" in the
+sense Sonar tracks). `npm run sonar:gate` keeps this condition in sync;
+re-run it any time to correct drift.
+
 ---
 
 ## Known flakiness: rare spurious failure in the full suite
