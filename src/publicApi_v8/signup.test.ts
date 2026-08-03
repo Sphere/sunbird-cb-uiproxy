@@ -189,6 +189,33 @@ describe('POST / (signup)', () => {
   // handler unconditionally calls res.json(...) right after its .catch sends
   // a 400, a guaranteed double-send with no way to avoid it via mocking (see
   // file header).
+
+  // These two cover the route's own try/catch (lines 61-65), reached here by
+  // making checkUniqueKey itself throw synchronously when called — a plain
+  // synchronous throw inside the try block, safely caught by the handler's
+  // own catch with a single response. This is distinct from the detached
+  // async-callback bugs documented above, which the outer catch can't see.
+  it('returns the upstream status/data when checkUniqueKey throws synchronously', async () => {
+    mockCheckUniqueKey.mockImplementation(() => {
+      throw upstreamError(403, { error: 'boom' })
+    })
+
+    const response = await agent().post('/').send(body)
+
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'boom' })
+  })
+
+  it('falls back to 500 when checkUniqueKey throws synchronously with no .response', async () => {
+    mockCheckUniqueKey.mockImplementation(() => {
+      throw new Error('boom')
+    })
+
+    const response = await agent().post('/').send(body)
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({})
+  })
 })
 
 describe('POST /create/:uniqueId', () => {
@@ -301,4 +328,18 @@ describe('POST /create/:uniqueId', () => {
   // NOTE: checkUUIDMaster rejecting (the "invalid/expired code" case) is NOT
   // tested live — it is the URGENT double-send-cascading-to-a-process-crash
   // bug documented in the file header above.
+
+  // Safe variant of the "no result" path: checkUUIDMaster RESOLVES (does not
+  // reject) with a falsy value, so the .catch handler never runs at all and
+  // only the `else` branch (line 113) sends a response — a single, safe send.
+  it('returns 400 when checkUUIDMaster resolves with no result', async () => {
+    mockCheckUUIDMaster.mockResolvedValue(undefined)
+
+    const response = await agent().post('/create/CODE1').send()
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({
+      msg: 'Could not process the request, please try again after some time!!',
+    })
+  })
 })

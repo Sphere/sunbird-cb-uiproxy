@@ -294,6 +294,18 @@ describe('GET /categories (routing bug)', () => {
   // intended `${FEEDBACK_API_BASE}/v1/config` endpoint. This is safe to
   // exercise live (exactly one response is sent), so we assert the actual
   // (buggy) behavior here rather than skipping it.
+  //
+  // COVERAGE NOTE: the body of the '/categories' handler itself (feedbackV2.ts
+  // lines 278-292 — the rootOrg check, the axios .get(`${...}/config`) call,
+  // and its try/catch) can NEVER execute through the real mounted router,
+  // precisely because of the shadowing bug demonstrated below. Reaching those
+  // lines live would require either fixing the route-registration order in
+  // feedbackV2.ts (out of scope for this test-only pass) or pulling the
+  // handler function off feedbackV2Api's internal router stack and invoking
+  // it directly, bypassing Express dispatch — which contradicts this file's
+  // convention (see mountRouter.ts) of asserting on real HTTP responses
+  // rather than on how a handler was reached. Left uncovered on purpose;
+  // reported upstream instead of faked.
   it('is actually handled by the :feedbackId route, not the categories handler', async () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ notActuallyCategories: true }))
     const response = await withRootOrg(agent().get('/categories'))
