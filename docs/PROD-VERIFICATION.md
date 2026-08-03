@@ -2552,6 +2552,27 @@ reason above.
 
 ---
 
+### BP. `emailOrMobileLoginSignIn.ts` — `/registerUserWithMobile` also has a missing-`return` double-send on a missing `phone`, separate from change E's hang
+
+Found while extending this file's test coverage (88.57% → 95.51%). This is
+a *different* defect on the *same* route as change E above — E documents a
+zero-response hang when the upstream create-user call fails; this is the
+missing-`return` double-send family (same shape as changes Q/R/S/.../BO)
+triggered by a missing `phone` field instead. `if (!req.body.phone) {
+res.status(400)... }` has no `return`, so execution falls through into the
+real create-user flow and can send a second response once that resolves.
+Not reproduced live for the same reason as every other entry in this
+family. Recording alongside change E since they share a route but are
+independent bugs.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check application logs for `ERR_HTTP_HEADERS_SENT` (or equivalent)
+      originating from `POST .../registerUserWithMobile` with a missing
+      `phone` field specifically (distinct from change E's upstream-failure
+      hang scenario).
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

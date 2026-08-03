@@ -116,6 +116,43 @@ describe('POST /signup', () => {
 
     expect(response.status).toBe(500)
   })
+
+  it('returns 400 when user creation upstream reports a non-OK response', async () => {
+    // createuserWithmobileOrEmail's own try/catch swallows the thrown Error
+    // internally (logs and returns undefined normally, no rejection), so
+    // `.catch(handleCreateUserError)` never fires; newUserDetails ends up
+    // falsy and the (safe, single-response, `return`-guarded) else branch
+    // reports "already exists".
+    mockAxios
+      .mockResolvedValueOnce(userSearchResponse(false)) // fetchUserBymobileorEmail
+      .mockResolvedValueOnce(
+        upstreamOk({ responseCode: 'CLIENT_ERROR', params: { errmsg: 'Bad email' } })
+      ) // createuserWithmobileOrEmail's own axios call
+
+    const response = await agent()
+      .post('/signup')
+      .send({ email: 'bad@example.com', firstName: 'A', lastName: 'B' })
+
+    expect(response.status).toBe(400)
+    expect(response.body.msg).toContain('already exists')
+  })
+
+  it('creates a new user even when the initial existence search errors', async () => {
+    // fetchUserBymobileorEmail catches its own axios failure and returns
+    // undefined, so isUserExist is falsy and signup proceeds normally.
+    mockAxios
+      .mockRejectedValueOnce(networkError()) // fetchUserBymobileorEmail
+      .mockResolvedValueOnce(createUserResponse('user-uuid-3')) // createuserWithmobileOrEmail
+      .mockResolvedValueOnce(upstreamOk()) // updateRoles
+    mockGetOTP.mockResolvedValue(upstreamOk({ result: { response: 'SUCCESS' } }))
+
+    const response = await agent()
+      .post('/signup')
+      .send({ email: 'new2@example.com', firstName: 'A', lastName: 'B' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('success')
+  })
 })
 
 describe('POST /generateOtp', () => {
@@ -179,6 +216,18 @@ describe('POST /generateOtp', () => {
 
     expect(response.status).toBe(500)
   })
+
+  it('returns 500 when the user existence lookup throws unexpectedly', async () => {
+    // getUserDetails (the searchUser call) has no try/catch of its own; a
+    // rejection there is only caught by the route's own outer catch, giving
+    // a single, safe 500 response.
+    mockAxios.mockRejectedValueOnce(networkError())
+
+    const response = await agent().post('/generateOtp').send({ email: 'a@b.com' })
+
+    expect(response.status).toBe(500)
+    expect(response.body.message).toBe('OTP regeneration failed')
+  })
 })
 
 describe('POST /validateOtp', () => {
@@ -217,6 +266,21 @@ describe('POST /validateOtp', () => {
 
     expect(response.status).toBe(500)
   })
+
+  it('still validates successfully when updateRoles fails internally', async () => {
+    // updateRoles has its own try/catch and returns 'false' on failure rather
+    // than throwing, so its result (awaited but unused) can't affect the
+    // response here.
+    mockAxios.mockRejectedValueOnce(networkError()) // updateRoles' axios call
+    mockValidateOTP.mockResolvedValue(upstreamOk({}))
+
+    const response = await agent()
+      .post('/validateOtp')
+      .send({ email: 'a@b.com', otp: '1234', userUUId: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe(200)
+  })
 })
 
 describe('POST /registerUserWithMobile', () => {
@@ -253,6 +317,30 @@ describe('POST /registerUserWithMobile', () => {
   // until the client times out. Confirmed empirically: this scenario timed out
   // a real supertest request at the default 30s Jest timeout. Recorded in
   // docs/PROD-VERIFICATION.md instead of reproduced here.
+
+  // A missing phone is deliberately NOT tested by sending the request either:
+  // the handler sends 400 WITHOUT returning (no `return` after that
+  // res.status(400) call, same bug shape as /signup's missing-email case),
+  // then keeps processing with phone=undefined. Depending on how deep it gets,
+  // that either double-sends on top of the already-sent 400 (ERR_HTTP_HEADERS_SENT,
+  // re-thrown unhandled from the outer catch) or silently no-ops past it — not
+  // safe to reproduce live. Recorded in docs/PROD-VERIFICATION.md instead.
+
+  it('returns 500 when the first name is missing during creation', async () => {
+    // createuserWithmobileOrEmail throws synchronously (before its own
+    // try/catch) when fname is falsy; `.catch(handleCreateUserError)` catches
+    // that rejection and re-throws a string, which is NOT caught by anything
+    // inside the `if (!isUserExist)` block, so it propagates to the route's
+    // own outer catch — a single, safe 500 response.
+    mockAxios.mockResolvedValueOnce(userSearchResponse(false)) // fetchUserBymobileorEmail
+
+    const response = await agent()
+      .post('/registerUserWithMobile')
+      .send({ phone: '9876543210' }) // no firstName
+
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Failed due to unknown reason')
+  })
 })
 
 describe('POST /auth', () => {
@@ -309,6 +397,26 @@ describe('POST /auth', () => {
     expect(response.status).toBe(400)
     expect(response.body.msg).toBe('Mobile no. or Email Id can not be empty')
   })
+
+  it('returns 302 when the token endpoint responds without a data payload', async () => {
+    mockAxios
+      .mockResolvedValueOnce(userSearchResponse(true)) // email exists
+      .mockResolvedValueOnce(userSearchResponse(false)) // mobile check
+      .mockResolvedValueOnce(upstreamOk(null)) // token endpoint, no data
+
+    const response = await mountRouter(emailOrMobileLogin, { session: session() })
+      .post('/auth')
+      .send({ email: 'a@b.com', password: 'pw' })
+
+    expect(response.status).toBe(302)
+    expect(response.body.msg).toMatch(/Authentication failed/)
+  })
+
+  // The outermost catch (after the inner token-exchange try/catch) is
+  // deliberately NOT exercised: everything ahead of it in this handler either
+  // has its own internal try/catch (fetchUserBymobileorEmail) or is inert
+  // synchronous code, so there is no legitimate input that reaches it without
+  // fabricating a broken session/mocks. Left uncovered rather than contrived.
 })
 
 describe('POST /authv2/*', () => {
@@ -337,4 +445,21 @@ describe('POST /authv2/*', () => {
     expect(response.status).toBe(400)
     expect(response.body.error).toMatch(/Authentication failed/)
   })
+
+  it('returns 302 when the token endpoint responds without a data payload', async () => {
+    mockAxios.mockResolvedValueOnce(upstreamOk(null))
+
+    const response = await mountRouter(emailOrMobileLogin, { session: workingSession() })
+      .post('/authv2/callback')
+      .query({ code: 'auth-code-456' })
+      .send({})
+
+    expect(response.status).toBe(302)
+    expect(response.body.msg).toMatch(/Authentication failed/)
+  })
+
+  // As with /auth, the outermost catch is deliberately NOT exercised: the
+  // only code ahead of the inner token-exchange try/catch is two logInfo
+  // calls (mocked, non-throwing), so there is no legitimate input that
+  // reaches it. Left uncovered rather than contrived.
 })

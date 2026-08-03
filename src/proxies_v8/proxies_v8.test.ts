@@ -53,6 +53,9 @@ jest.mock('../utils/env', () => ({
     CDN_DOMAIN: 'https://cdn.test',
     HTTPS_HOST: 'https://auth.test',
     KONG_API_BASE: 'https://kong.test',
+    // Only this one notify body needs real '#contentLink' content, to reach
+    // the contentBody.replace() branch in POST /notifyContentState.
+    NOTIFY_SEND_FOR_REVIEW_BODY: 'Please review the content #contentLink',
     S3_BUCKET_URL: 'https://bucket.test/',
     SB_API_KEY: 'sb-api-key',
     TIMEOUT: '10000',
@@ -63,6 +66,7 @@ import { PassThrough, Readable } from 'stream'
 import axios from 'axios'
 import FormData from 'form-data'
 import request from 'request'
+import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { mountRouter } from '../test-support/mountRouter'
 import { proxiesV8 } from './proxies_v8'
 
@@ -156,6 +160,185 @@ describe('GET /logout/user', () => {
   })
 })
 
+describe('POST /upload/action/*', () => {
+  it('uploads the file and forwards the upstream artifact details', async () => {
+    mockAxios.mockResolvedValue({
+      data: {
+        params: { status: 'Live' },
+        result: {
+          artifactUrl: 'https://cdn.test/artifact.png',
+          content_url: 'https://cdn.test/content.png',
+          identifier: 'do_123',
+        },
+      },
+    })
+    ;(FormData as unknown as jest.Mock).mockImplementation(() => ({
+      append: jest.fn(),
+      getHeaders: jest.fn(() => ({})),
+    }))
+
+    const response = await mountRouter(proxiesV8, {
+      basePath: BASE,
+      requestProps: {
+        files: { data: { data: Buffer.from('x'), mimetype: 'image/png', name: 'artifact.png' } },
+      },
+    })
+      .post(`${BASE}/upload/action/upload/content/v3/do_123`)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      artifactUrl: 'https://cdn.test/artifact.png',
+      content_url: 'https://cdn.test/content.png',
+      identifier: 'do_123',
+      status: 'Live',
+    })
+  })
+
+  it('reports an upload error when the upstream call fails', async () => {
+    mockAxios.mockRejectedValue(new Error('upload failed'))
+    ;(FormData as unknown as jest.Mock).mockImplementation(() => ({
+      append: jest.fn(),
+      getHeaders: jest.fn(() => ({})),
+    }))
+
+    const response = await mountRouter(proxiesV8, {
+      basePath: BASE,
+      requestProps: {
+        files: { data: { data: Buffer.from('x'), mimetype: 'image/png', name: 'artifact.png' } },
+      },
+    })
+      .post(`${BASE}/upload/action/upload/content/v3/do_123`)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('Error while uploading ..')
+  })
+
+  it('reports missing file when no file is attached', async () => {
+    const response = await agent().post(`${BASE}/upload/action/upload/content/v3/do_123`).send({})
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('File not found')
+  })
+})
+
+describe('POST /private/upload/*', () => {
+  it('submits the file and forwards a parsed 2xx upstream body', async () => {
+    const mockSubmit = jest.fn((_opts, cb) => {
+      const fakeResponse = Object.assign(new Readable({ read() { /* noop */ } }), {
+        statusCode: 200,
+      })
+      cb(null, fakeResponse)
+      fakeResponse.emit('data', Buffer.from(JSON.stringify({ uploaded: true })))
+    })
+    ;(FormData as unknown as jest.Mock).mockImplementation(() => ({
+      append: jest.fn(),
+      submit: mockSubmit,
+    }))
+
+    const response = await mountRouter(proxiesV8, {
+      basePath: BASE,
+      requestProps: {
+        files: { data: { data: Buffer.from('x'), mimetype: 'text/csv', name: 'private.csv' } },
+      },
+    })
+      .post(`${BASE}/private/upload/some/path`)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ uploaded: true })
+  })
+
+  it('forwards the raw body for a non-2xx upstream response', async () => {
+    const mockSubmit = jest.fn((_opts, cb) => {
+      const fakeResponse = Object.assign(new Readable({ read() { /* noop */ } }), {
+        statusCode: 500,
+      })
+      cb(null, fakeResponse)
+      fakeResponse.emit('data', Buffer.from('upstream failure'))
+    })
+    ;(FormData as unknown as jest.Mock).mockImplementation(() => ({
+      append: jest.fn(),
+      submit: mockSubmit,
+    }))
+
+    const response = await mountRouter(proxiesV8, {
+      basePath: BASE,
+      requestProps: {
+        files: { data: { data: Buffer.from('x'), mimetype: 'text/csv', name: 'private.csv' } },
+      },
+    })
+      .post(`${BASE}/private/upload/some/path`)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('upstream failure')
+  })
+
+  // The response's 'data' event is deliberately never emitted here: emitting
+  // it alongside the error callback would double-send (once from the 'data'
+  // handler, again from the `if (_err)` branch below it) — so only the error
+  // path is exercised, matching the identical shape already covered safely
+  // for /userData/v1/bulkUpload below.
+  it('sends the raw error when the submit callback errors', async () => {
+    const mockSubmit = jest.fn((_opts, cb) => {
+      cb(new Error('submit failed'), { on: jest.fn() })
+    })
+    ;(FormData as unknown as jest.Mock).mockImplementation(() => ({
+      append: jest.fn(),
+      submit: mockSubmit,
+    }))
+
+    const response = await mountRouter(proxiesV8, {
+      basePath: BASE,
+      requestProps: {
+        files: { data: { data: Buffer.from('x'), mimetype: 'text/csv', name: 'private.csv' } },
+      },
+    })
+      .post(`${BASE}/private/upload/some/path`)
+      .send({})
+
+    expect(response.status).toBe(200)
+  })
+
+  it('reports missing file when no file is attached', async () => {
+    const response = await agent().post(`${BASE}/private/upload/some/path`).send({})
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('File not found')
+  })
+})
+
+describe('GET /action/content/v3/read/*', () => {
+  it('applies CDN URL replacement to the upstream content', async () => {
+    mockAxios.mockResolvedValue({ data: { contentUrl: 'https://raw.test/asset.png' } })
+
+    const response = await agent().get(`${BASE}/action/content/v3/read/do_123`)
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ contentUrl: 'https://raw.test/asset.png' })
+  })
+
+  it('falls back to the raw upstream body when CDN replacement throws', async () => {
+    mockAxios.mockResolvedValue({ data: { contentUrl: 'https://raw.test/asset.png' } })
+    ;(replaceCdnUrls as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('replacement failed')
+    })
+
+    const response = await agent().get(`${BASE}/action/content/v3/read/do_123`)
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ contentUrl: 'https://raw.test/asset.png' })
+  })
+
+  it('passes an upstream failure to the error middleware', async () => {
+    mockAxios.mockRejectedValue(new Error('read failed'))
+
+    const response = await agent().get(`${BASE}/action/content/v3/read/do_123`)
+
+    expect(response.status).toBe(500)
+  })
+})
+
 describe('POST /userData/v1/bulkUpload', () => {
   it('rejects a request with no file attached', async () => {
     const response = await agent().post(`${BASE}/userData/v1/bulkUpload`).send({})
@@ -189,6 +372,57 @@ describe('POST /userData/v1/bulkUpload', () => {
 
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ uploaded: true })
+  })
+
+  it('forwards the raw body for a non-2xx bulk upload response', async () => {
+    mockAxios.mockResolvedValue({ data: { result: { response: { channel: 'ch1' } } } })
+    const mockSubmit = jest.fn((_opts, cb) => {
+      const fakeResponse = Object.assign(new Readable({ read() { /* noop */ } }), {
+        statusCode: 500,
+      })
+      cb(null, fakeResponse)
+      fakeResponse.emit('data', Buffer.from('upstream failure'))
+    })
+    ;(FormData as unknown as jest.Mock).mockImplementation(() => ({
+      append: jest.fn(),
+      submit: mockSubmit,
+    }))
+
+    const response = await mountRouter(proxiesV8, {
+      basePath: BASE,
+      requestProps: {
+        files: { data: { data: Buffer.from('x'), mimetype: 'text/csv', name: 'users.csv' } },
+      },
+    })
+      .post(`${BASE}/userData/v1/bulkUpload`)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('upstream failure')
+  })
+
+  // The response's 'data' event is deliberately never emitted here: see the
+  // identical reasoning on the /private/upload/* error test above.
+  it('sends the raw error when the bulk upload submit callback errors', async () => {
+    mockAxios.mockResolvedValue({ data: { result: { response: { channel: 'ch1' } } } })
+    const mockSubmit = jest.fn((_opts, cb) => {
+      cb(new Error('submit failed'), { on: jest.fn() })
+    })
+    ;(FormData as unknown as jest.Mock).mockImplementation(() => ({
+      append: jest.fn(),
+      submit: mockSubmit,
+    }))
+
+    const response = await mountRouter(proxiesV8, {
+      basePath: BASE,
+      requestProps: {
+        files: { data: { data: Buffer.from('x'), mimetype: 'text/csv', name: 'users.csv' } },
+      },
+    })
+      .post(`${BASE}/userData/v1/bulkUpload`)
+      .send({})
+
+    expect(response.status).toBe(200)
   })
 })
 
@@ -230,6 +464,65 @@ describe('POST /notifyContentState', () => {
       .send({ contentState: 'reviewCompleted' })
 
     expect(response.status).toBe(400)
+  })
+
+  it('sends the notification for contentState=reviewFailed', async () => {
+    mockAxios.mockResolvedValue({ data: { result: { response: true } } })
+
+    const response = await agent()
+      .post(`${BASE}/notifyContentState`)
+      .send({ contentState: 'reviewFailed' })
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('Email sent successfully.')
+  })
+
+  it('sends the notification for contentState=sendForPublish', async () => {
+    mockAxios.mockResolvedValue({ data: { result: { response: true } } })
+
+    const response = await agent()
+      .post(`${BASE}/notifyContentState`)
+      .send({ contentState: 'sendForPublish' })
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('Email sent successfully.')
+  })
+
+  it('sends the notification for contentState=publishCompleted', async () => {
+    mockAxios.mockResolvedValue({ data: { result: { response: true } } })
+
+    const response = await agent()
+      .post(`${BASE}/notifyContentState`)
+      .send({ contentState: 'publishCompleted' })
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('Email sent successfully.')
+  })
+
+  it('sends the notification for contentState=publishFailed', async () => {
+    mockAxios.mockResolvedValue({ data: { result: { response: true } } })
+
+    const response = await agent()
+      .post(`${BASE}/notifyContentState`)
+      .send({ contentState: 'publishFailed' })
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('Email sent successfully.')
+  })
+
+  it('replaces the #contentLink placeholder when contentLink and contentName are given', async () => {
+    mockAxios.mockResolvedValue({ data: { result: { response: true } } })
+
+    const response = await agent()
+      .post(`${BASE}/notifyContentState`)
+      .send({
+        contentLink: 'https://example.test/content/123',
+        contentName: 'My Content',
+        contentState: 'sendForReview',
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.text).toBe('Email sent successfully.')
   })
 
   // Neither a missing contentState NOR an unrecognised one is tested live.

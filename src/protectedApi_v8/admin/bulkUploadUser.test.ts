@@ -20,8 +20,15 @@
  */
 
 jest.mock('axios')
+// `Client` is instantiated once at module load, but jest.config.js's global
+// `clearMocks: true` wipes every mock's call/result history before each
+// test — including a factory-created inner `execute` jest.fn(). Capturing a
+// single stable `execute` reference here (outside any test, so it survives
+// clearMocks) is the proven fix for this, matching the pattern used for the
+// same issue in publicCertifcateFlinkv2.test.ts.
+const mockCassandraExecute = jest.fn()
 jest.mock('cassandra-driver', () => ({
-  Client: jest.fn(() => ({ execute: jest.fn(), on: jest.fn() })),
+  Client: jest.fn(() => ({ execute: mockCassandraExecute, on: jest.fn() })),
 }))
 jest.mock('../../utils/logger', () => ({ logError: jest.fn(), logInfo: jest.fn() }))
 jest.mock('../../utils/requestExtract', () => ({
@@ -45,9 +52,11 @@ jest.mock('../../utils/env', () => ({
 import axios from 'axios'
 import { networkError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
+import { logInfo } from '../../utils/logger'
 import { bulkUploadUserApi } from './bulkUploadUser'
 
 const mockAxiosCallable = axios as unknown as jest.Mock
+const mockLogInfo = logInfo as jest.Mock
 
 const csvWithTwoRows = [
   'first_name,last_name,username,phone,type,channel,usertype,Cadre',
@@ -72,6 +81,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 beforeEach(() => {
   mockAxiosCallable.mockReset()
+  mockCassandraExecute.mockReset()
 })
 
 describe('POST /create-users', () => {
@@ -110,4 +120,203 @@ describe('POST /create-users', () => {
   // NOTE: a CSV with 0 or 1 data rows is a documented hang bug (userProcessing()
   // is only invoked when result.length > 1, and nothing else ever responds) —
   // not reproduced live.
+
+  it('responds 500 when userProcessing itself throws after the rows settle (its own outer catch)', async () => {
+    // Forces logInfo to throw only on the specific call made right before the
+    // 200 response, at the top level of userProcessing's own try block — not
+    // inside any of the nested per-row try/catches, which would swallow it.
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: { userId: 'u1' } }))
+    mockLogInfo.mockImplementation((msg: unknown) => {
+      if (typeof msg === 'string' && msg.startsWith('Data inside user processing')) {
+        throw new Error('logging blew up')
+      }
+    })
+    try {
+      const response = await agentWithFile(csvWithTwoRows).post('/create-users')
+      expect(response.status).toBe(500)
+      expect(response.body.message).toBe('Error While Creating the user ')
+    } finally {
+      mockLogInfo.mockImplementation(() => undefined)
+    }
+  })
+
+  it('drives a non-ASHA row through role assignment, password reset and a successful welcome email', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.resolve(upstreamOk({ result: { response: { organisations: [{ organisationId: 'org-1' }] } } }))
+      }
+      if (config.url.includes('/user/v1/role/assign')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('/password/reset')) {
+        return Promise.resolve(upstreamOk({ result: { link: 'https://reset.test/link' } }))
+      }
+      if (config.url.includes('/notification/email')) {
+        return Promise.resolve(upstreamOk({ params: { status: 'success' } }))
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u1' } }))
+    })
+    const response = await agentWithFile(csvWithTwoRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('logs a failure when the welcome-email upstream reports a non-success status', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.resolve(upstreamOk({ result: { response: { organisations: [{ organisationId: 'org-1' }] } } }))
+      }
+      if (config.url.includes('/user/v1/role/assign')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('/password/reset')) {
+        return Promise.resolve(upstreamOk({ result: { link: 'https://reset.test/link' } }))
+      }
+      if (config.url.includes('/notification/email')) {
+        return Promise.resolve(upstreamOk({ params: { status: 'failed' } }))
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u1' } }))
+    })
+    const response = await agentWithFile(csvWithTwoRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('swallows an upstream failure from the welcome-email call for a non-ASHA row', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.resolve(upstreamOk({ result: { response: { organisations: [{ organisationId: 'org-1' }] } } }))
+      }
+      if (config.url.includes('/user/v1/role/assign')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('/password/reset')) {
+        return Promise.resolve(upstreamOk({ result: { link: 'https://reset.test/link' } }))
+      }
+      if (config.url.includes('/notification/email')) {
+        return Promise.reject(networkError())
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u1' } }))
+    })
+    const response = await agentWithFile(csvWithTwoRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('swallows an upstream failure resetting the password for a non-ASHA row', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.resolve(upstreamOk({ result: { response: { organisations: [{ organisationId: 'org-1' }] } } }))
+      }
+      if (config.url.includes('/user/v1/role/assign')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('/password/reset')) {
+        return Promise.reject(networkError())
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u1' } }))
+    })
+    const response = await agentWithFile(csvWithTwoRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('swallows an upstream failure assigning a role for a non-ASHA row', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.resolve(upstreamOk({ result: { response: { organisations: [{ organisationId: 'org-1' }] } } }))
+      }
+      if (config.url.includes('/user/v1/role/assign')) {
+        return Promise.reject(networkError())
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u1' } }))
+    })
+    const response = await agentWithFile(csvWithTwoRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('covers the non-ASHA row outer catch when logging itself throws before the user-creation call', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: { userId: 'u1' } }))
+    mockLogInfo.mockImplementation((msg: unknown) => {
+      if (msg === 'CSV data present more than one row') {
+        throw new Error('log boom')
+      }
+    })
+    try {
+      const response = await agentWithFile(csvWithTwoRows).post('/create-users')
+      expect(response.status).toBe(200)
+      await settle()
+    } finally {
+      mockLogInfo.mockImplementation(() => undefined)
+    }
+  })
+
+  it('swallows an upstream failure creating an ASHA worker', async () => {
+    mockAxiosCallable.mockRejectedValue(networkError())
+    const response = await agentWithFile(csvWithAshaRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('swallows an upstream failure reading a newly created ASHA worker', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.reject(networkError())
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u-asha-2' } }))
+    })
+    const response = await agentWithFile(csvWithAshaRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('swallows an upstream failure assigning a role to an ASHA worker', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.resolve(upstreamOk({ result: { response: { organisations: [{ organisationId: 'org-2' }] } } }))
+      }
+      if (config.url.includes('/user/v1/role/assign')) {
+        return Promise.reject(networkError())
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u-asha-3' } }))
+    })
+    const response = await agentWithFile(csvWithAshaRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('swallows a Cassandra insert failure after an ASHA worker is fully provisioned', async () => {
+    mockCassandraExecute.mockImplementationOnce(() => {
+      throw new Error('cassandra insert failed')
+    })
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/v2/read/')) {
+        return Promise.resolve(upstreamOk({ result: { response: { organisations: [{ organisationId: 'org-3' }] } } }))
+      }
+      if (config.url.includes('/user/v1/role/assign')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      return Promise.resolve(upstreamOk({ result: { userId: 'u-asha-4' } }))
+    })
+    const response = await agentWithFile(csvWithAshaRows).post('/create-users')
+    expect(response.status).toBe(200)
+    await settle()
+  })
+
+  it('covers the ASHA row outer catch when logging itself throws before the user-creation call', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: { userId: 'u-asha-5' } }))
+    mockLogInfo.mockImplementation((msg: unknown) => {
+      if (msg === 'CSV data present more than one row') {
+        throw new Error('log boom')
+      }
+    })
+    try {
+      const response = await agentWithFile(csvWithAshaRows).post('/create-users')
+      expect(response.status).toBe(200)
+      await settle()
+    } finally {
+      mockLogInfo.mockImplementation(() => undefined)
+    }
+  })
 })

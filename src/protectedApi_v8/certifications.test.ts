@@ -18,6 +18,9 @@ import { mountRouter } from '../test-support/mountRouter'
 import { certificationApi } from './certifications'
 
 const mockAxios = axios as jest.Mocked<typeof axios>
+// The booking route calls axios as a callable (`axios({...})`) rather than
+// via .get/.post/etc, matching the pattern used in assessment.test.ts.
+const mockAxiosCallable = axios as unknown as jest.Mock
 const agent = () => mountRouter(certificationApi)
 
 beforeEach(() => {
@@ -25,6 +28,7 @@ beforeEach(() => {
   mockAxios.post.mockReset()
   mockAxios.delete.mockReset()
   mockAxios.patch.mockReset()
+  mockAxiosCallable.mockReset()
 })
 
 describe('GET /:certificationId/bookingInfo', () => {
@@ -52,6 +56,53 @@ describe('GET /:certificationId/testCenters', () => {
     const response = await agent().get('/cert-1/testCenters')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/cert-1/testCenters')
+    expect(response.status).toBe(400)
+  })
+})
+
+describe('GET /:certificationId/locations/:location/testCenters/:testCenter/slots', () => {
+  it('returns ACC slots for the given location and test center', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([{ slot: 'morning' }]))
+    const response = await agent().get('/cert-1/locations/loc-1/testCenters/tc-1/slots')
+    expect(response.status).toBe(200)
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '/certifications/cert-1/locations/loc-1/test-centers/tc-1/slots'
+      ),
+      expect.anything()
+    )
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/cert-1/locations/loc-1/testCenters/tc-1/slots')
+    expect(response.status).toBe(400)
+  })
+})
+
+describe('POST /:certificationId/booking/:slotNo', () => {
+  it('books/updates an ACC slot, using only the local part of the email', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ booked: true }))
+    const response = await agent().post('/cert-1/booking/3').send({})
+    expect(response.status).toBe(200)
+    // getEmailLocalPart('user@Example.com') -> 'user'
+    expect(mockAxiosCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'POST',
+        url: expect.stringContaining('/users/user/certifications/cert-1/booking/3'),
+      })
+    )
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxiosCallable.mockRejectedValue(networkError())
+    const response = await agent().post('/cert-1/booking/3').send({})
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /countries', () => {
@@ -74,6 +125,12 @@ describe('GET /countries/:countryCode/locations', () => {
     const response = await agent().get('/countries/IN/locations')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/countries/IN/locations')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /slots', () => {
@@ -81,6 +138,12 @@ describe('GET /slots', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ slot: 1 }]))
     const response = await agent().get('/slots')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/slots')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -104,6 +167,12 @@ describe('DELETE /:certificationId/slots/:slotNo', () => {
     const response = await agent().delete('/cert-1/slots/3')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.delete.mockRejectedValue(networkError())
+    const response = await agent().delete('/cert-1/slots/3')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /currencies', () => {
@@ -111,6 +180,12 @@ describe('GET /currencies', () => {
     mockAxios.get.mockResolvedValue(upstreamOk(['INR']))
     const response = await agent().get('/currencies')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/currencies')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -120,6 +195,12 @@ describe('POST /:certificationId/budgetRequest', () => {
     const response = await agent().post('/cert-1/budgetRequest').send({})
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/cert-1/budgetRequest').send({})
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('DELETE /:certificationId/budgetRequest', () => {
@@ -127,6 +208,12 @@ describe('DELETE /:certificationId/budgetRequest', () => {
     mockAxios.delete.mockResolvedValue(upstreamOk({ withdrawn: true }))
     const response = await agent().delete('/cert-1/budgetRequest')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.delete.mockRejectedValue(networkError())
+    const response = await agent().delete('/cert-1/budgetRequest')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -168,6 +255,12 @@ describe('PATCH /:certificationId/result', () => {
     const response = await agent().patch('/cert-1/result').query({ action: 'submit' }).send({})
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.patch.mockRejectedValue(networkError())
+    const response = await agent().patch('/cert-1/result').query({ action: 'submit' }).send({})
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /submittedDocument', () => {
@@ -175,6 +268,12 @@ describe('GET /submittedDocument', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ url: 'https://doc.test' }))
     const response = await agent().get('/submittedDocument')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/submittedDocument')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -184,6 +283,12 @@ describe('DELETE /:certificationId/document', () => {
     const response = await agent().delete('/cert-1/document')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.delete.mockRejectedValue(networkError())
+    const response = await agent().delete('/cert-1/document')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /certificationApprovals', () => {
@@ -191,6 +296,12 @@ describe('GET /certificationApprovals', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ id: 'a1' }]))
     const response = await agent().get('/certificationApprovals')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/certificationApprovals')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -200,6 +311,12 @@ describe('POST /atDeskRequests/:icfdId', () => {
     const response = await agent().post('/atDeskRequests/icfd-1').send({})
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/atDeskRequests/icfd-1').send({})
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('POST /:certificationId/budgetRequestApproval', () => {
@@ -208,6 +325,12 @@ describe('POST /:certificationId/budgetRequestApproval', () => {
     const response = await agent().post('/cert-1/budgetRequestApproval').send({})
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/cert-1/budgetRequestApproval').send({})
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('POST /:certificationId/resultVerificationRequests', () => {
@@ -215,6 +338,12 @@ describe('POST /:certificationId/resultVerificationRequests', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ id: 'rv1' }))
     const response = await agent().post('/cert-1/resultVerificationRequests').send({})
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/cert-1/resultVerificationRequests').send({})
+    expect(response.status).toBe(400)
   })
 })
 
@@ -238,6 +367,12 @@ describe('GET /certificationRequests', () => {
     const response = await agent().get('/certificationRequests')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/certificationRequests')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /:certificationId/submissions', () => {
@@ -245,6 +380,12 @@ describe('GET /:certificationId/submissions', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ id: 'sub1' }]))
     const response = await agent().get('/cert-1/submissions')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/cert-1/submissions')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -254,6 +395,12 @@ describe('GET /:emailId/privileges', () => {
     const response = await agent().get('/someone@example.com/privileges')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/someone@example.com/privileges')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /defaultProctor', () => {
@@ -261,5 +408,11 @@ describe('GET /defaultProctor', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ proctor: 'p1' }))
     const response = await agent().get('/defaultProctor')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/defaultProctor')
+    expect(response.status).toBe(400)
   })
 })
