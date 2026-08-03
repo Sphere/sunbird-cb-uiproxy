@@ -2330,6 +2330,200 @@ reproduced live — doing so would either hang or crash the Jest worker.
 
 ---
 
+### BI. `bnrcUser.ts` — `updateUserStatusInDatabase()` reports success even when the audit-log DB insert fails after all retries
+
+*Found while investigating SonarQube code duplication between `bnrcUser.ts`,
+`upsmfUser.ts`, and `mpNHMUser.ts` — see `docs/DUPLICATE-CODE-CLEANUP.md`
+change L3-7.*
+
+```ts
+try {
+  const maxRetries = 2
+  let retryCount = 0
+  while (retryCount < maxRetries) {
+    try {
+      await pgPool.query(pgQuery, pgParams)
+      break                                    // success
+    } catch (queryError) {
+      retryCount++
+      if (retryCount >= maxRetries) {
+        logError('PostgreSQL insert failed after max retries', ...)
+        break                                   // <-- exhausted retries, but still `break`s
+      }
+      await new Promise((resolve) => setTimeout(resolve, waitTime))
+    }
+  }
+} catch (pgError) {
+  logError('Unexpected error in PostgreSQL insert', ...)
+}
+return true                                     // <-- reached on BOTH success AND exhausted retries
+```
+
+Both the success path (`break` after a successful `pgPool.query`) and the
+exhausted-retries path (`break` after the second failed attempt) fall
+through to the same unconditional `return true` at the end of the
+function. A fully-failed audit-log insert — i.e. the registration
+succeeded upstream but the PostgreSQL audit row was never written after
+both retries failed — is reported as `true` (success) to every caller.
+
+For comparison, the sibling files `upsmfUser.ts` and `mpNHMUser.ts` both
+correctly `return false` inside the `if (retryCount >= maxRetries)`
+branch of their equivalent function — `bnrcUser.ts` is the only one of
+the three with this defect, confirmed by direct line comparison.
+
+Safe to state as fact (not speculative) since this was found by reading
+the actual code, not by exercising it live. This is a data-integrity/
+observability issue, not a hang/crash/security bug, so it wasn't run
+through the live-reproduction safety process used elsewhere in this
+document — it's a straightforward logic bug.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check whether any BNRC registration audit rows are missing in
+      `bnrc_registration_data_prod` for registrations that otherwise
+      completed successfully — this function's `true` return means
+      callers have no way to detect that gap today.
+- [ ] Confirm whether any monitoring/alerting depends on this function's
+      return value to detect audit-log write failures (currently it
+      cannot, for BNRC specifically).
+
+---
+
+### BJ. `mpNHMUser.ts` — migrated users get a postal address with a blank state name
+
+*Found during the same duplication investigation — change L3-8.*
+
+```ts
+// migrateUserToMp() — the migration path for existing aastrika/staging users
+userProfileDetails.profileReq.personalDetails.postalAddress =
+  `India, , ${userFormDetails.district}`
+```
+
+The state segment of the address is empty. For comparison, the *new-user*
+path in the same file (`userProfileUpdate()`) correctly builds
+`` `India, Madhya Pradesh, ${user.district}` ``, and the equivalent
+migration functions in `upsmfUser.ts`/`bnrcUser.ts` correctly say
+`"Uttar Pradesh"`/`"Bihar"` respectively. Only the MP-NHM *migration*
+function (used when an existing aastrika/staging-org user is being moved
+into MP-NHM) has this blank-state defect — new MP-NHM signups are
+unaffected.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check whether any migrated (not newly-signed-up) MP-NHM user
+      profiles have a postal address missing the state name, and whether
+      any downstream consumer (reporting, mailing, compliance) depends on
+      that field being populated.
+
+---
+
+### BK. `mpNHMUser.ts` — OTP send/resend failures are logged at info level, not error level
+
+*Found during the same duplication investigation — change L3-9.*
+
+`sendOtp`'s and `resendOtp`'s catch blocks both call
+`logInfo('Error in sending/resending user OTP' + error)` instead of
+`logError(...)`. The file's own `validateOtp` route, and the equivalent
+OTP handlers in `upsmfUser.ts`/`bnrcUser.ts`, all correctly use
+`logError` for their failure paths. This means MP-NHM's OTP send/resend
+failures don't surface the same way in any error-level log
+monitoring/alerting that the other two orgs' failures do — the requests
+still get a normal error HTTP response, this is purely an observability
+gap.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm whether error-level alerting exists on this log stream, and
+      if so, add MP-NHM OTP send/resend failures to it (currently
+      invisible to anything filtering on `logError`).
+
+---
+
+### BL. `upsmfUser.ts` / `mpNHMUser.ts` / `bnrcUser.ts` — all three orgs' default password uses a constant named for BNRC
+
+*Found during the same duplication investigation — change L3-5.*
+
+All three files' `createUser()` helper sets
+`password: CONSTANTS.BNRC_USER_DEFAULT_PASSWORD` — including UPSMF and
+MP-NHM, which are not BNRC. This is either an intentional shared default
+across all three org-signup flows (in which case the constant is just
+misleadingly named), or a copy-paste leftover where UPSMF/MP-NHM were
+supposed to get their own distinct default password constants and never
+did. Either way this deserves a deliberate decision rather than being
+left as an artifact of copy-paste — not flagging this as a security
+"bug" outright since it may be intentional, but the naming alone is
+evidence it wasn't a deliberate, reviewed choice.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm with product/security whether UPSMF, MP-NHM, and BNRC are
+      intended to share one literal default password, and if so, rename
+      the constant to something org-neutral; if not, split it into three
+      distinct constants.
+
+---
+
+### BM. `network.ts` — `GET /connections/established/:id` looks up connections for an arbitrary user id from the URL, not the caller
+
+*Found during the same duplication investigation — change L3-17.*
+
+```ts
+networkConnectionApi.get('/connections/established/:id', async (req, res) => {
+  const rootOrg = req.headers.rootorg
+  const userId = req.params.id          // <-- from the URL path, not the authenticated caller
+  ...
+  const response = await axios.get(apiEndpoints.getConnectionEstablishedData, {
+    ...axiosRequestConfig,
+    headers: { Authorization: CONSTANTS.SB_API_KEY, rootOrg, userId, 'x-authenticated-user-token': extractUserToken(req) },
+  })
+```
+
+Every other route in this file derives `userId` from the authenticated
+caller via `extractUserIdFromRequest(req)`. This one route instead takes
+it directly from the URL's `:id` path parameter — meaning any
+authenticated caller can request **any other user's** established
+connections list simply by changing the id in the URL, provided they
+know or can guess a valid user id. The real `Authorization`/
+`x-authenticated-user-token` headers are still forwarded upstream, so
+whether this is actually exploitable depends entirely on whether the
+downstream Network Hub service (`NETWORK_HUB_SERVICE_BACKEND`)
+independently re-validates that the token's identity matches the `userId`
+header, or trusts this service's headers at face value. This repo cannot
+resolve that from static reading alone — it's a genuine
+"MUST VERIFY IN PROD" rather than a confirmed bypass.
+
+**MUST VERIFY IN PROD — urgent, potential IDOR:**
+- [ ] Confirm whether the downstream Network Hub service validates that
+      the `x-authenticated-user-token`'s identity matches the `userId`
+      header on this specific endpoint, or trusts it unconditionally.
+- [ ] If unconditional trust, this is a real cross-user data exposure —
+      the fix is deriving `userId` from `extractUserIdFromRequest(req)`
+      like every other route in this file, not from `req.params.id`.
+- [ ] Determine whether `:id` was intentionally designed as an
+      admin/lookup feature (in which case it needs its own permission
+      check, currently absent) or is simply a copy-paste inconsistency
+      from the other routes in this file.
+
+---
+
+### BN. `network.ts` — `/connections/recommended` and `/connections/recommended/userDepartment` omit auth headers that every other route in the file sends
+
+*Found during the same duplication investigation — change L3-17.*
+
+Every other route in `network.ts` forwards
+`Authorization: CONSTANTS.SB_API_KEY` and
+`'x-authenticated-user-token': extractUserToken(req)` to the upstream
+Network Hub service. `/connections/recommended` and
+`/connections/recommended/userDepartment` send only `{ rootOrg, userId }`
+— no `Authorization`, no token. This may be intentional (a different
+downstream contract for the recommendation lookup specifically), but
+given every sibling route on the same backend does send these headers,
+it reads as an inconsistency rather than a deliberate design choice.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm with the Network Hub service owner whether these two
+      routes are intentionally unauthenticated calls, or whether the
+      auth headers were simply dropped by accident when these routes
+      were added.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
