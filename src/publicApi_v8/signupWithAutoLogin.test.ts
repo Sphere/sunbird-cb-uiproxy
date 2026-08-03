@@ -140,6 +140,81 @@ describe('POST /register', () => {
 
   // NOTE: "email/phone both missing" and "user already exists" paths are
   // documented double-send bugs above — not reproduced live.
+
+  it('returns 500 when account creation fails (createAccount swallows its own error and returns undefined; accessing newUserDetail.data then throws, caught by the outer handler)', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email') || config.url.includes('exists/phone')) {
+        return Promise.resolve(upstreamOk({ responseCode: 'FAILED' }))
+      }
+      if (config.url.includes('user/v3/create')) {
+        return Promise.reject(networkError())
+      }
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    const response = await agent().post('/register').send({ phone: '9876543210' })
+    expect(response.status).toBe(500)
+    expect(response.body.message).toBe('Sorry ! User not created. Please try again in sometime.')
+  })
+
+  it('still creates the account and sends an OTP when profileUpdate fails (profileUpdate swallows its own error internally)', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email') || config.url.includes('exists/phone')) {
+        return Promise.resolve(upstreamOk({ responseCode: 'FAILED' }))
+      }
+      if (config.url.includes('user/v3/create')) {
+        return Promise.resolve(upstreamOk({ result: { userId: 'new-user-1' } }))
+      }
+      if (config.url.includes('private/v1/update')) {
+        return Promise.reject(networkError())
+      }
+      if (config.url.includes('control.msg91.com/api/v5/otp') && !config.url.includes('verify') && !config.url.includes('retry')) {
+        return Promise.resolve(upstreamOk({ type: 'success' }))
+      }
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    const response = await agent().post('/register').send({ phone: '9876543210' })
+    expect(response.status).toBe(200)
+  })
+
+  it('treats a responseCode "OK" / exists:false lookup as "user does not exist" and proceeds with registration', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email') || config.url.includes('exists/phone')) {
+        return Promise.resolve(upstreamOk({ responseCode: 'OK', result: { exists: false } }))
+      }
+      if (config.url.includes('user/v3/create')) {
+        return Promise.resolve(upstreamOk({ result: { userId: 'new-user-1' } }))
+      }
+      if (config.url.includes('private/v1/update')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('control.msg91.com/api/v5/otp') && !config.url.includes('verify') && !config.url.includes('retry')) {
+        return Promise.resolve(upstreamOk({ type: 'success' }))
+      }
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    const response = await agent().post('/register').send({ phone: '9876543210' })
+    expect(response.status).toBe(200)
+  })
+
+  it('proceeds with registration when the exists-lookup call itself rejects (fetchUserBymobileorEmail swallows its own error)', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email') || config.url.includes('exists/phone')) {
+        return Promise.reject(networkError())
+      }
+      if (config.url.includes('user/v3/create')) {
+        return Promise.resolve(upstreamOk({ result: { userId: 'new-user-1' } }))
+      }
+      if (config.url.includes('private/v1/update')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('control.msg91.com/api/v5/otp') && !config.url.includes('verify') && !config.url.includes('retry')) {
+        return Promise.resolve(upstreamOk({ type: 'success' }))
+      }
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    const response = await agent().post('/register').send({ phone: '9876543210' })
+    expect(response.status).toBe(200)
+  })
 })
 
 describe('POST /validateOtpWithLogin', () => {
@@ -196,5 +271,70 @@ describe('POST /validateOtpWithLogin', () => {
       .post('/validateOtpWithLogin')
       .send({ otp: '1234', phone: '9876543210', userUUId: 'user-1' })
     expect(response.status).toBe(500)
+  })
+
+  it('completes phone autologin even when role-assignment fails (updateRoles swallows its own error internally)', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('msg91.com/api/v5/otp/verify')) {
+        return Promise.resolve(upstreamOk({ type: 'success' }))
+      }
+      if (config.url.includes('user/private/v1/assign/role')) {
+        return Promise.reject(networkError())
+      }
+      if (config.url.includes('openid-connect/token')) {
+        return Promise.resolve(upstreamOk({ access_token: 'access-tok-1' }))
+      }
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const { agent: sessionAgent } = agentWithSession()
+    const response = await sessionAgent
+      .post('/validateOtpWithLogin')
+      .send({ otp: '1234', phone: '9876543210', userUUId: 'user-1' })
+
+    expect(response.status).toBe(200)
+  })
+
+  it('completes email autologin: verifies OTP, regenerates the session, exchanges for a Keycloak token', async () => {
+    mockValidateOTP.mockResolvedValue({ data: { result: { response: 'SUCCESS' } } })
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('user/private/v1/assign/role')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('openid-connect/token')) {
+        return Promise.resolve(upstreamOk({ access_token: 'access-tok-2' }))
+      }
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-2' })
+
+    const { agent: sessionAgent } = agentWithSession()
+    const response = await sessionAgent
+      .post('/validateOtpWithLogin')
+      .send({ otp: '1234', email: 'a@b.com', userUUId: 'user-2' })
+
+    expect(response.status).toBe(200)
+    expect(mockGetCurrentUserRoles).toHaveBeenCalledWith(expect.anything(), 'access-tok-2')
+  })
+
+  it('returns 400 when the Keycloak token exchange fails after OTP verification', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('msg91.com/api/v5/otp/verify')) {
+        return Promise.resolve(upstreamOk({ type: 'success' }))
+      }
+      if (config.url.includes('user/private/v1/assign/role')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('openid-connect/token')) {
+        return Promise.reject(networkError())
+      }
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    const { agent: sessionAgent } = agentWithSession()
+    const response = await sessionAgent
+      .post('/validateOtpWithLogin')
+      .send({ otp: '1234', phone: '9876543210', userUUId: 'user-1' })
+    expect(response.status).toBe(400)
   })
 })

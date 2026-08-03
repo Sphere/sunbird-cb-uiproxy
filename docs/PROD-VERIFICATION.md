@@ -2679,6 +2679,35 @@ conditions. Found while extending this file's test coverage (90.72% →
 
 ---
 
+### BT. `signupWithAutoLoginV2.ts` — `POST /register` is missing a `return` after its empty-email-and-phone validation response, same bug class as other missing-return double-sends but not currently exploitable
+
+```ts
+if (!req.body.email && !req.body.phone) {
+  res.status(400).json({ ... })
+}                                    // <-- no return
+// ... falls through into createAccount/updateRoles/profileUpdate, then:
+if (resultEmail || resultPhone) { res.status(200).json(...) }  // guarded
+```
+
+Same missing-`return` shape as changes Q/R/S/.../BP/BS, but unlike those,
+this one is **not exploitable today**: `userEmail`/`userPhone` stay `''`
+(falsy) for the rest of the function when the initial check fires, so
+`resultEmail || resultPhone` at the later guard stays falsy too and the
+second `res.*` call never actually executes — no live double-send occurs
+under the current implementation. Recording it anyway because (a) it does
+unnecessary downstream work (calls `createAccount`/`updateRoles`/
+`profileUpdate` for a request that was already rejected), and (b) it is
+fragile — any future change to how `resultEmail`/`resultPhone` are computed
+could silently turn this into a live double-send, the same failure mode
+already confirmed elsewhere in this file. Found while extending this file's
+test coverage (89.92% → 97.84%). Low priority relative to the URGENT/
+CRITICAL findings elsewhere in this doc.
+
+**MUST VERIFY IN PROD:** none required — not currently reachable. Listed
+for awareness if this function is touched again.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
