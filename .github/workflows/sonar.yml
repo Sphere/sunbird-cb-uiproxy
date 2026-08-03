@@ -54,8 +54,16 @@ jobs:
       # --ignore-scripts because no package lifecycle script needs to run just
       # to analyze/test source, and it keeps the job from executing arbitrary
       # code from a dependency's postinstall hook.
+      # --legacy-peer-deps because tslint-config-airbnb's transitive tslint
+      # plugins (tslint-eslint-rules, tslint-microsoft-contrib, tslint-sonarts)
+      # declare a peer dependency on typescript ^2.x/^3.x, which conflicts
+      # with this repo's typescript ^4.2.4 devDependency under npm's default
+      # strict ERESOLVE behavior. This is a lint-tooling version mismatch,
+      # not a real incompatibility (tslint itself works fine against
+      # TypeScript 4.x here) — --legacy-peer-deps is npm's own suggested
+      # remedy for exactly this shape of conflict.
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm install --ignore-scripts --legacy-peer-deps
 
       # Produces coverage/lcov.info, which sonar-project.properties points
       # Sonar at (sonar.javascript.lcov.reportPaths /
