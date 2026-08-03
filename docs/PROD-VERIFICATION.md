@@ -2524,6 +2524,34 @@ it reads as an inconsistency rather than a deliberate design choice.
 
 ---
 
+### BO. `content.ts` — `POST /getWebModuleManifest` missing-`return` double-send on an empty `url`
+
+```ts
+contentApi.post('/getWebModuleManifest', async (req, res) => {
+  try {
+    if (!req.body.url || !req.body.url.length) {
+      res.status(400).send()
+    }                                    // <-- no return
+    const url = req.body.url            // undefined if the check above fired
+    const response = await axios.get(`${url}`, axiosRequestConfig)
+    res.json(response.data)             // second send once this resolves
+  } catch (err) { ... }
+})
+```
+
+Same missing-`return` family as changes Q/R/S/.../BG/BO: the empty-`url`
+check sends a 400 with no `return`, so execution falls through to a real
+`axios.get('undefined', ...)` call and sends a second response once it
+resolves or rejects — a double-send crash. Found while extending this
+file's test coverage from 71.56% to 94.24%; not reproduced live for the
+reason above.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check application logs for `ERR_HTTP_HEADERS_SENT` (or equivalent)
+      originating from `POST .../content/getWebModuleManifest`.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

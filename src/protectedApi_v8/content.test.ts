@@ -148,6 +148,47 @@ describe('POST /likeCount', () => {
   })
 })
 
+describe('GET /searchAutoComplete', () => {
+  it('returns matching suggestions and filters out empty search terms', async () => {
+    mockAxios.request.mockResolvedValue(
+      upstreamOk({
+        hits: { hits: [{ _source: { searchTerm: 'hello' } }, { _source: { searchTerm: '' } }] },
+      })
+    )
+
+    const response = await agent().get('/searchAutoComplete').query({ q: 'hel', l: 'en' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toHaveLength(1)
+  })
+
+  it('falls back to suggested terms when the query is empty', async () => {
+    mockAxios.request.mockResolvedValue(upstreamOk({ hits: { hits: [] } }))
+
+    const response = await agent().get('/searchAutoComplete').query({ q: '', l: 'en' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
+  it('returns an empty array when upstream sends no hits', async () => {
+    mockAxios.request.mockResolvedValue(upstreamOk({}))
+
+    const response = await agent().get('/searchAutoComplete').query({ q: 'hel', l: 'en' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.request.mockRejectedValue(networkError())
+
+    const response = await agent().get('/searchAutoComplete').query({ q: 'hel', l: 'en' })
+
+    expect(response.status).toBe(500)
+  })
+})
+
 describe('POST /searchV5', () => {
   it('forwards the mapped search response', async () => {
     mockAxios.post.mockResolvedValue(
@@ -168,11 +209,75 @@ describe('POST /searchV5', () => {
   })
 })
 
+describe('POST /searchRegionRecommendation', () => {
+  it('rejects a request missing org/rootOrg headers', async () => {
+    const response = await agent().post('/searchRegionRecommendation').send({ request: {} })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns child content metadata when the first search has hits', async () => {
+    mockAxios.post.mockResolvedValue(
+      upstreamOk({
+        result: {
+          response: {
+            result: [{ children: [{ identifier: 'do_2' }] }],
+            totalHits: 1,
+          },
+        },
+      })
+    )
+    mockAxiosCallable.mockResolvedValue(upstreamOk([contentItem({ identifier: 'do_2' })]))
+
+    const response = await withOrgHeaders(agent().post('/searchRegionRecommendation')).send({
+      request: {},
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.body.contents).toHaveLength(1)
+  })
+
+  it('retries with the defaultLabel filter when the first search has no hits', async () => {
+    mockAxios.post
+      .mockResolvedValueOnce(
+        upstreamOk({ result: { response: { result: [], totalHits: 0 } } })
+      )
+      .mockResolvedValueOnce(
+        upstreamOk({
+          result: { response: { result: [{ children: [{ identifier: 'do_3' }] }], totalHits: 0 } },
+        })
+      )
+    mockAxiosCallable.mockResolvedValue(upstreamOk([]))
+
+    const response = await withOrgHeaders(agent().post('/searchRegionRecommendation')).send({
+      request: { defaultLabel: 'some-label' },
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockAxios.post).toHaveBeenCalledTimes(2)
+    expect(response.body.contents).toEqual([])
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withOrgHeaders(agent().post('/searchRegionRecommendation')).send({
+      request: {},
+    })
+    expect(response.status).toBe(500)
+  })
+})
+
 describe('POST /searchV6', () => {
   it('forwards the search response', async () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ results: [] }))
     const response = await agent().post('/searchV6').send({ query: 'x' })
     expect(response.status).toBe(200)
+  })
+
+  it('maps upstream result items through processContent when result is an array', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ result: [contentItem()] }))
+    const response = await agent().post('/searchV6').send({ query: 'x' })
+    expect(response.status).toBe(200)
+    expect(response.body.result).toHaveLength(1)
   })
 
   it('returns 500 on an upstream failure', async () => {
@@ -277,6 +382,28 @@ describe('POST /:contentId', () => {
     const response = await withOrgHeaders(agent().post('/do_1')).send({})
     expect(response.status).toBe(500)
   })
+
+  it('uses the minimal content field set when hierarchyType=minimal', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk(contentItem({ identifier: 'do_1' })))
+
+    const response = await withOrgHeaders(
+      agent().post('/do_1').query({ hierarchyType: 'minimal' })
+    ).send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body.identifier).toBe('do_1')
+  })
+
+  it('skips field filtering for an unrecognised-but-valid hierarchyType of all', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk(contentItem({ identifier: 'do_1' })))
+
+    const response = await withOrgHeaders(
+      agent().post('/do_1').query({ hierarchyType: 'all' })
+    ).send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body.identifier).toBe('do_1')
+  })
 })
 
 describe('GET /external-access/:id', () => {
@@ -291,6 +418,11 @@ describe('GET /external-access/:id', () => {
     const response = await withOrgHeaders(agent().get('/external-access/do_1'))
     expect(response.status).toBe(500)
   })
+
+  it('rejects a request missing org/rootOrg headers', async () => {
+    const response = await agent().get('/external-access/do_1')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('POST /:contentId/parent', () => {
@@ -298,6 +430,17 @@ describe('POST /:contentId/parent', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ linked: true }))
     const response = await withOrgHeaders(agent().post('/do_1/parent')).send({ parentId: 'do_0' })
     expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing org/rootOrg headers', async () => {
+    const response = await agent().post('/do_1/parent').send({ parentId: 'do_0' })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withOrgHeaders(agent().post('/do_1/parent')).send({ parentId: 'do_0' })
+    expect(response.status).toBe(500)
   })
 })
 
@@ -313,6 +456,11 @@ describe('POST /kb/v3/reorder', () => {
     const response = await withOrgHeaders(agent().post('/kb/v3/reorder')).send({})
     expect(response.status).toBe(500)
   })
+
+  it('rejects a request missing org/rootOrg headers', async () => {
+    const response = await agent().post('/kb/v3/reorder').send({})
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('POST /kb/v2/:apiType', () => {
@@ -320,6 +468,17 @@ describe('POST /kb/v2/:apiType', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ ok: true }))
     const response = await withOrgHeaders(agent().post('/kb/v2/publish')).send({})
     expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing org/rootOrg headers', async () => {
+    const response = await agent().post('/kb/v2/publish').send({})
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withOrgHeaders(agent().post('/kb/v2/publish')).send({})
+    expect(response.status).toBe(500)
   })
 })
 
@@ -329,6 +488,17 @@ describe('POST /kb/:updateType', () => {
     const response = await withOrgHeaders(agent().post('/kb/status')).send({})
     expect(response.status).toBe(200)
   })
+
+  it('rejects a request missing org/rootOrg headers', async () => {
+    const response = await agent().post('/kb/status').send({})
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withOrgHeaders(agent().post('/kb/status')).send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /hierarchy/update', () => {
@@ -336,6 +506,17 @@ describe('POST /hierarchy/update', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ updated: true }))
     const response = await withOrgHeaders(agent().post('/hierarchy/update')).send({})
     expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing org/rootOrg headers', async () => {
+    const response = await agent().post('/hierarchy/update').send({})
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withOrgHeaders(agent().post('/hierarchy/update')).send({})
+    expect(response.status).toBe(500)
   })
 })
 
@@ -345,6 +526,19 @@ describe('POST /getWebModuleManifest', () => {
     const response = await agent().post('/getWebModuleManifest').send({ url: 'https://x.test' })
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().post('/getWebModuleManifest').send({ url: 'https://x.test' })
+    expect(response.status).toBe(500)
+  })
+
+  // NOT covered live: sending a request with no `url` (or an empty one).
+  // The handler does `res.status(400).send()` with no `return` afterwards, then
+  // falls through to `axios.get(...)` and `res.json(response.data)` — a second
+  // response on the same `res`. Reproducing this hits Express's double-send
+  // path (matches campaign "Pattern A"), which is unsafe to exercise live.
+  // Flagged to the requester as a real bug rather than reproduced here.
 })
 
 describe('GET /getWebModuleFiles', () => {
@@ -352,5 +546,11 @@ describe('GET /getWebModuleFiles', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ files: [] }))
     const response = await agent().get('/getWebModuleFiles').query({ url: 'https://x.test' })
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/getWebModuleFiles').query({ url: 'https://x.test' })
+    expect(response.status).toBe(500)
   })
 })

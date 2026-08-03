@@ -1,6 +1,16 @@
 /**
  * PHASE 1 — workallocation.ts. Twelve routes, all the same axios-proxy shape:
  * an optional userId/param guard (400) then a proxied axios call (200 / 500).
+ *
+ * PHASE 2 note: the `!workOrderId` / `!workAllocationId` / `!userId` guards on
+ * GET /getWorkOrderById/:workOrderId, GET /getWorkAllocationById/:workAllocationId,
+ * GET /getUserBasicInfo/:userId and GET /getWOPdf/:workOrderId read from a
+ * required route param (`:xxx`), which Express's router only matches against a
+ * non-empty path segment — confirmed empirically (empty segment, trailing
+ * slash, double slash, %00 all either 404 or produce a non-empty string param).
+ * There is no supertest/HTTP request that reaches the handler with that param
+ * falsy, so those four guard branches are left uncovered rather than faked
+ * through a non-HTTP path.
  */
 
 jest.mock('axios')
@@ -67,6 +77,12 @@ describe('POST /update', () => {
     const response = await agent().post('/update').send({})
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/update').send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /userSearch', () => {
@@ -89,6 +105,12 @@ describe('GET /user/autocomplete/:searchTerm', () => {
     const response = await agent().get('/user/autocomplete/abc')
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/user/autocomplete/abc')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /v2/add', () => {
@@ -103,6 +125,12 @@ describe('POST /v2/add', () => {
     const response = await agent().post('/v2/add').send({})
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/v2/add').send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /v2/update', () => {
@@ -116,6 +144,12 @@ describe('POST /v2/update', () => {
     mockExtractUserId.mockReturnValue(undefined)
     const response = await agent().post('/v2/update').send({})
     expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/v2/update').send({})
+    expect(response.status).toBe(500)
   })
 })
 
@@ -150,6 +184,12 @@ describe('POST /update/workorder', () => {
     mockExtractUserId.mockReturnValue(undefined)
     const response = await agent().post('/update/workorder').send({})
     expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/update/workorder').send({})
+    expect(response.status).toBe(500)
   })
 })
 
@@ -206,6 +246,12 @@ describe('POST /copy/workOrder', () => {
     mockExtractUserId.mockReturnValue(undefined)
     const response = await agent().post('/copy/workOrder').send({})
     expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/copy/workOrder').send({})
+    expect(response.status).toBe(500)
   })
 })
 
