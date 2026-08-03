@@ -2163,7 +2163,7 @@ worker or throw outside the test's control.
 
 ---
 
-### BE. `extractUserIdFromRequest` can throw before any try/catch runs, in at least two route handlers (`activity.ts`, `network-hub.ts`)
+### BE. `extractUserIdFromRequest` can throw before any try/catch runs, in at least three route handlers (`activity.ts`, `network-hub.ts`, `validate.ts`)
 
 ```ts
 // src/utils/requestExtract.ts
@@ -2197,11 +2197,22 @@ object) for every request that reaches these protected routes — this would
 only manifest if session middleware were ever misconfigured, absent, or the
 session expired in a way that clears the object entirely, which is an
 infrastructure-level concern rather than a per-route bug. It is recorded
-here because it was independently surfaced twice this campaign and the
-helper itself has no defensive guard, so a future change to the session
+here because it was independently surfaced multiple times this campaign and
+the helper itself has no defensive guard, so a future change to the session
 setup could make it reachable. Not reproduced live (this is exactly the
 kind of "logic outside try/catch, throws synchronously in an async
 handler" hazard this campaign avoids reproducing).
+
+A third, related instance: `user/validate.ts`'s `GET /` handler calls
+`extractUserEmailFromRequest`, `extractUserNameFromRequest`, and
+`extractUserIdFromRequest` with **no try/catch anywhere in the handler at
+all** (not even one placed after these calls). The first two helpers
+(`requestExtract.ts`) guard `req.kauth` truthiness but then dereference
+`req.kauth.grant.access_token.content.name`/`.email` unconditionally — if
+`req.kauth` is present but its nested shape is ever malformed, that throws
+the same way. Currently unreachable in practice for the same reason as
+above (the real Keycloak middleware always populates this shape
+consistently), so not reproduced live.
 
 **MUST VERIFY IN PROD:**
 - [ ] Confirm session middleware is always attached ahead of these routes
