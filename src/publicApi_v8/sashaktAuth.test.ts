@@ -152,4 +152,73 @@ describe('GET /login', () => {
   // NOTE: authTokenResponse.data resolving falsy (the `else` branch at
   // sashaktAuth.ts's 302 response) is a documented double-send bug — not
   // reproduced live. See docs/PROD-VERIFICATION.md.
+
+  // NOTE: sashaktAuth.ts lines 56-63 (`if (!sashaktData) { res.status(400)... }`,
+  // no `return`) is a second double-send bug, reachable when
+  // `userDetails[0]` is a falsy-but-non-throwing primitive (e.g. `0`, `''`,
+  // `false`) — undefined/null would throw at the `sashaktData.email` access
+  // one line earlier and land safely in the outer catch instead. Not
+  // reproduced live; flagged for docs/PROD-VERIFICATION.md.
+
+  it('logs and continues when the exists/email lookup call fails', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('sashakt.test/userDetails')) {
+        return Promise.resolve(upstreamOk({ userDetails: [sashaktUser], userId: 'sashakt-1' }))
+      }
+      if (config.url.includes('exists/email')) return Promise.reject(networkError())
+      if (config.url.includes('exists/phone')) return Promise.resolve(upstreamOk({ responseCode: 'FAILED' }))
+      if (config.url.includes('user/v3/create')) return Promise.resolve(upstreamOk({ result: { userId: 'new-1' } }))
+      if (config.url.includes('assign/role') || config.url.includes('private/v1/update')) {
+        return Promise.resolve(upstreamOk({}))
+      }
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().get('/login?moduleId=m1&token=tok')
+    expect(response.status).toBe(200)
+    expect(response.body.message).toBe('success')
+  })
+
+  it('backfills missing academics details on an existing user profile', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('sashakt.test/userDetails')) {
+        return Promise.resolve(upstreamOk({ userDetails: [sashaktUser], userId: 'sashakt-1' }))
+      }
+      if (config.url.includes('exists/email')) return Promise.resolve(upstreamOk({ responseCode: 'OK', result: { exists: true } }))
+      if (config.url.includes('exists/phone')) return Promise.resolve(upstreamOk({ responseCode: 'FAILED' }))
+      if (config.url.includes('private/user/v1/search')) {
+        return Promise.resolve(
+          upstreamOk({ result: { response: { content: [{ id: 'u1', profileDetails: { profileReq: {} } }] } } })
+        )
+      }
+      if (config.url.includes('private/v1/update')) return Promise.resolve(upstreamOk({}))
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().get('/login?moduleId=m1&token=tok')
+    expect(response.status).toBe(200)
+    expect(response.body.message).toBe('success')
+  })
+
+  it('logs and continues when the mandatory-profile-details search call fails', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('sashakt.test/userDetails')) {
+        return Promise.resolve(upstreamOk({ userDetails: [sashaktUser], userId: 'sashakt-1' }))
+      }
+      if (config.url.includes('exists/email')) return Promise.resolve(upstreamOk({ responseCode: 'OK', result: { exists: true } }))
+      if (config.url.includes('exists/phone')) return Promise.resolve(upstreamOk({ responseCode: 'FAILED' }))
+      if (config.url.includes('private/user/v1/search')) return Promise.reject(networkError())
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().get('/login?moduleId=m1&token=tok')
+    expect(response.status).toBe(200)
+    expect(response.body.message).toBe('success')
+  })
 })

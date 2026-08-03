@@ -147,3 +147,96 @@ describe('documented bug: proxy error/unhandledRejection listeners accumulate pe
     expect(mockProxy.on).toHaveBeenCalledTimes(4)
   })
 })
+
+describe('GET — position === -1 (no http/https prefix at all)', () => {
+  it('falls back to the private-content-service host for a bare /content-store/ path', async () => {
+    mockProxy.web.mockImplementation((_req, res) => res.end())
+    await agent().get('/content-store/abc/def.json')
+    expect(mockProxy.web).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ target: 'https://content.test' })
+    )
+  })
+})
+
+describe('GET — malformed single-slash scheme (http:/ instead of http://)', () => {
+  it('repairs the URL before proxying', async () => {
+    mockProxy.web.mockImplementation((_req, res) => res.end())
+    await agent().get('/http:/cdn.test/content-store/abc/def.json')
+    expect(mockProxy.web).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ target: 'https://content.test' })
+    )
+  })
+})
+
+describe('GET — URLs already rewritten to the contentv3/download path', () => {
+  it('proxies to the content API without re-matching /content-store/ or /content/', async () => {
+    mockProxy.web.mockImplementation((_req, res) => res.end())
+    await agent().get('/http://cdn.test/contentv3/download/abc/def.json')
+    expect(mockProxy.web).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ target: 'https://content.test' })
+    )
+  })
+})
+
+describe('proxyCreator listener callback bodies (invoked directly, no live HTTP)', () => {
+  // The 'error'/'unhandledRejection' handlers are only ever *registered* by a
+  // live request (mockProxy.on is a jest.fn() no-op), so their bodies never
+  // execute unless we invoke the captured callback ourselves. Calling the
+  // exported Router directly with a stub req/res (bypassing supertest/real
+  // HTTP entirely) lets us do that without touching a real, already-completed
+  // response object — avoiding any double-send on a real socket.
+  // tslint:disable-next-line: no-any
+  const fakeRes = () => {
+    // tslint:disable-next-line: no-any
+    const res: any = {}
+    res.set = jest.fn(() => res)
+    res.status = jest.fn(() => res)
+    res.send = jest.fn(() => res)
+    res.writeHead = jest.fn(() => res)
+    res.end = jest.fn(() => res)
+    return res
+  }
+
+  it('sends a 500 response when the registered "error" listener fires with a truthy error', () => {
+    mockProxy.web.mockImplementation(() => undefined)
+    // tslint:disable-next-line: no-any
+    const req: any = { method: 'GET', url: '/https://cdn.test/content-store/abc/def.json' }
+    const res = fakeRes();
+
+    // Router instances are callable middleware functions: router(req, res, next).
+    // tslint:disable-next-line: no-any
+    (authContent as any)(req, res, jest.fn())
+
+    const errorCall = mockProxy.on.mock.calls.find((call) => call[0] === 'error')
+    expect(errorCall).toBeDefined()
+    const errorHandler = errorCall![1]
+    errorHandler(new Error('boom'))
+
+    expect(res.writeHead).toHaveBeenCalledWith(500)
+    expect(res.end).toHaveBeenCalledWith({ error: 'Failed due to unknown reason' })
+  })
+
+  it('sends a 500 response when the registered "unhandledRejection" listener fires', () => {
+    mockProxy.web.mockImplementation(() => undefined)
+    // tslint:disable-next-line: no-any
+    const req: any = { method: 'GET', url: '/https://cdn.test/content-store/abc/def.json' }
+    const res = fakeRes();
+
+    // tslint:disable-next-line: no-any
+    (authContent as any)(req, res, jest.fn())
+
+    const rejectionCall = mockProxy.on.mock.calls.find((call) => call[0] === 'unhandledRejection')
+    expect(rejectionCall).toBeDefined()
+    const rejectionHandler = rejectionCall![1]
+    rejectionHandler()
+
+    expect(res.writeHead).toHaveBeenCalledWith(500)
+    expect(res.end).toHaveBeenCalledWith('Some error occured')
+  })
+})

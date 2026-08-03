@@ -2647,6 +2647,38 @@ a behavior change to a live authorization route.
 
 ---
 
+### BS. `sashaktAuth.ts` — a second, independent missing-`return` double-send when `userDetails[0]` is falsy-but-non-throwing
+
+```ts
+if (!sashaktData) {
+  res.status(400).json({ msg: 'User not present in sashakt', ... })
+  logInfo('User details not present in e shashakt')
+}                                    // <-- no return
+// ... falls through all the way to:
+res.status(200).json(...)           // unconditional, outside the try/catch
+```
+
+Same missing-`return` family as changes Q/R/S/.../BO/BP: if
+`userDetails[0]` is a falsy-but-non-throwing primitive (`0`, `''`, `false`
+— as opposed to `undefined`/`null`, which throw one line earlier at
+`sashaktData.email` and land safely in the outer `catch`), the 400 response
+has no `return`, so execution falls through to the unconditional
+`res.status(200).json(...)` at the end of the handler and sends a second
+response — `ERR_HTTP_HEADERS_SENT`. This is a *different* code path from the
+already-documented double-send on this same file at the
+`authTokenResponse.data` falsy branch (→ 302 then 200) — recording as a
+separate, independent instance since they're triggered by different
+conditions. Found while extending this file's test coverage (90.72% →
+96.90%); not reproduced live for the reason above.
+
+**MUST VERIFY IN PROD:**
+- [ ] Check application logs for `ERR_HTTP_HEADERS_SENT` (or equivalent)
+      originating from the sashakt auth route when the upstream sashakt
+      lookup returns a falsy-but-defined `userDetails[0]` (e.g. `0`, `''`,
+      `false`), distinct from the already-documented 302→200 double-send.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

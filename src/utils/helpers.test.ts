@@ -56,6 +56,13 @@ describe('getEmailLocalPart', () => {
   it('handles an empty string', () => {
     expect(getEmailLocalPart('')).toBe('')
   })
+
+  it('falls back to returning the input unchanged when indexOf throws', () => {
+    // Passing a non-string bypasses the type annotation at runtime and makes
+    // `.indexOf` throw, exercising the catch branch.
+    // tslint:disable-next-line: no-any
+    expect(getEmailLocalPart(null as any)).toBeNull()
+  })
 })
 
 describe('esBasicAuth', () => {
@@ -99,6 +106,13 @@ describe('validateInputWithRegex', () => {
   it('returns a promise that never settles', async () => {
     const settled = jest.fn()
     validateInputWithRegex('abc', /abc/).then(settled).catch(settled)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(settled).not.toHaveBeenCalled()
+  })
+
+  it('still never settles when input is falsy (the early "return false" is inside the executor, not resolve)', async () => {
+    const settled = jest.fn()
+    validateInputWithRegex('', /abc/).then(settled).catch(settled)
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(settled).not.toHaveBeenCalled()
   })
