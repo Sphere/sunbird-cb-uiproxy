@@ -28,6 +28,7 @@ jest.mock('../../utils/env', () => ({
 import axios from 'axios'
 import { networkError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
+import { extractUserIdFromRequest } from '../../utils/requestExtract'
 import { getUserByEmail, getUserByUsername, usersApi } from './users'
 
 const mockAxios = axios as jest.Mocked<typeof axios>
@@ -92,6 +93,17 @@ describe('GET /email/:email', () => {
     expect(response.status).toBe(200)
     expect(mockAxios.get).not.toHaveBeenCalled()
   })
+
+  it('returns 500 when a request-extraction helper throws before getUserByEmail is reached', async () => {
+    // Covers the route's own catch block (a different code path from the
+    // documented closure bug below) by making a synchronous dependency throw.
+    ;(extractUserIdFromRequest as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('boom')
+    })
+    const response = await agent().get('/email/user@test.com')
+    expect(response.status).toBe(500)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
 })
 
 describe('getUserByEmail / getUserByUsername', () => {
@@ -104,6 +116,25 @@ describe('getUserByEmail / getUserByUsername', () => {
   it('getUserByUsername resolves to a never-invoked function instead of user data', async () => {
     const result = await getUserByUsername('user1')
     expect(typeof result).toBe('function')
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
+
+  it('getUserByEmail catches a synchronous error thrown while building the request URL', async () => {
+    // This exercises getUserByEmail's OWN try/catch (a genuinely reachable
+    // path, unrelated to the documented "closure never invoked" bug) by
+    // handing it an email whose implicit string coercion throws.
+    const boom = new Error('bad email')
+    const badEmail = { toString: () => { throw boom } }
+    const result = await getUserByEmail(badEmail)
+    expect(result).toBe(boom)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
+
+  it('getUserByUsername catches a synchronous error thrown while building the request URL', async () => {
+    const boom = new Error('bad username')
+    const badUsername = { toString: () => { throw boom } }
+    const result = await getUserByUsername(badUsername)
+    expect(result).toBe(boom)
     expect(mockAxios.get).not.toHaveBeenCalled()
   })
 })

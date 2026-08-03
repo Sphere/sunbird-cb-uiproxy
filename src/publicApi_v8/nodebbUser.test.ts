@@ -182,3 +182,38 @@ describe('failure path (single try/catch wraps the whole body — safe to test l
     expect(result).toBe('uid-10-retry')
   })
 })
+
+describe('LRU eviction once the cache reaches MAX_CACHE_SIZE (module-level Map; pure in-memory Map/timestamp bookkeeping, no I/O — safe to exercise live)', () => {
+  it('evicts the least-recently-used entry once the 50k cap is reached, and re-fetches it from upstream afterwards', async () => {
+    // Fill the module-level cache up to its 50k cap with brand-new
+    // identifiers. Every entry inserted here is strictly newer (by
+    // Date.now()/lastAccessed) than anything cached by earlier describe
+    // blocks in this file, so the LRU sweep below consumes those older
+    // entries first and none of the filler entries get evicted mid-fill.
+    mockAxiosCallable.mockImplementation(async () => upstreamOk({ result: { userId: { uid: 'filler-uid' } } }))
+
+    const FILL_COUNT = 50000
+    await Promise.all(
+      Array.from({ length: FILL_COUNT }, (_, i) =>
+        fetchnodebbUserDetails(`lru-filler-${i}`, 'filler-user', 'Filler User', {})
+      )
+    )
+
+    // lru-filler-0 was inserted first and never accessed again, so it is
+    // the least-recently-used entry once the cache is at capacity.
+    mockAxiosCallable.mockClear()
+    mockAxiosCallable.mockImplementation(async () => upstreamOk({ result: { userId: { uid: 'overflow-uid' } } }))
+    const overflowResult = await fetchnodebbUserDetails('lru-overflow', 'overflow-user', 'Overflow User', {})
+
+    expect(overflowResult).toBe('overflow-uid')
+
+    // The eviction above must have removed lru-filler-0; fetching it again
+    // is therefore a cache miss and hits upstream once more.
+    mockAxiosCallable.mockClear()
+    mockAxiosCallable.mockImplementation(async () => upstreamOk({ result: { userId: { uid: 'refetched-uid' } } }))
+    const refetched = await fetchnodebbUserDetails('lru-filler-0', 'filler-user', 'Filler User', {})
+
+    expect(refetched).toBe('refetched-uid')
+    expect(mockAxiosCallable).toHaveBeenCalledTimes(1)
+  }, 60000)
+})

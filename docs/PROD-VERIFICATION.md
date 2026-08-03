@@ -2573,6 +2573,80 @@ independent bugs.
 
 ---
 
+### BQ. `profile-registry.ts` — `GET /getProfilePageMeta` returns function references instead of master-data lists; one of the five helpers also reads the wrong JSON key
+
+```ts
+async function govtOrgMeta() {
+  return async () => {
+    const data = await fs.promises.readFile(...)
+    return JSON.parse(data.toString())
+  }
+}
+// ... industreisMeta, degreesMeta, statesMeta, designationMeta — same shape
+
+profileRegistryApi.get('/getProfilePageMeta', async (req, res) => {
+  try {
+    const govtOrg = await govtOrgMeta().catch(...)   // resolves to the inner
+    const industries = await industreisMeta().catch(...)  // arrow fn itself,
+    ...                                                     // never invoked
+    res.json({ govtOrg, industries, degrees, states, designations })
+  } catch (err) { ... }
+})
+```
+
+Each of the five meta helpers is `async function () { return async () => {...} }`
+— the outer function returns the inner arrow function without ever calling
+it. So `govtOrgMeta()` resolves to a *function value*, not the parsed JSON
+list, and the five `.catch(...)` blocks plus the outer `catch` are genuinely
+unreachable (a promise that only ever resolves can't reject). The practical
+effect: `/getProfilePageMeta`'s response body ships non-serializable
+function references in place of the `govtOrg`/`industries`/`degrees`/
+`states`/`designations` lists any consumer expects — this endpoint's actual
+payload has likely never matched its intended shape.
+
+Separately, `statesMeta` (independent of the above, but moot while the
+function is dead code) reads `obj.industries` from `states.json` instead of
+`obj.states` — looks like a copy-paste bug from `industreisMeta`.
+
+Found while extending this file's test coverage from 51.79% to 96.41%; not
+changed, since fixing the invocation would change the response shape/behavior
+of a live endpoint.
+
+**MUST VERIFY IN PROD:**
+- [ ] Call `GET .../user/getProfilePageMeta` against a real environment and
+      inspect the actual JSON response for `govtOrg`/`industries`/`degrees`/
+      `states`/`designations` — confirm whether consumers already tolerate
+      (or silently ignore) non-list values, before touching this code.
+
+---
+
+### BR. `apiWhiteList.ts` / `whitelistApis.ts` — `SCOPE_CHECK` is defined but never wired into any route, leaving a documented `MDO_ADMIN` restriction inert
+
+`whitelistApis.ts` declares `SCOPE_CHECK: [MDO_ADMIN]` on
+`/protected/v8/workallocation/getWorkOrderById/:workOrderId`, and
+`apiWhiteList.ts`'s `isAllowed()` only runs a check function when its
+`CHECK` constant appears in that route's `checksNeeded` array — but across
+the entire 1928-line whitelist config, every `checksNeeded` array is either
+`[CHECK.ROLE]` or `[]`; `CHECK.SCOPE` never appears in any of them. So this
+route is effectively protected by `ROLE_CHECK: [PUBLIC]` alone — the
+org-scoped `MDO_ADMIN` restriction its own data implies was intended is
+silently never enforced. Not a bug in `SCOPE_CHECK`'s own logic (it would
+correctly reject a scope mismatch if it ran) — it's a wiring gap between
+`whitelistApis.ts`'s data and how `checksNeeded` is populated.
+
+Found while extending `apiWhiteList.test.ts`'s coverage (81.96% → 83.6%;
+most of the remaining gap is genuinely unreachable dead code, this being the
+one live-relevant exception). Not changed — wiring in `CHECK.SCOPE` would be
+a behavior change to a live authorization route.
+
+**MUST VERIFY IN PROD:**
+- [ ] Confirm with whoever owns `getWorkOrderById/:workOrderId` whether the
+      `MDO_ADMIN`-scoped restriction was actually intended to be enforced,
+      and whether any non-`MDO_ADMIN` caller has been relying on (or is
+      currently exploiting) its absence.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
