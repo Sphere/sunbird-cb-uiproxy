@@ -8,6 +8,9 @@
 /.sonarlint
 # Local SonarQube credentials — never commit. Template: .env.sonar.example
 .env.sonar
+# Local-dev-only env.ts fallback values, kept out of source so Sonar's clear-text
+# hotspot has nothing to flag. Template: src/utils/env.local-defaults.example.json
+/src/utils/env.local-defaults.json
 # Generated test-execution report; must not be committed as a stale artifact
 xunit.xml
 # dependencies

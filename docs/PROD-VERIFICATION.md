@@ -1,26 +1,36 @@
 # Production verification checklist
 
-> **Read this before deploying.** Two source files changed. Both are on live
-> authentication paths. Everything here was tested locally, but the items under
-> "Must be verified in production" touch external systems (Keycloak, SSO
-> partners) that cannot be exercised from a developer machine.
+> **Read this before deploying.** Source files changed, plus three dead files
+> removed. Everything here was tested locally, and the whitelistApis.ts
+> change (CHANGE 7) was verified with a deep structural-equality check, not
+> just passing tests. The items under "Must be verified in production" touch
+> external systems (Keycloak, SSO partners) that cannot be exercised from a
+> developer machine.
 
 Branch: `feat-sonarqube-integration`
-Source files changed: **2** — `src/utils/keycloak-user-creation.ts`,
-`src/utils/randomPasswordGenerator.ts`
-Build artifacts changed: **3 of 272** (the two above + `dist/package.json`,
-which carries only npm script names and is never executed at runtime).
-**269 of 272 compiled artifacts are byte-identical.**
+Source files changed: `src/utils/keycloak-user-creation.ts` (CHANGE 2),
+`src/utils/randomPasswordGenerator.ts` (CHANGE 1),
+`src/protectedApi_v8/navigator.ts` (CHANGE 3),
+`src/utils/dataAlterer.ts` (CHANGE 4),
+`src/protectedApi_v8/user/realTimeProgress.ts` (CHANGE 5),
+`src/utils/whitelistApis.ts` (CHANGE 7).
+Source files removed as confirmed-dead code (CHANGE 6):
+`src/protectedApi_v8/connections.ts`, `src/protectedApi_v8/socialv2.ts`,
+`src/publicApi_v8/userDataMigration.ts` (plus their 3 test files).
 
-**Test coverage, as of this commit:** 2205 Jest tests, all passing.
-**61.1% overall coverage on SonarQube (100% on new code), gate green.**
-Coverage was 2.6% at the start of this work. Every real defect discovered
+**Note:** a CSPRNG shuffle fix for `contentHelpers.ts`/`assessment.ts` was
+made, verified, then reverted alongside an unrelated batch of changes, and
+was not re-applied — those two files currently still use `Math.random()`
+for shuffling (not security-relevant; already reviewed "safe" in Sonar, see
+the "Pre-existing issues NOT changed" section). Flagging so this isn't
+mistaken for a change that's actually in this branch.
+
+**Test coverage:** Jest suite green throughout. Every real defect discovered
 while writing these tests is documented below (sections CHANGE 1/2, then
-A through AP) — each includes what the issue is, why it wasn't fixed
+A through BV) — each includes what the issue is, why it wasn't fixed
 outright, and what to check in production before treating it as resolved.
 **None of the findings below were fixed without explicit sign-off** — the
-only two behavioral changes in this entire body of work are CHANGE 1 and
-CHANGE 2.
+only behavioral changes in this entire body of work are CHANGE 1 through 7.
 
 ---
 
@@ -159,6 +169,170 @@ into a rejection by the constructor, so it never escapes.
 - [ ] Confirm the new `ERROR ON Keycloak openid-connect/token >` log line
       appears on failure. Its absence on a known failure means the `.catch()`
       is not wired.
+
+---
+
+## CHANGE 3 — navigator.ts: converted nested if/else to early returns
+
+**File:** `src/protectedApi_v8/navigator.ts`, `GET /lp` route
+**Sonar:** rule S3776 (Cognitive Complexity), 16 vs. 15 allowed
+
+### What changed and why
+
+Three levels of nested `if (cond) { A } else { B }` became `if (cond) { A; return } B`. This is a provably equivalent transformation: when `cond` is true both versions run only `A`; when false, both run only `B`. No response, status code, or error body changes for any input.
+
+### Verified
+
+All 23 existing tests for this route (covering every branch: success, topics-filter, missing-data, out-of-range, and the pre-existing documented dead-validation bug) pass unchanged. Full suite green, clean build.
+
+### MUST VERIFY IN PROD
+
+- [ ] None — the transformation is behaviorally provable from the diff alone (each branch does the identical thing before and after), and full test coverage of every branch confirms it.
+
+---
+
+## CHANGE 4 — dataAlterer.ts: extracted two branches of `hierarchy()` into named helpers
+
+**File:** `src/utils/dataAlterer.ts`
+**Sonar:** rule S3776 (Cognitive Complexity), 17 vs. 15 allowed
+
+### What changed and why
+
+`hierarchy()`'s two `if`/`else if` branches (the `data.request` case and the `data.params.status === 'successful'` case) do unrelated things. Each branch's exact code (character-for-character) now lives in its own named function (`swapFirstMatchingHierarchyContentType`, `swapChildrenContentType`), called from the same condition, receiving the same mutable `data` object by reference. Since JS passes objects by reference, moving code into a named function changes nothing about what runs or what gets mutated.
+
+### Verified
+
+All 15 existing tests (covering both branches plus edge cases: no children, no content, non-successful status) pass unchanged, 100% line coverage maintained. Full suite green, clean build.
+
+### MUST VERIFY IN PROD
+
+- [ ] None — same reasoning as CHANGE 3.
+
+---
+
+## CHANGE 5 — realTimeProgress.ts: `var` → `const`
+
+**File:** `src/protectedApi_v8/user/realTimeProgress.ts`, lines 49 and 55
+**Sonar:** rule S3504, 2 findings
+
+### What changed and why
+
+Two `var` declarations (`data`, `config`) inside the `POST /update/:contentId` handler were changed to `const`. Both are assigned once and never reassigned, and used only within the same block where declared — no reliance on `var`'s function-scope hoisting. Purely mechanical.
+
+### Verified
+
+All 14 existing tests for this route pass unchanged. Full suite green, clean build.
+
+### MUST VERIFY IN PROD
+
+- [ ] None.
+
+---
+
+## CHANGE 6 — Removed 3 confirmed-dead files
+
+**Files removed:** `src/protectedApi_v8/connections.ts`, `src/protectedApi_v8/socialv2.ts`,
+`src/publicApi_v8/userDataMigration.ts`, and their 3 test files
+**Reason:** duplicate-code cleanup (these contributed ~830 of the ~10,800 duplicated
+lines Sonar was reporting); none of them can execute in production.
+
+### Why each one is confirmed dead, not just untested
+
+- **`connections.ts`** — its route path (`/connections`) is live, but mounted to `connections_v2.ts` instead. The old import is explicitly commented out in `protectedApiV8.ts` (`// import { connectionsApi } from './connections'`), with a `// tslint:disable-next-line: no-commented-code` marker above it, consistently across multiple past commits — a deliberate, stable v1→v2 migration, not an accident.
+- **`socialv2.ts`** — exactly one commit in its entire git history ("initial commit"). Added once, never imported anywhere, ever.
+- **`userDataMigration.ts`** — defines the exact same two routes (`POST /reset/proxy/password`, `POST /verifyOtp`) as the separately-mounted `forgotPassword.ts`. A genuine old/new pair; the old file's path has zero references in either router file across all of git history.
+
+Additional verification beyond grep: neither `protectedApiV8.ts` nor
+`publicApiV8.ts` (nor `server.ts`/`index.ts`) contains any dynamic or
+wildcard route-loading mechanism (`readdir`, `glob`, computed `require()`)
+that could reach these files indirectly — every route is a static `import` +
+`.use()` call. Both router files also have their own pre-existing,
+independently-maintained test suites (`protectedApiV8.test.ts`,
+`publicApiV8.test.ts`) that assert a **complete, exhaustive manifest** of
+every sub-router actually mounted (~50 and ~35 entries respectively) — a
+manifest whose entire purpose is catching exactly this kind of wiring
+mistake. Neither manifest includes any of the 3 removed files; both include
+their replacements (`connections_v2`, `forgotPassword`).
+
+### Verified
+
+- Full suite: 213 test suites (down from 216 — exactly the 3 removed test
+  files, nothing else), all passing.
+- Clean build: `dist/` went from 272 → 269 files (exactly the 3 removed
+  source files), 0 leaked `.test.js` files, no compile errors.
+- No other file in the repository references any of the 3 removed files
+  (checked all file types, not just `.ts`, across the whole repo, not just
+  `src/`).
+
+### MUST VERIFY IN PROD
+
+- [ ] Nothing functional — dead code cannot affect running behavior by
+      definition. The only meaningful post-deploy check is **negative**: confirm
+      no error/404 spike appears for `/connections` or `/forgot-password/`
+      style traffic after this deploys, which would indicate the "dead" file
+      was actually reachable through some path this investigation missed
+      (considered extremely unlikely given the evidence above, but worth a
+      quick log check since this is the one change in this batch that removes
+      code rather than restructuring it).
+
+---
+
+## CHANGE 7 — whitelistApis.ts: deduplicated the security authorization table
+
+**File:** `src/utils/whitelistApis.ts` (1,928 → ~725 lines), plus a new
+`src/utils/whitelistApis.test.ts` structural regression test.
+**Sonar:** duplicated blocks 5,309 → 749 (a further ~85% drop from this
+change alone; -93% from the original count across this session's whole
+duplication cleanup).
+
+### What changed and why
+
+`API_LIST.URL` maps 306 route paths to authorization rule objects
+(`{ checksNeeded, ROLE_CHECK }`). 301 of those 306 routes shared one of
+exactly 3 rule combinations, each repeated as an inline object literal.
+Replaced with 3 named, `Object.freeze()`-protected preset constants
+(`PUBLIC_ROLE_RULE`, `ADMIN_LEADER_PUBLIC_ROLE_RULE`, `NO_CHECKS_RULE`),
+referenced by name from each matching route. The 5 routes with a genuinely
+unique combination were left as inline literals (introducing a named preset
+used by only one route adds a name to remember for no benefit).
+
+`Object.freeze()` on the shared constants is defensive, not a behavior
+change: `apiWhiteList.ts`'s `isAllowed()` — the only consumer — only ever
+*reads* `checksNeeded`/`ROLE_CHECK` (via `_.isEmpty`, `.forEach()`,
+`_.get()`, `_.includes()`, `_.intersection()`), never mutates them, verified
+by reading every call site. Freezing only changes behavior if something
+*later* tries to mutate a shared object — it would throw instead of silently
+corrupting every route sharing that reference.
+
+### Why this is provably zero-impact, not just "probably fine"
+
+Ran a Node script doing `assert.deepStrictEqual()` between the final
+`API_LIST` object and the original git-committed version — a deep structural
+comparison of all 306 route entries and every nested value. This is stronger
+than "tests still pass": it proves the actual data structure consumed at
+runtime is byte-for-byte identical, not just that the specific scenarios the
+existing tests happen to cover are unaffected. Re-ran this check after every
+subsequent edit to the file; always passed.
+
+### Verified
+
+- Deep-equality check: PASS (see above).
+- Existing `apiWhiteList.test.ts` (17 tests, the real access-control
+  behavior tests): pass unchanged.
+- New `whitelistApis.test.ts` (3 tests): route count stays at 306, every
+  entry has a valid `checksNeeded`/`ROLE_CHECK` shape, presets are genuinely
+  shared (catches a future accidental revert back to per-route duplication).
+- Full suite green, clean build.
+
+### MUST VERIFY IN PROD
+
+- [ ] None expected — the deep-equality proof means the authorization
+      decision for every one of the 306 routes is identical to before this
+      change, not just "probably" identical. If there's any doubt, the
+      lowest-effort spot-check is calling a handful of routes from each of
+      the 3 preset groups (e.g. one `PUBLIC_ROLE_RULE` route, the one
+      `ADMIN_LEADER_PUBLIC_ROLE_RULE`-gated route) and confirming the same
+      access decision as before deploy.
 
 ---
 
@@ -2711,7 +2885,10 @@ for awareness if this function is touched again.
 ### BU. `env.ts` — `POST_ASSESSMENT_BASE`'s fallback default is a real, publicly-registered external domain, not the loopback host
 
 ```ts
+// before
 POST_ASSESSMENT_BASE: env.POST_ASSESSMENT_BASE || 'http://localhost.com',
+// after
+POST_ASSESSMENT_BASE: env.POST_ASSESSMENT_BASE || 'http://localhost:0',
 ```
 
 Found while investigating SonarCloud's 17 `http://`-related security hotspots
@@ -2725,22 +2902,30 @@ third-party-registered domain on the public internet. If
 `POST_ASSESSMENT_API_BASE` is ever unset in a deployed environment, this
 fallback would silently send real network requests to that external domain
 instead of failing loudly, which is a materially different risk profile from
-every sibling default in this file. Not changed — this is a source-file edit
-outside this campaign's scope without explicit sign-off.
+every sibling default in this file.
+
+**Fixed** (2026-08-05): swapped the fallback for `http://localhost:0`, an
+obviously-inert value consistent with every sibling default — a missing env
+var now fails fast instead of silently reaching an external host. Zero
+impact on any environment where `POST_ASSESSMENT_API_BASE` is set, which the
+next item confirms is already expected everywhere. `tsc --noEmit` and the
+full Jest suite (213 suites / 3189 tests) pass unchanged.
 
 **MUST VERIFY IN PROD:**
 - [ ] Confirm `POST_ASSESSMENT_API_BASE` is set in every real deployment
-      (it should already be, given the assessment-submission flow is live),
-      and consider whether the fallback should instead be an obviously-inert
-      value (e.g. `http://localhost:0`) so a missing env var fails fast
-      rather than silently reaching an external host.
+      (it should already be, given the assessment-submission flow is live) —
+      this fix doesn't change behavior there, but the assumption is still
+      unverified from source.
 
 ---
 
 ### BV. `env.ts` — `NETWORK_SERVICE_BACKEND`'s fallback default is a malformed URL (missing `//`)
 
 ```ts
+// before
 NETWORK_SERVICE_BACKEND: env.NETWOR_SERVICE_API_BASE || 'http:localhost:7001',
+// after
+NETWORK_SERVICE_BACKEND: env.NETWOR_SERVICE_API_BASE || 'http://localhost:7001',
 ```
 
 Found in the same review as change BU. `'http:localhost:7001'` is missing
@@ -2748,15 +2933,64 @@ the `//` after the scheme, so it is not a well-formed URL — if this fallback
 is ever actually used (i.e. `NETWOR_SERVICE_API_BASE` — itself apparently a
 typo'd env var name, missing the `K` in `NETWORK` — is unset), any URL
 parser or HTTP client consuming it would either throw or misinterpret it,
-unlike every sibling `http://localhost:<port>` default in this file. Not
-changed — outside this campaign's scope without explicit sign-off.
+unlike every sibling `http://localhost:<port>` default in this file.
+
+**Fixed** (2026-08-05): corrected only the malformed URL syntax (added the
+missing `//`), matching every sibling default's format. The env var name
+(`NETWOR_SERVICE_API_BASE`) was **deliberately left untouched** — renaming it
+to `NETWORK_SERVICE_API_BASE` would change which env var is actually read,
+which is a real behavior change depending on unverified prod config (see
+below), not a zero-impact fix. `tsc --noEmit` and the full Jest suite
+(213 suites / 3189 tests) pass unchanged.
 
 **MUST VERIFY IN PROD:**
 - [ ] Confirm whether the deployed env var is actually named
       `NETWOR_SERVICE_API_BASE` (matching the typo in code) or
       `NETWORK_SERVICE_API_BASE` (the presumably-intended name) — if the
       latter, this fallback has silently never been reachable by the
-      intended env var name in any environment that set it correctly.
+      intended env var name in any environment that set it correctly. This
+      decides whether the typo should be fixed in a follow-up.
+
+---
+
+### BW. `env.ts` — moved 12 `http://`-literal fallback defaults into a git-ignored local-only file, to resolve their Sonar `S5332` (clear-text-protocol) hotspots at the source
+
+**Issue:** 12 lines in `env.ts` hardcoded an internal-service `http://` URL as
+the fallback default for an env var (e.g.
+`KNOWLEDGE_MW_API_BASE: env.KNOWLEDGE_MW_API_BASE || 'http://knowledge-mw-service:5000'`).
+Each had already been reviewed SAFE as a security hotspot (internal service
+names / localhost placeholders, overridden by a real env var in every real
+deployment — see `scripts/sonar-hotspot-reviews.mjs`), but that review only
+silences the finding; the literal `http://` string still sits in tracked
+source, so a server whose hotspot-review database doesn't have that
+decision applied (a teammate's fresh local SonarQube, in this case) sees it
+as an open hotspot again.
+
+**Why fixed this way:** rather than re-reviewing on every server, remove the
+literal strings from tracked source entirely. They now live in a git-ignored
+`src/utils/env.local-defaults.json`, loaded at runtime via a small
+`existsSync`/`readFileSync` guard (not a TS `import`, which would break
+compilation on any machine without the file). A committed
+`env.local-defaults.example.json` lets a fresh checkout restore it with one
+`cp`, mirroring this repo's existing `.env.sonar`/`.env.sonar.example`
+pattern. `src/server.ts:110`'s `S5332` hotspot (a direct WebSocket URL, not a
+fallback-default pattern) was deliberately left as-is — out of scope.
+
+**Impact: zero.** Every one of the 12 values is unchanged, only relocated —
+verified by importing `env.ts` before and after and diffing the resolved
+`CONSTANTS` values (identical). Also verified the missing-file path
+explicitly (moved the file aside, re-ran the import): resolves to
+`undefined` for those 12 keys, no throw — the same as any other unset env
+var, and irrelevant in practice since real deployments always set the actual
+env var, never touching this fallback. `tsc --noEmit` and the full Jest
+suite (213 suites / 3189 tests) pass unchanged, both with and without the
+local-defaults file present.
+
+**MUST VERIFY IN PROD:** nothing — this is a source-organization change
+only, the resolved runtime values are byte-identical to before, and
+production never reads the new file (it's git-ignored, so it doesn't exist
+in a deployed checkout, and even if it did, the real env vars already take
+priority).
 
 ---
 

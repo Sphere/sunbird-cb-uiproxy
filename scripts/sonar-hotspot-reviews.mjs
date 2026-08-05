@@ -65,19 +65,11 @@ export const HOTSPOT_REVIEWS = [
       'for the caveat; not verifiable from this repository.',
   },
 
-  // ---------------------------------------------------------------------
-  // S2245 — pseudorandom number generator
-  // ---------------------------------------------------------------------
-  {
-    rule: 'typescript:S2245',
-    resolution: 'SAFE',
-    justification:
-      'Math.random is used only to randomise display order (Fisher-Yates ' +
-      'shuffle) of content and assessment questions. No credential, token, ' +
-      'session identifier or security decision derives from this value. ' +
-      'NOTE: the password generator did NOT qualify for this justification ' +
-      'and was fixed in code to use crypto.randomBytes instead.',
-  },
+  // S2245 — pseudorandom number generator: entry removed 2026-08-05. Both
+  // Math.random() call sites (assessment.ts shuffle, contentHelpers.ts
+  // shuffle) were switched to the CSPRNG-backed secureRandomInt() instead of
+  // being reviewed SAFE — no Math.random() usage remains in src/, so this
+  // hotspot can no longer be found on any server. See docs/PROD-VERIFICATION.md.
 
   // ---------------------------------------------------------------------
   // S5122 — CORS

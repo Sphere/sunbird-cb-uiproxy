@@ -1,4 +1,5 @@
 import { IContent, IContentMinimal, TContentType } from '../models/content.model'
+import { secureRandomInt } from './randomPasswordGenerator'
 const CONTENT_URL_PREFIX_SLICE_REGEX = /http:\/\/private-[^/]+/
 
 export function processContent(content: IContent): IContent {
@@ -33,7 +34,7 @@ export function shuffleContent(array: IContent[]) {
   let temporaryValue: IContent | null = null
   while (0 !== currentIndex) {
     // Pick a remaining element...
-    randomIndex = Math.floor(Math.random() * currentIndex)
+    randomIndex = secureRandomInt(currentIndex)
     currentIndex -= 1
 
     // And swap it with the current element.
