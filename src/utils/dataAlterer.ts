@@ -35,23 +35,33 @@ export const returnData = (data: any, masterObjectKey: any = null, level = 'flat
  */
 
 // tslint:disable-next-line: no-any
+function swapFirstMatchingHierarchyContentType(data: any) {
+	const alData = data.request.data.hierarchy
+	for (const property in alData) {
+		if (alData[property].contentType === 'Collection' || alData[property].contentType === 'CourseUnit') {
+			data.request.data.hierarchy[property].contentType = contentMapper[data.request.data.hierarchy[property].contentType]
+			break
+		}
+	}
+}
+
+// tslint:disable-next-line: no-any
+function swapChildrenContentType(data: any) {
+	if (data.result.content && data.result.content.children && data.result.content.children.length > 0) {
+		data.result.content.children.forEach((element: any) => {
+			if (element.contentType === 'Collection' || element.contentType === 'CourseUnit') {
+				element.contentType = contentMapper[element.contentType]
+			}
+		})
+	}
+}
+
+// tslint:disable-next-line: no-any
 function hierarchy(data: any = null) {
 	if (data.request) {
-		const alData = data.request.data.hierarchy
-		for (const property in alData) {
-			if (alData[property].contentType === 'Collection' || alData[property].contentType === 'CourseUnit') {
-				data.request.data.hierarchy[property].contentType = contentMapper[data.request.data.hierarchy[property].contentType]
-				break
-			}
-		}
+		swapFirstMatchingHierarchyContentType(data)
 	} else if (data.params.status === 'successful' && data.result) {
-		if (data.result.content && data.result.content.children && data.result.content.children.length > 0) {
-			data.result.content.children.forEach((element: any) => {
-				if (element.contentType === 'Collection' || element.contentType === 'CourseUnit') {
-					element.contentType = contentMapper[element.contentType]
-				}
-			})
-		}
+		swapChildrenContentType(data)
 	}
 
 	return data

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
 import {
@@ -37,6 +37,22 @@ const API_ENDPOINTS = {
 
 export const usersApi = Router()
 
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or an empty object).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleUsersApiError(res: Response, err: any, label: string) {
+  logError(label, err)
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {})
+}
+
 usersApi.get('/:slug/bookmarks', async (req, res) => {
   try {
     const rootOrg = getRootOrg(req)
@@ -51,10 +67,7 @@ usersApi.get('/:slug/bookmarks', async (req, res) => {
     })
     res.send(responseSlugBookmark.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/bookmarks >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/bookmarks >')
   }
 })
 
@@ -72,10 +85,7 @@ usersApi.get('/:slug/downvoted', async (req, res) => {
     })
     res.send(responseSlugDownVoted.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/downvoted >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/downvoted >')
   }
 })
 
@@ -93,10 +103,7 @@ usersApi.get('/:slug/groups', async (req, res) => {
     })
     res.send(responseSlugGroups.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/groups >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/groups >')
   }
 })
 
@@ -114,10 +121,7 @@ usersApi.get('/:slug/info', async (req, res) => {
     })
     res.send(responseSlugInfo.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/info >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/info >')
   }
 })
 
@@ -135,10 +139,7 @@ usersApi.get('/me', async (req, res) => {
     })
     res.send(responseMe.data)
   } catch (err) {
-    logError('ERROR ON GET User Profile /me >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET User Profile /me >')
   }
 })
 
@@ -156,10 +157,7 @@ usersApi.get('/:slug/posts', async (req, res) => {
     })
     res.send(responseSlugPosts.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/posts >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/posts >')
   }
 })
 
@@ -177,10 +175,7 @@ usersApi.get('/:slug/upvoted', async (req, res) => {
     })
     res.send(responseSlugUpvoted.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/upvoted >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/upvoted >')
   }
 })
 
@@ -198,10 +193,7 @@ usersApi.get('/:slug/watched', async (req, res) => {
     })
     res.send(responseSlugWatched.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/watched >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/watched >')
   }
 })
 
@@ -214,10 +206,7 @@ usersApi.get('/email/:email', async (req, res) => {
     const responseEmail = await getUserByEmail(email)
     res.send(responseEmail.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /email/:email >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /email/:email >')
   }
 })
 
@@ -237,10 +226,7 @@ usersApi.get('/:slug/about', async (req, res) => {
     })
     res.send(responseSlug.data)
   } catch (err) {
-    logError('ERROR ON GET topicsApi /:slug/about >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUsersApiError(res, err, 'ERROR ON GET topicsApi /:slug/about >')
   }
 })
 

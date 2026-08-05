@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
 import {
@@ -29,6 +29,22 @@ const API_ENDPOINTS = {
 }
 
 export const writeApi = Router()
+
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or an empty object).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleWriteApiError(res: Response, err: any, label: string) {
+  logError(label, err)
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {})
+}
 
 // tslint:disable-next-line: no-any
 export async function createDiscussionHubUser(user: any): Promise<any> {
@@ -79,10 +95,7 @@ writeApi.post('/topics', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON POST writeApi /topics >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON POST writeApi /topics >')
   }
 })
 
@@ -106,10 +119,7 @@ writeApi.post('/topics/:topicId', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI  POST /topics/:topicId >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI  POST /topics/:topicId >')
   }
 })
 
@@ -121,10 +131,7 @@ writeApi.post('/users', async (req, res) => {
     const response = await createDiscussionHubUser(req.body)
     res.send(response.data)
   } catch (err) {
-    logError('ERROR ON writeAPI POST /users >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI POST /users >')
   }
 })
 
@@ -147,10 +154,7 @@ writeApi.post('/posts/:postId/bookmark', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI POST /posts/:postId/bookmark >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI POST /posts/:postId/bookmark >')
   }
 })
 
@@ -170,10 +174,7 @@ writeApi.delete('/posts/:postId/bookmark', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI DELETE /posts/:postId/bookmark >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI DELETE /posts/:postId/bookmark >')
   }
 })
 
@@ -197,10 +198,7 @@ writeApi.post('/posts/:postId/vote', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI POST /posts/:postId/vote >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI POST /posts/:postId/vote >')
   }
 })
 
@@ -220,10 +218,7 @@ writeApi.delete('/posts/:postId/vote', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI Delete /posts/:postId/vote >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI Delete /posts/:postId/vote >')
   }
 })
 
@@ -247,10 +242,7 @@ writeApi.put('/topics/:topicId/follow', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI  PUT /topics/:topicId/follow >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI  PUT /topics/:topicId/follow >')
   }
 })
 
@@ -272,9 +264,6 @@ writeApi.put('/topics/:topicId/tags', async (req, res) => {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI  PUT /topics/:topicId/tags >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI  PUT /topics/:topicId/tags >')
   }
 })

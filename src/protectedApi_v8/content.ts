@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import request from 'request'
 import { axiosRequestConfig } from '../configs/request.config'
 import { ECollectionTypes, IContent, IContentMinimal } from '../models/content.model'
@@ -66,6 +66,27 @@ const DETAIL_CONTENT_FIELDS = [
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
+/**
+ * Optionally logs the error under `label`, then responds with the upstream
+ * status code (or 500) and the upstream error body (or a generic error
+ * message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message; omit to skip logging
+ */
+// tslint:disable-next-line: no-any
+function handleContentError(res: Response, err: any, label?: string) {
+  if (label) {
+    logError(label, err)
+  }
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {
+      error: GENERAL_ERROR_MSG,
+    })
+}
+
 const API_END_POINTS = {
   addHierarchy: (apiType: string) => `${CONSTANTS.AUTHORING_BACKEND}/action/content/kb/${apiType}`,
   contentParent: (contentId: string) =>
@@ -113,11 +134,7 @@ contentApi.post('/kb/v3/reorder', async (req, res) => {
     )
     res.send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -143,12 +160,7 @@ contentApi.post('/kb/v2/:apiType', async (req, res) => {
     )
     res.send(response.data)
   } catch (err) {
-    logError('CONTENT PARENT ERR -> ', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err, 'CONTENT PARENT ERR -> ')
   }
 })
 
@@ -164,12 +176,7 @@ contentApi.get('/multiple/:ids', async (req, res) => {
     const response = await getMultipleContent(ids, rootOrg, org, extractUserIdFromRequest(req))
     res.json(response)
   } catch (err) {
-    logError('ERROR in MULTI GET CONTENT >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err, 'ERROR in MULTI GET CONTENT >')
   }
 })
 
@@ -207,11 +214,7 @@ contentApi.get('/parents/:contentId', async (req, res) => {
     const response = await getParentDetails(contentId)
     res.json(response)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 export async function getParentDetails(contentId: string) {
@@ -257,12 +260,7 @@ contentApi.get('/next/:contentId', async (req, res) => {
       response.data.result.response.map((content: IContent) => getMinimalContent(content)) || []
     )
   } catch (err) {
-    logError('WHATS NEXT API ERROR>', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err, 'WHATS NEXT API ERROR>')
   }
 })
 
@@ -275,12 +273,7 @@ contentApi.post('/likeCount', async (req, res) => {
     })
     res.send(response.data)
   } catch (err) {
-    logError('ERROR FETCHING LIKE COUNT -> ', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err, 'ERROR FETCHING LIKE COUNT -> ')
   }
 })
 
@@ -357,12 +350,7 @@ contentApi.get('/searchAutoComplete', async (req, res) => {
     }
     res.json(data)
   } catch (err) {
-    logError('SEARCH AUTOCOMPLETE ERR -> ', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err, 'SEARCH AUTOCOMPLETE ERR -> ')
   }
 })
 
@@ -399,12 +387,7 @@ contentApi.post('/searchV5', async (req, res) => {
     const response = await searchV5(reqBody)
     res.json(response)
   } catch (err) {
-    logError('SEARCH API ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleContentError(res, err, 'SEARCH API ERROR >')
   }
 })
 
@@ -453,11 +436,7 @@ contentApi.post('/searchRegionRecommendation', async (req, res) => {
     }
     res.json(returnResponse)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleContentError(res, err)
   }
 })
 
@@ -483,12 +462,7 @@ contentApi.post('/searchV6', async (req, res) => {
       }
     )
   } catch (err) {
-    logError('SEARCH V6 API ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleContentError(res, err, 'SEARCH V6 API ERROR >')
   }
 })
 
@@ -516,11 +490,7 @@ contentApi.post('/setCookie', async (req, res) => {
       })
       .pipe(res)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleContentError(res, err)
   }
 })
 
@@ -534,11 +504,7 @@ contentApi.post('/setImageCookie', async (req, res) => {
     const bodyWithConfigRequestOptions = { ...bodyInJson, ...axiosRequestConfig }
     request.post(url, bodyWithConfigRequestOptions).pipe(res)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleContentError(res, err)
   }
 })
 
@@ -551,11 +517,7 @@ contentApi.post('/getWebModuleManifest', async (req, res) => {
     const response = await axios.get(`${url}`, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleContentError(res, err)
   }
 })
 
@@ -565,11 +527,7 @@ contentApi.get('/getWebModuleFiles', async (req, res) => {
     const response = await axios.get(`${url}`, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -621,11 +579,7 @@ contentApi.get('/collection/:collectionType/:collectionId', async (req, res) => 
       totalContents: contentIds.length,
     })
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -639,11 +593,7 @@ contentApi.post('/removeSubset', async (req, res) => {
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -665,11 +615,7 @@ contentApi.post('/hierarchy/update', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -694,11 +640,7 @@ contentApi.post('/kb/:updateType', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -726,11 +668,7 @@ contentApi.post('/:contentId', async (req, res) => {
 
     res.json(response)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -829,11 +767,7 @@ contentApi.get('/external-access/:id', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: 'Failed due to unknown reason',
-      })
+    handleContentError(res, err)
   }
 })
 
@@ -857,11 +791,6 @@ contentApi.post('/:contentId/parent', async (req, res) => {
     })
     res.send(response.data)
   } catch (err) {
-    logError('CONTENT PARENT ERR -> ', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleContentError(res, err, 'CONTENT PARENT ERR -> ')
   }
 })

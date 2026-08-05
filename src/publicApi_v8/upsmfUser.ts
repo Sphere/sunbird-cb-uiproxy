@@ -3,36 +3,27 @@ import axios from 'axios'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
+import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { CONSTANTS } from '../utils/env'
-import { logError } from '../utils/logger'
-import { logInfo } from '../utils/logger'
-
-const pgPool = new (require('pg')).Pool({
-    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
-    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
-    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
-    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
-    max: 20,                          // Max 20 connections in pool
-    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
-    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
-    statement_timeout: 30000,         // 30 seconds for query execution
-    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
-})
-
-// Add error handling for pool
-pgPool.on('error', (error) => {
-    logError('Unexpected error on idle client in pool', JSON.stringify(error))
-})
-
-pgPool.on('connect', () => {
-    logInfo('New PostgreSQL connection established')
-})
-
-pgPool.on('remove', () => {
-    logInfo('PostgreSQL connection removed from pool')
-})
-
+import { logError, logInfo } from '../utils/logger'
+import {
+  API_END_POINTS,
+  INDIAN_COUNTRY_CODE as indianCountryCode,
+  MSG91_HEADERS as msg91Headers,
+  REGISTRATION_SOURCE as registrationSource,
+  STANDARD_DOB as standardDob,
+  USER_SUCCESS_REGISTRATION_MESSAGE as userSuccessRegistrationMessage,
+} from '../utils/orgSignupConstants'
+import {
+  optionalEmailValidator,
+  requiredDistrictValidator,
+  requiredFirstNameValidator,
+  requiredLastNameValidator,
+  requiredPhoneValidator,
+} from '../utils/orgSignupValidators'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/upsmfUtils'
+
+const pgPool = createDataLakePgPool()
 export const upsmfUserCreation = express.Router()
 const dayjs = require('dayjs')
 
@@ -86,12 +77,7 @@ const serviceSchemaJoi = Joi.object({
         .messages({
             'any.required': 'Date of Joining is required for Medical Officer-UP role',
         }),
-    district: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'District is required',
-        }),
+    district: requiredDistrictValidator,
 
     dob: Joi.string()
         .when('role', {
@@ -102,7 +88,7 @@ const serviceSchemaJoi = Joi.object({
                 'string.base': 'Date of Birth must be a string',
             }),
         }),
-    email: Joi.string().allow('', null).email().optional(),
+    email: optionalEmailValidator,
     facultyType: Joi.string()
         .when('role', {
             is: 'Faculty',
@@ -113,12 +99,7 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'Faculty type is required for Faculty role',
         }),
-    firstName: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'First name is required',
-        }),
+    firstName: requiredFirstNameValidator,
 
     instituteName: Joi.string()
         .when('role', {
@@ -141,24 +122,9 @@ const serviceSchemaJoi = Joi.object({
             // tslint:disable-next-line: all
             'any.required': 'Institute type is required for Student and Faculty roles',
         }),
-    lastName: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Last name is required',
-        }),
+    lastName: requiredLastNameValidator,
 
-    phone: Joi.number() // Adjusted to validate as a number
-        .required()
-        .integer()
-        .positive()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Phone number is required',
-            'number.base': 'Phone number must be a number',
-            'number.integer': 'Phone number must be an integer',
-            'number.positive': 'Phone number must be a positive integer',
-        }),
+    phone: requiredPhoneValidator,
     role: Joi.string()
         .valid('Student', 'Faculty', 'ANM-UP', 'Medical Officer-UP')
         .required()
@@ -263,17 +229,6 @@ const serviceSchemaJoi = Joi.object({
     seniorityNumber: Joi.string().allow('', null).optional(),
 
 })
-const API_END_POINTS = {
-    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
-const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-UP',
@@ -283,18 +238,7 @@ const getUserDesignationFromRole = {
     'Medical Officer-UP': 'Medical Officer-UP',
 }
 
-const standardDob = '01/01/1970'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
-// tslint:disable-next-line: all
-const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
-
-const indianCountryCode = '+91'
-const msg91Headers = {
-    // tslint:disable-next-line: all
-    accept: 'application/json',
-    authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-    'content-type': 'application/json',
-}
 
 upsmfUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {

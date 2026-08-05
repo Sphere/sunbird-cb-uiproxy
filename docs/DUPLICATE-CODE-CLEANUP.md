@@ -114,7 +114,6 @@ the block.
 | L1-12 | `content.ts` (self-duplication, ~15 routes) | Org/rootOrg 400-guard + generic catch block | Optional log-label string only | `requireOrgHeaders(req,res)` + `handleApiError(res,err,label?)` |
 | L1-13 | `content.ts` ↔ `home.ts` ↔ `publicContent.ts` | `searchAutoComplete` handler, `searchV6` handler, response-shaping tail | Only the `uuid` source (`extractUserIdFromRequest` vs constant) — **see Level 2 note**, cross-boundary extraction of the full `searchAutoComplete` block itself is L2, but the smaller response-shaping tail alone is L1 | Split: shape-tail as its own small helper now; leave the full search handlers for the L2 workstream |
 | L1-14 | `content.ts` (self-duplication) | `hierarchy/update` vs `kb/:updateType` handlers | Endpoint-builder function/param only | Mechanical merge |
-| L1-15 | `goals.ts` ↔ `playlist.ts` | `PATCH /:goalId` vs `PATCH /:playlistId` (update-content-then-hierarchy flow) | Nothing meaningful — same imported functions, same hardcoded URLs | `patchContentViaHierarchyUpdate(id, request, auth)` shared helper |
 | L1-16 | `goals.ts` (self-duplication, ~12 routes) | Org-guard + axios call + catch, across `/share`, `/action/...`, `/common`, `/track/...`, etc. | Verb, endpoint, optional response-transform function | `withOrgValidation(req, res, coreFn)` wrapper |
 | L1-17 | `rdbms.ts` (self-duplication, ~9 routes) | GET-proxy and POST-proxy boilerplate — the cleanest file found in this whole investigation | URL suffix + log label only | `proxyGet`/`proxyPost` helper pair; would deduplicate nearly the entire file |
 | L1-18 | `discussionHub/writeApi.ts` (self-duplication, excl. the `/users` route — see Level 3) | `getRootOrg`/`extractUserIdFromRequest`/catch boilerplate across 8 routes; `topics` create vs reply body-build | Log label only | Shared boilerplate helper — **exclude the `/users` route and its neighborhood, which touches the documented never-invoked-closure bug** |
@@ -125,7 +124,8 @@ the block.
 | L1-23 | `feedbackV2.ts` — clusters 1 &amp; 2 only (NOT cluster 3, see Level 3) | `/platform` vs `sendSentimentNeutralFeedback` middleware body-build; generic catch block | One extra field (`sentiment`, harmless if undefined) | `submitFeedback(req,res,extraFields)`, `handleFeedbackError(err,res)` |
 | L1-24 | `scoring.ts` (self-duplication) | Auth-header-object construction + generic catch, across `/calculate`, `/fetch`, `getTemplate` | Endpoint constant + param name only | `scoringAuthHeaders(...)`, `handleScoringError(...)` |
 
-**Total: 24 clusters spanning roughly 20 files.** This is the safe,
+**Total: 23 clusters spanning roughly 20 files** (L1-15 moved to Level 2 as
+L2-13 after verification found real divergence — see below). This is the safe,
 immediately-actionable subset — pure boilerplate (error handling, header
 construction, generic proxy-and-forward shapes, or literal static data)
 with no documented bug and no verified behavioral divergence anywhere in
@@ -155,8 +155,9 @@ design and regression testing before merging, not just a find/replace.
 | L2-10 | `goals.ts` vs `playlist.ts` — create-goal vs create-playlist | Two-step "create content, then patch hierarchy" scaffolding | Request-builder functions genuinely differ (`formGoalRequestObj` vs `formPlaylistRequestObj`), and goals.ts's catch reshapes the error body via `transformGoalUpsertResponse` while playlist.ts's doesn't | Extract the scaffolding only, keep the builder functions and the extra error-transform as explicit parameters |
 | L2-11 | `discussionHub/writeApi.ts` — `bookmark` vs `vote`, and `follow` vs `tags` | POST-body-build + axios + catch | `bookmark` discards the client body (`{_uid}` only) while `vote` forwards it (`{...req.body,_uid}`); `follow` calls `getUserUID()` (with a `// TODO` marker) while `tags` skips that step entirely | Preserve both differences as explicit parameters; do not assume they're accidental without asking the route owner |
 | L2-12 | `home.ts` ↔ `content.ts` — `/searchAutoComplete` and `/searchV6` | ~80 and ~24 lines of live Elasticsearch query-building/ranking logic, effectively line-for-line identical | Only variance is how the acting "uuid" is resolved (hardcoded admin constant on the public/unauthenticated side vs `extractUserIdFromRequest` on the protected side) — but this crosses the public/protected trust boundary and the block is large, live search-ranking logic | `buildSearchAutoCompleteHandler(resolveUuid)` factory, instantiated once per file; treat as its own workstream, not a quick hoist |
+| L2-13 | `goals.ts` ↔ `playlist.ts` — `PATCH /:goalId` vs `PATCH /:playlistId` | Two-call "update content, then patch hierarchy via `/content/v3/hierarchy/update`" scaffold — **reclassified from L1-15 after verification found real divergence** | `formPlaylistupdateObj`, imported from `service/goals.ts` in one file and `service/playlist.ts` in the other, look identical by name but are NOT: goals' version reads `req.name`, playlist's reads `req.playlist_title` — genuinely different request-body contracts. `transformToSbExtPatchRequest` in both service files IS byte-identical (param name only differs) | Extract the two-axios-call scaffold with the transform functions passed in as parameters (`patchContentViaHierarchyUpdate(id, request, auth, formUpdateObj)`), not hardcoded — never assume same-named imports from different modules are the same function without reading both |
 
-**Total: 12 clusters.** These are real, worthwhile dedup targets, but each
+**Total: 13 clusters.** These are real, worthwhile dedup targets, but each
 needs a short design note and test plan before touching — none of them
 are "safe to just do."
 

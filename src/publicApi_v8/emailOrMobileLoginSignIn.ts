@@ -9,6 +9,7 @@ import {
   axiosRequestConfigLong,
 } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
+import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
 import { getOTP, validateOTP } from './otp'
@@ -357,39 +358,6 @@ const handleCreateUserError = (error: any) => {
 }
 // tslint:disable-next-line: no-any
 
-const fetchUserBymobileorEmail = async (
-  searchValue: string,
-  searchType: string
-) => {
-  logInfo(
-    'Checking Fetch Mobile no : ',
-    API_END_POINTS.fetchUserByMobileNo + searchValue
-  )
-  try {
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'GET',
-      url:
-        searchType === 'email'
-          ? API_END_POINTS.fetchUserByEmail + searchValue
-          : API_END_POINTS.fetchUserByMobileNo + searchValue,
-    })
-    logInfo('Response Data in JSON :', JSON.stringify(response.data))
-    logInfo('Response Data in Success :', response.data.responseCode)
-    if (response.data.responseCode === 'OK') {
-      logInfo(
-        'Response result.exists :',
-        _.get(response, 'data.result.exists')
-      )
-      return _.get(response, 'data.result.exists')
-    }
-  } catch (err) {
-    logError('fetchUserByMobile  failed')
-  }
-}
 // tslint:disable-next-line: no-any
 const updateRoles = async (userUUId: string) => {
   try {

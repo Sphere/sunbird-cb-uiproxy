@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
@@ -11,6 +11,23 @@ const API_ENDPOINTS = {
 }
 
 const GENERAL_ERR_MSG = 'Failed due to unknown reason'
+
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleRdbmsError(res: Response, err: any, label: string) {
+  logError(label, err)
+  res.status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {
+      error: GENERAL_ERR_MSG,
+    })
+}
 
 export const rdbmsApi = Router()
 
@@ -24,11 +41,7 @@ rdbmsApi.get('/initializeDb/:contentId', async (req, res) => {
     )
     res.send(response.data)
   } catch (err) {
-    logError('INITIALIZE DB ERROR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'INITIALIZE DB ERROR -> ')
   }
 })
 
@@ -41,11 +54,7 @@ rdbmsApi.get('/conceptData/:contentId', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('GET RDBMS CONCEPT DATA ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'GET RDBMS CONCEPT DATA ERR -> ')
   }
 })
 
@@ -59,11 +68,7 @@ rdbmsApi.get('/expectedOutput/:contentId', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('GET EXPECTED OUTPUT ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'GET EXPECTED OUTPUT ERR -> ')
   }
 })
 
@@ -77,11 +82,7 @@ rdbmsApi.get('/dbstructure/:contentId', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('GET DB STRUCTURE ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'GET DB STRUCTURE ERR -> ')
   }
 })
 
@@ -95,11 +96,7 @@ rdbmsApi.get('/tableRefresh/:contentId', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('TABLE REFRESH ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'TABLE REFRESH ERR -> ')
   }
 })
 
@@ -115,11 +112,7 @@ rdbmsApi.post('/executeQuery', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('EXECUTE QUERY ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'EXECUTE QUERY ERR -> ')
   }
 })
 
@@ -135,11 +128,7 @@ rdbmsApi.post('/compareQuery', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('COMPARE QUERY ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'COMPARE QUERY ERR -> ')
   }
 })
 
@@ -155,11 +144,7 @@ rdbmsApi.post('/playground', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('PLAYGROUND ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'PLAYGROUND ERR -> ')
   }
 })
 
@@ -176,11 +161,7 @@ rdbmsApi.post('/compositeQuery/:type', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('COMPOSITE QUERY ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'COMPOSITE QUERY ERR -> ')
   }
 })
 
@@ -197,11 +178,7 @@ rdbmsApi.post('/verifyExercise/:contentId', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('VERIFY EXERCISE ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'VERIFY EXERCISE ERR -> ')
   }
 })
 
@@ -218,10 +195,6 @@ rdbmsApi.post('/submitExercise/:contentId', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('SUBMIT EXERCISE ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERR_MSG,
-      })
+    handleRdbmsError(res, err, 'SUBMIT EXERCISE ERR -> ')
   }
 })

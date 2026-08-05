@@ -19,6 +19,22 @@ const apiEndpoints = {
   feedback: `${CONSTANTS.FEEDBACK_API_BASE}/v1`,
 }
 
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleFeedbackError(res: Response, err: any) {
+  return res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: GENERAL_ERROR_MSG,
+    }
+  )
+}
+
 // Middleware function for content request and service request submission
 const sendSentimentNeutralFeedback = async (req: Request, res: Response) => {
   try {
@@ -53,11 +69,7 @@ const sendSentimentNeutralFeedback = async (req: Request, res: Response) => {
 
     return res.send(response.data)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 }
 
@@ -94,11 +106,7 @@ feedbackV2Api.post('/platform', async (req: Request, res: Response) => {
     })
     return res.send(response.data)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 })
 
@@ -139,11 +147,7 @@ feedbackV2Api.post('/content/:contentId', async (req: Request, res: Response) =>
 
     return res.send(response)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 })
 
@@ -171,11 +175,7 @@ feedbackV2Api.get('/feedback-summary', async (req: Request, res: Response) => {
 
     return res.send(feedbackSummary)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 })
 
@@ -208,11 +208,7 @@ feedbackV2Api.post('/search', async (req: Request, res: Response) => {
 
     return res.send(searchResults)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 })
 
@@ -235,11 +231,7 @@ feedbackV2Api.get('/:feedbackId', async (req: Request, res: Response) => {
 
     return res.send(feedbackThread)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 })
 
@@ -265,11 +257,7 @@ feedbackV2Api.patch('/:feedbackId', async (req: Request, res: Response) => {
 
     return res.send(response)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 })
 
@@ -289,10 +277,6 @@ feedbackV2Api.get('/categories', async (req: Request, res: Response) => {
 
     return res.send(feedbackConfig)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleFeedbackError(res, err)
   }
 })

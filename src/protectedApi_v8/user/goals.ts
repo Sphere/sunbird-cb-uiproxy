@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { ITrackStatus } from '../../models/goal.model'
 import { formContentRequestObj, formGoalRequestObj, formPlaylistupdateObj, transformGoalUpsertResponse, transformToCommonGoalGroup, transformToGoalForOthers, transformToSbExtPatchRequest, transformToTrackStatus, transformToUserGoals } from '../../service/goals'
@@ -41,6 +41,22 @@ const API_END_POINTS = {
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleGoalsError(res: Response, err: any) {
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {
+      error: GENERAL_ERROR_MSG,
+    })
+}
+
 export const goalsApi = Router()
 
 goalsApi.get('/updateDurationCommonGoal/:goalType/:goalId', async (req, res) => {
@@ -61,11 +77,7 @@ goalsApi.get('/updateDurationCommonGoal/:goalType/:goalId', async (req, res) => 
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -179,11 +191,7 @@ goalsApi.post('/share/:goalType/:goalId', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -203,11 +211,7 @@ goalsApi.post('/sharev2/:goalType/:goalId', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -236,11 +240,7 @@ goalsApi.post('/action/:type/:goalType/:goalId', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -261,11 +261,7 @@ goalsApi.get('/action', async (req, res) => {
     const goals = response.data.map(transformToGoalForOthers)
     res.status(response.status).send(goals)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -284,11 +280,7 @@ goalsApi.get('/common', async (req, res) => {
     const goalGroups = response.data.map(transformToCommonGoalGroup)
     res.status(response.status).send(goalGroups)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -307,11 +299,7 @@ goalsApi.get('/common/:groupId', async (req, res) => {
     })
     res.status(response.status).send(transformToCommonGoalGroup(response.data))
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -332,11 +320,7 @@ goalsApi.get('/for-others', async (req, res) => {
     const goals = response.data.map(transformToGoalForOthers)
     res.status(response.status).send(goals)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -357,11 +341,7 @@ goalsApi.get('/track/:goalType/:goalId', async (req, res) => {
     const trackData: ITrackStatus = transformToTrackStatus(response.data)
     res.status(response.status).send(trackData)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -382,11 +362,7 @@ goalsApi.delete('/:goalType/:goalId', async (req, res) => {
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -406,11 +382,7 @@ goalsApi.post('/removeUsers/:goalType/:goalId', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -431,11 +403,7 @@ goalsApi.get('/:type', async (req, res) => {
 
     res.status(response.status).send(transformToUserGoals(response.data))
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -457,11 +425,7 @@ goalsApi.patch('/addContent/:goalId/:contentId', async (req, res) => {
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })
 
@@ -482,10 +446,6 @@ goalsApi.delete('/removeContent/:goalId/:contentId', async (req, res) => {
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleGoalsError(res, err)
   }
 })

@@ -27,6 +27,22 @@ const MY_ANALYTICS_VALIDATOR_URL = `${CONSTANTS.HTTPS_HOST}/apis/protected/v8/us
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleMyAnalyticsError(res: Response, err: any) {
+  return res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: GENERAL_ERROR_MSG,
+    }
+  )
+}
+
 export const myAnalyticsApi = Router()
 
 myAnalyticsApi.get(
@@ -36,11 +52,7 @@ myAnalyticsApi.get(
     try {
       return res.send(res.locals.myAnalyticsData)
     } catch (err) {
-      return res.status((err && err.response && err.response.status) || 500).send(
-        (err && err.response && err.response.data) || {
-          error: GENERAL_ERROR_MSG,
-        }
-      )
+      return handleMyAnalyticsError(res, err)
     }
   }
 )
@@ -56,11 +68,7 @@ myAnalyticsApi.get(
         learningHistoryProgress: res.locals.myAnalyticsLearningHistoryProgressRange,
       })
     } catch (err) {
-      res.status((err && err.response && err.response.status) || 500).send(
-        (err && err.response && err.response.data) || {
-          error: GENERAL_ERROR_MSG,
-        }
-      )
+      handleMyAnalyticsError(res, err)
     }
   }
 )
@@ -93,11 +101,7 @@ myAnalyticsApi.get('/assessments', async (req: Request, res: Response) => {
     delete result.assessments
     res.status(response.status).send(result)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -129,11 +133,7 @@ myAnalyticsApi.get('/certification', async (req: Request, res: Response) => {
     delete result.certifications
     res.status(response.status).send(result)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -163,11 +163,7 @@ myAnalyticsApi.get('/assessment/:contentType', async (req: Request, res: Respons
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -196,11 +192,7 @@ myAnalyticsApi.get('/timespent/:contentType', async (req: Request, res: Response
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -231,11 +223,7 @@ myAnalyticsApi.get(
       )
       res.status(response.status).send(response.data)
     } catch (err) {
-      res.status((err && err.response && err.response.status) || 500).send(
-        (err && err.response && err.response.data) || {
-          error: GENERAL_ERROR_MSG,
-        }
-      )
+      handleMyAnalyticsError(res, err)
     }
   }
 )
@@ -254,11 +242,7 @@ myAnalyticsApi.get('/skills', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -276,11 +260,7 @@ myAnalyticsApi.get('/myskills', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -301,11 +281,7 @@ myAnalyticsApi.get('/recommendedSkills', async (req: Request, res: Response) => 
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -333,11 +309,7 @@ myAnalyticsApi.get('/allSkills', async (req: Request, res: Response) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -355,11 +327,7 @@ myAnalyticsApi.get('/isAdmin', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -377,11 +345,7 @@ myAnalyticsApi.get('/role/get', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -406,11 +370,7 @@ myAnalyticsApi.get('/skillquotient', async (req: Request, res: Response) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -435,11 +395,7 @@ myAnalyticsApi.get('/rolequotient', async (req: Request, res: Response) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 myAnalyticsApi.get('/skills-role/:roleId', async (req: Request, res: Response) => {
@@ -460,11 +416,7 @@ myAnalyticsApi.get('/skills-role/:roleId', async (req: Request, res: Response) =
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -485,11 +437,7 @@ myAnalyticsApi.get('/role/getExisting', async (req: Request, res: Response) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -507,11 +455,7 @@ myAnalyticsApi.post('/role/add', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -529,11 +473,7 @@ myAnalyticsApi.post('/skills/add', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -551,11 +491,7 @@ myAnalyticsApi.post('/role/shareRole', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -577,11 +513,7 @@ myAnalyticsApi.get('/skill/search', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -606,11 +538,7 @@ myAnalyticsApi.get('/role/delete', async (req: Request, res: Response) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -628,11 +556,7 @@ myAnalyticsApi.post('/role/update', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 myAnalyticsApi.get('/isApprover', async (req: Request, res: Response) => {
@@ -649,11 +573,7 @@ myAnalyticsApi.get('/isApprover', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -675,11 +595,7 @@ myAnalyticsApi.get('/skillData', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -702,11 +618,7 @@ myAnalyticsApi.get('/search', async (req: Request, res: Response) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 
@@ -731,11 +643,7 @@ myAnalyticsApi.get('/projectEndorsement/getList', async (req: Request, res: Resp
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 myAnalyticsApi.get('/projectEndorsement/get', async (req: Request, res: Response) => {
@@ -752,11 +660,7 @@ myAnalyticsApi.get('/projectEndorsement/get', async (req: Request, res: Response
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 myAnalyticsApi.post('/projectEndorsement/endorseRequest', async (req: Request, res: Response) => {
@@ -781,11 +685,7 @@ myAnalyticsApi.post('/projectEndorsement/endorseRequest', async (req: Request, r
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 myAnalyticsApi.post('/projectEndorsement/add', async (req: Request, res: Response) => {
@@ -806,11 +706,7 @@ myAnalyticsApi.post('/projectEndorsement/add', async (req: Request, res: Respons
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 })
 // WRITE MIDDLEWARE BELOW
@@ -842,11 +738,7 @@ export async function getMyAnalytics(req: Request, res: Response, next: Function
 
     next()
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 }
 
@@ -860,10 +752,6 @@ export async function getMyAnalyticsLearningHistory(_req: Request, res: Response
 
     next()
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleMyAnalyticsError(res, err)
   }
 }

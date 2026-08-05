@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
 import { EContentTypes, IContent } from '../models/content.model'
 import { IPaginatedApiResponse } from '../models/paginatedApi.model'
@@ -22,6 +22,23 @@ const API_END_POINTS = {
 }
 
 export const recommendationApi = Router()
+
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleRecommendationError(res: Response, err: any, label: string) {
+  logError(label, err)
+  res.status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {
+      error: ERROR.GENERAL_ERR_MSG,
+    })
+}
 
 recommendationApi.get('/', async (req, res) => {
   try {
@@ -73,11 +90,7 @@ recommendationApi.get('/', async (req, res) => {
     }
     res.json(result)
   } catch (err) {
-    logError('RECOMMENDATIONS FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'RECOMMENDATIONS FETCH ERROR >')
   }
 })
 
@@ -126,11 +139,7 @@ recommendationApi.get('/interestBased', async (req, res) => {
     }
     res.json(result)
   } catch (err) {
-    logError('INTEREST BASED RECOMMENDATIONS FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'INTEREST BASED RECOMMENDATIONS FETCH ERROR >')
   }
 })
 
@@ -180,11 +189,7 @@ recommendationApi.get('/keyword', async (req, res) => {
       res.json(result)
     }
   } catch (err) {
-    logError('RECOMMENDATIONS TYPE FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'RECOMMENDATIONS TYPE FETCH ERROR >')
   }
 })
 
@@ -226,11 +231,7 @@ recommendationApi.get('/usageBased', async (req, res) => {
     }
     res.json(result)
   } catch (err) {
-    logError('USAGE BASED RECOMMENDATIONS FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'USAGE BASED RECOMMENDATIONS FETCH ERROR >')
   }
 })
 
@@ -296,10 +297,6 @@ recommendationApi.get('/:recommendationType', async (req, res) => {
     }
     res.json(result)
   } catch (err) {
-    logError('RECOMMENDATIONS TYPE FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'RECOMMENDATIONS TYPE FETCH ERROR >')
   }
 })

@@ -336,6 +336,236 @@ subsequent edit to the file; always passed.
 
 ---
 
+## CHANGE 8 — 12 route files: extracted shared catch-block error handlers
+
+**Files (all under `src/protectedApi_v8/`):**
+
+| File | Lines before → after |
+|---|---|
+| `user/rdbms.ts` | 227 → 200 |
+| `user/myAnalytics.ts` | 869 → 757 |
+| `content.ts` | 867 → 796 |
+| `leaderboard.ts` | 452 → 404 |
+| `user/goals.ts` | 491 → 451 |
+| `scoring.ts` | 206 → 188 |
+| `user/follow.ts` | 247 → 243 |
+| `roleActivity.ts` | 310 → 318 (helper added, only 2 of the file's catch blocks matched it) |
+| `recommendation.ts` | 305 → 302 |
+| `user/feedbackV2.ts` | 298 → 282 |
+| `discussionHub/writeApi.ts` | 280 → 269 |
+| `discussionHub/users.ts` | 289 → 275 |
+
+### What changed and why
+
+Each file had a route handler catch block repeated once per route — same
+`logError(label, err)` + `res.status(err?.response?.status || 500).send(err?.response?.data
+|| <fallback>)` shape, varying only in the log label string (and, in a few
+files, the fallback body). Added one named helper per file
+(`handleRdbmsError`, `handleMyAnalyticsError`, `handleContentError`, etc.)
+and replaced each matching catch block with a call to it, passing through
+the same label/fallback that was already being passed inline.
+
+Covers L1-9, L1-10, L1-12, L1-17 through L1-20, L1-22, L1-23, and L1-24 from
+`docs/DUPLICATE-CODE-CLEANUP.md`'s Level 1 list — pure boilerplate, no
+documented bug touching any of the extracted blocks, no behavior varying
+beyond the label/fallback that was already an argument.
+
+Blocks with a genuinely different shape were deliberately left untouched
+rather than folded into the shared helper:
+
+- `content.ts`: `getParentDetails`'s catch returns the error instead of
+  sending a response.
+- `goals.ts`: `POST /`'s catch runs the error body through
+  `transformGoalUpsertResponse`; `PATCH /:goalId`'s catch has a
+  pre-existing `logError(err)` call (passing the error object, not a
+  label) — left exactly as it was, not "fixed" as a side effect of this
+  change.
+- `feedbackV2.ts`: `/categories`'s catch sits next to the documented
+  route-shadowing bug (change Y) — not touched.
+- `discussionHub/writeApi.ts` / `discussionHub/users.ts`:
+  `createDiscussionHubUser`, `getUserByEmail`, `getUserByUsername` all sit
+  inside the documented never-invoked-closure bug — not touched.
+
+### Verified
+
+- Full Jest suite (213 suites, 3,189 tests): green.
+- `npx tsc --noEmit -p tsconfig.json`: clean.
+- `npm run build`: succeeds; `dist/` file count unaffected by this change
+  (no files added or removed, only line counts inside existing files).
+- Each file's own test suite re-run with coverage right after its edit,
+  before moving to the next file.
+
+### MUST VERIFY IN PROD
+
+- [ ] None expected — every extracted catch block sends the same status
+      code and body, for the same set of failure conditions, as before.
+      Only the code doing it is now shared instead of copy-pasted per
+      route.
+
+---
+
+## CHANGE 9 — org-signup family: shared Postgres pool, endpoint constants, Joi validators
+
+**Files:**
+
+| File | Lines before → after |
+|---|---|
+| `src/publicApi_v8/upsmfUser.ts` | 1,191 → 1,135 |
+| `src/publicApi_v8/mpNHMUser.ts` | 1,124 → 1,070 |
+| `src/publicApi_v8/bnrcUser.ts` | 1,124 → 1,071 |
+| `src/publicApi_v8/signupWithAutoLoginOrgForm.ts` | 761 → 739 |
+
+New files: `src/utils/dataLakePgPool.ts`, `src/utils/orgSignupConstants.ts`,
+`src/utils/orgSignupValidators.ts`.
+
+### What changed and why
+
+Covers L1-1, L1-2, and L1-3 from `docs/DUPLICATE-CODE-CLEANUP.md`. All four
+files opened their own Postgres connection pool with an identical config
+block (same timeouts, same pool size, same error/connect/remove logging);
+three of them (`upsmfUser.ts`, `mpNHMUser.ts`, `bnrcUser.ts`) also repeated
+the same MSG91/user-service endpoint map and the same five Joi field
+validators (`district`, `email`, `firstName`, `lastName`, `phone`) verbatim.
+Verified byte-for-byte identical across all files before touching anything —
+diffed each block directly, not by trusting the duplication doc's claim.
+
+- **`createDataLakePgPool()`** builds and returns a new pool with the same
+  config/logging every file already had. **Each caller still gets its own
+  pool instance** — this was a deliberate choice, not an oversight: merging
+  into one shared singleton pool would cut total available connections
+  across the 4 files from 4×20 to 20, a real change in connection-pool
+  capacity under concurrent load, not just a text dedup. A factory function
+  removes the duplicated code without touching that behavior.
+- **`orgSignupConstants.ts`** holds `API_END_POINTS`, `MSG91_HEADERS`,
+  `INDIAN_COUNTRY_CODE`, `REGISTRATION_SOURCE`, `STANDARD_DOB`, and
+  `USER_SUCCESS_REGISTRATION_MESSAGE`. Imported with the same local names
+  each file already used (`import { MSG91_HEADERS as msg91Headers, ... }`),
+  so nothing below the import line in any of the three files changed.
+- **`orgSignupValidators.ts`** holds the 5 shared Joi fragments as named,
+  reusable schema exports (Joi schemas are immutable — safe to reference
+  from multiple `Joi.object({...})` schemas at once).
+
+One incidental fix required by the extraction: `dataLakePgPool.ts` uses
+`import { Pool } from 'pg'` (typed) instead of the original
+`new (require('pg')).Pool(...)` (untyped `any`, bypassed type-checking
+entirely). This surfaced a real type mismatch — `CONSTANTS.DATA_LAKE_POSTGRES_PORT`
+is a string, `PoolConfig.port` wants a number — fixed with `Number(...)`,
+the exact same pattern already used for `POSTGRES_PORT` in
+`courseRecommendation.ts`/`publicSearch.ts`/`ratingsSearch.ts`. `pg` accepts
+a numeric-string port at runtime either way, so this was never a behavior
+difference — only a type-checking gap the untyped `require()` call had been
+silently hiding.
+
+Investigated a 4th proposed cluster (L1-15, `goals.ts` ↔ `playlist.ts`'s
+`PATCH` handlers) and found the doc's claim didn't hold up: the two files'
+`formPlaylistupdateObj` functions have the same name but live in different
+service modules (`service/goals.ts` vs `service/playlist.ts`) and read
+different request fields (`req.name` vs `req.playlist_title`). Not
+extracted — reclassified to Level 2 (L2-13) in
+`docs/DUPLICATE-CODE-CLEANUP.md` instead of forcing a merge.
+
+### Verified
+
+- Full Jest suite (213 suites, 3,189 tests): green, both before and after
+  `tslint --fix` (which only reordered two import lines).
+- `npx tsc --noEmit -p tsconfig.json`: clean.
+- `npm run build`: succeeds; `dist/` grew by exactly 3 files
+  (`dataLakePgPool.js`, `orgSignupConstants.js`, `orgSignupValidators.js`) —
+  matching the 3 new source modules, nothing unaccounted for.
+- Each of the 4 affected files' own test suites re-run after every edit.
+
+### MUST VERIFY IN PROD
+
+- [ ] None expected — every extracted piece keeps the same runtime values
+      and the same per-file pool instance count as before. The one
+      behavioral question (shared vs. per-file pool) was decided in favor
+      of *not* changing behavior; if pool sizing is ever revisited, that
+      should be its own explicit, separately-approved change.
+
+---
+
+## CHANGE 10 — auto-login signup family: shared endpoints, account helpers, user-exists lookup
+
+**Files:**
+
+| File | Lines before → after |
+|---|---|
+| `src/publicApi_v8/signupWithAutoLogin.ts` | 391 → 272 |
+| `src/publicApi_v8/signupWithAutoLoginV2.ts` | 398 → 279 |
+| `src/publicApi_v8/appSignUpWithAutoLogin.ts` | 350 → 232 |
+| `src/publicApi_v8/emailOrMobileLoginSignIn.ts` | 646 → 614 |
+
+New files: `src/utils/autoLoginSignupConstants.ts`, `src/utils/signupAccountHelpers.ts`,
+`src/utils/fetchUserExists.ts`.
+
+### What changed and why
+
+Covers L1-4, L1-5, L1-6, and L1-7 from `docs/DUPLICATE-CODE-CLEANUP.md`.
+
+- **`autoLoginSignupConstants.ts`** (`API_END_POINTS`, `MSG91_HEADERS`,
+  `INDIAN_COUNTRY_CODE`) — verified byte-identical across `signupWithAutoLogin.ts`,
+  `signupWithAutoLoginV2.ts`, `appSignUpWithAutoLogin.ts` before extracting.
+  Imported with the same local names each file already used, so nothing
+  below the import line changed. `emailOrMobileLoginSignIn.ts` keeps its own
+  `API_END_POINTS` — its map has different keys (`generateToken` instead of
+  `grantAccessToken`, an extra `searchUser`, missing `msg91SendOtp`/
+  `msg91VerifyOtp`/`profileUpdate`) and was correctly left out of L1-4's scope.
+- **`signupAccountHelpers.ts`** (`createAccount`, `profileUpdate`) — verified
+  byte-identical across the same 3 files. `updateRoles`, which sits right next
+  to both in every file, was deliberately left in place per-file: v1 uses
+  `axiosRequestConfig` while v2/app use `axiosRequestConfigLong`, a real
+  timeout difference already documented as L2-2 — not something to silently
+  homogenize.
+- **`fetchUserExists.ts`** (`fetchUserBymobileorEmail`) — verified
+  byte-identical across all 4 files, including `emailOrMobileLoginSignIn.ts`.
+  Rather than depend on any file's `API_END_POINTS` (which differ in shape),
+  the shared function builds the two URLs it needs
+  (`user/v1/exists/email/`, `user/v1/exists/phone/`) directly from
+  `CONSTANTS.KONG_API_BASE` — confirmed those two URL strings are identical
+  in all 4 files' maps even though the maps themselves aren't. This keeps the
+  function fully self-contained and the call signature at every call site
+  unchanged.
+- Removing these blocks left `import _ from 'lodash'` unused in the 3
+  auto-login signup files (their only `_.get` call lived inside the
+  now-extracted `fetchUserBymobileorEmail`) — removed the dead import from
+  all 3. `emailOrMobileLoginSignIn.ts` still uses `_` elsewhere, so its
+  import was left alone.
+- **Build regression found and fixed**: after removing the constants/helper
+  blocks, `npm run build`'s TSLint step started failing with
+  "Remove this commented out code" on a pre-existing, already-dead
+  `decryptData` comment block in all 3 auto-login signup files (confirmed via
+  `git stash` that the original files lint clean — this rule only started
+  firing once the surrounding code changed). The block was inert — already
+  commented out, never executed, not referenced anywhere — so it was deleted
+  outright rather than suppressed, in all 3 files (byte-identical text
+  confirmed first).
+
+Also investigated whether `VALIDATION_FAIL`/`CREATION_FAIL`/`OTP_MISSING`/
+`AUTH_FAIL`/`AUTHENTICATED` (message constants right next to L1-4's block)
+were also shareable: `appSignUpWithAutoLogin.ts` only defines 2 of the 5,
+so they're not identically present across all 3 files — left untouched,
+out of scope.
+
+### Verified
+
+- Full Jest suite (213 suites, 3,189 tests): green, before and after the
+  comment-block fix.
+- `npx tsc --noEmit -p tsconfig.json`: clean.
+- `npm run build`: failed once (the TSLint regression above), fixed, then
+  succeeded; `dist/` grew by exactly 3 files matching the 3 new modules.
+- Each of the 4 affected files' own test suites re-run after every edit. One
+  transient run showed 19 failures in `emailOrMobileLoginSignIn.test.ts`
+  when run alongside the other 3 signup files (404s instead of expected
+  500s) — the documented `mountRouter` cross-talk pattern; a clean rerun of
+  the same 4 files together passed all 74 tests.
+
+### MUST VERIFY IN PROD
+
+- [ ] None expected — every extracted function keeps the exact request
+      shape, headers, and URLs each file already sent.
+
+---
+
 ## Defects found by the Phase 1 test work (NOT changed)
 
 Surfaced while adding coverage for `src/protectedApi_v8/admin/userRegistration.ts`.

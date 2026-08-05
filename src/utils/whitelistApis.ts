@@ -25,1608 +25,415 @@ const ROLE = {
   WAT_MEMBER: 'WAT_MEMBER',
 }
 
+/**
+ * HOW THIS FILE WORKS
+ * --------------------
+ * `API_LIST.URL` maps every whitelisted route to a small "rule" object that
+ * says who's allowed to call it:
+ *
+ *   '/some/route': {
+ *     checksNeeded: [CHECK.ROLE],   // which checks apiWhiteList.ts should run
+ *     ROLE_CHECK: [ROLE.PUBLIC],    // roles allowed through, if ROLE is checked
+ *   }
+ *
+ * `checksNeeded: []` means no check at all — everyone gets through.
+ *
+ * HOW TO ADD A NEW ROUTE
+ * -----------------------
+ * 1. Open to any logged-in user (the most common case, ~95% of routes)?
+ *      '/my/new/route': PUBLIC_ROLE_RULE,
+ *
+ * 2. Restricted to MDO_ADMIN, MDO_LEADER, or PUBLIC (the second most common
+ *    case)?
+ *      '/my/new/route': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+ *
+ * 3. No restriction at all?
+ *      '/my/new/route': NO_CHECKS_RULE,
+ *
+ * 4. Anything else (a role combination not covered by a preset above) —
+ *    write the object inline, same shape as the box comment at the top of
+ *    this file:
+ *      '/my/new/route': {
+ *        checksNeeded: [CHECK.ROLE],
+ *        ROLE_CHECK: [ROLE.CONTENT_CREATOR, ROLE.CONTENT_REVIEWER],
+ *      },
+ *    If that same combination ends up repeated on several more routes later,
+ *    turn it into a new named preset below (copy the shape of PUBLIC_ROLE_RULE)
+ *    and switch every route using it over to the preset name.
+ *
+ * WHY SOME ROUTES SHARE ONE PRESET OBJECT INSTEAD OF EACH HAVING THEIR OWN
+ * -------------------------------------------------------------------------
+ * `apiWhiteList.ts` only ever *reads* `checksNeeded`/`ROLE_CHECK` (it never
+ * assigns to them), so many routes pointing at the exact same rule object is
+ * no different from each route having had its own identical copy — nothing
+ * behaves differently. `Object.freeze()` below is a safety net, not a
+ * behavior change: it doesn't stop today's code from doing anything it
+ * already does, it just makes sure that if someone *later* accidentally
+ * writes code that edits one of these shared objects, they get an instant
+ * error instead of silently changing the permissions of every route that
+ * shares it.
+ */
+const PUBLIC_ONLY = Object.freeze([ROLE.PUBLIC])
+const ROLE_CHECK_ONLY = Object.freeze([CHECK.ROLE])
+const ADMIN_LEADER_PUBLIC = Object.freeze([ROLE.MDO_ADMIN, ROLE.MDO_LEADER, ROLE.PUBLIC])
+
+/** Open to everyone, no role or auth check at all. */
+const NO_CHECKS_RULE = Object.freeze({
+  checksNeeded: [] as string[],
+  // tslint:disable-next-line: object-literal-sort-keys
+  ROLE_CHECK: PUBLIC_ONLY,
+})
+
+/** Open to any user with the PUBLIC role — i.e. any logged-in user. Used by most routes. */
+const PUBLIC_ROLE_RULE = Object.freeze({
+  checksNeeded: ROLE_CHECK_ONLY,
+  // tslint:disable-next-line: object-literal-sort-keys
+  ROLE_CHECK: PUBLIC_ONLY,
+})
+
+/** Restricted to MDO_ADMIN, MDO_LEADER, or PUBLIC. */
+const ADMIN_LEADER_PUBLIC_ROLE_RULE = Object.freeze({
+  checksNeeded: ROLE_CHECK_ONLY,
+  // tslint:disable-next-line: object-literal-sort-keys
+  ROLE_CHECK: ADMIN_LEADER_PUBLIC,
+})
+
 // All api list validations
 export const API_LIST = {
   URL: {
-    '/authApi/action/content/hierarchy/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/authApi/action/content/parent/hierarchy': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/authApi/action/content/parent/hierarchy/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/authApi/content/v3/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/authApi/content/v3/read/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/authApi/content/v3/update/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/authContent/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/authApi/action/content/hierarchy/:do_id': PUBLIC_ROLE_RULE,
+    '/authApi/action/content/parent/hierarchy': PUBLIC_ROLE_RULE,
+    '/authApi/action/content/parent/hierarchy/:do_id': PUBLIC_ROLE_RULE,
+    '/authApi/content/v3/create': PUBLIC_ROLE_RULE,
+    '/authApi/content/v3/read/:do_id': PUBLIC_ROLE_RULE,
+    '/authApi/content/v3/update/:do_id': PUBLIC_ROLE_RULE,
+    '/authContent/:do_id': PUBLIC_ROLE_RULE,
 
-    '/protected/v8/assessmentCompetency/v1/assessment/content/:id/artifact/:id':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/assessmentCompetency/v1/assessment/submit': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/autoCompletev2/getUserDetails': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/autoEnrollmentv2/user': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/notification/getAllUserFeed': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/profileupdatev2/updateAcademics': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/profileupdatev2/updateLanguage': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/profileupdatev2/updatePersonalDetails': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/profileupdatev2/updateProfessionalDetails': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/protected/v8/assessmentCompetency/v1/assessment/content/:id/artifact/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/assessmentCompetency/v1/assessment/submit': PUBLIC_ROLE_RULE,
+    '/protected/v8/autoCompletev2/getUserDetails': PUBLIC_ROLE_RULE,
+    '/protected/v8/autoEnrollmentv2/user': PUBLIC_ROLE_RULE,
+    '/protected/v8/notification/getAllUserFeed': PUBLIC_ROLE_RULE,
+    '/protected/v8/profileupdatev2/updateAcademics': PUBLIC_ROLE_RULE,
+    '/protected/v8/profileupdatev2/updateLanguage': PUBLIC_ROLE_RULE,
+    '/protected/v8/profileupdatev2/updatePersonalDetails': PUBLIC_ROLE_RULE,
+    '/protected/v8/profileupdatev2/updateProfessionalDetails': PUBLIC_ROLE_RULE,
 
-    '/protected/v8/profileupdatev2/updateTnc': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/details': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/protected/v8/profileupdatev2/updateTnc': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/details': PUBLIC_ROLE_RULE,
     '/protected/v8/user/profileDetails/test': {
-      checksNeeded: [CHECK.ROLE],
+      checksNeeded: ROLE_CHECK_ONLY,
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.MDO_ADMIN, ROLE.CONTENT_CREATOR],
     },
     // tslint:disable-next-line: object-literal-sort-keys
-    '/protected/v8/resource/': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/api/user/v2/read': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/hierarchy': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/upload': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/mapping': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/mapping/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/entity/v1/delete': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/registry/api/v1/DocumentType/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/iconBadge/unseenNotificationCount': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/certreg/v2/certs/download/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/course/batch/cert/v1/issue': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/course/v1/enrol': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/downloadCertificate/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/hierarchy/add': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/api/user/v2/read/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/read/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/sunbirdigot/read': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/content/searchV5': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/sunbirdigot/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/read/content-progres/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/recent': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/content-progres/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/user/v1/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/topic/:id/:slug': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/topic/:tid/:tid/:slug': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/learner/course/v1/user/enrollment/list/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/hierarchy/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/read/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/reject/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/forum/v2/read': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/forum/v3/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/category/list': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/category/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/forum/tags': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/user/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/hierarchyUpdate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/hierarchy/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/getContent': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/getContents': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/logout/user': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/getContents/content/:do_id/artifact/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/getContents/content/html/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/upload/action/content/v3/upload/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/v1/content/retire': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/updateReviewStatus/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/review/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/publish/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/content/v3/update/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/LA/api/la/contentanalytics': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/data/v1/system/settings/get/orgTypeList': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/learner/course/v1/enrol': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/org/v1/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/private/v1/assign/role': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/org/v1/read': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/org/v1/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/block': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/unblock': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/data/v1/system/settings/get/orgTypeConfig': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/private/content/v3/upload/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/tags': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/org/v1/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/learnervm/private/content/v3/publish/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/learnervm/private/content/v3/review/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/v2/topics': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/v2/topics/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/tags/:tag': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/user/:userKey/bookmarks': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/user/:userKey/bookmark': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/user/:userKey/upvoted': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/user/:userKey/downvoted': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/categories': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/autocomplete/:key': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/protected/v8/resource/': PUBLIC_ROLE_RULE,
+    '/proxies/v8/api/user/v2/read': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/update': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/hierarchy': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/search': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/upload': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/mapping': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/mapping/search': PUBLIC_ROLE_RULE,
+    '/proxies/v8/entity/v1/delete': PUBLIC_ROLE_RULE,
+    '/proxies/v8/registry/api/v1/DocumentType/search': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/iconBadge/unseenNotificationCount': PUBLIC_ROLE_RULE,
+    '/proxies/v8/certreg/v2/certs/download/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/course/batch/cert/v1/issue': PUBLIC_ROLE_RULE,
+    '/proxies/v8/course/v1/enrol': PUBLIC_ROLE_RULE,
+    '/proxies/v8/downloadCertificate/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/hierarchy/add': PUBLIC_ROLE_RULE,
+    '/proxies/v8/api/user/v2/read/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/read/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/sunbirdigot/read': PUBLIC_ROLE_RULE,
+    '/protected/v8/content/searchV5': PUBLIC_ROLE_RULE,
+    '/proxies/v8/sunbirdigot/search': PUBLIC_ROLE_RULE,
+    '/proxies/v8/read/content-progres/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/recent': PUBLIC_ROLE_RULE,
+    '/proxies/v8/content-progres/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/user/v1/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/topic/:id/:slug': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/topic/:tid/:tid/:slug': PUBLIC_ROLE_RULE,
+    '/proxies/v8/learner/course/v1/user/enrollment/list/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/hierarchy/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/read/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/reject/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/forum/v2/read': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/forum/v3/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/category/list': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/category/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/forum/tags': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/user/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/hierarchyUpdate': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/hierarchy/update': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/getContent': PUBLIC_ROLE_RULE,
+    '/proxies/v8/getContents': PUBLIC_ROLE_RULE,
+    '/proxies/v8/logout/user': PUBLIC_ROLE_RULE,
+    '/proxies/v8/getContents/content/:do_id/artifact/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/getContents/content/html/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/upload/action/content/v3/upload/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/v1/content/retire': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/updateReviewStatus/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/review/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/publish/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/content/v3/update/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/LA/api/la/contentanalytics': PUBLIC_ROLE_RULE,
+    '/proxies/v8/data/v1/system/settings/get/orgTypeList': PUBLIC_ROLE_RULE,
+    '/proxies/v8/learner/course/v1/enrol': PUBLIC_ROLE_RULE,
+    '/proxies/v8/org/v1/search': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/private/v1/assign/role': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/search': PUBLIC_ROLE_RULE,
+    '/proxies/v8/org/v1/read': PUBLIC_ROLE_RULE,
+    '/proxies/v8/org/v1/update': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/block': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/unblock': PUBLIC_ROLE_RULE,
+    '/proxies/v8/data/v1/system/settings/get/orgTypeConfig': PUBLIC_ROLE_RULE,
+    '/proxies/v8/private/content/v3/upload/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/tags': PUBLIC_ROLE_RULE,
+    '/proxies/v8/org/v1/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/learnervm/private/content/v3/publish/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/learnervm/private/content/v3/review/:do_id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/v2/topics': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/v2/topics/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/tags/:tag': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/user/:userKey/bookmarks': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/user/:userKey/bookmark': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/user/:userKey/upvoted': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/user/:userKey/downvoted': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/categories': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/autocomplete/:key': PUBLIC_ROLE_RULE,
     '/proxies/v8/userData/v1/bulkupload/:id': {
-      checksNeeded: [CHECK.ROLE],
+      checksNeeded: ROLE_CHECK_ONLY,
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.MDO_ADMIN],
     },
     '/proxies/v8/userData/v1/bulkupload': {
-      checksNeeded: [CHECK.ROLE],
+      checksNeeded: ROLE_CHECK_ONLY,
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.MDO_ADMIN],
     },
-    '/proxies/v8/user/v1/migrate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/private/v1/migrate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/private/v1/assign/role/userrole': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/proxies/v8/user/v1/migrate': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/private/v1/migrate': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/private/v1/assign/role/userrole': PUBLIC_ROLE_RULE,
 
-    '/proxies/v8/discussion/v2/posts/:id/vote': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/v2/posts/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/v2/posts/:id/bookmark': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/discussion/popular': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/learnervm/private/content/v3/retire/': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/learner/course/v1/batch/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/learner/course/v1/batch/list': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/private/content/v3/update/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/admin/userRegistration/bulkUpload': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/entityCompetency/addUpdateEntity': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/entityCompetency/reviewEntity': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/entityCompetency/addEntityRelation': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/entityCompetency/getEntityById/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/entityCompetency/addEntities': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/entityCompetency/getAllEntity': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/admin/userRegistration/bulkUploadData': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/admin/bulk-upload/create-users': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/admin/bulk-upload/create-users': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/admin/bulk-user-mapping/provider': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/connections/recommended/userDepartment': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/discussionHub/categories/:cid/:slug?/:tid?': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/discussionHub/topics/recent': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/cohorts/:cohortType/:contentId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/content/like': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/playlist': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/playlist/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/telemetry': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scrom/get/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/progress/:contentId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/rating/:contentId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/progress': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/topics/v2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/history/continue': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/departmentType/': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/spv/department': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/spv/deptAction/': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/roles/getUsersV2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/spv/mydepartment': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/mdo/mydepartment': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileDetails/createUser': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/proxies/v8/discussion/v2/posts/:id/vote': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/v2/posts/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/v2/posts/:id/bookmark': PUBLIC_ROLE_RULE,
+    '/proxies/v8/discussion/popular': PUBLIC_ROLE_RULE,
+    '/proxies/v8/learnervm/private/content/v3/retire/': PUBLIC_ROLE_RULE,
+    '/proxies/v8/learner/course/v1/batch/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/learner/course/v1/batch/list': PUBLIC_ROLE_RULE,
+    '/proxies/v8/private/content/v3/update/:do_id': PUBLIC_ROLE_RULE,
+    '/protected/v8/admin/userRegistration/bulkUpload': PUBLIC_ROLE_RULE,
+    '/protected/v8/entityCompetency/addUpdateEntity': PUBLIC_ROLE_RULE,
+    '/protected/v8/entityCompetency/reviewEntity': PUBLIC_ROLE_RULE,
+    '/protected/v8/entityCompetency/addEntityRelation': PUBLIC_ROLE_RULE,
+    '/protected/v8/entityCompetency/getEntityById/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/entityCompetency/addEntities': PUBLIC_ROLE_RULE,
+    '/protected/v8/entityCompetency/getAllEntity': PUBLIC_ROLE_RULE,
+    '/protected/v8/admin/userRegistration/bulkUploadData': PUBLIC_ROLE_RULE,
+    '/protected/v8/admin/bulk-upload/create-users': PUBLIC_ROLE_RULE,
+    '/proxies/v8/admin/bulk-upload/create-users': PUBLIC_ROLE_RULE,
+    '/protected/v8/admin/bulk-user-mapping/provider': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/connections/recommended/userDepartment': PUBLIC_ROLE_RULE,
+    '/protected/v8/discussionHub/categories/:cid/:slug?/:tid?': PUBLIC_ROLE_RULE,
+    '/protected/v8/discussionHub/topics/recent': PUBLIC_ROLE_RULE,
+    '/protected/v8/cohorts/:cohortType/:contentId': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/content/like': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/playlist': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/playlist/create': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/telemetry': PUBLIC_ROLE_RULE,
+    '/protected/v8/scrom/get/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/progress/:contentId': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/rating/:contentId': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/progress': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/topics/v2': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/history/continue': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/departmentType/': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/spv/department': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/spv/deptAction/': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/roles/getUsersV2': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/spv/mydepartment': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/mdo/mydepartment': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileDetails/createUser': PUBLIC_ROLE_RULE,
     '/protected/v8/user/profileDetails/completeUserInfo': {
-      checksNeeded: [CHECK.ROLE],
+      checksNeeded: ROLE_CHECK_ONLY,
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.MDO_ADMIN, ROLE.SPV_ADMIN],
     },
-    '/protected/v8/user/profileRegistry/getUserRegistryByUser/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/createUserRegistryV2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/createUserRegistry': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/deptAction': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/historyByApplicationId/:applicationId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/autocomplete/:query': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/evaluate/assessment/submit/v2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/spv/deptAction/userrole': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/preference': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/v2/user/assessment/submit': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/applicationsSearch': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/getWorkOrders': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/add/workorder': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/protected/v8/user/profileRegistry/getUserRegistryByUser/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/createUserRegistryV2': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/createUserRegistry': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/deptAction': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/historyByApplicationId/:applicationId': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/autocomplete/:query': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/evaluate/assessment/submit/v2': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/spv/deptAction/userrole': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/preference': PUBLIC_ROLE_RULE,
+    '/protected/v8/v2/user/assessment/submit': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/applicationsSearch': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/getWorkOrders': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/add/workorder': PUBLIC_ROLE_RULE,
     '/protected/v8/workallocation/getWorkOrderById/:workOrderId': {
-      checksNeeded: [CHECK.ROLE],
+      checksNeeded: ROLE_CHECK_ONLY,
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
+      ROLE_CHECK: PUBLIC_ONLY,
       SCOPE_CHECK: [ROLE.MDO_ADMIN],
     },
-    '/protected/v8/workallocation/user/autocomplete/:searchTerm': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/frac/searchNodes': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/frac/:type/:key': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/v2/add': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/getWorkAllocationById/:workAllocationId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/update/workorder': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/getWOPdf/:workOrderId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/cbp/mydepartment': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/badge': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/tnc': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/feedbackV2/content/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/goals/action': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/goals/for-others': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/goals/common': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/mandatoryContent/checkStatus': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/ratings/v2/read': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/ratings/ratingLookUp': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/ratings/summary': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/ratings/upsert': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/rating/content/average-ratingInfo/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/realTimeProgress/update/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/social/post/timeline': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/history/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/history': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/frac/getAllNodes/:type': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/frac/getNodeById/:id/:type': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    'proxies/v8/LA/api/la/contentanalytics/:contentId/:type': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/listDeptNames': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scroing/getTemplate/:templateId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scroing/comments/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scroing/comments/course': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scroing/comments/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scroing/comments/getAllComments': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/cbc/department': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/cbc/department/:deptId/': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/spv/department/:deptId/': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scroing/calculate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/connections/recommended': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/rcCert/user/enrollment/list/adhocCertificates': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/connections/requests/received': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/connections/established': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/connections/established/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/connections/requested': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/add/connection': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/connections/suggests': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/cohorts/user/autoenrollment/:courseId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/profanity/startPdfProfanity': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/profanity/getPdfProfanityForContent/:contentId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/catalog': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/scroing/fetch': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/portal/mdo/deptAction/userrole': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/v2/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileDetails/updateUser': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileDetails/v2/updateUser': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/updateProgressv2/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/updateProgressv3/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/learnerPath': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/learnerPathV2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/frac/addDataNodeBulk': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/roleactivity/:txt': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/update/connection': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/userWFApplicationFieldsSearch': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/details/detailV1': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/getMasterNationalities': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/getMasterLanguages': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/getProfilePageMeta': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/notifications': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/notifications/settings': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/searchUserRegistry': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/transition': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/nextActionSearch/:serviceName/:state': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/historyByApplicationIdAndWfId/:applicationId/:wfId':
-    {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/workflowProcess/:wfId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/updateUserProfileWf': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workflowhandler/userWfSearch': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/goals': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/goals/user': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/feedbackV2/config': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/getUserRegistryById': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/getUserRegistryById/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/profileRegistry/updateUserRegistry': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/workallocation/copy/workOrder': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/reset': {
-      checksNeeded: [],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/assessment/submit/v2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/AI/uploadFileAndGetUUID': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/AI/getQuestions': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/AI/translate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/assessment/get': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/connections/recommended/userDepartment': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/connections/recommended': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/connections/requests/received': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/connections/established': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/connections/established/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/connections/requested': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/protected/v8/workallocation/user/autocomplete/:searchTerm': PUBLIC_ROLE_RULE,
+    '/protected/v8/frac/searchNodes': PUBLIC_ROLE_RULE,
+    '/protected/v8/frac/:type/:key': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/v2/add': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/getWorkAllocationById/:workAllocationId': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/update/workorder': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/getWOPdf/:workOrderId': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/cbp/mydepartment': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/badge': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/tnc': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/feedbackV2/content/:do_id': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/goals/action': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/goals/for-others': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/goals/common': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/mandatoryContent/checkStatus': PUBLIC_ROLE_RULE,
+    '/protected/v8/ratings/v2/read': PUBLIC_ROLE_RULE,
+    '/protected/v8/ratings/ratingLookUp': PUBLIC_ROLE_RULE,
+    '/protected/v8/ratings/summary': PUBLIC_ROLE_RULE,
+    '/protected/v8/ratings/upsert': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/rating/content/average-ratingInfo/:do_id': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/realTimeProgress/update/:do_id': PUBLIC_ROLE_RULE,
+    '/protected/v8/social/post/timeline': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/history/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/history': PUBLIC_ROLE_RULE,
+    '/protected/v8/frac/getAllNodes/:type': PUBLIC_ROLE_RULE,
+    '/protected/v8/frac/getNodeById/:id/:type': PUBLIC_ROLE_RULE,
+    'proxies/v8/LA/api/la/contentanalytics/:contentId/:type': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/listDeptNames': PUBLIC_ROLE_RULE,
+    '/protected/v8/scroing/getTemplate/:templateId': PUBLIC_ROLE_RULE,
+    '/protected/v8/scroing/comments/create': PUBLIC_ROLE_RULE,
+    '/protected/v8/scroing/comments/course': PUBLIC_ROLE_RULE,
+    '/protected/v8/scroing/comments/update': PUBLIC_ROLE_RULE,
+    '/protected/v8/scroing/comments/getAllComments': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/cbc/department': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/cbc/department/:deptId/': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/spv/department/:deptId/': PUBLIC_ROLE_RULE,
+    '/protected/v8/scroing/calculate': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/connections/recommended': PUBLIC_ROLE_RULE,
+    '/protected/v8/rcCert/user/enrollment/list/adhocCertificates': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/connections/requests/received': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/connections/established': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/connections/established/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/connections/requested': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/add/connection': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/connections/suggests': PUBLIC_ROLE_RULE,
+    '/protected/v8/cohorts/user/autoenrollment/:courseId': PUBLIC_ROLE_RULE,
+    '/protected/v8/profanity/startPdfProfanity': PUBLIC_ROLE_RULE,
+    '/protected/v8/profanity/getPdfProfanityForContent/:contentId': PUBLIC_ROLE_RULE,
+    '/protected/v8/catalog': PUBLIC_ROLE_RULE,
+    '/protected/v8/scroing/fetch': PUBLIC_ROLE_RULE,
+    '/protected/v8/portal/mdo/deptAction/userrole': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/v2/update': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileDetails/updateUser': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileDetails/v2/updateUser': PUBLIC_ROLE_RULE,
+    '/protected/v8/updateProgressv2/update': PUBLIC_ROLE_RULE,
+    '/protected/v8/updateProgressv3/update': PUBLIC_ROLE_RULE,
+    '/protected/v8/learnerPath': PUBLIC_ROLE_RULE,
+    '/protected/v8/learnerPathV2': PUBLIC_ROLE_RULE,
+    '/protected/v8/frac/addDataNodeBulk': PUBLIC_ROLE_RULE,
+    '/protected/v8/roleactivity/:txt': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/update/connection': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/userWFApplicationFieldsSearch': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/details/detailV1': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/getMasterNationalities': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/getMasterLanguages': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/getProfilePageMeta': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/notifications': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/notifications/settings': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/searchUserRegistry': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/transition': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/nextActionSearch/:serviceName/:state': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/historyByApplicationIdAndWfId/:applicationId/:wfId': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/workflowProcess/:wfId': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/updateUserProfileWf': PUBLIC_ROLE_RULE,
+    '/protected/v8/workflowhandler/userWfSearch': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/goals': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/goals/user': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/feedbackV2/config': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/getUserRegistryById': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/getUserRegistryById/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/user/profileRegistry/updateUserRegistry': PUBLIC_ROLE_RULE,
+    '/protected/v8/workallocation/copy/workOrder': PUBLIC_ROLE_RULE,
+    '/reset': NO_CHECKS_RULE,
+    '/protected/v8/assessment/submit/v2': PUBLIC_ROLE_RULE,
+    '/protected/v8/AI/uploadFileAndGetUUID': PUBLIC_ROLE_RULE,
+    '/protected/v8/AI/getQuestions': PUBLIC_ROLE_RULE,
+    '/protected/v8/AI/translate': PUBLIC_ROLE_RULE,
+    '/protected/v8/assessment/get': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/connections/recommended/userDepartment': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/connections/recommended': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/connections/requests/received': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/connections/established': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/connections/established/:id': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/connections/requested': PUBLIC_ROLE_RULE,
 
-    '/protected/v8/connections/v2/add/connection': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/connections/suggests': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/connections/v2/update/connection': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/recommendationEngineV2': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/recommendationEngineV2//publicSearch/courseRecommendationCbp': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/recommendationEngineV2/publicSearch/getcourse': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/sunbirdrRcCertificate/events': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/sunbirdrRcCertificate/events/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/protected/v8/connections/v2/add/connection': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/connections/suggests': PUBLIC_ROLE_RULE,
+    '/protected/v8/connections/v2/update/connection': PUBLIC_ROLE_RULE,
+    '/protected/v8/recommendationEngineV2': PUBLIC_ROLE_RULE,
+    '/protected/v8/recommendationEngineV2//publicSearch/courseRecommendationCbp': PUBLIC_ROLE_RULE,
+    '/protected/v8/recommendationEngineV2/publicSearch/getcourse': PUBLIC_ROLE_RULE,
+    '/protected/v8/sunbirdrRcCertificate/events': PUBLIC_ROLE_RULE,
+    '/protected/v8/sunbirdrRcCertificate/events/:id': PUBLIC_ROLE_RULE,
 
-    '/protected/v8/sunbirdrRcCertificate/events/:eventId/users': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/sunbirdrRcCertificate/downloadCertificates/:eventId': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/sunbirdrRcCertificate/events/generateCertificates': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/sunbirdrRcCertificate/users/:userId/events': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/userEnrolledInSource': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/content/parents/:do_id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/content/:do_id/parent': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/training/content/:do_id/trainings/count': {
-      checksNeeded: [],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/user/tnc/accept': {
-      checksNeeded: [],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/public/v8/homePage/searchV6': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/creatorCertificateTemplate/template/add': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/public/v8/forgot-password/verify': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/public/v8/google/callback': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/public/v8/user': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/read/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/category/master/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/category/master/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/category/master/read/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/category/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/category/read/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/category/retire/:id': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/action/framework/v3/term/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/passbook': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/leaderboard': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/v1/admin/passbook': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/ext-forms/v1/form/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/v1/form/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/ext-forms/v1/form/read': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/v1/form/read': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/ext-forms/v1/form/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/v1/form/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/ext-forms/v1/form/list': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/v1/form/list': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/ext-forms/v1/form/fetchAll': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/v1/form/fetchAll': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.MDO_ADMIN,
-        ROLE.MDO_LEADER,
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/createForm': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/getFormById': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/getCollectiveAggregation': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/getAllForms': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/v1/saveFormSubmit': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/tagFormToCourse': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/untagFormToCourse': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/getAllApplications': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/searchForms': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/proxies/v8/forms/getCourseListForSurveys': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [
-        ROLE.PUBLIC,
-      ],
-    },
-    '/protected/v8/playlist/search': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/playlist/create': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/playlist/update': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
+    '/protected/v8/sunbirdrRcCertificate/events/:eventId/users': PUBLIC_ROLE_RULE,
+    '/protected/v8/sunbirdrRcCertificate/downloadCertificates/:eventId': PUBLIC_ROLE_RULE,
+    '/protected/v8/sunbirdrRcCertificate/events/generateCertificates': PUBLIC_ROLE_RULE,
+    '/protected/v8/sunbirdrRcCertificate/users/:userId/events': PUBLIC_ROLE_RULE,
+    '/protected/v8/userEnrolledInSource': PUBLIC_ROLE_RULE,
+    '/protected/v8/content/parents/:do_id': PUBLIC_ROLE_RULE,
+    '/protected/v8/content/:do_id/parent': PUBLIC_ROLE_RULE,
+    '/protected/v8/training/content/:do_id/trainings/count': NO_CHECKS_RULE,
+    '/protected/v8/user/tnc/accept': NO_CHECKS_RULE,
+    '/public/v8/homePage/searchV6': PUBLIC_ROLE_RULE,
+    '/protected/v8/creatorCertificateTemplate/template/add': PUBLIC_ROLE_RULE,
+    '/public/v8/forgot-password/verify': PUBLIC_ROLE_RULE,
+    '/public/v8/google/callback': PUBLIC_ROLE_RULE,
+    '/public/v8/user': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/read/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/category/master/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/category/master/search': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/category/master/read/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/category/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/category/read/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/category/retire/:id': PUBLIC_ROLE_RULE,
+    '/proxies/v8/action/framework/v3/term/create': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/passbook': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/leaderboard': PUBLIC_ROLE_RULE,
+    '/proxies/v8/user/v1/admin/passbook': PUBLIC_ROLE_RULE,
+    '/proxies/v8/ext-forms/v1/form/create': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/v1/form/create': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/proxies/v8/ext-forms/v1/form/read': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/v1/form/read': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/proxies/v8/ext-forms/v1/form/update': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/v1/form/update': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/proxies/v8/ext-forms/v1/form/list': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/v1/form/list': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/proxies/v8/ext-forms/v1/form/fetchAll': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/v1/form/fetchAll': ADMIN_LEADER_PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/createForm': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/getFormById': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/getCollectiveAggregation': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/getAllForms': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/v1/saveFormSubmit': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/tagFormToCourse': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/untagFormToCourse': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/getAllApplications': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/searchForms': PUBLIC_ROLE_RULE,
+    '/proxies/v8/forms/getCourseListForSurveys': PUBLIC_ROLE_RULE,
+    '/protected/v8/playlist/search': PUBLIC_ROLE_RULE,
+    '/protected/v8/playlist/create': PUBLIC_ROLE_RULE,
+    '/protected/v8/playlist/update': PUBLIC_ROLE_RULE,
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
