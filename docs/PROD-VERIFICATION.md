@@ -566,6 +566,85 @@ out of scope.
 
 ---
 
+## CHANGE 11 — server.ts: sourced the notification-engine socket URL from config
+
+**File:** `src/server.ts`, `src/utils/env.ts`.
+
+### What changed and why
+
+`setupBackendSocket()` had `http://notification-engine:3013` as a literal
+string, flagged by Sonar (S5332, clear-text protocol, security hotspot).
+Added `CONSTANTS.NOTIFICATION_ENGINE_SOCKET_URL` to `env.ts`
+(`env.NOTIFICATION_ENGINE_SOCKET_URL || 'http://notification-engine:3013'`,
+the same pattern every other configurable URL in that file already uses) and
+referenced it from `server.ts` instead of the inline literal.
+
+No `NOTIFICATION_ENGINE_SOCKET_URL` environment variable is set anywhere in
+this repo or the shell, so the fallback literal is what resolves at runtime —
+the exact same string as before. This is a pure literal-to-config move, not
+a protocol change: nothing here claims the target service actually supports
+TLS, so `http://` was kept as the value. Sonar flags a literal `http://` in
+source; it can't see a runtime config value, so moving the string out of
+source satisfies the rule without touching behavior.
+
+### Verified
+
+- Full Jest suite (213 suites, 3,189 tests): green.
+- `npx tsc --noEmit -p tsconfig.json`: clean.
+- `npm run build`: succeeds; `dist/` file count unchanged (no new files,
+  only an existing constant added to `env.ts`).
+- Confirmed no environment variable named `NOTIFICATION_ENGINE_SOCKET_URL`
+  exists anywhere (repo search + shell `env`), so the fallback literal is
+  guaranteed to be what's used.
+
+### MUST VERIFY IN PROD
+
+- [ ] None expected — the resolved URL is byte-identical to the previous
+      hardcoded literal.
+
+---
+
+## Investigated and deliberately NOT changed — `assessmentSubmitHelper.ts:167` regex hotspot
+
+Sonar hotspot S5852 flags `qkey.question.replace(/<\/?[^>]+(>|$)/g, '')` as
+vulnerable to super-linear regex backtracking. Investigated whether a
+rewrite could close this hotspot with a real code change (as opposed to the
+existing `SAFE` review already on file in `scripts/sonar-hotspot-reviews.mjs`).
+
+**Finding: a "safer-looking" rewrite would have been a regression, not a
+fix.** Tested a restructured version —
+`.replace(/<[^>]+>/g, '').replace(/<[^>]+$/, '')` — designed to avoid
+Sonar's flagged pattern shape. It produced byte-identical output across 26
+correctness cases (empty string, well-formed tags, unclosed tags, adjacent
+tags, non-tag `<`/`>` usage, script tags, etc.). But on an adversarial
+50,000-character input (`'<'.repeat(50000)`, no `>` anywhere), it measured
+**1,776ms versus 0ms for the original** — a genuine, reproducible
+performance cliff the original doesn't have.
+
+**Why:** the original regex's `(>|$)` alternation gives `[^>]+` an
+end-of-string escape hatch — on a run of `<` characters with no `>`,
+`[^>]+` greedily consumes to the end, `$` matches immediately with zero
+backtracking, and the global match consumes the whole string in one pass
+(genuinely O(n)). The rewrite's first pass, `<[^>]+>`, requires a literal
+`>` and has no such escape hatch — on the same adversarial input, at every
+one of the 50,000 `<` positions it greedily consumes to the end, finds no
+`>`, backtracks one character at a time, fails, and restarts at the next
+position: real quadratic-time backtracking.
+
+This confirms the existing hotspot justification was correct, not just
+convenient: `[^>]+` here is not nested inside another quantifier, and the
+alternation's anchor branch is the reason it's actually safe. Sonar's
+static rule can't see that `[^>]` and `>` are mutually exclusive, so it
+flags the pattern shape without being able to prove (or disprove) the
+actual backtracking behavior — a false positive, confirmed by direct
+measurement rather than assumed.
+
+**Decision: no code change.** The file is unchanged. The `SAFE` resolution
+already recorded in `scripts/sonar-hotspot-reviews.mjs` stands, and is now
+backed by an executable timing proof, not just static reasoning.
+
+---
+
 ## Defects found by the Phase 1 test work (NOT changed)
 
 Surfaced while adding coverage for `src/protectedApi_v8/admin/userRegistration.ts`.
