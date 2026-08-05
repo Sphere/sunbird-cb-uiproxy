@@ -137,6 +137,32 @@ async function main() {
       ? `\n  ${failures} goal(s) NOT met on new code.\n`
       : '\n  All goals with data are met on new code.\n'
   )
+
+  await printHotspotBreakdown(config, branch)
+}
+
+/**
+ * The goals table above only shows the "% reviewed" ratio, which reads as
+ * 100% whether there are 0 hotspots or 400 all marked SAFE — indistinguishable
+ * without this. Spelled out explicitly so the raw count is never hidden behind
+ * a percentage.
+ */
+async function printHotspotBreakdown(config, branch) {
+  const [open, reviewed] = await Promise.all([
+    sonarRequest('GET', '/api/hotspots/search', { projectKey: config.projectKey, branch, status: 'TO_REVIEW', ps: 1 }, config),
+    sonarRequest('GET', '/api/hotspots/search', { projectKey: config.projectKey, branch, status: 'REVIEWED', ps: 1 }, config),
+  ])
+  const openCount = open.paging?.total ?? 0
+  const reviewedCount = reviewed.paging?.total ?? 0
+  console.log(`  Security Hotspots: ${openCount} open, ${reviewedCount} reviewed, ${openCount + reviewedCount} total.`)
+  if (reviewedCount > 0) {
+    console.log(
+      `  The ${reviewedCount} reviewed hotspot(s) are NOT code fixes — they are a recorded\n` +
+        '  human judgement that the flagged pattern is safe (see scripts/sonar-hotspot-reviews.mjs).\n' +
+        '  Run: npm run sonar:hotspots -- or query /api/hotspots/search?status=REVIEWED for detail.'
+    )
+  }
+  console.log('')
 }
 
 main().catch(error => {
