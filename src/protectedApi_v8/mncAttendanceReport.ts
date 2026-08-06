@@ -33,11 +33,21 @@ export const mncAttendanceReportApi = Router()
  * The whitelist ROLE_CHECK in apiWhiteList.ts only runs when PORTAL_API_WHITELIST_CHECK is
  * 'true', and it defaults to 'false'. So the role is re-checked here — access control must
  * not depend on a feature flag being switched on.
+ *
+ * Deliberately NOT reading session.userRoles: permissionHelper.ts and rolePermission.ts both
+ * assign it a hardcoded 16-role array, identical for every user, so it cannot gate anything.
+ * session.orgs is populated from the real user profile, and organisations[].roles holds the
+ * user's actual per-organisation roles — the same source SCOPE_CHECK uses.
  */
 // tslint:disable-next-line: no-any
 const hasReportRole = (req: any): boolean => {
-    const roles = req && req.session && req.session.userRoles
-    return Array.isArray(roles) && roles.indexOf(REQUIRED_ROLE) !== -1
+    const orgs = req && req.session && req.session.orgs
+    if (!Array.isArray(orgs)) {
+        return false
+    }
+    // tslint:disable-next-line: no-any
+    return orgs.some((org: any) =>
+        Array.isArray(org && org.roles) && org.roles.indexOf(REQUIRED_ROLE) !== -1)
 }
 
 const respondForbidden = (res: Response) => {
