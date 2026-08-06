@@ -145,6 +145,13 @@ export const CONSTANTS = {
   MATERNITY_FOUNDATION_ACCESS_KEY: env.MATERNITY_FOUNDATION_ACCESS_KEY,
   MNC_JWT_SECRET: env.MNC_JWT_SECRET || '',
   KEYCLOAK_CLIENT_SECRET_MNC: env.KEYCLOAK_CLIENT_SECRET_MNC || '',
+  // MNC CNE attendance report — private bucket, object overwritten daily at a fixed key.
+  // Credentials stay undefined by default so the AWS SDK uses the instance / IRSA role.
+  MNC_REPORT_S3_ACCESS_KEY_ID: env.MNC_REPORT_S3_ACCESS_KEY_ID,
+  MNC_REPORT_S3_BUCKET_NAME: env.MNC_REPORT_S3_BUCKET_NAME || '',
+  MNC_REPORT_S3_KEY: env.MNC_REPORT_S3_KEY || 'reports/mnc-cne-attendance/latest.html',
+  MNC_REPORT_S3_REGION: env.MNC_REPORT_S3_REGION || 'ap-south-1',
+  MNC_REPORT_S3_SECRET_ACCESS_KEY: env.MNC_REPORT_S3_SECRET_ACCESS_KEY,
 
   RC_MAPPER_HOST: env.RC_MAPPER_HOST,
   PID_API_BASE: env.PID_API_BASE || 'http://localhost:3304',
