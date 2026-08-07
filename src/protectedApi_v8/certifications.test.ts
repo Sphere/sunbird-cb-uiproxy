@@ -13,7 +13,7 @@ jest.mock('../utils/requestExtract', () => ({
 jest.mock('../utils/env', () => ({ CONSTANTS: { LEARNING_HUB_API_BASE: 'https://lhub.test' } }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
 import { certificationApi } from './certifications'
 
@@ -48,6 +48,13 @@ describe('GET /:certificationId/bookingInfo', () => {
     const response = await agent().get('/cert-1/bookingInfo')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/cert-1/bookingInfo')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
 })
 
 describe('GET /:certificationId/testCenters', () => {
@@ -61,6 +68,13 @@ describe('GET /:certificationId/testCenters', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/cert-1/testCenters')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(503, { error: 'unavailable' }))
+    const response = await agent().get('/cert-1/testCenters')
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'unavailable' })
   })
 })
 
@@ -102,6 +116,13 @@ describe('POST /:certificationId/booking/:slotNo', () => {
     mockAxiosCallable.mockRejectedValue(networkError())
     const response = await agent().post('/cert-1/booking/3').send({})
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxiosCallable.mockRejectedValue(upstreamError(409, { error: 'slot taken' }))
+    const response = await agent().post('/cert-1/booking/3').send({})
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'slot taken' })
   })
 })
 
@@ -168,10 +189,27 @@ describe('DELETE /:certificationId/slots/:slotNo', () => {
     expect(response.status).toBe(200)
   })
 
+  it('forwards the icfdId query param as icfd_id', async () => {
+    mockAxios.delete.mockResolvedValue(upstreamOk({ cancelled: true }))
+    const response = await agent().delete('/cert-1/slots/3').query({ icfdId: 'icfd-9' })
+    expect(response.status).toBe(200)
+    expect(mockAxios.delete).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ params: { icfd_id: 'icfd-9' } })
+    )
+  })
+
   it('returns 400 on an upstream failure', async () => {
     mockAxios.delete.mockRejectedValue(networkError())
     const response = await agent().delete('/cert-1/slots/3')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.delete.mockRejectedValue(upstreamError(410, { error: 'gone' }))
+    const response = await agent().delete('/cert-1/slots/3')
+    expect(response.status).toBe(410)
+    expect(response.body).toEqual({ error: 'gone' })
   })
 })
 
@@ -246,6 +284,35 @@ describe('POST /:certificationId/result', () => {
       }),
       expect.anything()
     )
+  })
+
+  it('rejects a request whose files object has no "file" key', async () => {
+    // req.files is truthy but req.files.file is undefined, so
+    // `file.data` throws synchronously and is caught by the try/catch,
+    // landing on the same 400 fallback as the "no file" case above.
+    const response = await mountRouter(certificationApi, {
+      requestProps: { files: {} },
+    })
+      .post('/cert-1/result')
+      .send({})
+
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(413, { error: 'file too large' }))
+
+    const response = await mountRouter(certificationApi, {
+      requestProps: {
+        files: { file: { data: Buffer.from('scan-bytes'), name: 'result.pdf' } },
+      },
+    })
+      .post('/cert-1/result')
+      .send({ examDate: '2026-01-01', result: 'pass' })
+
+    expect(response.status).toBe(413)
+    expect(response.body).toEqual({ error: 'file too large' })
   })
 })
 
@@ -354,10 +421,24 @@ describe('GET /', () => {
     expect(response.status).toBe(200)
   })
 
+  it('returns an empty array unchanged when the upstream has none', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    const response = await agent().get('/')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
   it('returns 400 on an upstream failure', async () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(401, { error: 'unauthorized' }))
+    const response = await agent().get('/')
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'unauthorized' })
   })
 })
 
@@ -390,16 +471,43 @@ describe('GET /:certificationId/submissions', () => {
 })
 
 describe('GET /:emailId/privileges', () => {
-  it('returns the privileges for the given emailId', async () => {
-    mockAxios.get.mockResolvedValue(upstreamOk({ canApprove: true }))
+  it('returns the privileges for the given emailId, defaulting JL flags to false when absent', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ manager: 'mgr@example.com' }))
     const response = await agent().get('/someone@example.com/privileges')
     expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      canApproveBudgetRequest: false,
+      canProctorAtDesk: false,
+      canVerifyResult: false,
+      manager: 'mgr@example.com',
+    })
+  })
+
+  it('maps truthy JL flags through to the privilege booleans', async () => {
+    mockAxios.get.mockResolvedValue(
+      upstreamOk({ isJL6AndAbove: true, isJL7AndAbove: true, manager: 'mgr@example.com' })
+    )
+    const response = await agent().get('/someone@example.com/privileges')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      canApproveBudgetRequest: true,
+      canProctorAtDesk: true,
+      canVerifyResult: true,
+      manager: 'mgr@example.com',
+    })
   })
 
   it('returns 400 on an upstream failure', async () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/someone@example.com/privileges')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'user not found' }))
+    const response = await agent().get('/someone@example.com/privileges')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'user not found' })
   })
 })
 
@@ -414,5 +522,12 @@ describe('GET /defaultProctor', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/defaultProctor')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(500, { error: 'internal error' }))
+    const response = await agent().get('/defaultProctor')
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'internal error' })
   })
 })

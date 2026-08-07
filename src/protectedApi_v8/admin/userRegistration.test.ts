@@ -11,7 +11,14 @@
  */
 
 jest.mock('axios')
-jest.mock('cassandra-driver', () => ({ Client: jest.fn(() => ({ execute: jest.fn() })) }))
+// A stable `execute` reference, captured outside any test so it survives
+// jest.config.js's global `clearMocks: true` between tests — the same
+// pattern bulkUploadUser.test.ts uses, since `new cassandraDriver.Client(...)`
+// is instantiated fresh inside every handler.
+const mockCassandraExecute = jest.fn()
+jest.mock('cassandra-driver', () => ({
+  Client: jest.fn(() => ({ execute: mockCassandraExecute, shutdown: jest.fn() })),
+}))
 jest.mock('fs', () => ({ existsSync: jest.fn(() => false), writeFileSync: jest.fn() }))
 jest.mock('node-xlsx', () => ({ parse: jest.fn(() => []) }))
 jest.mock('../../configs/cassandra.config', () => ({ cassandraClientOptions: {} }))
@@ -317,4 +324,196 @@ describe('POST /create-user', () => {
   // gives up. Firing such a request from a test leaves an open socket that stops
   // Jest exiting, so this defect is recorded in docs/PROD-VERIFICATION.md
   // instead of being reproduced here.
+})
+
+describe('POST /user/access-path', () => {
+  beforeEach(() => {
+    mockCassandraExecute.mockReset()
+  })
+
+  it('returns the query rows on success', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(null, { rows: [{ access_paths: ['a'] }] })
+    })
+
+    const response = await agent().post('/user/access-path').send({ wid: 'user-1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([{ access_paths: ['a'] }])
+  })
+
+  it('returns 400 when the cassandra query errors', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(new Error('cassandra down'), null)
+    })
+
+    const response = await agent().post('/user/access-path').send({ wid: 'user-1' })
+
+    expect(response.status).toBe(400)
+    expect(response.text).toContain('Something went wrong!')
+  })
+
+  // A query that returns no error and a falsy/rows-less result (e.g.
+  // `result.rows` undefined) satisfies neither `if (!err && result &&
+  // result.rows)` nor `else if (err)`, so the handler never calls res and the
+  // request hangs until the client gives up. Same shape as the documented
+  // id-less /create-user gap above; not reproduced live here for the same
+  // reason (an unresolved supertest request would hang this suite). See
+  // docs/PROD-VERIFICATION.md.
+})
+
+describe('POST /user/update-access-path', () => {
+  beforeEach(() => {
+    mockCassandraExecute.mockReset()
+  })
+
+  it('confirms the update on success', async () => {
+    mockCassandraExecute.mockImplementation((_query, _params, callback) => {
+      callback(null, {})
+    })
+
+    const response = await agent()
+      .post('/user/update-access-path')
+      .send({ access_paths: [], cas_id: 'c1', org: 'org-1', root_org: 'root-1', temporary: false, ttl: 0, user_id: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toBe('User access paths updated successfully !!')
+  })
+
+  it('returns 400 when the cassandra query errors', async () => {
+    mockCassandraExecute.mockImplementation((_query, _params, callback) => {
+      callback(new Error('cassandra down'), null)
+    })
+
+    const response = await agent().post('/user/update-access-path').send({})
+
+    expect(response.status).toBe(400)
+    expect(response.text).toContain('Something went wrong!')
+  })
+})
+
+describe('GET /bulkUploadData', () => {
+  beforeEach(() => {
+    mockCassandraExecute.mockReset()
+  })
+
+  it('returns the query rows on success', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(null, { rows: [{ id: 'u1', name: 'file.csv', status: 'completed' }] })
+    })
+
+    const response = await agent().get('/bulkUploadData')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([{ id: 'u1', name: 'file.csv', status: 'completed' }])
+  })
+
+  it('returns 400 when the cassandra query errors', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(new Error('cassandra down'), null)
+    })
+
+    const response = await agent().get('/bulkUploadData')
+
+    expect(response.status).toBe(400)
+    expect(response.text).toContain('Something went wrong!')
+  })
+})
+
+describe('GET /bulkUploadReport/:id', () => {
+  beforeEach(() => {
+    mockCassandraExecute.mockReset()
+  })
+
+  it('returns the first row when a report exists', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(null, { rows: [{ report: 'ok' }] })
+    })
+
+    const response = await agent().get('/bulkUploadReport/upload-1')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ report: 'ok' })
+  })
+
+  // A result with an empty `rows` array and no error satisfies neither
+  // `if (!err && result.rows.length > 0)` nor `else if (err)`, so the handler
+  // never calls res and the request hangs. Same documented, pre-existing
+  // fall-through shape as /user/access-path above; not reproduced live here
+  // for the same reason. See docs/PROD-VERIFICATION.md.
+
+  it('returns 400 when the cassandra query errors', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(new Error('cassandra down'), null)
+    })
+
+    const response = await agent().get('/bulkUploadReport/upload-1')
+
+    expect(response.status).toBe(400)
+    expect(response.text).toContain('Something went wrong!')
+  })
+})
+
+describe('GET /user/department', () => {
+  it('posts the session wid and forwards org/rootOrg headers', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ department: 'IT' }))
+
+    const response = await agent().get('/user/department').set('rootOrg', 'org-1').set('org', 'org-2')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ department: 'IT' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://profile.test/user/department',
+      { wid: 'user-1' },
+      expect.objectContaining({ headers: { org: 'org-2', rootOrg: 'org-1' } })
+    )
+  })
+
+  it('returns an empty object when upstream sends nothing', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk(null))
+    const response = await agent().get('/user/department')
+    expect(response.body).toEqual({})
+  })
+
+  it('forwards an upstream error status', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(403, { error: 'forbidden' }))
+    const response = await agent().get('/user/department')
+    expect(response.status).toBe(403)
+  })
+
+  it('falls back to 500 on a transport failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().get('/user/department')
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('POST /user/department/update', () => {
+  it('posts userId and department to the update endpoint', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ updated: true }))
+
+    const response = await agent()
+      .post('/user/department/update')
+      .send({ department: 'Finance', userId: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ updated: true })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://profile.test/user/department/update',
+      { departmentName: 'Finance', userId: 'u1' },
+      expect.anything()
+    )
+  })
+
+  it('returns an empty object when upstream sends nothing', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk(null))
+    const response = await agent().post('/user/department/update').send({})
+    expect(response.body).toEqual({})
+  })
+
+  it('forwards an upstream error status', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(400, { error: 'bad request' }))
+    const response = await agent().post('/user/department/update').send({})
+    expect(response.status).toBe(400)
+  })
 })

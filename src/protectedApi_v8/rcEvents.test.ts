@@ -134,6 +134,26 @@ describe('POST /events/edit', () => {
     const response = await agent().post('/events/edit').send({ eventId: 'evt-1' })
     expect(response.status).toBe(500)
   })
+
+  it('falls back to the existing row for fields omitted from the request', async () => {
+    // Known pre-existing quirk: the fallback reads result.rows[0].eventDate
+    // (camelCase), but Cassandra rows here use lowercase keys (eventdate, per
+    // cassandraRow), so the "fallback to existing value" branch actually
+    // resolves to undefined rather than the row's real value. This test
+    // documents that current behavior, not the presumably-intended one.
+    mockExecute
+      .mockResolvedValueOnce({ rows: [cassandraRow] }) // getEventQuery lookup
+      .mockResolvedValueOnce({}) // update
+
+    const response = await agent().post('/events/edit').send({ eventId: 'evt-1', updatedBy: 'editor' })
+
+    expect(response.status).toBe(200)
+    expect(mockExecute).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE sunbird.rc_events'),
+      [undefined, undefined, undefined, undefined, undefined, 'editor', expect.any(Date), undefined, 'evt-1'],
+      { prepare: true }
+    )
+  })
 })
 
 describe('GET /events/:id', () => {
@@ -296,6 +316,90 @@ describe('POST /events/users', () => {
       .post('/events/users')
       .send({ eventId: 'evt-1', users: [{ phone: '123' }] })
     expect(response.status).toBe(500)
+  })
+
+  it('records a failure without calling axios when the event type matches neither sphere constant', async () => {
+    const unknownTypeEvent = { ...cassandraRow, eventtype: 'some-other-type' }
+    mockExecute.mockResolvedValueOnce({ rows: [unknownTypeEvent] }).mockResolvedValueOnce({})
+
+    const response = await agent()
+      .post('/events/users')
+      .send({ eventId: 'evt-1', users: [{ phone: '9876543210' }] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.failed).toBe(1)
+    expect(response.body.success).toBe(0)
+    expect(mockAxios).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the user-supplied place when the event has none', async () => {
+    const placelessEvent = { ...cassandraRow, eventplace: '', eventtype: 'registred without sphere' }
+    mockExecute.mockResolvedValueOnce({ rows: [placelessEvent] }).mockResolvedValueOnce({})
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'A', lastName: 'B', phone: '9876543210', place: 'Fallback Place' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(mockExecute).toHaveBeenLastCalledWith(
+      expect.stringContaining('INSERT INTO sunbird.rc_events_users'),
+      expect.arrayContaining(['Fallback Place']),
+      { prepare: true }
+    )
+  })
+
+  it('records a failure when the sphere user-existence lookup throws a network error', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent()
+      .post('/events/users')
+      .send({ eventId: 'evt-1', users: [{ phone: '9876543210' }] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.failed).toBe(1)
+    expect(response.body.success).toBe(0)
+  })
+
+  it('creates a new sunbird user when the sphere lookup finds nobody, then links them', async () => {
+    mockExecute
+      .mockResolvedValueOnce({ rows: [cassandraRow] }) // getEventDetails
+      .mockResolvedValueOnce({}) // insertUserEventLink
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-1' } })) // createUserIfNotExists: create
+      .mockResolvedValueOnce(upstreamOk({})) // role assign
+      .mockResolvedValueOnce(upstreamOk({})) // profile update
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'New', lastName: 'User', phone: '9876543210' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.success).toBe(1)
+    expect(response.body.failed).toBe(0)
+    expect(mockAxios).toHaveBeenCalledTimes(4)
+  })
+
+  it('records a failure when user creation succeeds but returns no userId', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } }))
+      .mockResolvedValueOnce(upstreamOk({ result: {} })) // create response has no userId
+
+    const response = await agent()
+      .post('/events/users')
+      .send({ eventId: 'evt-1', users: [{ firstName: 'No', lastName: 'Id', phone: '9876543210' }] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.failed).toBe(1)
+    expect(response.body.success).toBe(0)
   })
 })
 

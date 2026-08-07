@@ -12,11 +12,25 @@
  *   - WhatsApp consent endpoints — real Cassandra query construction, not a
  *     one-line axios mock; belongs with the other Cassandra-dependent files
  *     in Phase 2 per the plan's own risk note.
- *   - /ios/certificateDownload, /certificateDownload — pull in
- *     node-html-to-image and non-trivial PDF/image handling.
+ *   - /certificateDownload — pull in node-html-to-image and non-trivial
+ *     PDF/image handling.
  *   - /send-by-topic — firebase-admin messaging, needs its own mock strategy.
  *   - /kong/course/v2/hierarchy/*, http-proxy `.web()` usage — proxies the
  *     raw request/response objects rather than returning JSON.
+ *
+ * Branch-coverage follow-up pass added below: /getContents/*, /user/profileUpdate,
+ * /courseRemommendationv2, /getAllUserFeed, /getUnreadUserNotifications,
+ * /ext-forms/*, /user/enrollment/list/adhocCertificates, and
+ * /ios/certificateDownload. The last of these contains the documented
+ * CRITICAL auth-bypass bug (`secretKey` check has no `return`) shared with
+ * `publicCertifcateFlinkv2.ts` — see docs/PROD-VERIFICATION.md change AR and
+ * docs/DUPLICATE-CODE-CLEANUP.md L3-19. Following the same precedent as
+ * `publicCertifcateFlinkv2.test.ts`: only the correct-secretKey path is
+ * exercised live, because an incorrect key does NOT stop the request (no
+ * `return` after the 400) — it falls through into the real Cassandra query,
+ * download, and image render, and reproducing it live risks the same
+ * double/triple-send crash documented there. The bug itself is not fixed
+ * here; only its current (buggy) behavior on the safe path is asserted.
  */
 
 jest.mock('fs', () => ({
@@ -26,7 +40,12 @@ jest.mock('fs', () => ({
 jest.mock('axios')
 jest.mock('jsonwebtoken', () => ({ verify: jest.fn() }))
 jest.mock('jwt-decode')
-jest.mock('cassandra-driver', () => ({ Client: jest.fn(() => ({ execute: jest.fn() })) }))
+const mockCassandraExecute = jest.fn()
+const mockCassandraShutdown = jest.fn()
+jest.mock('cassandra-driver', () => ({
+  Client: jest.fn(() => ({ execute: mockCassandraExecute, shutdown: mockCassandraShutdown })),
+}))
+jest.mock('request')
 jest.mock('http-proxy', () => ({ createProxyServer: jest.fn(() => ({ web: jest.fn() })) }))
 jest.mock('../utils/logger', () => ({ logError: jest.fn(), logInfo: jest.fn() }))
 jest.mock('../utils/jumbler', () => ({ jumbler: jest.fn() }))
@@ -47,6 +66,8 @@ jest.mock('./rolePermission', () => ({ getCurrentUserRoles: jest.fn() }))
 jest.mock('../utils/env', () => ({
   CONSTANTS: {
     APP_VERSION_PATH: 'https://version.test/app-version.json',
+    CASSANDRA_IP: '127.0.0.1',
+    CERTIFICATE_DOWNLOAD_KEY: 'valid-secret-key',
     ENTITY_API_BASE: 'https://entity.test',
     FORM_API_BASE: 'https://form.test',
     HTTPS_HOST: 'https://auth.test',
@@ -66,7 +87,8 @@ jest.mock('../utils/env', () => ({
 import axios from 'axios'
 import jwt from 'jsonwebtoken'
 import jwtDecode from 'jwt-decode'
-import { networkError, upstreamOk } from '../test-support/mockAxios'
+import request from 'request'
+import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { jumbler } from '../utils/jumbler'
@@ -75,6 +97,11 @@ import { searchContent, searchContentV2 } from './contentSearchService'
 import { mobileAppApi } from './mobileAppApi'
 
 const mockAxios = axios as unknown as jest.Mock
+// /user/profileUpdate is the one route in this file that calls axios.patch()
+// / axios.post() as methods rather than the callable axios({...}) form the
+// rest of the file uses, so it needs its own mocks.
+const mockAxiosPatch = axios.patch as jest.Mock
+const mockAxiosPost = axios.post as jest.Mock
 const mockJwtVerify = jwt.verify as jest.Mock
 const mockJwtDecode = jwtDecode as jest.Mock
 const mockAssessmentCreator = assessmentCreator as jest.Mock
@@ -82,6 +109,7 @@ const mockJumbler = jumbler as jest.Mock
 const mockAppendPilotMockEntity = appendPilotMockEntity as jest.Mock
 const mockSearchContent = searchContent as jest.Mock
 const mockSearchContentV2 = searchContentV2 as jest.Mock
+const mockRequest = request as unknown as jest.Mock
 
 const agent = () => mountRouter(mobileAppApi)
 const AUTH_HEADER = 'x-authenticated-user-token'
@@ -103,8 +131,12 @@ function invalidToken() {
 
 beforeEach(() => {
   mockAxios.mockReset()
+  mockAxiosPatch.mockReset()
+  mockAxiosPost.mockReset()
   mockJwtVerify.mockReset()
   mockJwtDecode.mockReset()
+  mockCassandraExecute.mockReset()
+  mockCassandraShutdown.mockReset()
 })
 
 describe('module import', () => {
@@ -600,5 +632,364 @@ describe('content search delegation', () => {
     mockSearchContentV2.mockRejectedValue(new Error('down'))
     const response = await agent().post('/contentSearchV2').send({})
     expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /getContents/*', () => {
+  it('pipes the request-package stream to the response', async () => {
+    mockRequest.mockReturnValue({
+      pipe: (res) => res.status(200).send('binary-content'),
+    })
+
+    const response = await agent().get('/getContents/images/logo.png')
+
+    expect(response.status).toBe(200)
+    expect(mockRequest).toHaveBeenCalled()
+  })
+
+  it('returns 404 when building/piping the request throws synchronously', async () => {
+    mockRequest.mockImplementation(() => {
+      throw new Error('stream setup failed')
+    })
+
+    const response = await agent().get('/getContents/images/logo.png')
+
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ message: 'Content not found' })
+  })
+})
+
+describe('POST /user/profileUpdate', () => {
+  const validBody = {
+    request: {
+      profileDetails: { profileLocation: 'loc-1', profileReq: {} },
+      userId: 'u1',
+    },
+  }
+
+  it('returns 400 for a schema-invalid body without calling upstream', async () => {
+    const response = await agent().post('/user/profileUpdate').send({ request: {} })
+
+    expect(response.status).toBe(400)
+    expect(response.body.result.errorSource).toBe('JOI')
+    expect(mockAxios).not.toHaveBeenCalled()
+  })
+
+  // NOTE: an invalid token is a documented double-send bug, not reproduced
+  // live. verifyToken() itself already sends res.status(404) on a bad token
+  // and returns that Response object; this handler's `status !== 200` guard
+  // is then also true (a Response object has no numeric `.status`), so it
+  // tries to send a SECOND response (401). Express throws
+  // ERR_HTTP_HEADERS_SENT synchronously inside the request cycle when that
+  // happens, which crashes the test runner rather than producing a clean
+  // single status code to assert on — same pattern documented for
+  // /getAllUserFeed and /user/enrollment/list/adhocCertificates below, and
+  // throughout docs/PROD-VERIFICATION.md's double-send findings. Pre-existing
+  // behavior, not changed here.
+
+  it('updates the profile, records telemetry, and inserts into Cassandra on success', async () => {
+    mockAxiosPatch.mockResolvedValue(upstreamOk({ updated: true })) // profile PATCH
+    mockAxiosPost.mockResolvedValue(upstreamOk({})) // telemetry POST
+    mockCassandraExecute.mockResolvedValue({})
+
+    const response = await agent()
+      .post('/user/profileUpdate')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(validBody)
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ updated: true })
+    expect(mockCassandraExecute).toHaveBeenCalled()
+  })
+
+  it('returns 500 when the Cassandra insert fails', async () => {
+    mockAxiosPatch.mockResolvedValue(upstreamOk({ updated: true }))
+    mockAxiosPost.mockResolvedValue(upstreamOk({}))
+    mockCassandraExecute.mockRejectedValue(new Error('cassandra unavailable'))
+
+    const response = await agent()
+      .post('/user/profileUpdate')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(validBody)
+
+    expect(response.status).toBe(500)
+    expect(response.body.message).toBe(
+      'Error occurred while inserting user profile in Cassandra'
+    )
+  })
+
+  it('returns 500 when the upstream profile update fails', async () => {
+    mockAxiosPatch.mockRejectedValue(networkError())
+
+    const response = await agent()
+      .post('/user/profileUpdate')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(validBody)
+
+    expect(response.status).toBe(500)
+    expect(response.body.message).toBe('Error occurred while updating user profile')
+  })
+})
+
+describe('GET /courseRemommendationv2', () => {
+  it('returns the IHAT course list for the ekhamata appId, without calling the recommendation API', async () => {
+    mockAxios.mockResolvedValue(
+      upstreamOk({ result: { content: [{ identifier: 'c1', name: 'Course 1' }] } })
+    )
+
+    const response = await agent()
+      .get('/courseRemommendationv2')
+      .query({ appId: 'app.aastrika.ekhamata' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([
+      expect.objectContaining({ course_id: 'c1', course_name: 'Course 1' }),
+    ])
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://kong.test/content/v1/search' })
+    )
+  })
+
+  it('drops background/profession from the query when absent', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ recommendations: [] }))
+
+    const response = await agent().get('/courseRemommendationv2')
+
+    expect(response.status).toBe(200)
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ params: {} })
+    )
+  })
+
+  it('forwards background/profession when present', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ recommendations: [] }))
+
+    const response = await agent()
+      .get('/courseRemommendationv2')
+      .query({ background: 'nurse', profession: 'ANM' })
+
+    expect(response.status).toBe(200)
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ params: { background: 'nurse', profession: 'ANM' } })
+    )
+  })
+
+  it('returns the upstream error status/body on failure', async () => {
+    mockAxios.mockRejectedValue(upstreamError(503, { error: 'reco down' }))
+
+    const response = await agent().get('/courseRemommendationv2')
+
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'reco down' })
+  })
+})
+
+describe('GET /getAllUserFeed', () => {
+  // NOTE: an invalid token is a documented double-send bug, not reproduced
+  // live — same unreturned-response shape as /user/profileUpdate above.
+  // verifyToken() already sent its own 404 for a bad token; this handler's
+  // `status != 200` guard then also fires a second `res.status(400)...`,
+  // which throws ERR_HTTP_HEADERS_SENT synchronously inside the request
+  // cycle rather than yielding a single clean status to assert on.
+
+  it('returns the static feed for a valid token and userId', async () => {
+    const response = await agent()
+      .get('/getAllUserFeed')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ userId: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+    expect(response.body.userFeed).toHaveLength(3)
+  })
+
+  // KNOWN ISSUE (pre-existing, not introduced by this test pass): the
+  // `if (!req.query.userId)` guard sends a 400 but has no `return`, so
+  // execution falls through and a second `res.status(200)...` runs
+  // immediately after. Express throws on the second header write once a
+  // response has already been sent, which supertest surfaces as a request
+  // failure/error rather than a clean single status code. Not reproduced
+  // live here — same double-send family documented throughout
+  // docs/PROD-VERIFICATION.md (e.g. changes Q/R/S/AE) for this codebase.
+})
+
+describe('GET /getUnreadUserNotifications', () => {
+  it('returns the notifications payload on success', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ notifications: [] }))
+
+    const response = await agent().get('/getUnreadUserNotifications').query({ userId: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ data: { notifications: [] }, status: 'SUCCESS' })
+  })
+
+  it('returns the upstream error status/body on failure', async () => {
+    mockAxios.mockRejectedValue(upstreamError(504, { error: 'notify down' }))
+
+    const response = await agent().get('/getUnreadUserNotifications').query({ userId: 'u1' })
+
+    expect(response.status).toBe(504)
+    expect(response.body).toEqual({ error: 'notify down' })
+  })
+
+  it('falls back to a 500 default when the failure carries no upstream response', async () => {
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent().get('/getUnreadUserNotifications').query({ userId: 'u1' })
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({
+      error: 'Something went wrong while fetching results',
+    })
+  })
+})
+
+describe('POST /ext-forms/*', () => {
+  it('forwards the form submission on success', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ formId: 'f1' }))
+
+    const response = await agent().post('/ext-forms/submit').send({ answer: 'yes' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ data: { formId: 'f1' }, status: 'SUCCESS' })
+  })
+
+  it('returns the upstream error status/body on failure', async () => {
+    mockAxios.mockRejectedValue(upstreamError(422, { error: 'invalid form' }))
+
+    const response = await agent().post('/ext-forms/submit').send({})
+
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid form' })
+  })
+})
+
+describe('GET /user/enrollment/list/adhocCertificates', () => {
+  const enrollmentResponse = upstreamOk({
+    result: {
+      courses: [
+        { id: 'c1', issuedCertificates: [{ identifier: 'cert-1' }] },
+        { id: 'c2', issuedCertificates: [] },
+      ],
+    },
+  })
+
+  // NOTE: an invalid token is a documented double-send bug, not reproduced
+  // live — same unreturned-response shape as /user/profileUpdate and
+  // /getAllUserFeed above.
+
+  it('combines general and RC-mapper certificates on success', async () => {
+    mockAxios
+      .mockResolvedValueOnce(enrollmentResponse) // userEnrollmentList
+      .mockResolvedValueOnce(upstreamOk({ data: [{ id: 'rc-1' }] })) // rcMapper
+
+    const response = await agent()
+      .get('/user/enrollment/list/adhocCertificates')
+      .set(AUTH_HEADER, validToken('u1'))
+
+    expect(response.status).toBe(200)
+    expect(response.body.sunbirdRcCertificates).toEqual([{ id: 'rc-1' }])
+    expect(response.body.generalCertificates[0].issuedCertificates[0].certificateType).toBe(
+      'General'
+    )
+  })
+
+  it('falls back to an empty RC-certificate list when the rcMapper call fails', async () => {
+    mockAxios
+      .mockResolvedValueOnce(enrollmentResponse) // userEnrollmentList succeeds
+      .mockRejectedValueOnce(networkError()) // rcMapper fails
+
+    const response = await agent()
+      .get('/user/enrollment/list/adhocCertificates')
+      .set(AUTH_HEADER, validToken('u1'))
+
+    expect(response.status).toBe(200)
+    expect(response.body.sunbirdRcCertificates).toEqual([])
+  })
+
+  it('returns the upstream error status/body when the enrollment list call itself fails', async () => {
+    mockAxios.mockRejectedValue(upstreamError(502, { error: 'enrollment down' }))
+
+    const response = await agent()
+      .get('/user/enrollment/list/adhocCertificates')
+      .set(AUTH_HEADER, validToken('u1'))
+
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'enrollment down' })
+  })
+})
+
+/**
+ * GET /ios/certificateDownload — shares the CRITICAL auth-bypass bug
+ * documented for `publicCertifcateFlinkv2.ts` (docs/PROD-VERIFICATION.md
+ * change AR; cross-referenced in docs/DUPLICATE-CODE-CLEANUP.md as L3-19,
+ * copied into this file verbatim). Both the "missing params" and
+ * "wrong secretKey" checks call `res.status(400)...` with NO `return`, so
+ * execution always falls through into the real Cassandra lookup and
+ * certificate render regardless of whether either check "failed". There is
+ * therefore no way to exercise those input combinations live without
+ * triggering the same double/triple response-send crash documented for the
+ * sibling file — only the fully-correct-input path below responds exactly
+ * once. This is asserted as-is; the bug is NOT fixed here.
+ */
+describe('GET /ios/certificateDownload (documented pre-existing auth-bypass bug — correct-input path only)', () => {
+  const certRow = {
+    rows: [{ issued_certificates: [{ identifier: 'cert-1', name: 'My Certificate' }] }],
+  }
+
+  it('renders and returns the certificate image for a valid token and correct secretKey', async () => {
+    mockCassandraExecute.mockResolvedValue(certRow)
+    mockAxios.mockResolvedValue(
+      upstreamOk({
+        responseCode: 'OK',
+        result: { printUri: "data:image/svg+xml,<svg width='800' height='600'>...</svg>" },
+      })
+    )
+
+    const response = await agent()
+      .get('/ios/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ courseid: 'c1', secretKey: 'valid-secret-key', userid: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.headers['content-type']).toContain('image/png')
+    expect(response.headers['content-disposition']).toContain('My Certificate.png')
+    expect(mockCassandraShutdown).toHaveBeenCalled()
+  })
+
+  it('returns 500 when the Cassandra lookup fails on the correct-input path', async () => {
+    mockCassandraExecute.mockRejectedValue(new Error('cassandra unavailable'))
+
+    const response = await agent()
+      .get('/ios/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ courseid: 'c1', secretKey: 'valid-secret-key', userid: 'u1' })
+
+    expect(response.status).toBe(500)
+    expect(response.body.message).toBe(
+      'Sorry ! Download cerificate not worked . Please try again in sometime.'
+    )
+  })
+
+  it('returns 500 when the certificate download call fails on the correct-input path', async () => {
+    mockCassandraExecute.mockResolvedValue(certRow)
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent()
+      .get('/ios/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ courseid: 'c1', secretKey: 'valid-secret-key', userid: 'u1' })
+
+    expect(response.status).toBe(500)
+  })
+
+  it('does not call the certificate lookup at all for an invalid token', async () => {
+    const response = await agent()
+      .get('/ios/certificateDownload')
+      .set(AUTH_HEADER, invalidToken())
+      .query({ courseid: 'c1', secretKey: 'valid-secret-key', userid: 'u1' })
+
+    expect(response.status).toBe(404)
+    expect(mockCassandraExecute).not.toHaveBeenCalled()
   })
 })

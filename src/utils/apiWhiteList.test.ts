@@ -72,6 +72,19 @@ describe('isAllowed', () => {
     expect(next).not.toHaveBeenCalled()
   })
 
+  it('responds 403 with the FORBIDDEN error body for a non-whitelisted path', () => {
+    const { req, res, next } = mockReqRes({ path: '/not/a/real/route' })
+    isAllowed()(req as any, res as any, next)
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        responseCode: 'FORBIDDEN',
+        result: {},
+        params: expect.objectContaining({ err: 'FORBIDDEN_ERROR', status: 'failed' }),
+      }),
+    )
+    expect(res.end).toHaveBeenCalled()
+  })
+
   it('allows a whitelisted PUBLIC-role route when the session has PUBLIC', async () => {
     const { req, res, next } = mockReqRes({
       path: '/protected/v8/user/details',
@@ -119,6 +132,51 @@ describe('isAllowed', () => {
   // live config actually does). Dead code under the current config, not a
   // access-control bypass — data.length > 0 with 'ALL' would still require a
   // non-empty session role list, it just never gets the chance to run.
+
+  // '/authContent/:do_id' is a real URL_PATTERN entry mapped (via
+  // pathToRegexp) back onto the literal '/authContent/:do_id' key in
+  // API_LIST.URL (a PUBLIC_ROLE_RULE route). A concrete request path like
+  // '/authContent/do_123' never appears verbatim in API_LIST.URL, so this
+  // is the only way to reach it: exercises the URL_PATTERN rewrite loop
+  // (source lines 223-230) that the tests above never trigger, since they
+  // all use paths already whitelisted verbatim.
+  it('resolves a dynamic path through URL_PATTERN to its whitelisted rule', async () => {
+    const { req, res, next } = mockReqRes({
+      path: '/authContent/do_123',
+      session: { userRoles: ['PUBLIC'] },
+    })
+    isAllowed()(req as any, res as any, next)
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(next).toHaveBeenCalled()
+    expect(res.status).not.toHaveBeenCalled()
+  })
+
+  it('rejects a dynamic path resolved through URL_PATTERN when the role is missing', async () => {
+    const { req, res, next } = mockReqRes({
+      path: '/authContent/do_123',
+      session: { userRoles: [] },
+    })
+    isAllowed()(req as any, res as any, next)
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  // req.session is entirely absent (not just an empty object) for this
+  // whitelisted-but-role-checked route. `_.get(req, 'session.userRoles')`
+  // returns undefined, falling to the `: []` fallback in ROLE_CHECK — a
+  // distinct branch from the `session: { userRoles: [] }` case above, which
+  // takes the truthy-but-empty-array path through the same ternary instead.
+  it('rejects a whitelisted role-checked route when there is no session object at all', async () => {
+    const { req, res, next } = mockReqRes({
+      path: '/protected/v8/user/details',
+      session: undefined,
+    })
+    isAllowed()(req as any, res as any, next)
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(next).not.toHaveBeenCalled()
+  })
 
   // NOTE (left uncovered on purpose, not a live-test candidate):
   // urlChecks.SCOPE_CHECK (source lines 70-94) is likewise unreachable via
@@ -183,6 +241,24 @@ describe('apiWhiteListLogger', () => {
     expect(next).toHaveBeenCalled()
   })
 
+  it('calls next() for an /admin/selfService path without checking session', () => {
+    const { req, res, next } = mockReqRes({ path: '/admin/selfService/x', session: undefined })
+    apiWhiteListLogger()(req as any, res as any, next)
+    expect(next).toHaveBeenCalled()
+  })
+
+  it('calls next() for a /socket.io path without checking session', () => {
+    const { req, res, next } = mockReqRes({ path: '/socket.io/x', session: undefined })
+    apiWhiteListLogger()(req as any, res as any, next)
+    expect(next).toHaveBeenCalled()
+  })
+
+  it('calls next() for a /resource path even with an unauthenticated session', () => {
+    const { req, res, next } = mockReqRes({ path: '/protected/v8/resource/x', session: {} })
+    apiWhiteListLogger()(req as any, res as any, next)
+    expect(next).toHaveBeenCalled()
+  })
+
   it('calls next() when there is no session at all', () => {
     const { req, res, next } = mockReqRes({ path: '/authApi/x', session: undefined })
     apiWhiteListLogger()(req as any, res as any, next)
@@ -215,6 +291,29 @@ describe('apiWhiteListLogger', () => {
     })
     apiWhiteListLogger()(req as any, res as any, next)
     expect(res.send).toHaveBeenCalledWith('You are logged out!')
+  })
+
+  // Exercises the else-branch of respond419 (any non-'/reset' path), which
+  // builds a 'location' header via redirectToLogin(req) using req.get('host').
+  it('sends a 419 body with a redirect location built from the request host for a non-reset path', () => {
+    const { req, res, next } = mockReqRes({
+      path: '/protected/v8/user/details',
+      session: {},
+      get: jest.fn(() => 'my.host.example'),
+    })
+    apiWhiteListLogger()(req as any, res as any, next)
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'location',
+      'https://my.host.example/protected/v8/resource/',
+    )
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        responseCode: 'UNAUTHORIZED',
+        redirectUrl: 'https://my.host.example/protected/v8/resource/',
+        params: expect.objectContaining({ err: 'UNAUTHORIZED_ERROR', status: 'failed' }),
+      }),
+    )
+    expect(res.end).toHaveBeenCalled()
   })
 
   it('validates the API when the session has roles', () => {

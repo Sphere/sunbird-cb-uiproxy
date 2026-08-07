@@ -35,7 +35,7 @@ jest.mock('../../utils/env', () => ({
 }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
 import { profileDeatailsApi } from './profile-details'
 
@@ -69,6 +69,18 @@ describe('GET /getUserRegistry', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ userId: 'user-1' })
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/getUserRegistry')
+    expect(response.status).toBe(404)
+  })
+
+  it('returns 500 on a network failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().get('/getUserRegistry')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /getUserRegistryById/:id', () => {
@@ -82,11 +94,27 @@ describe('GET /getUserRegistryById/:id', () => {
       expect.anything()
     )
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().get('/getUserRegistryById/explicit-id')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /userProfileStatus', () => {
   it('rejects a request missing org/rootOrg headers', async () => {
     const response = await agent().get('/userProfileStatus')
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects a request missing only the org header', async () => {
+    const response = await agent().get('/userProfileStatus').set('rootOrg', 'r1')
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects a request missing only the rootOrg header', async () => {
+    const response = await agent().get('/userProfileStatus').set('org', 'o1')
     expect(response.status).toBe(400)
   })
 
@@ -98,6 +126,24 @@ describe('GET /userProfileStatus', () => {
       .set('rootOrg', 'r1')
     expect(response.status).toBe(200)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(403, { error: 'forbidden' }))
+    const response = await agent()
+      .get('/userProfileStatus')
+      .set('org', 'o1')
+      .set('rootOrg', 'r1')
+    expect(response.status).toBe(403)
+  })
+
+  it('returns 500 on a network failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent()
+      .get('/userProfileStatus')
+      .set('org', 'o1')
+      .set('rootOrg', 'r1')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /setUserProfileStatus', () => {
@@ -105,6 +151,12 @@ describe('POST /setUserProfileStatus', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ updated: true }))
     const response = await agent().post('/setUserProfileStatus').send({ status: true })
     expect(response.status).toBe(200)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid' }))
+    const response = await agent().post('/setUserProfileStatus').send({})
+    expect(response.status).toBe(422)
   })
 
   it('returns 500 on an upstream failure', async () => {
@@ -135,6 +187,19 @@ describe('GET /getMasterNationalities', () => {
     const response = await agent().get('/getMasterNationalities')
     expect(response.status).toBe(200)
   })
+
+  it('forwards an empty nationality list', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    const response = await agent().get('/getMasterNationalities')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/getMasterNationalities')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /getProfilePageMeta', () => {
@@ -148,5 +213,126 @@ describe('GET /getProfilePageMeta', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/getProfilePageMeta')
     expect(response.status).toBe(500)
+  })
+})
+
+describe('PATCH /updateUser', () => {
+  const validBody = () => ({
+    request: {
+      profileDetails: {
+        profileReq: {
+          personalDetails: { regNurseRegMidwifeNumber: 'RN123' },
+        },
+      },
+      userId: 'user-1',
+    },
+  })
+
+  it('rejects a body that fails Joi validation (missing userId)', async () => {
+    const response = await agent()
+      .patch('/updateUser')
+      .send({ request: { profileDetails: { profileReq: {} } } })
+    expect(response.status).toBe(400)
+    expect(response.body.result.errorSource).toBe('JOI')
+    expect(mockAxios.patch).not.toHaveBeenCalled()
+  })
+
+  it('rejects a body that fails Joi validation (missing profileReq)', async () => {
+    const response = await agent()
+      .patch('/updateUser')
+      .send({ request: { profileDetails: {}, userId: 'user-1' } })
+    expect(response.status).toBe(400)
+    expect(response.body.result.errorSource).toBe('JOI')
+  })
+
+  it('forwards the update and strips a top-level personalDetails block', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const body = validBody()
+    // tslint:disable-next-line: no-any
+    ;(body.request.profileDetails as any).personalDetails = { firstname: 'x' }
+    const response = await agent().patch('/updateUser').send(body)
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ updated: true })
+    const sentBody = mockAxios.patch.mock.calls[0][1] as typeof body
+    expect(
+      (sentBody.request.profileDetails as { personalDetails?: unknown }).personalDetails
+    ).toBeUndefined()
+  })
+
+  it('defaults regNurseRegMidwifeNumber to [NA] when missing from profileReq.personalDetails', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const body = validBody()
+    delete body.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber
+    const response = await agent().patch('/updateUser').send(body)
+    expect(response.status).toBe(200)
+    const sentBody = mockAxios.patch.mock.calls[0][1] as typeof body
+    expect(
+      sentBody.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber
+    ).toBe('[NA]')
+  })
+
+  it('leaves an existing regNurseRegMidwifeNumber untouched', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/updateUser').send(validBody())
+    expect(response.status).toBe(200)
+    const sentBody = mockAxios.patch.mock.calls[0][1] as ReturnType<typeof validBody>
+    expect(
+      sentBody.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber
+    ).toBe('RN123')
+  })
+
+  it('omits undefined, null and empty values from profileReq.personalDetails', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const body = validBody()
+    // tslint:disable-next-line: no-any
+    const personalDetails = body.request.profileDetails.profileReq.personalDetails as any
+    personalDetails.blankField = ''
+    personalDetails.nullField = null
+    personalDetails.undefinedField = undefined
+    personalDetails.keptField = 'value'
+    const response = await agent().patch('/updateUser').send(body)
+    expect(response.status).toBe(200)
+    const sentBody = mockAxios.patch.mock.calls[0][1] as typeof body
+    // tslint:disable-next-line: no-any
+    const sentPersonalDetails = sentBody.request.profileDetails.profileReq.personalDetails as any
+    expect(sentPersonalDetails.blankField).toBeUndefined()
+    expect(sentPersonalDetails.nullField).toBeUndefined()
+    expect(sentPersonalDetails.undefinedField).toBeUndefined()
+    expect(sentPersonalDetails.keptField).toBe('value')
+  })
+
+  it('sets profileReq.personalDetails to an empty object when it was absent', async () => {
+    // Pre-existing behavior, asserted as-is (not a bug this test suite fixes):
+    // _.omitBy(undefined, ...) returns {}, so the handler unconditionally
+    // overwrites profileReq.personalDetails with {} even when the caller never
+    // sent that key.
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent()
+      .patch('/updateUser')
+      .send({
+        request: {
+          profileDetails: { profileReq: {} },
+          userId: 'user-1',
+        },
+      })
+    expect(response.status).toBe(200)
+    const sentBody = mockAxios.patch.mock.calls[0][1] as {
+      request: { profileDetails: { profileReq: { personalDetails: unknown } } }
+    }
+    expect(sentBody.request.profileDetails.profileReq.personalDetails).toEqual({})
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.patch.mockRejectedValue(upstreamError(422, { error: 'invalid' }))
+    const response = await agent().patch('/updateUser').send(validBody())
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid' })
+  })
+
+  it('returns 500 with a generic error body on a network failure', async () => {
+    mockAxios.patch.mockRejectedValue(networkError())
+    const response = await agent().patch('/updateUser').send(validBody())
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed due to unknown reason' })
   })
 })

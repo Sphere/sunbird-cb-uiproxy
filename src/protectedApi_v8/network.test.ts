@@ -22,7 +22,7 @@ jest.mock('../utils/env', () => ({
 }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
 import { networkConnectionApi } from './network'
@@ -61,6 +61,13 @@ describe('GET /connections/requested', () => {
     expect(response.status).toBe(400)
     expect(mockAxios.get).not.toHaveBeenCalled()
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await withOrg(agent().get('/connections/requested'))
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
 })
 
 describe('GET /connections/requests/received', () => {
@@ -86,6 +93,13 @@ describe('GET /connections/requests/received', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await withOrg(agent().get('/connections/requests/received'))
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(503, { error: 'unavailable' }))
+    const response = await withOrg(agent().get('/connections/requests/received'))
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'unavailable' })
   })
 })
 
@@ -113,6 +127,13 @@ describe('GET /connections/established', () => {
     expect(response.status).toBe(400)
     expect(mockAxios.get).not.toHaveBeenCalled()
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(403, { error: 'forbidden' }))
+    const response = await withOrg(agent().get('/connections/established'))
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'forbidden' })
+  })
 })
 
 describe('GET /connections/established/:id', () => {
@@ -138,6 +159,35 @@ describe('GET /connections/established/:id', () => {
   // '/connections/established//' rather than routing to this handler with an
   // empty :id, so there is no HTTP request that produces a falsy req.params.id
   // for this route. Left uncovered rather than forced.
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await withOrg(agent().get('/connections/established/c1'))
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
+
+  // Known, documented security-relevant divergence — see docs/DUPLICATE-CODE-CLEANUP.md
+  // L3-17. Unlike every other route in this file, this one derives `userId`
+  // from the :id path param rather than from the authenticated caller
+  // (extractUserIdFromRequest), so it can look up a DIFFERENT user's
+  // established connections by id. Asserting current behavior as-is; not a bug fix.
+  it('derives userId from the path param, not the authenticated caller (documented divergence, L3-17)', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ id: 'other-user-connections' }))
+    mockExtractUserIdFromRequest.mockReturnValueOnce('authenticated-caller')
+
+    const response = await withOrg(agent().get('/connections/established/some-other-user'))
+
+    expect(response.status).toBe(200)
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({ userId: 'some-other-user' }),
+      })
+    )
+    // extractUserIdFromRequest is never even consulted by this route.
+    expect(mockExtractUserIdFromRequest).not.toHaveBeenCalled()
+  })
 })
 
 describe('GET /connections/suggests', () => {
@@ -164,6 +214,13 @@ describe('GET /connections/suggests', () => {
     const response = await withOrg(agent().get('/connections/suggests'))
     expect(response.status).toBe(500)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await withOrg(agent().get('/connections/suggests'))
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
+  })
 })
 
 describe('POST /add/connection', () => {
@@ -184,10 +241,24 @@ describe('POST /add/connection', () => {
     expect(mockAxios.post).not.toHaveBeenCalled()
   })
 
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().post('/add/connection')).send({ connectionId: 'c1' })
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
   it('returns 500 on an upstream failure', async () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await withOrg(agent().post('/add/connection')).send({ connectionId: 'c1' })
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(409, { error: 'conflict' }))
+    const response = await withOrg(agent().post('/add/connection')).send({ connectionId: 'c1' })
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'conflict' })
   })
 })
 
@@ -207,6 +278,22 @@ describe('POST /update/connection', () => {
     expect(mockAxios.post).not.toHaveBeenCalled()
   })
 
+  it('rejects a request missing connectionId', async () => {
+    const response = await withOrg(agent().post('/update/connection')).send({ status: 'accepted' })
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().post('/update/connection')).send({
+      connectionId: 'c1',
+      status: 'accepted',
+    })
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
   it('rejects a request missing rootorg', async () => {
     const response = await agent()
       .post('/update/connection')
@@ -222,6 +309,16 @@ describe('POST /update/connection', () => {
       status: 'accepted',
     })
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid status' }))
+    const response = await withOrg(agent().post('/update/connection')).send({
+      connectionId: 'c1',
+      status: 'accepted',
+    })
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid status' })
   })
 })
 
@@ -248,6 +345,27 @@ describe('POST /connections/recommended', () => {
     const response = await withOrg(agent().post('/connections/recommended')).send({})
     expect(response.status).toBe(400)
     expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(500, { error: 'server error' }))
+    const response = await withOrg(agent().post('/connections/recommended')).send({})
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'server error' })
+  })
+
+  // Known, documented divergence — see docs/DUPLICATE-CODE-CLEANUP.md L3-17.
+  // Unlike the GET connection routes above, this route omits Authorization
+  // and x-authenticated-user-token from the outbound headers entirely.
+  // Asserting current behavior as-is; not a bug fix.
+  it('omits Authorization and x-authenticated-user-token from the outbound request (documented divergence, L3-17)', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk([{ id: 'c3' }]))
+    const response = await withOrg(agent().post('/connections/recommended')).send({})
+
+    expect(response.status).toBe(200)
+    const [, , config] = mockAxios.post.mock.calls[0]
+    expect(config.headers).not.toHaveProperty('Authorization')
+    expect(config.headers).not.toHaveProperty('x-authenticated-user-token')
   })
 })
 
@@ -295,5 +413,51 @@ describe('POST /connections/recommended/userDepartment', () => {
     const response = await withOrg(agent().post('/connections/recommended/userDepartment')).send({})
     expect(response.status).toBe(400)
     expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('defaults to "igot" when the looked-up department_name is falsy', async () => {
+    mockAxios.post
+      .mockResolvedValueOnce(upstreamOk([{ department_name: '' }]))
+      .mockResolvedValueOnce(upstreamOk([{ id: 'c4' }]))
+
+    const response = await withOrg(agent().post('/connections/recommended/userDepartment')).send({})
+
+    expect(response.status).toBe(200)
+    expect(mockAxios.post).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      expect.objectContaining({ search: [expect.objectContaining({ values: ['igot'] })] }),
+      expect.anything()
+    )
+  })
+
+  it('forwards the upstream status and body when the recommendation call itself fails', async () => {
+    mockAxios.post
+      .mockResolvedValueOnce(upstreamOk([{ department_name: 'Health' }]))
+      .mockRejectedValueOnce(upstreamError(400, { error: 'bad request' }))
+
+    const response = await withOrg(agent().post('/connections/recommended/userDepartment')).send({})
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'bad request' })
+  })
+
+  // Known, documented divergence — see docs/DUPLICATE-CODE-CLEANUP.md L3-17.
+  // Like /connections/recommended, this route omits Authorization and
+  // x-authenticated-user-token from both outbound calls. Asserting current
+  // behavior as-is; not a bug fix.
+  it('omits Authorization and x-authenticated-user-token from both outbound requests (documented divergence, L3-17)', async () => {
+    mockAxios.post
+      .mockResolvedValueOnce(upstreamOk([{ department_name: 'Health' }]))
+      .mockResolvedValueOnce(upstreamOk([{ id: 'c4' }]))
+
+    const response = await withOrg(agent().post('/connections/recommended/userDepartment')).send({})
+
+    expect(response.status).toBe(200)
+    for (const call of mockAxios.post.mock.calls) {
+      const config = call[2]
+      expect(config.headers).not.toHaveProperty('Authorization')
+      expect(config.headers).not.toHaveProperty('x-authenticated-user-token')
+    }
   })
 })
