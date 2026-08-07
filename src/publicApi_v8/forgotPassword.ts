@@ -12,7 +12,7 @@ const API_END_POINTS = {
   verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
 }
 
-const PASSWORD_RESET_FAIL = 'Sorry ! There is some issue in resetting your account. Please contact admin.'
+const ACCOUNT_RESET_FAIL_MSG = 'Sorry ! There is some issue in resetting your account. Please contact admin.'
 const VERIFY_OTP_FAIL = 'Sorry ! There is some issue in verifying your account. Please try after sometime.'
 
 export const forgotPassword = Router()
@@ -110,7 +110,7 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
     return
   } catch (err) {
     logError('ERROR in Searching Users : ' + err)
-    res.status(500).send({ message : PASSWORD_RESET_FAIL, status : 'failed'})
+    res.status(500).send({ message : ACCOUNT_RESET_FAIL_MSG, status : 'failed'})
   }
 })
 

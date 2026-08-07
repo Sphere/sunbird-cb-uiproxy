@@ -30,6 +30,36 @@ const HEADERS = {
 
 export const playlistApi = Router()
 
+// sonar-cleanup: extracted from playlist.ts's repeated per-route catch blocks — same upstream-error-forward + 500-fallback shape (Sonar duplication follow-up)
+/**
+ * Forwards the upstream error status/body when present, logging under
+ * `label`; otherwise responds 500 with the generic internal-server-error
+ * message. `/create` and `/update` additionally log an "unexpected error"
+ * line on the fallback path that `/search` doesn't — preserved here via
+ * `logUnexpected`, matching each route's original behavior exactly.
+ *
+ * @param res - the Express response to send the error on
+ * @param error - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error messages (e.g. "Playlist search")
+ * @param logUnexpected - whether to log the fallback-path error, matching /create and /update's original behavior
+ */
+// tslint:disable-next-line: no-any
+function handlePlaylistError(res: Response, error: any, label: string, logUnexpected = true) {
+    if (error && error.response) {
+        logError(`${label} API error response: Status ${error.response.status}`)
+        logError(`${label} API error details: ${JSON.stringify(error.response.data)}`)
+        return res.status(error.response.status).json(error.response.data)
+    }
+
+    if (logUnexpected) {
+        logError(`${label} unexpected error: ${error}`)
+    }
+    return res.status(500).json({
+        message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        status: 'error',
+    })
+}
+
 /**
  * POST /search
  * Search for playlists based on filters
@@ -81,19 +111,7 @@ playlistApi.post('/search', async (req: Request, res: Response) => {
         return res.status(response.status).json(response.data)
 
     } catch (error) {
-
-        // Handle axios error responses
-        if (error && error.response) {
-            logError(`Playlist API error response: Status ${error.response.status}`)
-            logError(`Playlist API error details: ${JSON.stringify(error.response.data)}`)
-            return res.status(error.response.status).json(error.response.data)
-        }
-
-        // Handle other errors
-        return res.status(500).json({
-            message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
-            status: 'error',
-        })
+        return handlePlaylistError(res, error, 'Playlist', false)
     }
 })
 
@@ -167,20 +185,7 @@ playlistApi.post('/create', async (req: Request, res: Response) => {
         return res.status(response.status).json(response.data)
 
     } catch (error) {
-
-        // Handle axios error responses
-        if (error && error.response) {
-            logError(`Playlist create API error response: Status ${error.response.status}`)
-            logError(`Playlist create API error details: ${JSON.stringify(error.response.data)}`)
-            return res.status(error.response.status).json(error.response.data)
-        }
-
-        // Handle other errors
-        logError(`Playlist create unexpected error: ${error}`)
-        return res.status(500).json({
-            message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
-            status: 'error',
-        })
+        return handlePlaylistError(res, error, 'Playlist create')
     }
 })
 
@@ -264,20 +269,7 @@ playlistApi.put('/update', async (req: Request, res: Response) => {
         return res.status(response.status).json(response.data)
 
     } catch (error) {
-
-        // Handle axios error responses
-        if (error && error.response) {
-            logError(`Playlist update API error response: Status ${error.response.status}`)
-            logError(`Playlist update API error details: ${JSON.stringify(error.response.data)}`)
-            return res.status(error.response.status).json(error.response.data)
-        }
-
-        // Handle other errors
-        logError(`Playlist update unexpected error: ${error}`)
-        return res.status(500).json({
-            message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
-            status: 'error',
-        })
+        return handlePlaylistError(res, error, 'Playlist update')
     }
 })
 

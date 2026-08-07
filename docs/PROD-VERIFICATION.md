@@ -4255,6 +4255,54 @@ restorations verified byte-identical to the pre-refactor originals.
 
 ---
 
+## CHANGE 27 — 4 more self-duplication clusters, plus a false-positive secret-scanner rename
+
+A follow-up research pass targeted files never individually reviewed in
+this campaign, specifically excluding `whitelistApis.ts` (a security
+table, out of scope) and every file with a confirmed bug already found
+this session. Found 4 genuinely safe self-duplication clusters and one
+unrelated cosmetic fix.
+
+**Fixed:**
+
+| File | Change |
+|---|---|
+| `src/protectedApi_v8/frac.ts` | 6 catch blocks → `handleFracError(res, err, message?)`; the one route with a distinct message and an extra `logError` line passes both explicitly |
+| `src/protectedApi_v8/competency.ts` | 3 catch blocks → `handleCompetencyError(res, err)`, zero parameters — all 3 were byte-identical, no variance |
+| `src/protectedApi_v8/entityCompetency.ts` | 6 catch blocks → `handleEntityCompetencyError(res, error, label, message)`, both varying pieces passed explicitly, original (inconsistent) label casing preserved verbatim |
+| `src/protectedApi_v8/playlist.ts` (+ test) | 3 catch blocks → `handlePlaylistError(res, error, label, logUnexpected?)` — `/search`'s catch lacked the "unexpected error" log line `/create`/`/update` both have; preserved via an explicit boolean rather than silently adding or dropping it. Added `logError` call-count assertions to the 3 existing transport-failure tests, since none previously verified this log-line difference directly |
+| `src/publicApi_v8/forgotPassword.ts` | renamed `PASSWORD_RESET_FAIL` → `ACCOUNT_RESET_FAIL_MSG` — the IDE's secret-scanner flagged it as a "hard-coded password" purely because of the identifier name; the value is a plain user-facing error string, not a credential. Value unchanged, only the constant name |
+
+**Why fixed this way:** `competency.ts` and `entityCompetency.ts` looked
+like a matched pair from their similar names — investigated and confirmed
+they are not: different upstream services (`FRAC_API_BASE` vs
+`ENTITY_API_BASE`), different auth mechanisms
+(`extractAuthorizationFromRequest` vs a bespoke `x-authenticated-user-token`
+header), no cross-file merge attempted. `entityCompetency.ts` separately
+has a confirmed pre-existing bug (`res.status(response.data.responseCode)`
+on the success path — upstream's own `responseCode` field, often a string
+like `"OK"`, used directly as an HTTP status, throwing and falling into
+the very catch block being extracted here) — the extraction only touches
+the catch body, leaves the buggy success-path line untouched, and the
+existing tests already assert this bug's current behavior.
+
+**Impact: zero.** Every route's own test suite passed unchanged after its
+file's extraction (`frac.test.ts` 23, `competency.test.ts` 10,
+`entityCompetency.test.ts` 19, `playlist.test.ts` 18 — the last extended
+with 3 new log-assertion checks, not net-new test cases). `tsc --noEmit`
+and `tslint` clean (one real finding along the way: a redundant `boolean`
+type annotation on a defaulted parameter, fixed). Full regression: 216
+suites / 3414 tests pass, unchanged from before this batch. `npm run
+build` exits 0, clean `dist/` (278 files, zero `*.test.js` leaked).
+
+**MUST VERIFY IN PROD:** nothing — every extracted helper reproduces its
+original call sites' status/body/log behavior exactly, including the one
+deliberately-preserved inconsistency (`/search`'s missing "unexpected
+error" log line). The `forgotPassword.ts` rename does not change the
+constant's value, only its identifier.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
