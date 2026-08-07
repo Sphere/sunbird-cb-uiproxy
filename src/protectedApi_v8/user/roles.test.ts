@@ -75,6 +75,22 @@ describe('GET /', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual(['author'])
   })
+
+  // The route's catch block (lines 46-47) is otherwise unreachable, since
+  // getUserRoles() never rethrows. It IS reachable if something else inside
+  // the try throws synchronously — here, res.json() itself, when handed a
+  // circular object it can't JSON.stringify. That throw happens before any
+  // bytes are written, so the catch's single res.status().send() is still
+  // the only response sent. Safe to run live.
+  it('falls back to the catch handler when the response body cannot be serialized', async () => {
+    // tslint:disable-next-line: no-any
+    const circular: any = {}
+    circular.self = circular
+    mockAxiosMethods.get.mockResolvedValue(upstreamOk(circular))
+    const response = await withRootOrg(agent().get('/'))
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed due to unknown reason' })
+  })
 })
 
 describe('GET /allRoles', () => {
@@ -88,6 +104,21 @@ describe('GET /allRoles', () => {
   it('rejects a request missing rootOrg', async () => {
     const response = await agent().get('/allRoles')
     expect(response.status).toBe(400)
+  })
+
+  // Same reasoning as GET / above: getUserRoles() never rethrows, so the
+  // only live way to reach this route's catch block (lines 66-67) is a
+  // synchronous throw elsewhere in the try — here, res.json() choking on a
+  // circular body. Safe to run live: the throw preempts any response being
+  // sent, so the catch's send is still the only one.
+  it('falls back to the catch handler when the response body cannot be serialized', async () => {
+    // tslint:disable-next-line: no-any
+    const circular: any = {}
+    circular.self = circular
+    mockAxiosMethods.get.mockResolvedValue(upstreamOk(circular))
+    const response = await withRootOrg(agent().get('/allRoles'))
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed due to unknown reason' })
   })
 })
 
@@ -103,6 +134,20 @@ describe('GET /getRolesV2/:userId', () => {
     const response = await agent().get('/getRolesV2/u2')
     expect(response.status).toBe(400)
   })
+
+  // Same reasoning as GET / above: getUserRoles() never rethrows, so the
+  // only live way to reach this route's catch block (lines 133-134) is a
+  // synchronous throw elsewhere in the try — here, res.send() delegating to
+  // res.json() and choking on a circular body. Safe to run live.
+  it('falls back to the catch handler when the response body cannot be serialized', async () => {
+    // tslint:disable-next-line: no-any
+    const circular: any = {}
+    circular.self = circular
+    mockAxiosMethods.get.mockResolvedValue(upstreamOk(circular))
+    const response = await withRootOrg(agent().get('/getRolesV2/u2'))
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed due to unknown reason' })
+  })
 })
 
 describe('GET /:userId', () => {
@@ -116,6 +161,20 @@ describe('GET /:userId', () => {
   it('rejects a request missing rootOrg', async () => {
     const response = await agent().get('/u3')
     expect(response.status).toBe(400)
+  })
+
+  // Same reasoning as GET / above: getUserRoles() never rethrows, so the
+  // only live way to reach this route's catch block (lines 86-87) is a
+  // synchronous throw elsewhere in the try — here, res.json() choking on a
+  // circular body. Safe to run live.
+  it('falls back to the catch handler when the response body cannot be serialized', async () => {
+    // tslint:disable-next-line: no-any
+    const circular: any = {}
+    circular.self = circular
+    mockAxiosMethods.get.mockResolvedValue(upstreamOk(circular))
+    const response = await withRootOrg(agent().get('/u3'))
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed due to unknown reason' })
   })
 })
 

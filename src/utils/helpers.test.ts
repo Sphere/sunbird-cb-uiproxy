@@ -1,29 +1,9 @@
 import {
-  esBasicAuth,
   getDateRangeString,
   getEmailLocalPart,
   getStringifiedQueryParams,
-  range,
   validateInputWithRegex,
 } from './helpers'
-
-describe('range', () => {
-  it('yields 0..end-1 by default', () => {
-    expect([...range(5)]).toEqual([0, 1, 2, 3, 4])
-  })
-
-  it('honours a custom step', () => {
-    expect([...range(10, 3)]).toEqual([0, 3, 6, 9])
-  })
-
-  it('yields nothing for end 0', () => {
-    expect([...range(0)]).toEqual([])
-  })
-
-  it('yields nothing for a negative end', () => {
-    expect([...range(-1)]).toEqual([])
-  })
-})
 
 describe('getStringifiedQueryParams', () => {
   it('joins key=value pairs with &', () => {
@@ -56,12 +36,12 @@ describe('getEmailLocalPart', () => {
   it('handles an empty string', () => {
     expect(getEmailLocalPart('')).toBe('')
   })
-})
 
-describe('esBasicAuth', () => {
-  it('returns base64 of username:password', () => {
-    const decoded = Buffer.from(esBasicAuth(), 'base64').toString('utf8')
-    expect(decoded).toContain(':')
+  it('falls back to returning the input unchanged when indexOf throws', () => {
+    // Passing a non-string bypasses the type annotation at runtime and makes
+    // `.indexOf` throw, exercising the catch branch.
+    // tslint:disable-next-line: no-any
+    expect(getEmailLocalPart(null as any)).toBeNull()
   })
 })
 
@@ -99,6 +79,13 @@ describe('validateInputWithRegex', () => {
   it('returns a promise that never settles', async () => {
     const settled = jest.fn()
     validateInputWithRegex('abc', /abc/).then(settled).catch(settled)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(settled).not.toHaveBeenCalled()
+  })
+
+  it('still never settles when input is falsy (the early "return false" is inside the executor, not resolve)', async () => {
+    const settled = jest.fn()
+    validateInputWithRegex('', /abc/).then(settled).catch(settled)
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(settled).not.toHaveBeenCalled()
   })

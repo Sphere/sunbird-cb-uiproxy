@@ -9,6 +9,7 @@ import {
   axiosRequestConfigLong,
 } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
+import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
 import { getOTP, validateOTP } from './otp'
@@ -357,39 +358,6 @@ const handleCreateUserError = (error: any) => {
 }
 // tslint:disable-next-line: no-any
 
-const fetchUserBymobileorEmail = async (
-  searchValue: string,
-  searchType: string
-) => {
-  logInfo(
-    'Checking Fetch Mobile no : ',
-    API_END_POINTS.fetchUserByMobileNo + searchValue
-  )
-  try {
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'GET',
-      url:
-        searchType === 'email'
-          ? API_END_POINTS.fetchUserByEmail + searchValue
-          : API_END_POINTS.fetchUserByMobileNo + searchValue,
-    })
-    logInfo('Response Data in JSON :', JSON.stringify(response.data))
-    logInfo('Response Data in Success :', response.data.responseCode)
-    if (response.data.responseCode === 'OK') {
-      logInfo(
-        'Response result.exists :',
-        _.get(response, 'data.result.exists')
-      )
-      return _.get(response, 'data.result.exists')
-    }
-  } catch (err) {
-    logError('fetchUserByMobile  failed')
-  }
-}
 // tslint:disable-next-line: no-any
 const updateRoles = async (userUUId: string) => {
   try {
@@ -450,6 +418,68 @@ const createuserWithmobileOrEmail = async (accountDetails: any) => {
   }
 }
 
+// sonar-cleanup: extracted from /auth and /authv2's byte-identical token-exchange tail (CHANGE 23); logLabel parameter added (CHANGE 26) to restore each route's own distinct log line, lost in the initial merge
+/**
+ * Exchanges a Keycloak grant for a token, decodes it, and establishes the
+ * session — the tail shared by /auth (password grant) and /authv2
+ * (authorization-code grant). Each caller supplies its own encoded grant
+ * body, since that's the only part of the flow that actually differs
+ * between the two grant types, and its own log label so /auth and /authv2
+ * stay distinguishable in the logs.
+ */
+// tslint:disable-next-line: no-any
+async function exchangeTokenAndEstablishSession(req: any, res: any, encodedData: string, logLabel: string) {
+  try {
+    logInfo('Entered into authorization part.' + encodedData)
+
+    const authTokenResponse = await axios({
+      ...axiosRequestConfig,
+      data: encodedData,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      method: 'POST',
+      url: API_END_POINTS.generateToken,
+    })
+
+    logInfo(logLabel + JSON.stringify(authTokenResponse.data))
+
+    if (authTokenResponse.data) {
+      const accessToken = authTokenResponse.data.access_token
+      // tslint:disable-next-line: no-any
+      const decodedToken: any = jwt_decode(accessToken)
+      const decodedTokenArray = decodedToken.sub.split(':')
+      const userId = decodedTokenArray[decodedTokenArray.length - 1]
+      req.session.userId = userId
+      req.kauth = {
+        grant: {
+          access_token: { content: decodedToken, token: accessToken },
+        },
+      }
+      req.session.grant = {
+        access_token: { content: decodedToken, token: accessToken },
+      }
+      logInfo('Success ! Entered into usertokenResponse..')
+      await getCurrentUserRoles(req, accessToken)
+
+      res.status(200).json({
+        msg: AUTHENTICATED,
+        status: 'success',
+      })
+    } else {
+      res.status(302).json({
+        msg: AUTH_FAIL,
+        status: 'error',
+      })
+    }
+  } catch (e) {
+    logInfo('Error throwing Cookie inside auth route : ' + e)
+    res.status(400).send({
+      error: AUTH_FAIL,
+    })
+  }
+}
+
 // login endpoint for public users
 // tslint:disable-next-line: no-any
 emailOrMobileLogin.post('/auth', async (req: any, res, next) => {
@@ -493,62 +523,14 @@ emailOrMobileLogin.post('/auth', async (req: any, res, next) => {
           logInfo('Step ii : email response value :->' + email)
           logInfo('Step iii : password response value :->' + password)
 
-          try {
-            const encodedData = qs.stringify({
-              client_id: 'portal',
-              // client_secret: `${CONSTANTS.KEYCLOAK_CLIENT_SECRET}`,
-              grant_type: 'password',
-              password,
-              username,
-            })
-            logInfo('Entered into authorization part.' + encodedData)
-
-            const authTokenResponse = await axios({
-              ...axiosRequestConfig,
-              data: encodedData,
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              method: 'POST',
-              url: API_END_POINTS.generateToken,
-            })
-
-            logInfo('Entered into authTokenResponse :' + authTokenResponse)
-
-            if (authTokenResponse.data) {
-              const accessToken = authTokenResponse.data.access_token
-              // tslint:disable-next-line: no-any
-              const decodedToken: any = jwt_decode(accessToken)
-              const decodedTokenArray = decodedToken.sub.split(':')
-              const userId = decodedTokenArray[decodedTokenArray.length - 1]
-              req.session.userId = userId
-              req.kauth = {
-                grant: {
-                  access_token: { content: decodedToken, token: accessToken },
-                },
-              }
-              req.session.grant = {
-                access_token: { content: decodedToken, token: accessToken },
-              }
-              logInfo('Success ! Entered into usertokenResponse..')
-              await getCurrentUserRoles(req, accessToken)
-
-              res.status(200).json({
-                msg: AUTHENTICATED,
-                status: 'success',
-              })
-            } else {
-              res.status(302).json({
-                msg: AUTH_FAIL,
-                status: 'error',
-              })
-            }
-          } catch (e) {
-            logInfo('Error throwing Cookie inside auth route : ' + e)
-            res.status(400).send({
-              error: AUTH_FAIL,
-            })
-          }
+          const encodedData = qs.stringify({
+            client_id: 'portal',
+            // client_secret: `${CONSTANTS.KEYCLOAK_CLIENT_SECRET}`,
+            grant_type: 'password',
+            password,
+            username,
+          })
+          await exchangeTokenAndEstablishSession(req, res, encodedData, 'Entered into authTokenResponse :')
         } else if (!req.body.mobileNumber || !req.body.email) {
           res.status(400).json({
             msg: EMAIL_OR_MOBILE_ERROR_MSG,
@@ -576,64 +558,18 @@ emailOrMobileLogin.post('/authv2/*', async (req: any, res, next) => {
       try {
         logInfo('Entered into /login/authv2 endpoint >>> ')
 
-        try {
-          const code = req.query.code
+        const code = req.query.code
 
-          logInfo('Valdating Code >>> ', code)
-          logInfo('Redirect URI:>>>>', API_END_POINTS.keycloak_redirect_url)
+        logInfo('Valdating Code >>> ', code)
+        logInfo('Redirect URI:>>>>', API_END_POINTS.keycloak_redirect_url)
 
-          const transformedData = qs.stringify({
-            client_id: 'portal',
-            code,
-            grant_type: 'authorization_code',
-            redirect_uri: API_END_POINTS.keycloak_redirect_url,
-          })
-          logInfo('Entered into authorization part.' + transformedData)
-          const authTokenResponse = await axios({
-            ...axiosRequestConfig,
-            data: transformedData,
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            method: 'POST',
-            url: API_END_POINTS.generateToken,
-          })
-          logInfo('Entered into authTokenResponsev2 :' + authTokenResponse)
-          if (authTokenResponse.data) {
-            const accessToken = authTokenResponse.data.access_token
-            // tslint:disable-next-line: no-any
-            const decodedToken: any = jwt_decode(accessToken)
-            const decodedTokenArray = decodedToken.sub.split(':')
-            const userId = decodedTokenArray[decodedTokenArray.length - 1]
-            req.session.userId = userId
-            req.kauth = {
-              grant: {
-                access_token: { content: decodedToken, token: accessToken },
-              },
-            }
-            req.session.grant = {
-              access_token: { content: decodedToken, token: accessToken },
-            }
-            logInfo('Success ! Entered into usertokenResponse..')
-            await getCurrentUserRoles(req, accessToken)
-
-            res.status(200).json({
-              msg: AUTHENTICATED,
-              status: 'success',
-            })
-          } else {
-            res.status(302).json({
-              msg: AUTH_FAIL,
-              status: 'error',
-            })
-          }
-        } catch (e) {
-          logInfo('Error throwing Cookie inside auth route : ' + e)
-
-          res.status(400).send({
-            error: AUTH_FAIL,
-          })
-        }
+        const transformedData = qs.stringify({
+          client_id: 'portal',
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: API_END_POINTS.keycloak_redirect_url,
+        })
+        await exchangeTokenAndEstablishSession(req, res, transformedData, 'Entered into authTokenResponsev2 :')
       } catch (error) {
         logInfo('error' + error)
 

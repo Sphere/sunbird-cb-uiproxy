@@ -1,30 +1,20 @@
 import axios from 'axios'
 import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
-import _ from 'lodash'
 import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
+import {
+  API_END_POINTS,
+  INDIAN_COUNTRY_CODE as indianCountryCode,
+  MSG91_HEADERS as msg91Headers,
+} from '../utils/autoLoginSignupConstants'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
+import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
+import { createAccount, profileUpdate } from '../utils/signupAccountHelpers'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
-
-const API_END_POINTS = {
-  createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-  generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
-  grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-  keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
-  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-  profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-  verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-}
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
@@ -33,50 +23,6 @@ const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
-// function decryptData(encryptedData) {
-//   const buff = Buffer.from(encryptedData, "base64");
-//   const decipher = crypto.createDecipheriv(
-//     aesData.ecnryption_method,
-//     key,
-//     encryptionIV
-//   );
-//   return (
-//     decipher.update(buff.toString("utf8"), "hex", "utf8") +
-//     decipher.final("utf8")
-//   ); // Decrypts data and converts to utf8
-// }
-// tslint:disable-next-line: no-any
-const indianCountryCode = '+91'
-
-const msg91Headers = {
-  accept: 'application/json',
-  authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-  'content-type': 'application/json',
-}
-// tslint:disable-next-line: no-any
-const createAccount = async (profileData: any) => {
-  try {
-    const typeOfAccount = profileData.email ? 'email' : 'phone'
-    return await axios({
-      ...axiosRequestConfig,
-      data: {
-        request: {
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          password: profileData.password,
-          [typeOfAccount]: profileData[typeOfAccount],
-        },
-      },
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'POST',
-      url: API_END_POINTS.createUserWithMobileNo,
-    })
-  } catch (error) {
-    logInfo(JSON.stringify(error))
-  }
-}
 const updateRoles = async (userUUId: string) => {
   try {
     return await axios({
@@ -95,37 +41,6 @@ const updateRoles = async (userUUId: string) => {
   } catch (err) {
     logError('update roles failed ' + err)
     return 'false'
-  }
-}
-// tslint:disable-next-line: no-any
-const profileUpdate = async (profileData: any, userId: any) => {
-  try {
-    return await axios({
-      ...axiosRequestConfig,
-      data: {
-        request: {
-          profileDetails: {
-            preferences: {
-              language: 'en',
-            },
-            profileReq: {
-              id: userId,
-              personalDetails: {
-                firstname: profileData.firstName,
-                surname: profileData.lastName,
-              },
-              userId,
-            },
-          },
-          userId,
-        },
-      },
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
-      method: 'PATCH',
-      url: API_END_POINTS.profileUpdate,
-    })
-  } catch (error) {
-    logInfo(JSON.stringify(error))
   }
 }
 export const signupWithAutoLogin = Router()
@@ -355,37 +270,3 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
     })
   }
 })
-
-const fetchUserBymobileorEmail = async (
-  searchValue: string,
-  searchType: string
-) => {
-  logInfo(
-    'Checking Fetch Mobile no : ',
-    API_END_POINTS.fetchUserByMobileNo + searchValue
-  )
-  try {
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'GET',
-      url:
-        searchType === 'email'
-          ? API_END_POINTS.fetchUserByEmail + searchValue
-          : API_END_POINTS.fetchUserByMobileNo + searchValue,
-    })
-    logInfo('Response Data in JSON :', JSON.stringify(response.data))
-    logInfo('Response Data in Success :', response.data.responseCode)
-    if (response.data.responseCode === 'OK') {
-      logInfo(
-        'Response result.exists :',
-        _.get(response, 'data.result.exists')
-      )
-      return _.get(response, 'data.result.exists')
-    }
-  } catch (err) {
-    logError('fetchUserByMobile  failed')
-  }
-}

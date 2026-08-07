@@ -34,24 +34,49 @@ export const returnData = (data: any, masterObjectKey: any = null, level = 'flat
  * @return {[json]}         [description]
  */
 
+// sonar-cleanup: extracted from hierarchy()'s `data.request` branch, character-for-character unchanged (CHANGE 4) — split out to reduce hierarchy()'s cognitive complexity, not to dedupe across files
+/**
+ * Swaps the contentType of the first hierarchy entry that is a
+ * Collection or CourseUnit, flipping it to the other of the pair.
+ * Stops after the first match, matching the original inline loop.
+ *
+ * @param data - the request body; mutated in place via data.request.data.hierarchy
+ */
+// tslint:disable-next-line: no-any
+function swapFirstMatchingHierarchyContentType(data: any) {
+	const alData = data.request.data.hierarchy
+	for (const property in alData) {
+		if (alData[property].contentType === 'Collection' || alData[property].contentType === 'CourseUnit') {
+			data.request.data.hierarchy[property].contentType = contentMapper[data.request.data.hierarchy[property].contentType]
+			break
+		}
+	}
+}
+
+// sonar-cleanup: extracted from hierarchy()'s `data.params.status === 'successful'` branch, character-for-character unchanged (CHANGE 4) — split out to reduce hierarchy()'s cognitive complexity, not to dedupe across files
+/**
+ * Swaps the contentType of every Collection/CourseUnit child in a
+ * successful hierarchy response, flipping each to the other of the pair.
+ *
+ * @param data - the response body; mutated in place via data.result.content.children
+ */
+// tslint:disable-next-line: no-any
+function swapChildrenContentType(data: any) {
+	if (data.result.content && data.result.content.children && data.result.content.children.length > 0) {
+		data.result.content.children.forEach((element: any) => {
+			if (element.contentType === 'Collection' || element.contentType === 'CourseUnit') {
+				element.contentType = contentMapper[element.contentType]
+			}
+		})
+	}
+}
+
 // tslint:disable-next-line: no-any
 function hierarchy(data: any = null) {
 	if (data.request) {
-		const alData = data.request.data.hierarchy
-		for (const property in alData) {
-			if (alData[property].contentType === 'Collection' || alData[property].contentType === 'CourseUnit') {
-				data.request.data.hierarchy[property].contentType = contentMapper[data.request.data.hierarchy[property].contentType]
-				break
-			}
-		}
+		swapFirstMatchingHierarchyContentType(data)
 	} else if (data.params.status === 'successful' && data.result) {
-		if (data.result.content && data.result.content.children && data.result.content.children.length > 0) {
-			data.result.content.children.forEach((element: any) => {
-				if (element.contentType === 'Collection' || element.contentType === 'CourseUnit') {
-					element.contentType = contentMapper[element.contentType]
-				}
-			})
-		}
+		swapChildrenContentType(data)
 	}
 
 	return data

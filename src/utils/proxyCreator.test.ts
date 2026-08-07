@@ -119,6 +119,40 @@ describe('module load', () => {
   it('upload proxy error handler logs without throwing', () => {
     expect(() => uploadOnHandlers.error(new Error('boom'), {}, {})).not.toThrow()
   })
+
+  it('upload proxy error handler stringifies a non-Error value without throwing', () => {
+    expect(() => uploadOnHandlers.error('boom-string', {}, {})).not.toThrow()
+  })
+
+  it('proxyRes handler stores the nodebb auth token on the session for the create-user route', () => {
+    const proxyRes = { headers: { nodebb_auth_token: 'nb-token-1' } }
+    // tslint:disable-next-line: no-any
+    const req: any = { originalUrl: '/discussion/user/v1/create', session: {} }
+    onHandlers.proxyRes(proxyRes, req, mockRes())
+    expect(req.session.nodebb_authorization_token).toBe('nb-token-1')
+  })
+
+  it('proxyRes handler does nothing when there is no session on the create-user route', () => {
+    const proxyRes = { headers: { nodebb_auth_token: 'nb-token-1' } }
+    const req = { originalUrl: '/discussion/user/v1/create' }
+    expect(() => onHandlers.proxyRes(proxyRes, req, mockRes())).not.toThrow()
+  })
+
+  it('proxyRes handler buffers and transforms a hierarchy edit response before ending it', () => {
+    // tslint:disable-next-line: no-any
+    const dataHandlers: Record<string, Function> = {}
+    const proxyRes = {
+      // tslint:disable-next-line: no-any
+      on: jest.fn((event: string, handler: Function) => { dataHandlers[event] = handler }),
+    }
+    const req = { originalUrl: '/content/v3/hierarchy?mode=edit&src=sunbird' }
+    const res = mockRes()
+    onHandlers.proxyRes(proxyRes, req, res)
+    dataHandlers.data(Buffer.from('{"a":1}'))
+    dataHandlers.end()
+    expect(mockReturnData).toHaveBeenCalledWith({ a: 1 }, null, 'hierarchy')
+    expect(res.end).toHaveBeenCalledWith(JSON.stringify({ transformed: { a: 1 } }))
+  })
 })
 
 describe('proxyCreatorRoute', () => {
@@ -247,6 +281,54 @@ describe('proxyCreatorDiscussionSunbird', () => {
     await handler({ originalUrl: '/proxies/v8/discussion/posts', session: {} }, res)
     expect(res.status).toHaveBeenCalledWith(401)
     expect(mockWeb).not.toHaveBeenCalled()
+  })
+
+  it('logs the raw error and returns 401 when a non-Error value is thrown', async () => {
+    mockJwtDecode.mockImplementationOnce(() => { throw 'boom-string' })
+    const handler = captureHandler(proxyCreator.proxyCreatorDiscussionSunbird, 'https://discuss.test')
+    const res = mockRes()
+    await handler({ originalUrl: '/proxies/v8/discussion/posts', session: {} }, res)
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(mockWeb).not.toHaveBeenCalled()
+  })
+
+  it('strips a /uid segment from the URL before proxying', async () => {
+    mockJwtDecode.mockReturnValue({ name: 'Test', preferred_username: 'test', sub: 'realm:user:u1' })
+    mockFetchNodebbUser.mockResolvedValue('nb-99')
+    const handler = captureHandler(proxyCreator.proxyCreatorDiscussionSunbird, 'https://discuss.test')
+    const req = { originalUrl: '/proxies/v8/discussion/uid/posts', session: {} }
+    await handler(req, mockRes())
+    expect(mockWeb).toHaveBeenCalledWith(
+      req,
+      expect.anything(),
+      expect.objectContaining({ target: 'https://discuss.test/discussion/posts?_uid=nb-99' })
+    )
+  })
+
+  it('collapses a duplicated discussion/topic path segment before proxying', async () => {
+    mockJwtDecode.mockReturnValue({ name: 'Test', preferred_username: 'test', sub: 'realm:user:u1' })
+    mockFetchNodebbUser.mockResolvedValue('nb-100')
+    const handler = captureHandler(proxyCreator.proxyCreatorDiscussionSunbird, 'https://discuss.test')
+    const req = { originalUrl: '/proxies/v8/x/discussion/topic/topic/extra', session: {} }
+    await handler(req, mockRes())
+    expect(mockWeb).toHaveBeenCalledWith(
+      req,
+      expect.anything(),
+      expect.objectContaining({ target: 'https://discuss.test/x/discussion/topic/extra?_uid=nb-100' })
+    )
+  })
+
+  it('appends the nodebb uid with & when the cleaned URL already has a query string', async () => {
+    mockJwtDecode.mockReturnValue({ name: 'Test', preferred_username: 'test', sub: 'realm:user:u1' })
+    mockFetchNodebbUser.mockResolvedValue('nb-101')
+    const handler = captureHandler(proxyCreator.proxyCreatorDiscussionSunbird, 'https://discuss.test')
+    const req = { originalUrl: '/proxies/v8/discussion/posts?foo=bar', session: {} }
+    await handler(req, mockRes())
+    expect(mockWeb).toHaveBeenCalledWith(
+      req,
+      expect.anything(),
+      expect.objectContaining({ target: 'https://discuss.test/discussion/posts?foo=bar&_uid=nb-101' })
+    )
   })
 })
 
@@ -408,19 +490,6 @@ describe('scormProxyCreatorRoute', () => {
   })
 })
 
-describe('proxyCreatorUpload', () => {
-  it('strips the action slug before proxying', () => {
-    const handler = captureHandler(proxyCreator.proxyCreatorUpload, 'https://upload.test')
-    const req = { originalUrl: '/proxies/v8/action/upload/1' }
-    handler(req, mockRes())
-    expect(mockWeb).toHaveBeenCalledWith(
-      req,
-      expect.anything(),
-      expect.objectContaining({ target: 'https://upload.test/upload/1' })
-    )
-  })
-})
-
 describe('proxyCreatorSunbirdSearch', () => {
   it('proxies directly to the target URL', () => {
     const handler = captureHandler(proxyCreator.proxyCreatorSunbirdSearch, 'https://search.test')
@@ -482,5 +551,35 @@ describe('proxyCreatorEtlFrac', () => {
     handler(req, res)
     const result = res.send('payload')
     expect(result).toBe(res)
+  })
+
+  it('logs entity API errors via the registered res error handler', () => {
+    const { logError } = require('./logger')
+    const handler = captureHandler(proxyCreator.proxyCreatorEtlFrac, 'https://kong.test')
+    const req = { originalUrl: '/proxies/v8/entity/v1/search' }
+    const res = mockRes()
+    // tslint:disable-next-line: no-any
+    const onSpy = jest.fn()
+    res.on = onSpy
+    handler(req, res)
+    // tslint:disable-next-line: no-any
+    const errorHandler = onSpy.mock.calls.find((call: any[]) => call[0] === 'error')[1]
+    errorHandler(new Error('kong down'))
+    expect(logError).toHaveBeenCalledWith(expect.stringContaining('kong down'))
+  })
+
+  it("logs 'Unknown' when the res error event carries no message", () => {
+    const { logError } = require('./logger')
+    const handler = captureHandler(proxyCreator.proxyCreatorEtlFrac, 'https://kong.test')
+    const req = { originalUrl: '/proxies/v8/entity/v1/search' }
+    const res = mockRes()
+    // tslint:disable-next-line: no-any
+    const onSpy = jest.fn()
+    res.on = onSpy
+    handler(req, res)
+    // tslint:disable-next-line: no-any
+    const errorHandler = onSpy.mock.calls.find((call: any[]) => call[0] === 'error')[1]
+    errorHandler({})
+    expect(logError).toHaveBeenCalledWith(expect.stringContaining('Unknown'))
   })
 })

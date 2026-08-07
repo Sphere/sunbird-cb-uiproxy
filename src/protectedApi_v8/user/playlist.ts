@@ -23,6 +23,7 @@ import {
   transformToSbExtSyncRequest,
   // transformToSbExtUpsertRequest
 } from '../../service/playlist'
+import { patchContentViaHierarchyUpdate } from '../../utils/contentPatchHelpers'
 import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { logError } from '../../utils/logger'
@@ -409,50 +410,13 @@ playlistApi.get('/', async (req, res) => {
 
 playlistApi.patch('/:playlistId', async (req, res) => {
   /* Patch request to update the title of a playlist */
-  try {
-    const request = req.body
-    const rootOrg = req.header('rootOrg')
-    const auth = req.header('Authorization')
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    const playlistId = req.params.playlistId
-    const url = `https://igot-dev.in/apis/proxies/v8/action/content/v3/update/${playlistId}`
-    const response = await axios({
-      ...axiosRequestConfig,
-      data: formPlaylistupdateObj(request),
-      headers: {
-        Authorization: auth,
-        org: 'dopt',
-        rootOrg: 'igot',
-      },
-      method: 'PATCH',
-      url,
-    })
-
-    const urll = `https://igot-dev.in/apis/proxies/v8/action/content/v3/hierarchy/update`
-
-    const response1 = await axios({
-      ...axiosRequestConfig,
-      data: transformToSbExtPatchRequest(request, playlistId),
-      headers: {
-        Authorization: auth,
-        org: 'dopt',
-        rootOrg: 'igot',
-      },
-      method: 'PATCH',
-      url: urll,
-    })
-    res.status(response.status || response1.status).send()
-  } catch (err) {
-    logError(err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
-  }
+  await patchContentViaHierarchyUpdate(
+    req,
+    res,
+    req.params.playlistId,
+    formPlaylistupdateObj,
+    transformToSbExtPatchRequest
+  )
 })
 
 playlistApi.post('/create', async (req, res) => {

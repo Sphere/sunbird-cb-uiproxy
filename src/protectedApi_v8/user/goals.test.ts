@@ -31,6 +31,10 @@ import { mountRouter } from '../../test-support/mountRouter'
 import { goalsApi } from './goals'
 
 const mockAxios = axios as jest.Mocked<typeof axios>
+// Two routes (`POST /` and `PATCH /:goalId`) call axios as a bare function
+// (`axios({...})`) rather than via `.get`/`.post`/etc — mocked separately,
+// matching the established convention in scoring.test.ts.
+const mockAxiosCallable = axios as unknown as jest.Mock
 const agent = () => mountRouter(goalsApi)
 const withRootOrg = (req: ReturnType<typeof agent>) => req.set('rootOrg', 'r1')
 
@@ -39,6 +43,8 @@ beforeEach(() => {
   mockAxios.post.mockReset()
   mockAxios.put.mockReset()
   mockAxios.delete.mockReset()
+  mockAxios.patch.mockReset()
+  mockAxiosCallable.mockReset()
 })
 
 describe('GET /updateDurationCommonGoal/:goalType/:goalId', () => {
@@ -71,6 +77,12 @@ describe('POST /share/:goalType/:goalId', () => {
     const response = await agent().post('/share/common/g1').send({})
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/share/common/g1')).send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /sharev2/:goalType/:goalId', () => {
@@ -78,6 +90,17 @@ describe('POST /sharev2/:goalType/:goalId', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ shared: true }))
     const response = await withRootOrg(agent().post('/sharev2/common/g1')).send({})
     expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().post('/sharev2/common/g1').send({})
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/sharev2/common/g1')).send({})
+    expect(response.status).toBe(500)
   })
 })
 
@@ -112,6 +135,12 @@ describe('GET /action', () => {
     const response = await agent().get('/action')
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/action')).query({ sourceFields: 'name' })
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /common', () => {
@@ -120,6 +149,11 @@ describe('GET /common', () => {
     const response = await withRootOrg(agent().get('/common'))
     expect(response.status).toBe(200)
     expect(response.body).toEqual([{ id: 'grp1' }])
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().get('/common')
+    expect(response.status).toBe(400)
   })
 
   it('returns 500 on an upstream failure', async () => {
@@ -135,6 +169,17 @@ describe('GET /common/:groupId', () => {
     const response = await withRootOrg(agent().get('/common/grp1'))
     expect(response.status).toBe(200)
   })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().get('/common/grp1')
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/common/grp1'))
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /for-others', () => {
@@ -142,6 +187,17 @@ describe('GET /for-others', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ id: 'g1' }]))
     const response = await withRootOrg(agent().get('/for-others')).query({ sourceFields: 'name' })
     expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().get('/for-others').query({ sourceFields: 'name' })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/for-others')).query({ sourceFields: 'name' })
+    expect(response.status).toBe(500)
   })
 })
 
@@ -155,6 +211,12 @@ describe('GET /track/:goalType/:goalId', () => {
   it('rejects a request missing rootOrg', async () => {
     const response = await agent().get('/track/common/g1')
     expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/track/common/g1'))
+    expect(response.status).toBe(500)
   })
 })
 
@@ -184,6 +246,19 @@ describe('POST /removeUsers/:goalType/:goalId', () => {
       userIds: ['u2'],
     })
     expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().post('/removeUsers/common/g1').send({ userIds: ['u2'] })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/removeUsers/common/g1')).send({
+      userIds: ['u2'],
+    })
+    expect(response.status).toBe(500)
   })
 })
 
@@ -218,5 +293,84 @@ describe('DELETE /removeContent/:goalId/:contentId', () => {
   it('rejects a request missing rootOrg', async () => {
     const response = await agent().delete('/removeContent/g1/c1')
     expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.delete.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().delete('/removeContent/g1/c1'))
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('PATCH /addContent/:goalId/:contentId', () => {
+  it('adds content to the goal', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ added: true }))
+    const response = await withRootOrg(agent().patch('/addContent/g1/c1')).query({
+      goal_type: 'common',
+    })
+    expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().patch('/addContent/g1/c1').query({ goal_type: 'common' })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.patch.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().patch('/addContent/g1/c1')).query({
+      goal_type: 'common',
+    })
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('POST /', () => {
+  it('creates the goal and updates the content hierarchy', async () => {
+    mockAxiosCallable
+      .mockResolvedValueOnce(upstreamOk({ id: 'created-1' }))
+      .mockResolvedValueOnce(upstreamOk({ id: 'created-1', updated: true }))
+    const response = await withRootOrg(agent().post('/')).send({ title: 'New goal' })
+    expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().post('/').send({ title: 'New goal' })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 when the create call fails', async () => {
+    mockAxiosCallable.mockRejectedValueOnce(networkError())
+    const response = await withRootOrg(agent().post('/')).send({ title: 'New goal' })
+    expect(response.status).toBe(500)
+  })
+
+  it('returns 500 when the hierarchy-update call fails', async () => {
+    mockAxiosCallable
+      .mockResolvedValueOnce(upstreamOk({ id: 'created-1' }))
+      .mockRejectedValueOnce(networkError())
+    const response = await withRootOrg(agent().post('/')).send({ title: 'New goal' })
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('PATCH /:goalId', () => {
+  it('updates the playlist title and content hierarchy', async () => {
+    mockAxiosCallable
+      .mockResolvedValueOnce(upstreamOk({ updated: true }))
+      .mockResolvedValueOnce(upstreamOk({ updated: true }))
+    const response = await withRootOrg(agent().patch('/g1')).send({ title: 'Renamed' })
+    expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().patch('/g1').send({ title: 'Renamed' })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxiosCallable.mockRejectedValueOnce(networkError())
+    const response = await withRootOrg(agent().patch('/g1')).send({ title: 'Renamed' })
+    expect(response.status).toBe(500)
   })
 })

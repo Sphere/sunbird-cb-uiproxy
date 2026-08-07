@@ -51,6 +51,21 @@ describe('GET /content/:contentId/trainings', () => {
   })
 })
 
+describe('GET /trainingsId/sessions', () => {
+  it('forwards training sessions', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([{ id: 's1' }]))
+    const response = await agent().get('/trainingsId/sessions')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([{ id: 's1' }])
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/trainingsId/sessions')
+    expect(response.status).toBe(400)
+  })
+})
+
 describe('GET /content/:contentId/trainings/count', () => {
   it('forwards the training count', async () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ count: 3 }))
@@ -71,6 +86,12 @@ describe('POST /count', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ count: 5 }))
     const response = await agent().post('/count').send({ identifiers: ['c1', 'c2'] })
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/count').send({ identifiers: ['c1'] })
+    expect(response.status).toBe(400)
   })
 })
 
@@ -142,6 +163,12 @@ describe('POST /:trainingId/share', () => {
     expect(response.status).toBe(200)
     expect(mockAxios.post).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ shared_with: [] }))
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/t1/share').send({})
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /watchlist', () => {
@@ -149,6 +176,12 @@ describe('GET /watchlist', () => {
     mockAxios.get.mockResolvedValue(upstreamOk(['c1', 'c2']))
     const response = await agent().get('/watchlist')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/watchlist')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -166,6 +199,12 @@ describe('GET /watchlist/content/:contentId/status', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ inWatchlist: false })
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/watchlist/content/c1/status')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('POST /watchlist/content/:contentId', () => {
@@ -173,6 +212,12 @@ describe('POST /watchlist/content/:contentId', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ res_code: 1 }))
     const response = await agent().post('/watchlist/content/c1')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/watchlist/content/c1')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -182,6 +227,12 @@ describe('DELETE /watchlist/content/:contentId', () => {
     const response = await agent().delete('/watchlist/content/c1')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.delete.mockRejectedValue(networkError())
+    const response = await agent().delete('/watchlist/content/c1')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /trainings/jit', () => {
@@ -189,6 +240,12 @@ describe('GET /trainings/jit', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ id: 'jit1' }]))
     const response = await agent().get('/trainings/jit')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/trainings/jit')
+    expect(response.status).toBe(400)
   })
 })
 
@@ -218,6 +275,12 @@ describe('GET /trainingsForApproval', () => {
     const response = await agent().get('/trainingsForApproval')
     expect(response.status).toBe(200)
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/trainingsForApproval')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('PATCH /:trainingId', () => {
@@ -225,6 +288,12 @@ describe('PATCH /:trainingId', () => {
     mockAxios.patch.mockResolvedValue(upstreamOk({ res_code: 1 }))
     const response = await agent().patch('/t1').send({ status: 'rejected' })
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.patch.mockRejectedValue(networkError())
+    const response = await agent().patch('/t1').send({ status: 'rejected' })
+    expect(response.status).toBe(400)
   })
 })
 
@@ -242,6 +311,12 @@ describe('GET /trainings/feedback', () => {
     expect(response.status).toBe(200)
     expect(response.body[0].date_range).toBe('')
   })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/trainings/feedback')
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('GET /feedback/:formId', () => {
@@ -249,6 +324,12 @@ describe('GET /feedback/:formId', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ id: 'q1' }]))
     const response = await agent().get('/feedback/f1')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/feedback/f1')
+    expect(response.status).toBe(400)
   })
 })
 

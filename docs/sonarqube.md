@@ -32,6 +32,15 @@ ratchets upward as code is touched.
 > than our 60% target. `npm run sonar:gate` creates a separate gate with the
 > correct value — do not just assign "Sonar way".
 
+**Overall coverage floor: ≥ 80%.** Added once the Phase 1/2 Jest coverage
+campaign pushed the whole-repo figure to 81%. This is the one condition in
+the gate that is **not** new-code-scoped — Clean-as-You-Code alone can't
+prevent the absolute number from drifting down again (a PR that only
+touches already-covered lines could still let the overall percentage slip
+if untested code is added elsewhere without being flagged as "new" in the
+sense Sonar tracks). `npm run sonar:gate` keeps this condition in sync;
+re-run it any time to correct drift.
+
 ---
 
 ## Known flakiness: rare spurious failure in the full suite
@@ -142,9 +151,32 @@ Create a project with key `Sphere_sunbird-cb-uiproxy`, generate a token
 ### 3. Analyze
 
 ```bash
-npm run sonar:local     # run the scanner
-npm run sonar:report    # Current-vs-Target table in the terminal
+npm run sonar:local     # scan, then apply the gate + hotspot reviews, then report
+```
+
+`sonar:local` chains four steps: `sonar:scan` (run the scanner) →
+`sonar:gate` (apply the quality gate as code) → `sonar:hotspots` (replay the
+recorded review decisions from `scripts/sonar-hotspot-reviews.mjs`) →
+`sonar:report` (current-vs-target table in the terminal). All four are
+idempotent, so running `sonar:local` repeatedly is safe.
+
+**This matters because local SonarQube is a throwaway server per developer**
+(see "Local development" above) — review state and the quality gate live in
+each server's database, not in git, so a fresh `docker compose ... up` always
+starts unreviewed. Skipping the chain (e.g. running `sonar:scan` directly) is
+why two developers scanning the identical branch can see Security Review A on
+one machine and E on another: whoever last ran the full `sonar:hotspots` step
+against their own server has reviewed hotspots there; everyone else's fresh
+instance is still sitting at 0% reviewed. Always use `npm run sonar:local`,
+not the bare `sonar:scan`, so this can't happen silently.
+
+The individual steps remain available for CI or troubleshooting:
+
+```bash
+npm run sonar:scan      # scanner only
 npm run sonar:gate      # apply the quality gate as code (idempotent)
+npm run sonar:hotspots  # replay hotspot review decisions (idempotent)
+npm run sonar:report    # current-vs-target table in the terminal
 ```
 
 ### 4. Stop

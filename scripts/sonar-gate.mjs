@@ -20,8 +20,9 @@ import { getConfig, sonarRequest } from './sonar-api.mjs'
 
 const GATE_NAME = process.env.SONAR_GATE_NAME || 'Aastrika Way'
 
-// All conditions are on NEW code (Clean as You Code). `op` is the FAILING
-// comparison: e.g. new_coverage LT 60 means "fail when coverage is below 60".
+// All conditions except the last are on NEW code (Clean as You Code). `op` is
+// the FAILING comparison: e.g. new_coverage LT 60 means "fail when coverage
+// is below 60".
 const CONDITIONS = [
   { metric: 'new_coverage',                   op: 'LT', error: '60',  label: 'Coverage >= 60%' },
   { metric: 'new_duplicated_lines_density',   op: 'GT', error: '3',   label: 'Duplicated lines <= 3%' },
@@ -29,6 +30,13 @@ const CONDITIONS = [
   { metric: 'new_reliability_rating',         op: 'GT', error: '1',   label: 'Reliability rating = A' },
   { metric: 'new_maintainability_rating',     op: 'GT', error: '1',   label: 'Maintainability rating = A' },
   { metric: 'new_security_hotspots_reviewed', op: 'LT', error: '100', label: 'Hotspots 100% reviewed' },
+
+  // OVERALL (whole-repo) coverage, not new-code. Added once the Phase 1/2
+  // Jest coverage campaign pushed the absolute figure to 81% — this condition
+  // is a floor so that number can't silently regress on a later PR that adds
+  // untested code elsewhere in the repo (Clean-as-You-Code alone wouldn't
+  // catch that, since it only judges lines actually touched by a change).
+  { metric: 'coverage',                       op: 'LT', error: '80',  label: 'Overall coverage >= 80%' },
 ]
 
 /**

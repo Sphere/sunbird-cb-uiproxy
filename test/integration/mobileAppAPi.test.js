@@ -25,6 +25,10 @@ describe("GET /getContents", function () {
       )
       .expect(200)
       .expect("Content-Type", "image/png");
+    // supertest's .expect() above already enforces status/content-type; this
+    // chai assertion is redundant but satisfies Sonar rule S2699, which does
+    // not recognize supertest's .expect() as a valid assertion.
+    expect(response.status).to.equal(200);
   }).timeout(10000);
 });
 describe("GET /v1/assessment/*", function () {
@@ -133,6 +137,10 @@ describe("POST /submitAssessment 404", function () {
         userId: null,
       })
       .expect(404);
+    // supertest's .expect() above already enforces the 404 status; this chai
+    // assertion is redundant but satisfies Sonar rule S2699, which does not
+    // recognize supertest's .expect() as a valid assertion.
+    expect(response.status).to.equal(404);
     // const questions = response._body.questions;
     // expect(questions).to.be.an("array");
     // expect(questions).length.to.be.greaterThan(0);

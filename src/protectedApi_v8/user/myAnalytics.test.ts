@@ -53,6 +53,61 @@ describe('GET /certification', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ achievements: [{ id: 'c1' }] })
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/certification')
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /assessment/:contentType', () => {
+  it('forwards the assessment progress for a content type', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ assessment: [{ id: 'a1' }] }))
+    const response = await agent()
+      .get('/assessment/course')
+      .query({ isCompleted: 'true' })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ assessment: [{ id: 'a1' }] })
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/assessment/course')
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /timespent/:contentType', () => {
+  it('forwards the time spent for a content type', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ timespent: 120 }))
+    const response = await agent()
+      .get('/timespent/course')
+      .query({ startDate: '2020-01-01' })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ timespent: 120 })
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/timespent/course')
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /nsoArtifactsAndCollaborators/:contentType', () => {
+  it('forwards the nso artifacts and collaborators for a content type', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ artifacts: [] }))
+    const response = await agent().get('/nsoArtifactsAndCollaborators/course')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ artifacts: [] })
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/nsoArtifactsAndCollaborators/course')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /skills', () => {
@@ -86,6 +141,12 @@ describe('GET /myskills', () => {
       expect.objectContaining({ headers: expect.objectContaining({ wid: 'other-user' }) })
     )
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/myskills')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /recommendedSkills', () => {
@@ -93,6 +154,12 @@ describe('GET /recommendedSkills', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ skill: 'Go' }]))
     const response = await agent().get('/recommendedSkills')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/recommendedSkills')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -102,6 +169,12 @@ describe('GET /allSkills', () => {
     const response = await agent().get('/allSkills').query({ category: 'tech', pageNo: 1 })
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/allSkills')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /isAdmin', () => {
@@ -109,6 +182,12 @@ describe('GET /isAdmin', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ isAdmin: true }))
     const response = await agent().get('/isAdmin')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/isAdmin')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -118,6 +197,12 @@ describe('GET /role/get', () => {
     const response = await agent().get('/role/get')
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/role/get')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /skillquotient', () => {
@@ -125,6 +210,12 @@ describe('GET /skillquotient', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ quotient: 80 }))
     const response = await agent().get('/skillquotient')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/skillquotient')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -134,6 +225,12 @@ describe('GET /rolequotient', () => {
     const response = await agent().get('/rolequotient')
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/rolequotient')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /skills-role/:roleId', () => {
@@ -142,6 +239,12 @@ describe('GET /skills-role/:roleId', () => {
     const response = await agent().get('/skills-role/role-1')
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/skills-role/role-1')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /role/getExisting', () => {
@@ -149,6 +252,12 @@ describe('GET /role/getExisting', () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ role: 'MEMBER' }]))
     const response = await agent().get('/role/getExisting')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/role/getExisting')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -172,6 +281,12 @@ describe('POST /skills/add', () => {
     const response = await agent().post('/skills/add').send({ skill: 'JS' })
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/skills/add').send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /role/shareRole', () => {
@@ -179,6 +294,12 @@ describe('POST /role/shareRole', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ shared: true }))
     const response = await agent().post('/role/shareRole').send({})
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/role/shareRole').send({})
+    expect(response.status).toBe(500)
   })
 })
 
@@ -188,6 +309,12 @@ describe('GET /skill/search', () => {
     const response = await agent().get('/skill/search').query({ q: 'j' })
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/skill/search').query({ q: 'j' })
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /role/delete', () => {
@@ -195,6 +322,12 @@ describe('GET /role/delete', () => {
     mockAxios.delete.mockResolvedValue(upstreamOk({ deleted: true }))
     const response = await agent().get('/role/delete')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.delete.mockRejectedValue(networkError())
+    const response = await agent().get('/role/delete')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -204,6 +337,12 @@ describe('POST /role/update', () => {
     const response = await agent().post('/role/update').send({})
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/role/update').send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /isApprover', () => {
@@ -211,6 +350,12 @@ describe('GET /isApprover', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ isApprover: false }))
     const response = await agent().get('/isApprover')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/isApprover')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -220,6 +365,12 @@ describe('GET /skillData', () => {
     const response = await agent().get('/skillData').query({ skill: 'JS' })
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/skillData').query({ skill: 'JS' })
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /search', () => {
@@ -227,6 +378,12 @@ describe('GET /search', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ results: [] }))
     const response = await agent().get('/search').query({ q: 'x' })
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/search').query({ q: 'x' })
+    expect(response.status).toBe(500)
   })
 })
 
@@ -236,6 +393,12 @@ describe('GET /projectEndorsement/getList', () => {
     const response = await agent().get('/projectEndorsement/getList')
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/projectEndorsement/getList')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /projectEndorsement/get', () => {
@@ -243,6 +406,12 @@ describe('GET /projectEndorsement/get', () => {
     mockAxios.get.mockResolvedValue(upstreamOk({ id: 'p1' }))
     const response = await agent().get('/projectEndorsement/get')
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/projectEndorsement/get')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -252,6 +421,12 @@ describe('POST /projectEndorsement/endorseRequest', () => {
     const response = await agent().post('/projectEndorsement/endorseRequest').send({})
     expect(response.status).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/projectEndorsement/endorseRequest').send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /projectEndorsement/add', () => {
@@ -259,5 +434,75 @@ describe('POST /projectEndorsement/add', () => {
     mockAxios.post.mockResolvedValue(upstreamOk({ added: true }))
     const response = await agent().post('/projectEndorsement/add').send({})
     expect(response.status).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/projectEndorsement/add').send({})
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /userProgress/:contentType', () => {
+  it('returns the analytics data produced by the getMyAnalytics middleware', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ progress: 42 }))
+    const response = await agent().get('/userProgress/course')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ progress: 42 })
+  })
+
+  it('returns 500 when the getMyAnalytics middleware upstream call fails', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/userProgress/course')
+    expect(response.status).toBe(500)
+  })
+
+  it('returns 500 when res.send itself throws (e.g. a circular payload)', async () => {
+    // tslint:disable-next-line: no-any
+    const circular: any = {}
+    circular.self = circular
+    mockAxios.get.mockResolvedValue(upstreamOk(circular))
+    const response = await agent().get('/userProgress/course')
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /:contentType/learning-history', () => {
+  it('returns the learning history and progress range extracted from the analytics data', async () => {
+    mockAxios.get.mockResolvedValue(
+      upstreamOk({
+        learning_history: [{ id: 'lh1' }],
+        learning_history_progress_range: { low: 1, high: 10 },
+      })
+    )
+    const response = await agent().get('/course/learning-history')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      learningHistory: [{ id: 'lh1' }],
+      learningHistoryProgress: { low: 1, high: 10 },
+    })
+  })
+
+  it('returns 500 when the getMyAnalytics middleware upstream call fails', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/course/learning-history')
+    expect(response.status).toBe(500)
+  })
+
+  it('returns 500 when the analytics data is missing from res.locals', async () => {
+    // upstreamOk's default parameter only kicks in for `undefined`, so pass
+    // `null` explicitly to make response.data (and therefore res.locals.myAnalyticsData) null.
+    mockAxios.get.mockResolvedValue(upstreamOk(null))
+    const response = await agent().get('/course/learning-history')
+    expect(response.status).toBe(500)
+  })
+
+  it('returns 500 when res.send itself throws (e.g. a circular payload)', async () => {
+    // tslint:disable-next-line: no-any
+    const circular: any = {}
+    circular.self = circular
+    mockAxios.get.mockResolvedValue(upstreamOk({ learning_history: circular }))
+    const response = await agent().get('/course/learning-history')
+    expect(response.status).toBe(500)
   })
 })

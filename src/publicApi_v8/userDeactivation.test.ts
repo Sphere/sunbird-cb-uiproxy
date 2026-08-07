@@ -116,6 +116,31 @@ describe('GET / — successful deactivation', () => {
     const [config] = assignRoleCall as [{ data: { request: { organisationId: unknown } } }]
     expect(config.data.request.organisationId).toBeInstanceOf(Promise)
   })
+
+  // Covers userDetails()'s own catch block. userDetails() is invoked without
+  // `await` from updateUserRoles (see bug note above), so its axios call and
+  // internal try/catch run as a fire-and-forget floating promise: whatever it
+  // resolves/rejects to is never awaited or read anywhere by the caller.
+  // Rejecting its axios call here only exercises userDetails()'s own
+  // try/catch (returning false internally) — it cannot affect the response,
+  // reject anything the route awaits, or produce an unhandled rejection, so
+  // it's safe to reproduce live.
+  it('still returns 200 when userDetails()\'s own fire-and-forget lookup call rejects internally', async () => {
+    mockAxiosCallable.mockImplementation((config: { method: string; url: string }) => {
+      if (config.url === UPDATE_URL && config.method === 'PATCH') {
+        return Promise.resolve(upstreamOk({ responseCode: 'OK', result: { response: 'SUCCESS' } }))
+      }
+      if (config.url === ASSIGN_ROLE_URL && config.method === 'POST') {
+        return Promise.resolve(upstreamOk({ result: { response: 'SUCCESS' } }))
+      }
+      // POST to UPDATE_URL: userDetails()'s own lookup — reject to exercise
+      // its internal catch block (line 33-35 of userDeactivation.ts).
+      return Promise.reject(new Error('lookup failed'))
+    })
+    const response = await agent().get('/').set('key', 'secret-key').query({ userId: 'u1' })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ message: 'User deactivated successfully' })
+  })
 })
 
 // NOT reproduced live (Pattern B — zero response / hang): when either
@@ -128,3 +153,11 @@ describe('GET / — successful deactivation', () => {
 // an upstream failure or malformed response here would hang the Jest worker
 // waiting on supertest's response. Reported in the final summary as a MUST
 // VERIFY IN PROD item instead.
+//
+// Also NOT reproduced live: the route's own outer catch block (which does
+// call res.status(400)) looks unreachable given the current code. Both
+// updateNullProfileDetails() and updateUserRoles() already catch every error
+// they can produce internally and resolve to `false`/`true` — they never
+// throw or reject — so nothing inside the outer try block can realistically
+// throw for the outer catch to receive. Left uncovered rather than forced
+// with an artificial/unrealistic mock.

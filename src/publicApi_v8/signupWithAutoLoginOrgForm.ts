@@ -8,36 +8,14 @@ import {
   axiosRequestConfig,
   axiosRequestConfigLong,
 } from '../configs/request.config'
+import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
 
-const pgPool = new (require('pg')).Pool({
-  connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
-  database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
-  host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
-  idleTimeoutMillis: 30000,        // 30 seconds idle before closing
-  max: 20,                          // Max 20 connections in pool
-  password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
-  port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
-  statement_timeout: 30000,         // 30 seconds for query execution
-  user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
-})
-
-// Add error handling for pool
-pgPool.on('error', (error) => {
-  logError('Unexpected error on idle client in pool', JSON.stringify(error))
-})
-
-pgPool.on('connect', () => {
-  logInfo('New PostgreSQL connection established')
-})
-
-pgPool.on('remove', () => {
-  logInfo('PostgreSQL connection removed from pool')
-})
+const pgPool = createDataLakePgPool()
 
 // Type Interfaces
 interface ProfileData {

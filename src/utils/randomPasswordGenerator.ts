@@ -16,7 +16,7 @@ import { randomBytes } from 'crypto'
  * with probability < 2^-32 per iteration for the small maxima used here, so it
  * is effectively single-pass.
  */
-function secureRandomInt(max: number): number {
+export function secureRandomInt(max: number): number {
   if (max <= 1) {
     return 0
   }

@@ -146,3 +146,78 @@ describe('GET /role/course/recommendation', () => {
     })
   })
 })
+
+/**
+ * All six routes funnel through the shared proxyReportingRoute function.
+ * Its params come from a per-call `buildParams` closure captured over that
+ * request's own `req`, not from any module-level mutable state — this
+ * proves concurrent requests to different routes (or the same route with
+ * different params) can never cross-deliver each other's response, even
+ * when their upstream promises resolve out of order.
+ */
+describe('concurrent requests do not cross-deliver responses', () => {
+  it('each of 20 parallel requests across all six routes gets back only its own upstream payload', async () => {
+    const routes = [
+      '/user/top/trendingcourses',
+      '/user/certificate/downloads',
+      '/user/reg/total_count',
+      '/user/enroll/user_count',
+      '/user/course/completed_users',
+      '/role/course/recommendation',
+    ]
+
+    // Every call's response is keyed off the URL it actually receives, and
+    // resolves after a randomized delay so requests genuinely interleave
+    // and settle out of call order.
+    mockAxios.mockImplementation((config: { url: string }) => {
+      const delayMs = Math.floor(Math.random() * 20)
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(upstreamOk({ echoedUrl: config.url })), delayMs)
+      })
+    })
+
+    const requests = Array.from({ length: 20 }, (_, i) => routes[i % routes.length])
+    const responses = await Promise.all(
+      requests.map((path) =>
+        agent().get(path).query({ background: 'science', profession: 'doctor' }).set('accesskey', VALID_KEY)
+      )
+    )
+
+    responses.forEach((response, i) => {
+      expect(response.status).toBe(200)
+      // The upstream URL echoed back must match the route THIS request hit,
+      // not some other concurrently in-flight request's route.
+      expect(response.body.echoedUrl).toContain(requests[i].split('/').pop())
+    })
+  })
+
+  it('a slow request and a fast request in flight together each resolve with their own status/body', async () => {
+    let callCount = 0
+    mockAxios.mockImplementation(() => {
+      callCount += 1
+      const isFirstCall = callCount === 1
+      return new Promise((resolve, reject) => {
+        if (isFirstCall) {
+          // First call: slow success.
+          setTimeout(() => resolve(upstreamOk({ who: 'slow' })), 30)
+        } else {
+          // Second call: fast failure, settles first.
+          setTimeout(() => reject(networkError()), 1)
+        }
+      })
+    })
+
+    const [slow, fast] = await Promise.all([
+      agent().get('/user/top/trendingcourses').set('accesskey', VALID_KEY),
+      agent().get('/user/reg/total_count').set('accesskey', VALID_KEY),
+    ])
+
+    expect(slow.status).toBe(200)
+    expect(slow.body).toEqual({ who: 'slow' })
+    expect(fast.status).toBe(400)
+    expect(fast.body).toEqual({
+      message: 'Something went wrong while fetching registered user total count',
+      status: 'Failed',
+    })
+  })
+})

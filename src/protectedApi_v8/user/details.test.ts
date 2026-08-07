@@ -192,4 +192,30 @@ describe('wTokenApiMock', () => {
     })
     await expect(wTokenApiMock(req, 'kc-token')).rejects.toThrow('connect ECONNREFUSED')
   })
+
+  it('creates a DiscussionHub user when a 404 shows the user is missing, resolving even if creation fails', async () => {
+    mockRequestPost.mockImplementation((_url, _options, callback) => {
+      callback(null, {}, { user: { email: 'a@b.com', first_name: 'A', last_name: 'B', wid: 'w1' } })
+    })
+    mockGetUserByEmail.mockRejectedValue({ response: { status: 404 } })
+    mockCreateDiscussionHubUser.mockRejectedValue(new Error('create failed'))
+    const result = await wTokenApiMock(req, 'kc-token')
+    expect(result).toEqual({ user: { email: 'a@b.com', first_name: 'A', last_name: 'B', wid: 'w1' } })
+    expect(mockCreateDiscussionHubUser).toHaveBeenCalledWith({
+      email: 'a@b.com',
+      fullname: 'A B',
+      password: 'nbb-pass',
+      username: 'w1',
+    })
+  })
+
+  // Covers the outer try/catch of wTokenApiMock (details.ts lines 176-179):
+  // a request object with no `body` throws synchronously when the code
+  // reads `req.body.department`, which is caught inside the same
+  // try/catch and rejects the promise with that error — no double-send,
+  // no crash. Safe to test live.
+  it('rejects when building the request options throws synchronously', async () => {
+    const bodylessReq = { header: () => undefined }
+    await expect(wTokenApiMock(bodylessReq, 'kc-token')).rejects.toThrow(TypeError)
+  })
 })

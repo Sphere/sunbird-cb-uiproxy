@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
@@ -18,6 +18,21 @@ const API_END_POINTS = {
 }
 
 export const followApi = Router()
+
+// sonar-cleanup: extracted from follow.ts's repeated per-route catch blocks — same status/body shape, falling back to the raw err if there's no upstream body (CHANGE 8)
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body, or the raw caught error if there's no upstream body.
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleFollowError(res: Response, err: any) {
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || err)
+}
 
 followApi.post('/fetchAll', async (req, res) => {
   try {
@@ -38,9 +53,7 @@ followApi.post('/fetchAll', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getAll, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -53,9 +66,7 @@ followApi.get('/followers/:targetId', async (req, res) => {
     const response = await axios.get(`${API_END_POINTS.followers}/${targetId}`, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -81,9 +92,7 @@ followApi.get('/following/:type', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getFollowing, requestBody, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -109,9 +118,7 @@ followApi.get('/getFollowing', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getFollowing, requestBody, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -141,9 +148,7 @@ followApi.post('/getFollowingv3', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -169,9 +174,7 @@ followApi.post('/getFollowersv3', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -193,9 +196,7 @@ followApi.post('/', async (req, res) => {
     const response = await axios.post(API_END_POINTS.follow, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -216,9 +217,7 @@ followApi.post('/unfollow', async (req, res) => {
     const response = await axios.post(API_END_POINTS.unFollow, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -240,8 +239,6 @@ followApi.post('/getFollowers', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getFollowers, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })

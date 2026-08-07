@@ -10,6 +10,23 @@ import { extractUserIdFromRequest } from '../utils/requestExtract'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
+// sonar-cleanup: extracted from leaderboard.ts's repeated per-route catch blocks — same status/body shape (CHANGE 8)
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleLeaderboardError(res: Response, err: any) {
+  return res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: GENERAL_ERROR_MSG,
+    }
+  )
+}
+
 const apiEndpoints = {
   // tslint:disable-next-line: max-line-length
   GetBalance: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetBalance`,
@@ -78,11 +95,7 @@ leaderBoardApi.get('/:durationType/:durationValue/:year', async (req: Request, r
 
     return res.send(leaderboard)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleLeaderboardError(res, err)
   }
 })
 
@@ -111,11 +124,7 @@ leaderBoardApi.get('/hallOfFame', async (req: Request, res: Response) => {
 
     return res.send(hallOfFame)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return handleLeaderboardError(res, err)
   }
 })
 
@@ -130,11 +139,7 @@ leaderBoardApi.post('/fetchLeaderBoardDetails', async (req: Request, res: Respon
     const response = await axios.post(apiEndpoints.leaderboardDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -149,11 +154,7 @@ leaderBoardApi.post('/leaderboardActivities', async (req: Request, res: Response
     const response = await axios.post(apiEndpoints.leaderboardActivities, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -168,11 +169,7 @@ leaderBoardApi.post('/leaderboardGuild', async (req: Request, res: Response) => 
     const response = await axios.post(apiEndpoints.leaderboardGuild, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -188,16 +185,25 @@ leaderBoardApi.post('/badgeDetails', async (req: Request, res: Response) => {
     const response = await axios.post(apiEndpoints.badgeDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
-// Get Badges won For a user
-leaderBoardApi.post('/badgeWon', async (req: Request, res: Response) => {
+/**
+ * Shared body for the two badge-fetch routes below — same request shape,
+ * only the upstream endpoint and the response-processing function differ.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the processed result on
+ * @param url - the upstream badges endpoint to call
+ * @param processResponse - shapes the raw upstream data for this route
+ */
+async function fetchAndProcessBadges<T>(
+  req: Request,
+  res: Response,
+  url: string,
+  processResponse: (data: any) => T // tslint:disable-line: no-any
+) {
   try {
     const userId = extractUserIdFromRequest(req)
     const data = {
@@ -205,43 +211,25 @@ leaderBoardApi.post('/badgeWon', async (req: Request, res: Response) => {
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.badgeWon, data, axiosRequestConfig)
-    let result: IGamificationBdage[] | null = null
+    const response = await axios.post(url, data, axiosRequestConfig)
+    let result: T | null = null
     if (response.data) {
-      result = processBadgeArray(response.data)
+      result = processResponse(response.data)
     }
     res.send(result)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
+}
+
+// Get Badges won For a user
+leaderBoardApi.post('/badgeWon', async (req: Request, res: Response) => {
+  await fetchAndProcessBadges(req, res, apiEndpoints.badgeWon, processBadgeArray)
 })
 
 // Get Badges yet to win For a user
 leaderBoardApi.post('/badgeYetToWin', async (req: Request, res: Response) => {
-  try {
-    const userId = extractUserIdFromRequest(req)
-    const data = {
-      ...apiParams,
-      ...req.body,
-      UserSourceSystemId: userId,
-    }
-    const response = await axios.post(apiEndpoints.badgeYetToWin, data, axiosRequestConfig)
-    let result: IGamificationBdageResponse | null = null
-    if (response.data) {
-      result = processAllBadges(response.data)
-    }
-    res.send(result)
-  } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
-  }
+  await fetchAndProcessBadges(req, res, apiEndpoints.badgeYetToWin, processAllBadges)
 })
 
 // get details of all the dealer codes
@@ -255,11 +243,7 @@ leaderBoardApi.post('/dealersDetails', async (req: Request, res: Response) => {
     const response = await axios.post(apiEndpoints.dealersDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -317,11 +301,7 @@ leaderBoardApi.post('/userDetails', async (req: Request, res: Response) => {
     const response = await axios.post(apiEndpoints.userDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -340,11 +320,7 @@ leaderBoardApi.post('/updateApprovedPoints', async (req: Request, res: Response)
     const response = await axios.post(apiEndpoints.updateApprovedPoints, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -363,11 +339,7 @@ leaderBoardApi.post('/updateConfiguration', async (req: Request, res: Response) 
     const response = await axios.post(apiEndpoints.updateConfiguration, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -383,11 +355,7 @@ leaderBoardApi.post('/Getsso', async (req: Request, res: Response) => {
     const response = await axios.post(apiEndpoints.Getsso, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -403,11 +371,7 @@ leaderBoardApi.post('/GetBalance', async (req: Request, res: Response) => {
     const response = await axios.post(apiEndpoints.GetBalance, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -423,11 +387,7 @@ leaderBoardApi.post('/fetchConfiguration', async (req: Request, res: Response) =
     const response = await axios.post(apiEndpoints.fetchConfiguration, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })
 
@@ -443,10 +403,6 @@ leaderBoardApi.post('/fetchGuildAwardCountData', async (req: Request, res: Respo
     const response = await axios.post(apiEndpoints.fetchGuildAwardCountData, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleLeaderboardError(res, err)
   }
 })

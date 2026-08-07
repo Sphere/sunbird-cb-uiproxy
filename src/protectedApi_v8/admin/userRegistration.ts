@@ -172,7 +172,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
       } else {
         res
           .status(400)
-          .send('1003: User could not be created in Keycloack !!' || {})
+          .send('1003: User could not be created in Keycloack !!')
       }
     })
     if (createKeycloak && createKeycloak.id) {
@@ -183,7 +183,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
           logError('/create-user ERROR ON UpdateKeycloakUserPassword', error)
           res
             .status(400)
-            .send('1003: User default password could not be set !!' || {})
+            .send('1003: User default password could not be set !!')
         }
       )
       getAuthToken(req.body.email)
@@ -208,7 +208,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
         })
         .catch((error) => {
           logError('ERROR ON getAuthToken', error)
-          res.status(400).send('1004: User getAuthToken failed !!' || {})
+          res.status(400).send('1004: User getAuthToken failed !!')
         })
       await UpdateKeycloakUserPassword(createKeycloak.id, true).catch(
         // tslint:disable-next-line: no-any
@@ -219,7 +219,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
           )
           res
             .status(400)
-            .send('1003: User default password could not be set !!' || {})
+            .send('1003: User default password could not be set !!')
         }
       )
       await sendActionsEmail(createKeycloak.id).catch((error) => {

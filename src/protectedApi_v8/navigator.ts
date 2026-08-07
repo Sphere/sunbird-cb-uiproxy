@@ -78,29 +78,29 @@ navigatorApi.get('/lp', async (req, res) => {
     res
       .status(400)
       .send({ error: 'Page number and Page size should be integers' })
-  } else {
-    const lpDataResponse = await axios.get(
-      API_END_POINTS.learningPathData,
-      axiosRequestConfig
-    )
-    const lpData =
-      topics && topics.length
-        ? filterOnTopics(lpDataResponse.data.lp_data, topics)
-        : lpDataResponse.data.lp_data
-    if (!lpData) {
-      res
-        .status(lpDataResponse.status)
-        .send({ error: ERROR.fetchErrorLearningPaths })
-    } else {
-      const size = lpData.length
-      const [start, end] = [pageSize * pageNumber, pageSize * (pageNumber + 1)]
-      if (start >= size) {
-        res.status(400).send({ error: 'Out of Range Error.' })
-      } else {
-        res.send(processAllLpData(lpData.slice(start, end)))
-      }
-    }
+    return
   }
+  const lpDataResponse = await axios.get(
+    API_END_POINTS.learningPathData,
+    axiosRequestConfig
+  )
+  const lpData =
+    topics && topics.length
+      ? filterOnTopics(lpDataResponse.data.lp_data, topics)
+      : lpDataResponse.data.lp_data
+  if (!lpData) {
+    res
+      .status(lpDataResponse.status)
+      .send({ error: ERROR.fetchErrorLearningPaths })
+    return
+  }
+  const size = lpData.length
+  const [start, end] = [pageSize * pageNumber, pageSize * (pageNumber + 1)]
+  if (start >= size) {
+    res.status(400).send({ error: 'Out of Range Error.' })
+    return
+  }
+  res.send(processAllLpData(lpData.slice(start, end)))
 })
 
 navigatorApi.get('/lp/:lpId', async (req, res) => {

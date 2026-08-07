@@ -72,18 +72,26 @@ async function main() {
   await waitForPendingAnalysis(config)
   const metricKeys = GOALS.flatMap(g => [g.newMetric, g.overallMetric]).join(',')
 
+  // Only meaningful against a multi-branch server (SonarCloud, or SonarQube
+  // Developer Edition+) — local Community Edition has one unnamed branch and
+  // ignores this. Lets you check e.g. SonarCloud's feat-sonarqube-integration
+  // dashboard from the terminal instead of the web UI:
+  //   SONAR_HOST_URL=https://sonarcloud.io SONAR_TOKEN=<token> \
+  //   SONAR_BRANCH=feat-sonarqube-integration npm run sonar:report
+  const branch = process.env.SONAR_BRANCH
+
   let response
   try {
     response = await sonarRequest(
       'GET',
       '/api/measures/component',
-      { component: config.projectKey, metricKeys },
+      { component: config.projectKey, metricKeys, branch },
       config
     )
   } catch (error) {
     if (error.statusCode === 404) {
       console.error(
-        `\nProject "${config.projectKey}" does not exist on ${config.hostUrl} yet.\n` +
+        `\nProject "${config.projectKey}"${branch ? ` (branch "${branch}")` : ''} does not exist on ${config.hostUrl} yet.\n` +
           'Run an analysis first:  npm run sonar:local\n'
       )
       process.exit(1)
@@ -95,7 +103,7 @@ async function main() {
     (response.component?.measures || []).map(m => [m.metric, m.value ?? m.periods?.[0]?.value])
   )
 
-  console.log(`\nSonar quality goals — ${config.projectKey}`)
+  console.log(`\nSonar quality goals — ${config.projectKey}${branch ? ` (branch: ${branch})` : ''}`)
   console.log(`Server: ${config.hostUrl}\n`)
   console.log(`  ${pad('GOAL', 22)}${pad('TARGET', 10)}${pad('NEW CODE', 14)}OVERALL`)
   console.log(`  ${'-'.repeat(60)}`)
@@ -119,7 +127,9 @@ async function main() {
   if (missing) {
     console.log(
       `  ${missing} goal(s) show "no data" — a metric with no data does not fail the gate.\n` +
-        '  Coverage has no data until a unit-test harness exists; see docs/sonarqube.md.'
+        '  This means the New Code period has nothing eligible for that metric (e.g. only\n' +
+        '  test/doc files changed, or no security hotspots were introduced) — not that\n' +
+        '  coverage or review data is broken. Check the OVERALL column for the real figure.'
     )
   }
   console.log(
@@ -127,6 +137,32 @@ async function main() {
       ? `\n  ${failures} goal(s) NOT met on new code.\n`
       : '\n  All goals with data are met on new code.\n'
   )
+
+  await printHotspotBreakdown(config, branch)
+}
+
+/**
+ * The goals table above only shows the "% reviewed" ratio, which reads as
+ * 100% whether there are 0 hotspots or 400 all marked SAFE — indistinguishable
+ * without this. Spelled out explicitly so the raw count is never hidden behind
+ * a percentage.
+ */
+async function printHotspotBreakdown(config, branch) {
+  const [open, reviewed] = await Promise.all([
+    sonarRequest('GET', '/api/hotspots/search', { projectKey: config.projectKey, branch, status: 'TO_REVIEW', ps: 1 }, config),
+    sonarRequest('GET', '/api/hotspots/search', { projectKey: config.projectKey, branch, status: 'REVIEWED', ps: 1 }, config),
+  ])
+  const openCount = open.paging?.total ?? 0
+  const reviewedCount = reviewed.paging?.total ?? 0
+  console.log(`  Security Hotspots: ${openCount} open, ${reviewedCount} reviewed, ${openCount + reviewedCount} total.`)
+  if (reviewedCount > 0) {
+    console.log(
+      `  The ${reviewedCount} reviewed hotspot(s) are NOT code fixes — they are a recorded\n` +
+        '  human judgement that the flagged pattern is safe (see scripts/sonar-hotspot-reviews.mjs).\n' +
+        '  Run: npm run sonar:hotspots -- or query /api/hotspots/search?status=REVIEWED for detail.'
+    )
+  }
+  console.log('')
 }
 
 main().catch(error => {

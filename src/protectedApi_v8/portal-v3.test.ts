@@ -82,6 +82,13 @@ describe('shared helper: updateDepartment', () => {
     await updateDepartment('mdo', { body: {}, headers: { wid: 'u1' } }, res)
     expect(res.statusCode).toBe(200)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.patch.mockRejectedValue(networkError())
+    const res = mockRes()
+    await updateDepartment('mdo', { body: {}, headers: { wid: 'u1' } }, res)
+    expect(res.statusCode).toBe(500)
+  })
 })
 
 describe('shared helper: addUserRole', () => {
@@ -106,6 +113,13 @@ describe('shared helper: updateUserRole', () => {
     const res = mockRes()
     await updateUserRole('mdo', { body: {}, headers: {} }, res)
     expect(res.statusCode).toBe(200)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.patch.mockRejectedValue(networkError())
+    const res = mockRes()
+    await updateUserRole('mdo', { body: {}, headers: {} }, res)
+    expect(res.statusCode).toBe(500)
   })
 })
 
@@ -243,5 +257,138 @@ describe('route wrappers delegate to the shared helpers (smoke check)', () => {
     mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
     const response = await agent().patch('/spv/deptAction/userrole').send({})
     expect(response.status).toBe(200)
+  })
+
+  it('PATCH /spv/department reaches updateDepartment', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/spv/department').set('wid', 'u1').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('POST /spv/deptAction/userrole reaches addUserRole', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ added: true }))
+    const response = await agent().post('/spv/deptAction/userrole').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('PATCH /mdo/department reaches updateDepartment', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/mdo/department').set('wid', 'u1').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('POST /mdo/deptAction/userrole reaches addUserRole', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ added: true }))
+    const response = await agent().post('/mdo/deptAction/userrole').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('PATCH /mdo/deptAction/userrole reaches updateUserRole', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/mdo/deptAction/userrole').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('GET /cbp/mydepartment reaches getMyDepartment', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ portal: 'cbp' }))
+    const response = await agent().get('/cbp/mydepartment')
+    expect(response.status).toBe(200)
+  })
+
+  it('PATCH /cbp/department reaches updateDepartment', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/cbp/department').set('wid', 'u1').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('POST /cbp/deptAction/userrole reaches addUserRole', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ added: true }))
+    const response = await agent().post('/cbp/deptAction/userrole').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('PATCH /cbp/deptAction/userrole reaches updateUserRole', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/cbp/deptAction/userrole').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('GET /frac/mydepartment reaches getMyDepartment', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ portal: 'frac' }))
+    const response = await agent().get('/frac/mydepartment')
+    expect(response.status).toBe(200)
+  })
+
+  it('GET /cbc/mydepartment reaches getMyDepartment', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ portal: 'cbc' }))
+    const response = await agent().get('/cbc/mydepartment')
+    expect(response.status).toBe(200)
+  })
+
+  it('PATCH /cbc/department reaches updateDepartment', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/cbc/department').set('wid', 'u1').send({})
+    expect(response.status).toBe(200)
+  })
+
+  it('PATCH /cbc/deptAction/userrole reaches updateUserRole', async () => {
+    mockAxios.patch.mockResolvedValue(upstreamOk({ updated: true }))
+    const response = await agent().patch('/cbc/deptAction/userrole').send({})
+    expect(response.status).toBe(200)
+  })
+})
+
+/** Branches of the wid-guarded routes not exercised above: the 400 rejection
+ *  path for routes only smoke-tested on their happy path, and the catch-block
+ *  (upstream failure) path for the two full standalone handlers that embed
+ *  their own try/catch (spv & cbc department-by-id lookups).
+ */
+describe('additional guarded-route branches', () => {
+  it('GET /spv/department/:deptId rejects without wid', async () => {
+    const response = await agent().get('/spv/department/d1')
+    expect(response.status).toBe(400)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
+
+  it('GET /spv/department/:deptId forwards an upstream error status', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/spv/department/d1').set('wid', 'u1')
+    expect(response.status).toBe(500)
+  })
+
+  it('POST /spv/department rejects without wid', async () => {
+    const response = await agent().post('/spv/department').send({})
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('DELETE /spv/deleteDepartment/:deptId rejects without wid', async () => {
+    const response = await agent().delete('/spv/deleteDepartment/d1')
+    expect(response.status).toBe(400)
+    expect(mockAxios.delete).not.toHaveBeenCalled()
+  })
+
+  it('GET /cbc/department rejects without wid', async () => {
+    const response = await agent().get('/cbc/department')
+    expect(response.status).toBe(400)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
+
+  it('GET /cbc/department forwards an upstream error status', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/cbc/department').set('wid', 'u1')
+    expect(response.status).toBe(500)
+  })
+
+  it('GET /cbc/department/:deptId rejects without wid', async () => {
+    const response = await agent().get('/cbc/department/d1')
+    expect(response.status).toBe(400)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
+
+  it('GET /cbc/department/:deptId forwards an upstream error status', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await agent().get('/cbc/department/d1').set('wid', 'u1')
+    expect(response.status).toBe(500)
   })
 })

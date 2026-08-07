@@ -161,6 +161,39 @@ describe('GET /role/:roleId/:variantId', () => {
     expect(response.status).toBe(404)
     expect(response.body).toEqual({ error: 'Variant Id incorrect' })
   })
+
+  it('rewrites images on every group within the matching variant', async () => {
+    const roleWithGroup = buildRole({
+      variants: [
+        {
+          group: [
+            {
+              certification_mandatory: true,
+              group_member: [],
+              lp_groupdesc: 'group desc',
+              lp_groupid: 'group-1',
+              lp_groupimage: 'group1.png',
+              lp_groupname: 'Group One',
+            },
+          ],
+          variant_description: 'variant desc',
+          variant_id: 'var-1',
+          variant_image: 'variant1.png',
+          variant_name: 'Variant One',
+        },
+      ],
+    })
+    mockAxios.get.mockResolvedValue(
+      upstreamOk({
+        nso_data: [{ arm_id: 1, arm_name: 'Accelerate', roles: [roleWithGroup] }],
+      })
+    )
+    const response = await agent().get('/role/role-1/var-1')
+    expect(response.status).toBe(200)
+    expect(response.body.group).toHaveLength(1)
+    expect(response.body.group[0].lp_groupimage).toBe(`${IMG_PREFIX}group1.png`)
+    expect(response.body.group[0].lp_groupid).toBe('group-1')
+  })
 })
 
 function buildLp(overrides: object = {}) {

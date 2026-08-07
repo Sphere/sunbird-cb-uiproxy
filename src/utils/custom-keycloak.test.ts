@@ -135,11 +135,11 @@ describe('CustomKeycloak', () => {
       expect(req.session.userId).toBe('user-1')
     })
 
-    it('swallows a malformed kauth grant without throwing', async () => {
+    it('swallows a malformed kauth grant without throwing', () => {
       const ck = new CustomKeycloak(sessionConfig)
       // tslint:disable-next-line: no-any
       const req: any = { kauth: { grant: { access_token: { content: {} } } }, session: {} }
-      await expect(ck.authenticated(req)).resolves.toBeUndefined()
+      expect(() => ck.authenticated(req)).not.toThrow()
     })
   })
 

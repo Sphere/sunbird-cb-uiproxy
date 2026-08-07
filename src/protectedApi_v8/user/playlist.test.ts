@@ -90,6 +90,12 @@ describe('GET /recent', () => {
     const response = await agent().get('/recent')
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/recent')).set('org', 'o1')
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /accept/:playlistId', () => {
@@ -112,6 +118,13 @@ describe('POST /accept/:playlistId', () => {
     const response = await agent().post('/accept/pl-1').send({})
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 when the accept upstream call fails', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk([{ id: 'pl-1', name: 'x' }]))
+    mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/accept/pl-1')).send({})
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /reject/:playlistId', () => {
@@ -125,6 +138,11 @@ describe('POST /reject/:playlistId', () => {
     mockAxios.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().post('/reject/pl-1')).send({})
     expect(response.status).toBe(500)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().post('/reject/pl-1').send({})
+    expect(response.status).toBe(400)
   })
 })
 
@@ -141,6 +159,14 @@ describe('POST /share/:playlistId', () => {
     const response = await agent().post('/share/pl-1').send({})
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/share/pl-1'))
+      .set('Authorization', 'Bearer tok')
+      .send({ users: ['u2'] })
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /:type/:playlistId', () => {
@@ -154,6 +180,12 @@ describe('GET /:type/:playlistId', () => {
   it('rejects a request missing rootOrg', async () => {
     const response = await agent().get('/goal/pl-1')
     expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/goal/pl-1'))
+    expect(response.status).toBe(500)
   })
 })
 
@@ -169,6 +201,12 @@ describe('DELETE /:playlistId', () => {
     const response = await agent().delete('/pl-1')
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().delete('/pl-1'))
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /', () => {
@@ -181,6 +219,24 @@ describe('GET /', () => {
   it('rejects a request missing rootOrg', async () => {
     const response = await agent().get('/')
     expect(response.status).toBe(400)
+  })
+
+  it('splits shared and owned playlists using shared_by', async () => {
+    // playlists.result.response items with/without shared_by exercise both
+    // filter predicates; the pending-playlists fetch reuses the same mock.
+    mockAxiosGet.mockResolvedValue(
+      upstreamOk([{ id: 'p1', shared_by: 'other-user' }, { id: 'p2', shared_by: null }])
+    )
+    const response = await withRootOrg(agent().get('/'))
+    expect(response.status).toBe(200)
+    expect(response.body.share).toEqual([{ id: 'p1', shared_by: 'other-user' }])
+    expect(response.body.user).toEqual([{ id: 'p2', shared_by: null }])
+  })
+
+  it('returns 500 when the upstream playlists fetch fails', async () => {
+    mockAxiosGet.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/'))
+    expect(response.status).toBe(500)
   })
 })
 
@@ -201,6 +257,100 @@ describe('PATCH /:playlistId', () => {
   it('returns 500 on an upstream failure', async () => {
     mockAxios.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().patch('/pl-1')).send({})
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('POST /create', () => {
+  // Shares the "create content, then patch hierarchy" two-step flow used by
+  // goals.ts's create-goal route (docs/DUPLICATE-CODE-CLEANUP.md L1-15/L2-10):
+  // one axios call creates the content, a second PATCHes the hierarchy.
+  it('creates the playlist content then patches the hierarchy', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ node_id: 'new-content-1' })) // create
+      .mockResolvedValueOnce(upstreamOk({}, 201)) // hierarchy patch
+    const response = await withRootOrg(agent().post('/create'))
+      .set('Authorization', 'Bearer tok')
+      .send({ playlist_title: 'New Playlist' })
+    expect(response.status).toBe(201)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().post('/create').send({})
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 when the create upstream call fails', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/create'))
+      .set('Authorization', 'Bearer tok')
+      .send({ playlist_title: 'New Playlist' })
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('POST /:playlistId/:type', () => {
+  it('adds a content id to the playlist hierarchy', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { content: { childNodes: ['existing-1'] } } })) // hierarchy fetch
+      .mockResolvedValueOnce(upstreamOk({ updated: true })) // hierarchy update patch
+    const response = await withRootOrg(agent().post('/pl-1/add'))
+      .set('Authorization', 'Bearer tok')
+      .send({ contentIds: ['c1'] })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ updated: true })
+  })
+
+  it('deletes a content id present in the playlist hierarchy', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { content: { childNodes: ['c1'] } } }))
+      .mockResolvedValueOnce(upstreamOk({ updated: true }))
+    const response = await withRootOrg(agent().post('/pl-1/delete'))
+      .set('Authorization', 'Bearer tok')
+      .send({ contentIds: ['c1'] })
+    expect(response.status).toBe(200)
+  })
+
+  it('deletes a content id absent from the playlist hierarchy (index not found)', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { content: { childNodes: ['other'] } } }))
+      .mockResolvedValueOnce(upstreamOk({ updated: true }))
+    const response = await withRootOrg(agent().post('/pl-1/delete'))
+      .set('Authorization', 'Bearer tok')
+      .send({ contentIds: ['c1'] })
+    expect(response.status).toBe(200)
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().post('/pl-1/add').send({ contentIds: ['c1'] })
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/pl-1/add'))
+      .set('Authorization', 'Bearer tok')
+      .send({ contentIds: ['c1'] })
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /:type', () => {
+  it('returns pending playlists', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk([{ id: 'pl-1' }]))
+    const response = await withRootOrg(agent().get('/pending'))
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([{ id: 'pl-1' }])
+  })
+
+  it('rejects a request missing rootOrg', async () => {
+    const response = await agent().get('/pending')
+    expect(response.status).toBe(400)
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxiosGet.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().get('/pending'))
     expect(response.status).toBe(500)
   })
 })

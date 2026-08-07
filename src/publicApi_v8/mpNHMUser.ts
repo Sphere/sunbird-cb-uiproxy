@@ -4,34 +4,28 @@ import cassandra from 'cassandra-driver'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
+import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
-const pgPool = new (require('pg')).Pool({
-    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
-    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
-    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
-    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
-    max: 20,                          // Max 20 connections in pool
-    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
-    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
-    statement_timeout: 30000,         // 30 seconds for query execution
-    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
-})
-
-// Add error handling for pool
-pgPool.on('error', (error) => {
-    logError('Unexpected error on idle client in pool', JSON.stringify(error))
-})
-
-pgPool.on('connect', () => {
-    logInfo('New PostgreSQL connection established')
-})
-
-pgPool.on('remove', () => {
-    logInfo('PostgreSQL connection removed from pool')
-})
+import {
+  API_END_POINTS,
+  INDIAN_COUNTRY_CODE as indianCountryCode,
+  MSG91_HEADERS as msg91Headers,
+  REGISTRATION_SOURCE as registrationSource,
+  STANDARD_DOB as standardDob,
+  USER_SUCCESS_REGISTRATION_MESSAGE as userSuccessRegistrationMessage,
+} from '../utils/orgSignupConstants'
+import {
+  conditionalFieldValidator,
+  optionalEmailValidator,
+  requiredDistrictValidator,
+  requiredFirstNameValidator,
+  requiredLastNameValidator,
+  requiredPhoneValidator,
+} from '../utils/orgSignupValidators'
+const pgPool = createDataLakePgPool()
 
 export const mpNHMUserCreation = express.Router()
 const dayjs = require('dayjs')
@@ -66,23 +60,10 @@ interface UserDetails {
 }
 const ERHMS_CODE_KEY = 'ERHMS-code'
 const GOV_KEY = 'Government'
+const ANY_REQUIRED_KEY = 'any.required'
 const serviceSchemaJoi = Joi.object({
-    courseSelection: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Course selection is required for Student and Faculty roles',
-        }),
-    district: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'District is required',
-        }),
+    courseSelection: conditionalFieldValidator('Student', 'Course selection is required for Student and Faculty roles'),
+    district: requiredDistrictValidator,
     dob: Joi.string()
         .allow('', null)
         .optional()
@@ -90,75 +71,27 @@ const serviceSchemaJoi = Joi.object({
             'string.base': 'Date of Birth must be a string',
         }),
 
-    email: Joi.string().allow('', null).email().optional(),
-    facultyType: Joi.string()
-        .when('role', {
-            is: 'Faculty',
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Faculty type is required for Faculty role',
-        }),
-    firstName: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'First name is required',
-        }),
+    email: optionalEmailValidator,
+    facultyType: conditionalFieldValidator('Faculty', 'Faculty type is required for Faculty role'),
+    firstName: requiredFirstNameValidator,
 
-    instituteName: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute name is required for Student and Faculty roles',
-        }),
-    instituteType: Joi.string()
-        .when('role', {
-            // tslint:disable-next-line: all
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute type is required for Student and Faculty roles',
-        }),
-    lastName: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Last name is required',
-        }),
+    instituteName: conditionalFieldValidator(['Student', 'Faculty'], 'Institute name is required for Student and Faculty roles'),
+    instituteType: conditionalFieldValidator(['Student', 'Faculty'], 'Institute type is required for Student and Faculty roles'),
+    lastName: requiredLastNameValidator,
 
-    phone: Joi.number() // Adjusted to validate as a number
-        .required()
-        .integer()
-        .positive()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Phone number is required',
-            'number.base': 'Phone number must be a number',
-            'number.integer': 'Phone number must be an integer',
-            'number.positive': 'Phone number must be a positive integer',
-        }),
+    phone: requiredPhoneValidator,
     role: Joi.string()
         .valid('Student', 'Faculty', 'ANM-MP', 'CHO-MP', 'Trainer-MP')
         .required()
         .messages({
             // tslint:disable-next-line: all
             'any.only': 'Role must be either Student, Faculty, ANM-MP, CHO-MP, or Trainer-MP',
-            'any.required': 'Role is required',
+            [ANY_REQUIRED_KEY]: 'Role is required',
         }),
     // ✅ Newly Added Fields
 
     nursingRegistrationNumber: Joi.string().optional().messages({
-        'any.required': 'Nursing Registration Number is required',
+        [ANY_REQUIRED_KEY]: 'Nursing Registration Number is required',
     }),
 
     employmentType: Joi.string().allow('', null).optional(),
@@ -179,7 +112,7 @@ const serviceSchemaJoi = Joi.object({
         .pattern(/^\d{5,8}$/)
         .required()
         .messages({
-            'any.required': 'EHRMS Number is required',
+            [ANY_REQUIRED_KEY]: 'EHRMS Number is required',
             'string.pattern.base': 'EHRMS Number must be 5–8 digits',
         }),
 
@@ -191,7 +124,7 @@ const serviceSchemaJoi = Joi.object({
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'block is required',
+            [ANY_REQUIRED_KEY]: 'block is required',
         }),
 
     blockOthers: Joi.string()
@@ -201,7 +134,7 @@ const serviceSchemaJoi = Joi.object({
             then: Joi.string().required(),
         })
         .messages({
-            'any.required': 'Block name is required when block is set to Other',
+            [ANY_REQUIRED_KEY]: 'Block name is required when block is set to Other',
         }),
 
     facilityCode: Joi.string()
@@ -212,10 +145,10 @@ const serviceSchemaJoi = Joi.object({
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'Facility Code is required',
+            [ANY_REQUIRED_KEY]: 'Facility Code is required',
         }),
     facilityName: Joi.string().optional().messages({
-        'any.required': 'Facility name is required',
+        [ANY_REQUIRED_KEY]: 'Facility name is required',
     }),
 
     facilityNameOthers: Joi.string()
@@ -225,7 +158,7 @@ const serviceSchemaJoi = Joi.object({
             then: Joi.string().required(),
         })
         .messages({
-            'any.required': 'Facility name is required when facility name is set to Others',
+            [ANY_REQUIRED_KEY]: 'Facility name is required when facility name is set to Others',
         }),
 
     facilityType: Joi.string()
@@ -236,27 +169,16 @@ const serviceSchemaJoi = Joi.object({
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'Facility Type is required',
+            [ANY_REQUIRED_KEY]: 'Facility Type is required',
         }),
     regNurseRegMidwifeNumber: Joi.string().optional().messages({
-        'any.required': 'RNRM Number is required',
+        [ANY_REQUIRED_KEY]: 'RNRM Number is required',
     }),
     roleForInService: Joi.string().optional().messages({
-        'any.required': 'Role for In-Service is required',
+        [ANY_REQUIRED_KEY]: 'Role for In-Service is required',
     }),
 
 })
-const API_END_POINTS = {
-    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
-const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-MP',
@@ -264,18 +186,7 @@ const getUserDesignationFromRole = {
     Student: 'ANM-Student-MP',
 }
 
-const standardDob = '01/01/1970'
 const accessDeniedMessage = 'Access denied! Please contact admin at support@aastrika.org for support.'
-// tslint:disable-next-line: all
-const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
-
-const indianCountryCode = '+91'
-const msg91Headers = {
-    // tslint:disable-next-line: all
-    accept: 'application/json',
-    authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-    'content-type': 'application/json',
-}
 
 mpNHMUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {

@@ -170,4 +170,102 @@ describe('POST /login', () => {
 
   // NOTE: authTokenResponse.data being falsy (else branch) is a documented
   // double-send bug above — not reproduced live.
+
+  it('falls back to new-user registration when the exists/email check throws', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ data: tnnmcUser, success: true }))
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email')) return Promise.reject(networkError())
+      if (config.url.includes('private/user/v1/search')) {
+        return Promise.resolve(upstreamOk({ result: { response: { content: [] } } }))
+      }
+      if (config.url.includes('user/v3/create')) return Promise.resolve(upstreamOk({ result: { userId: 'new-1' } }))
+      if (config.url.includes('assign/role')) return Promise.resolve(upstreamOk({ result: { response: 'SUCCESS' } }))
+      if (config.url.includes('private/v1/update')) return Promise.resolve(upstreamOk({ result: { response: 'SUCCESS' } }))
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().post('/login').send({ token: encodeURIComponent('tnnmc-token') })
+    expect(response.status).toBe(200)
+    expect(mockAxiosCallable).toHaveBeenCalledWith(
+      expect.objectContaining({ url: expect.stringContaining('user/v3/create') })
+    )
+  })
+
+  it('falls back gracefully when the user-search lookup throws', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ data: tnnmcUser, success: true }))
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email')) return Promise.resolve(upstreamOk({ responseCode: 'OK', result: { exists: true } }))
+      if (config.url.includes('private/user/v1/search')) return Promise.reject(networkError())
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().post('/login').send({ token: encodeURIComponent('tnnmc-token') })
+    expect(response.status).toBe(200)
+  })
+
+  it('handles a single-word name and continues when the profile update call throws', async () => {
+    const singleNameUser = { ...tnnmcUser, name: 'Madonna' }
+    mockAxios.post.mockResolvedValue(upstreamOk({ data: singleNameUser, success: true }))
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email')) return Promise.resolve(upstreamOk({ responseCode: 'FAILED' }))
+      if (config.url.includes('private/user/v1/search')) {
+        return Promise.resolve(upstreamOk({ result: { response: { content: [] } } }))
+      }
+      if (config.url.includes('user/v3/create')) return Promise.resolve(upstreamOk({ result: { userId: 'new-1' } }))
+      if (config.url.includes('assign/role')) return Promise.resolve(upstreamOk({ result: { response: 'SUCCESS' } }))
+      if (config.url.includes('private/v1/update')) return Promise.reject(networkError())
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().post('/login').send({ token: encodeURIComponent('tnnmc-token') })
+    expect(response.status).toBe(200)
+  })
+
+  it('continues login when migrating an existing user throws', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ data: tnnmcUser, success: true }))
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email')) return Promise.resolve(upstreamOk({ responseCode: 'OK', result: { exists: true } }))
+      if (config.url.includes('private/user/v1/search')) {
+        return Promise.resolve(
+          upstreamOk({
+            result: { response: { content: [{ id: 'u1', rootOrgName: 'aastrika', userId: 'u1' }] } },
+          })
+        )
+      }
+      if (config.url.includes('user/v1/migrate')) return Promise.reject(networkError())
+      if (config.url.includes('assign/role')) return Promise.resolve(upstreamOk({ result: { response: 'SUCCESS' } }))
+      if (config.url.includes('private/v1/update')) return Promise.resolve(upstreamOk({ result: { response: 'SUCCESS' } }))
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().post('/login').send({ token: encodeURIComponent('tnnmc-token') })
+    expect(response.status).toBe(200)
+  })
+
+  it('continues login when assigning the user role throws', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ data: tnnmcUser, success: true }))
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('exists/email')) return Promise.resolve(upstreamOk({ responseCode: 'FAILED' }))
+      if (config.url.includes('private/user/v1/search')) {
+        return Promise.resolve(upstreamOk({ result: { response: { content: [] } } }))
+      }
+      if (config.url.includes('user/v3/create')) return Promise.resolve(upstreamOk({ result: { userId: 'new-1' } }))
+      if (config.url.includes('assign/role')) return Promise.reject(networkError())
+      if (config.url.includes('private/v1/update')) return Promise.resolve(upstreamOk({ result: { response: 'SUCCESS' } }))
+      if (config.url.includes('openid-connect/token')) return Promise.resolve(upstreamOk({ access_token: 'tok-1' }))
+      return Promise.reject(new Error(`Unexpected axios call: ${config.url}`))
+    })
+    mockJwtDecode.mockReturnValue({ sub: 'f:org:user-1' })
+
+    const response = await agent().post('/login').send({ token: encodeURIComponent('tnnmc-token') })
+    expect(response.status).toBe(200)
+  })
 })

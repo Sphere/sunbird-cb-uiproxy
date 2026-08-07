@@ -26,7 +26,6 @@ on:
       - cbrelease-4.0.1
       - production
       - feat-sonarqube-integration
-      - main
       - master
   pull_request:
     branches:

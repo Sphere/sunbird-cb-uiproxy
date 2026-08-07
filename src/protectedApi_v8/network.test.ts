@@ -24,9 +24,11 @@ jest.mock('../utils/env', () => ({
 import axios from 'axios'
 import { networkError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
+import { extractUserIdFromRequest } from '../utils/requestExtract'
 import { networkConnectionApi } from './network'
 
 const mockAxios = axios as jest.Mocked<typeof axios>
+const mockExtractUserIdFromRequest = extractUserIdFromRequest as jest.Mock
 const agent = () => mountRouter(networkConnectionApi)
 const withOrg = (req: ReturnType<typeof agent>) => req.set('rootorg', 'r1')
 
@@ -52,6 +54,13 @@ describe('GET /connections/requested', () => {
     const response = await withOrg(agent().get('/connections/requested'))
     expect(response.status).toBe(500)
   })
+
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().get('/connections/requested'))
+    expect(response.status).toBe(400)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
 })
 
 describe('GET /connections/requests/received', () => {
@@ -64,6 +73,19 @@ describe('GET /connections/requests/received', () => {
   it('rejects a request missing rootorg', async () => {
     const response = await agent().get('/connections/requests/received')
     expect(response.status).toBe(400)
+  })
+
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().get('/connections/requests/received'))
+    expect(response.status).toBe(400)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await withOrg(agent().get('/connections/requests/received'))
+    expect(response.status).toBe(500)
   })
 })
 
@@ -84,6 +106,13 @@ describe('GET /connections/established', () => {
     const response = await withOrg(agent().get('/connections/established'))
     expect(response.status).toBe(500)
   })
+
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().get('/connections/established'))
+    expect(response.status).toBe(400)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
 })
 
 describe('GET /connections/established/:id', () => {
@@ -97,6 +126,18 @@ describe('GET /connections/established/:id', () => {
     const response = await agent().get('/connections/established/c1')
     expect(response.status).toBe(400)
   })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await withOrg(agent().get('/connections/established/c1'))
+    expect(response.status).toBe(500)
+  })
+
+  // NOTE: the `!userId` branch here (userId = req.params.id) is unreachable
+  // live — Express 404s '/connections/established/' and
+  // '/connections/established//' rather than routing to this handler with an
+  // empty :id, so there is no HTTP request that produces a falsy req.params.id
+  // for this route. Left uncovered rather than forced.
 })
 
 describe('GET /connections/suggests', () => {
@@ -109,6 +150,19 @@ describe('GET /connections/suggests', () => {
   it('rejects a request missing rootorg', async () => {
     const response = await agent().get('/connections/suggests')
     expect(response.status).toBe(400)
+  })
+
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().get('/connections/suggests'))
+    expect(response.status).toBe(400)
+    expect(mockAxios.get).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.get.mockRejectedValue(networkError())
+    const response = await withOrg(agent().get('/connections/suggests'))
+    expect(response.status).toBe(500)
   })
 })
 
@@ -152,6 +206,23 @@ describe('POST /update/connection', () => {
     expect(response.status).toBe(400)
     expect(mockAxios.post).not.toHaveBeenCalled()
   })
+
+  it('rejects a request missing rootorg', async () => {
+    const response = await agent()
+      .post('/update/connection')
+      .send({ connectionId: 'c1', status: 'accepted' })
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 on an upstream failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await withOrg(agent().post('/update/connection')).send({
+      connectionId: 'c1',
+      status: 'accepted',
+    })
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /connections/recommended', () => {
@@ -170,6 +241,13 @@ describe('POST /connections/recommended', () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await withOrg(agent().post('/connections/recommended')).send({})
     expect(response.status).toBe(500)
+  })
+
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().post('/connections/recommended')).send({})
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
   })
 })
 
@@ -210,5 +288,12 @@ describe('POST /connections/recommended/userDepartment', () => {
     mockAxios.post.mockRejectedValueOnce(networkError())
     const response = await withOrg(agent().post('/connections/recommended/userDepartment')).send({})
     expect(response.status).toBe(500)
+  })
+
+  it('rejects a request when userId cannot be resolved', async () => {
+    mockExtractUserIdFromRequest.mockReturnValueOnce('')
+    const response = await withOrg(agent().post('/connections/recommended/userDepartment')).send({})
+    expect(response.status).toBe(400)
+    expect(mockAxios.post).not.toHaveBeenCalled()
   })
 })
