@@ -31,6 +31,18 @@
  * download, and image render, and reproducing it live risks the same
  * double/triple-send crash documented there. The bug itself is not fixed
  * here; only its current (buggy) behavior on the safe path is asserted.
+ *
+ * Round 2 branch-coverage pass added below: /certificateDownload (the plain,
+ * non-iOS variant — token/param validation and both success/failure axios
+ * branches), /publicSearch/courseRecommendationCbp (both branches of
+ * `req.session?.grant`), /updateUserProfile (schema validation, the
+ * personalDetails-deletion and regNurseRegMidwifeNumber-default branches, and
+ * the upstream-failure branch), /user/WhatsappConsent and
+ * /user/getWhatsappConsent (the Cassandra insert-vs-update branch and the
+ * not-found branch, using the same cassandra-driver mock already wired up for
+ * /ios/certificateDownload above), and the three /kong/* routes (CDN-replacement
+ * success path, generic proxy pass-through/failure, and the "no /kong in URL"
+ * passthrough to next()).
  */
 
 jest.mock('fs', () => ({
@@ -991,5 +1003,406 @@ describe('GET /ios/certificateDownload (documented pre-existing auth-bypass bug 
 
     expect(response.status).toBe(404)
     expect(mockCassandraExecute).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET /certificateDownload', () => {
+  it('returns the certificate data for a matching token/userId/certificateId', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ result: { certUrl: 'https://cert.test/1' } }))
+
+    const response = await agent()
+      .get('/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ certificateId: 'cert-1', userId: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      data: { certUrl: 'https://cert.test/1' },
+      status: 'SUCCESS',
+    })
+  })
+
+  it('returns 400 when userId is missing', async () => {
+    const response = await agent()
+      .get('/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ certificateId: 'cert-1' })
+
+    expect(response.status).toBe(400)
+    expect(response.body.status).toBe('FAILED')
+    expect(mockAxios).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when certificateId is missing', async () => {
+    const response = await agent()
+      .get('/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ userId: 'u1' })
+
+    expect(response.status).toBe(400)
+    expect(mockAxios).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when the token userId does not match the query userId', async () => {
+    const response = await agent()
+      .get('/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ certificateId: 'cert-1', userId: 'someone-else' })
+
+    expect(response.status).toBe(400)
+    expect(mockAxios).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when the upstream download call fails', async () => {
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent()
+      .get('/certificateDownload')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ certificateId: 'cert-1', userId: 'u1' })
+
+    expect(response.status).toBe(400)
+    expect(response.body.status).toBe('FAILED')
+  })
+})
+
+describe('POST /publicSearch/courseRecommendationCbp', () => {
+  it('forwards the search request without a session grant', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ courses: [] }))
+
+    const response = await agent()
+      .post('/publicSearch/courseRecommendationCbp')
+      .send({ filters: {} })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ courses: [] })
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ authToken: '' }) })
+    )
+  })
+
+  it('forwards the session grant access token when present', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ courses: [] }))
+
+    const response = await mountRouter(mobileAppApi, {
+      session: { grant: { access_token: { token: 'session-token' } } },
+    })
+      .post('/publicSearch/courseRecommendationCbp')
+      .send({ filters: {} })
+
+    expect(response.status).toBe(200)
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ authToken: 'session-token' }) })
+    )
+  })
+
+  it('returns the upstream error status/body on failure', async () => {
+    mockAxios.mockRejectedValue(upstreamError(503, { error: 'cbp down' }))
+
+    const response = await agent()
+      .post('/publicSearch/courseRecommendationCbp')
+      .send({})
+
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'cbp down' })
+  })
+})
+
+describe('PATCH /updateUserProfile', () => {
+  const validBody = {
+    request: {
+      profileDetails: { profileReq: { personalDetails: {} } },
+      userId: 'u1',
+    },
+  }
+
+  it('returns 400 for a schema-invalid body without calling upstream', async () => {
+    const response = await agent()
+      .patch('/updateUserProfile')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send({ request: {} })
+
+    expect(response.status).toBe(400)
+    expect(response.body.result.errorSource).toBe('JOI')
+    expect(mockAxiosPatch).not.toHaveBeenCalled()
+  })
+
+  it('updates the profile, stripping personalDetails and defaulting regNurseRegMidwifeNumber', async () => {
+    mockAxiosPatch.mockResolvedValue(upstreamOk({ updated: true }))
+
+    const body = {
+      request: {
+        profileDetails: {
+          personalDetails: { name: 'drop-me' },
+          profileReq: { personalDetails: {} },
+        },
+        userId: 'u1',
+      },
+    }
+
+    const response = await agent()
+      .patch('/updateUserProfile')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(body)
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ updated: true })
+    const sentBody = mockAxiosPatch.mock.calls[0][1]
+    expect(sentBody.request.profileDetails.personalDetails).toBeUndefined()
+    expect(sentBody.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber).toBe(
+      '[NA]'
+    )
+  })
+
+  it('leaves an existing regNurseRegMidwifeNumber untouched', async () => {
+    mockAxiosPatch.mockResolvedValue(upstreamOk({ updated: true }))
+
+    const body = {
+      request: {
+        profileDetails: {
+          profileReq: {
+            personalDetails: { regNurseRegMidwifeNumber: 'RN-123' },
+          },
+        },
+        userId: 'u1',
+      },
+    }
+
+    const response = await agent()
+      .patch('/updateUserProfile')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(body)
+
+    expect(response.status).toBe(200)
+    const sentBody = mockAxiosPatch.mock.calls[0][1]
+    expect(
+      sentBody.request.profileDetails.profileReq.personalDetails.regNurseRegMidwifeNumber
+    ).toBe('RN-123')
+  })
+
+  it('returns 500 when the upstream update fails', async () => {
+    mockAxiosPatch.mockRejectedValue(networkError())
+
+    const response = await agent()
+      .patch('/updateUserProfile')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(validBody)
+
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Something went wrong')
+  })
+
+  // NOTE: an invalid token is the same documented no-response/hang shape as
+  // /webviewLogin above — verifyToken() sends its own 404, the outer
+  // `if (status == 200)` guard is then false with no `else`, and the handler
+  // returns without ever calling res again. Not reproduced live for the same
+  // reason /webviewLogin's equivalent case isn't: there is nothing to assert
+  // on a request that never completes a second time. Covered indirectly by
+  // the "invalid token" behavior already proven for /webviewLogin and
+  // /getEntityById above, which share verifyToken()'s exact contract.
+})
+
+describe('POST /user/WhatsappConsent', () => {
+  const validBody = {
+    is_opted_in: true,
+    opt_in_channel: 'sms',
+  }
+
+  it('returns 400 for a schema-invalid body without calling Cassandra', async () => {
+    const response = await agent()
+      .post('/user/WhatsappConsent')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send({ is_opted_in: true })
+
+    expect(response.status).toBe(400)
+    expect(mockCassandraExecute).not.toHaveBeenCalled()
+  })
+
+  // NOTE: an invalid token is the same documented double-send bug as
+  // /user/profileUpdate above — verifyToken() already sends its own 404, and
+  // this handler's `status !== 200` guard then also fires a second
+  // `res.status(401)...`. Not reproduced live for the same reason.
+
+  it('inserts a new consent record when none exists yet', async () => {
+    mockCassandraExecute
+      .mockResolvedValueOnce({ rows: [], rowLength: 0 }) // SELECT check
+      .mockResolvedValueOnce({}) // INSERT/UPDATE
+
+    const response = await agent()
+      .post('/user/WhatsappConsent')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(validBody)
+
+    expect(response.status).toBe(200)
+    expect(response.body.is_new_record).toBe(true)
+    expect(response.body.user_id).toBe('u1')
+    const insertQuery = mockCassandraExecute.mock.calls[1][0]
+    expect(insertQuery).toContain('INSERT INTO')
+  })
+
+  it('updates the existing consent record when one already exists', async () => {
+    mockCassandraExecute
+      .mockResolvedValueOnce({ rows: [{ consent_id: 'existing-1' }], rowLength: 1 })
+      .mockResolvedValueOnce({})
+
+    const response = await agent()
+      .post('/user/WhatsappConsent')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send({ ...validBody, is_whats_up_opted_in: true })
+
+    expect(response.status).toBe(200)
+    expect(response.body.is_new_record).toBe(false)
+    const updateQuery = mockCassandraExecute.mock.calls[1][0]
+    expect(updateQuery).toContain('UPDATE')
+  })
+
+  it('returns 500 when the Cassandra call fails', async () => {
+    mockCassandraExecute.mockRejectedValue(new Error('cassandra unavailable'))
+
+    const response = await agent()
+      .post('/user/WhatsappConsent')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send(validBody)
+
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /user/getWhatsappConsent', () => {
+  it('returns the stored consent record', async () => {
+    mockCassandraExecute.mockResolvedValue({
+      rowLength: 1,
+      rows: [{ is_opted_in: true, user_id: 'u1' }],
+    })
+
+    const response = await agent()
+      .get('/user/getWhatsappConsent')
+      .set(AUTH_HEADER, validToken('u1'))
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ is_opted_in: true, user_id: 'u1' })
+  })
+
+  it('returns 404 when no consent record exists', async () => {
+    mockCassandraExecute.mockResolvedValue({ rowLength: 0, rows: [] })
+
+    const response = await agent()
+      .get('/user/getWhatsappConsent')
+      .set(AUTH_HEADER, validToken('u1'))
+
+    expect(response.status).toBe(404)
+  })
+
+  // NOTE: an invalid token is the same documented double-send bug noted for
+  // POST /user/WhatsappConsent above — not reproduced live.
+
+  it('returns 500 when the Cassandra query fails', async () => {
+    mockCassandraExecute.mockRejectedValue(new Error('cassandra unavailable'))
+
+    const response = await agent()
+      .get('/user/getWhatsappConsent')
+      .set(AUTH_HEADER, validToken('u1'))
+
+    expect(response.status).toBe(500)
+  })
+})
+
+describe('GET /kong/course/v2/hierarchy/*', () => {
+  it('applies CDN URL replacement and forwards the hierarchy response', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ identifier: 'h1' }))
+
+    const response = await agent().get('/kong/course/v2/hierarchy/h1')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ identifier: 'h1' })
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://kong.test/course/v1/hierarchy/h1' })
+    )
+  })
+
+  it('returns the upstream error status/body when the hierarchy fetch fails', async () => {
+    mockAxios.mockRejectedValue(upstreamError(502, { error: 'hierarchy down' }))
+
+    const response = await agent().get('/kong/course/v2/hierarchy/h1')
+
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'hierarchy down' })
+  })
+
+  it('falls back to a 500 default when the failure carries no upstream response', async () => {
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent().get('/kong/course/v2/hierarchy/h1')
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed to fetch hierarchy' })
+  })
+})
+
+describe('GET /kong/content/v1/read/*', () => {
+  it('applies CDN URL replacement and forwards the content response', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ identifier: 'c1' }))
+
+    const response = await agent().get('/kong/content/v1/read/c1')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ identifier: 'c1' })
+  })
+
+  it('returns the upstream error status/body when the content fetch fails', async () => {
+    mockAxios.mockRejectedValue(upstreamError(502, { error: 'content down' }))
+
+    const response = await agent().get('/kong/content/v1/read/c1')
+
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'content down' })
+  })
+
+  it('falls back to a 500 default when the failure carries no upstream response', async () => {
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent().get('/kong/content/v1/read/c1')
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed to fetch content' })
+  })
+})
+
+describe('generic /kong/* proxy middleware', () => {
+  it('forwards a matching GET request to the rewritten backend URL', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ passthrough: true }))
+
+    const response = await agent().get('/kong/some/other/endpoint')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ passthrough: true })
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: 'https://auth.test/api/some/other/endpoint',
+      })
+    )
+  })
+
+  it('includes the request body for a matching POST request', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({ created: true }))
+
+    const response = await agent()
+      .post('/kong/some/other/endpoint')
+      .send({ foo: 'bar' })
+
+    expect(response.status).toBe(200)
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { foo: 'bar' }, method: 'POST' })
+    )
+  })
+
+  it('returns 500 when the proxied request fails', async () => {
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent().get('/kong/some/other/endpoint')
+
+    expect(response.status).toBe(500)
+    expect(response.text).toBe('Internal Server Error')
   })
 })

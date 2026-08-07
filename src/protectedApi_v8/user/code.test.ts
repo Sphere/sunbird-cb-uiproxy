@@ -235,6 +235,32 @@ describe('POST /:group/:action/:contentId', () => {
     expect(response.body).toEqual({ result: 'submitted' })
   })
 
+  it('verifies ce code and returns the upstream result', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'ce-verified' }))
+    const response = await withOrgHeaders(agent().post('/ce/verify/c1')).send({})
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ result: 'ce-verified' })
+    expect(mockAxiosCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('multilanguage-submission?type=verify'),
+      })
+    )
+  })
+
+  it('verifies fpJava code and returns the upstream result', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'java-verified' }))
+    const response = await withOrgHeaders(agent().post('/fpJava/verify/c1')).send({
+      code: 'class A {}',
+    })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ result: 'java-verified' })
+    expect(mockAxiosCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('java-submission?type=verify'),
+      })
+    )
+  })
+
   it('submits pf code (a group/action with no verify variant) and returns the upstream result', async () => {
     mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'pf-submitted' }))
     const response = await withOrgHeaders(agent().post('/pf/submit/c1')).send({})

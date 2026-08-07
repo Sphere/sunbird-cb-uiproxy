@@ -39,12 +39,14 @@ import { mountRouter } from '../test-support/mountRouter'
 import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
+import { generateRandomPassword } from '../utils/randomPasswordGenerator'
 
 const mockAxios = axios as unknown as jest.Mock
 const mockGetOTP = getOTP as jest.Mock
 const mockValidateOTP = validateOTP as jest.Mock
 const mockGetCurrentUserRoles = getCurrentUserRoles as jest.Mock
 const mockJwtDecode = jwtDecode as jest.Mock
+const mockGenerateRandomPassword = generateRandomPassword as jest.Mock
 
 const agent = () => mountRouter(emailOrMobileLogin)
 
@@ -64,7 +66,10 @@ const userSearchResponse = (exists: boolean) =>
 const createUserResponse = (userId = 'user-uuid-1') =>
   upstreamOk({ responseCode: 'OK', result: { userId } })
 
-beforeEach(() => mockAxios.mockReset())
+beforeEach(() => {
+  mockAxios.mockReset()
+  mockGenerateRandomPassword.mockClear()
+})
 
 describe('POST /signup', () => {
   it('creates a new user and reports success', async () => {
@@ -153,6 +158,25 @@ describe('POST /signup', () => {
     expect(response.status).toBe(200)
     expect(response.body.status).toBe('success')
   })
+
+  it('uses the caller-supplied password instead of generating one', async () => {
+    // Every other /signup test omits `password`, exercising the `!password`
+    // auto-generate branch. This covers the untested opposite branch: when
+    // the request already supplies a password, generateRandomPassword must
+    // not be invoked at all.
+    mockAxios
+      .mockResolvedValueOnce(userSearchResponse(false)) // fetchUserBymobileorEmail
+      .mockResolvedValueOnce(createUserResponse('user-uuid-4')) // createuserWithmobileOrEmail
+      .mockResolvedValueOnce(upstreamOk()) // updateRoles
+    mockGetOTP.mockResolvedValue(upstreamOk({ result: { response: 'SUCCESS' } }))
+
+    const response = await agent()
+      .post('/signup')
+      .send({ email: 'haspwd@example.com', firstName: 'A', lastName: 'B', password: 'CallerSupplied1!' })
+
+    expect(response.status).toBe(200)
+    expect(mockGenerateRandomPassword).not.toHaveBeenCalled()
+  })
 })
 
 describe('POST /generateOtp', () => {
@@ -228,6 +252,22 @@ describe('POST /generateOtp', () => {
     expect(response.status).toBe(500)
     expect(response.body.message).toBe('OTP regeneration failed')
   })
+
+  it('resends OTP by phone when supplied via the `phone` field instead of `mobileNumber`', async () => {
+    // req.body.mobileNumber || req.body.phone — every other phone-path test
+    // in this describe block uses mobileNumber; this covers the `phone`
+    // fallback field's right-hand side of the `||`.
+    mockAxios
+      .mockResolvedValueOnce(
+        upstreamOk({ result: { response: { count: 1, content: [{ id: 'u2' }] } } })
+      )
+      .mockResolvedValueOnce(upstreamOk({}))
+
+    const response = await agent().post('/generateOtp').send({ phone: '9876500000' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.userId).toBe('u2')
+  })
 })
 
 describe('POST /validateOtp', () => {
@@ -280,6 +320,23 @@ describe('POST /validateOtp', () => {
 
     expect(response.status).toBe(200)
     expect(response.body.status).toBe(200)
+  })
+
+  it('validates successfully via mobileNumber instead of email', async () => {
+    // `mobileNumber ? mobileNumber : email` and `email ? 'email' : 'phone'` —
+    // every other /validateOtp test in this block supplies email only,
+    // exercising the email/true branches. This covers the mobileNumber/phone
+    // branches by omitting email entirely.
+    mockAxios.mockResolvedValueOnce(upstreamOk()) // updateRoles' axios call
+    mockValidateOTP.mockResolvedValue(upstreamOk({}))
+
+    const response = await agent()
+      .post('/validateOtp')
+      .send({ mobileNumber: '9876543210', otp: '1234', userUUId: 'u1' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe(200)
+    expect(mockValidateOTP).toHaveBeenCalledWith('u1', '9876543210', 'phone', '1234')
   })
 })
 
@@ -340,6 +397,23 @@ describe('POST /registerUserWithMobile', () => {
 
     expect(response.status).toBe(500)
     expect(response.body.error).toBe('Failed due to unknown reason')
+  })
+
+  it('uses the caller-supplied password instead of generating one', async () => {
+    // Every other /registerUserWithMobile test omits `password`, exercising
+    // the `!password` auto-generate branch. This covers the opposite branch.
+    mockAxios
+      .mockResolvedValueOnce(userSearchResponse(false))
+      .mockResolvedValueOnce(createUserResponse('user-uuid-5'))
+      .mockResolvedValueOnce(upstreamOk()) // updateRoles
+    mockGetOTP.mockResolvedValue(upstreamOk({ result: { response: 'SUCCESS' } }))
+
+    const response = await agent()
+      .post('/registerUserWithMobile')
+      .send({ phone: '9876500001', firstName: 'A', password: 'CallerSupplied1!' })
+
+    expect(response.status).toBe(200)
+    expect(mockGenerateRandomPassword).not.toHaveBeenCalled()
   })
 })
 
@@ -410,6 +484,52 @@ describe('POST /auth', () => {
 
     expect(response.status).toBe(302)
     expect(response.body.msg).toMatch(/Authentication failed/)
+  })
+
+  it('authenticates using mobileNumber as the username instead of email', async () => {
+    // `const username = mobileNumber ? mobileNumber : email` — every other
+    // /auth test in this block supplies email only. This covers the
+    // mobileNumber/true branch. Request-body construction only; does not
+    // touch exchangeTokenAndEstablishSession's internals.
+    mockAxios
+      .mockResolvedValueOnce(userSearchResponse(false)) // email exists check
+      .mockResolvedValueOnce(userSearchResponse(true)) // mobile check
+      .mockResolvedValueOnce(upstreamOk({ access_token: 'jwt-token' })) // token endpoint
+    mockJwtDecode.mockReturnValue({ sub: 'realm:user:uid-3' })
+    mockGetCurrentUserRoles.mockResolvedValue(undefined)
+
+    const response = await mountRouter(emailOrMobileLogin, { session: session() })
+      .post('/auth')
+      .send({ mobileNumber: '9876543210', password: 'pw' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('success')
+  })
+
+  it('generates a password when none is supplied in the request', async () => {
+    // Every other /auth test in this block supplies `password`, exercising
+    // the (`!password` false) branch that skips generation. This covers the
+    // opposite branch: no password in the body triggers generateRandomPassword.
+    // Request-body construction only; does not touch
+    // exchangeTokenAndEstablishSession's internals.
+    mockAxios
+      .mockResolvedValueOnce(userSearchResponse(true)) // email exists
+      .mockResolvedValueOnce(userSearchResponse(false)) // mobile check
+      .mockResolvedValueOnce(upstreamOk({ access_token: 'jwt-token' })) // token endpoint
+    mockJwtDecode.mockReturnValue({ sub: 'realm:user:uid-4' })
+    mockGetCurrentUserRoles.mockResolvedValue(undefined)
+
+    const response = await mountRouter(emailOrMobileLogin, { session: session() })
+      .post('/auth')
+      .send({ email: 'nopwd@b.com' })
+
+    expect(response.status).toBe(200)
+    expect(mockGenerateRandomPassword).toHaveBeenCalledWith(8, {
+      digits: true,
+      lowercase: true,
+      symbols: true,
+      uppercase: true,
+    })
   })
 
   // The outermost catch (after the inner token-exchange try/catch) is

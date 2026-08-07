@@ -179,6 +179,34 @@ describe('isAllowed', () => {
   })
 
   // NOTE (left uncovered on purpose, not a live-test candidate):
+  // executeChecks' (source lines 111-136) own internal branches beyond the
+  // two already exercised above (the ROLE_CHECK-resolves next() path and the
+  // ROLE_CHECK-rejects respond403 path) are unreachable through any real
+  // request:
+  //   - line 111's `checksToExecute: any = []` default parameter never
+  //     applies — executeChecks is a private, unexported function with
+  //     exactly one call site (isAllowed(), source line 253), which always
+  //     passes an explicit array built from urlChecksNeeded.forEach(...).
+  //   - line 117's `if (pSuccess) { ... } else { throw ... }` false branch
+  //     (line 125) requires Promise.allSettled(...) to resolve to a falsy
+  //     value. Verified directly in Node: Promise.allSettled always resolves
+  //     to an array (truthy), even for an empty input array — there is no
+  //     real `checksToExecute` value that makes this resolve falsy.
+  //   - lines 133-135's outer try/catch only catches a *synchronous* throw
+  //     from calling `(Promise as any).allSettled(...)` itself, not a
+  //     rejection anywhere inside the .then()/.catch() chain (rejections
+  //     there — e.g. from the line 120/125 throws — are already caught by
+  //     the inner `.catch((pError) => ...)` on line 129, which also calls
+  //     respond403, verified with `Promise.allSettled(null)` in Node:
+  //     it rejects into the inner catch, not the outer one).
+  // Reaching any of these three would require mocking Promise.allSettled
+  // itself to lie about its own resolution behavior, which would test a
+  // fabricated runtime rather than this file's real logic — consistent with
+  // this suite's existing convention (see the SCOPE_CHECK note below) of
+  // documenting genuinely unreachable-under-live-config branches rather than
+  // forcing an artificial test around them.
+
+  // NOTE (left uncovered on purpose, not a live-test candidate):
   // urlChecks.SCOPE_CHECK (source lines 70-94) is likewise unreachable via
   // any real route today. It IS wired into one config entry's data
   // ('/protected/v8/workallocation/getWorkOrderById/:workOrderId' has a

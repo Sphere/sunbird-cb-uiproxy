@@ -96,6 +96,13 @@ describe('GET /:certificationId/locations/:location/testCenters/:testCenter/slot
     const response = await agent().get('/cert-1/locations/loc-1/testCenters/tc-1/slots')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().get('/cert-1/locations/loc-1/testCenters/tc-1/slots')
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
+  })
 })
 
 describe('POST /:certificationId/booking/:slotNo', () => {
@@ -138,6 +145,13 @@ describe('GET /countries', () => {
     const response = await agent().get('/countries')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(500, { error: 'server error' }))
+    const response = await agent().get('/countries')
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'server error' })
+  })
 })
 
 describe('GET /countries/:countryCode/locations', () => {
@@ -151,6 +165,13 @@ describe('GET /countries/:countryCode/locations', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/countries/IN/locations')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'country not found' }))
+    const response = await agent().get('/countries/IN/locations')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'country not found' })
   })
 })
 
@@ -166,6 +187,13 @@ describe('GET /slots', () => {
     const response = await agent().get('/slots')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(503, { error: 'unavailable' }))
+    const response = await agent().get('/slots')
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'unavailable' })
+  })
 })
 
 describe('POST /:certificationId/atDeskBooking', () => {
@@ -179,6 +207,13 @@ describe('POST /:certificationId/atDeskBooking', () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await agent().post('/cert-1/atDeskBooking').send({})
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid booking' }))
+    const response = await agent().post('/cert-1/atDeskBooking').send({})
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid booking' })
   })
 })
 
@@ -225,6 +260,13 @@ describe('GET /currencies', () => {
     const response = await agent().get('/currencies')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(500, { error: 'server error' }))
+    const response = await agent().get('/currencies')
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'server error' })
+  })
 })
 
 describe('POST /:certificationId/budgetRequest', () => {
@@ -239,6 +281,13 @@ describe('POST /:certificationId/budgetRequest', () => {
     const response = await agent().post('/cert-1/budgetRequest').send({})
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid request' }))
+    const response = await agent().post('/cert-1/budgetRequest').send({})
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid request' })
+  })
 })
 
 describe('DELETE /:certificationId/budgetRequest', () => {
@@ -252,6 +301,13 @@ describe('DELETE /:certificationId/budgetRequest', () => {
     mockAxios.delete.mockRejectedValue(networkError())
     const response = await agent().delete('/cert-1/budgetRequest')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.delete.mockRejectedValue(upstreamError(404, { error: 'request not found' }))
+    const response = await agent().delete('/cert-1/budgetRequest')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'request not found' })
   })
 })
 
@@ -328,6 +384,13 @@ describe('PATCH /:certificationId/result', () => {
     const response = await agent().patch('/cert-1/result').query({ action: 'submit' }).send({})
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.patch.mockRejectedValue(upstreamError(409, { error: 'already submitted' }))
+    const response = await agent().patch('/cert-1/result').query({ action: 'submit' }).send({})
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'already submitted' })
+  })
 })
 
 describe('GET /submittedDocument', () => {
@@ -341,6 +404,13 @@ describe('GET /submittedDocument', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/submittedDocument')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'document not found' }))
+    const response = await agent().get('/submittedDocument')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'document not found' })
   })
 })
 
@@ -356,6 +426,13 @@ describe('DELETE /:certificationId/document', () => {
     const response = await agent().delete('/cert-1/document')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.delete.mockRejectedValue(upstreamError(404, { error: 'document not found' }))
+    const response = await agent().delete('/cert-1/document')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'document not found' })
+  })
 })
 
 describe('GET /certificationApprovals', () => {
@@ -369,6 +446,13 @@ describe('GET /certificationApprovals', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/certificationApprovals')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(403, { error: 'forbidden' }))
+    const response = await agent().get('/certificationApprovals')
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'forbidden' })
   })
 })
 
@@ -384,6 +468,13 @@ describe('POST /atDeskRequests/:icfdId', () => {
     const response = await agent().post('/atDeskRequests/icfd-1').send({})
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid request' }))
+    const response = await agent().post('/atDeskRequests/icfd-1').send({})
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid request' })
+  })
 })
 
 describe('POST /:certificationId/budgetRequestApproval', () => {
@@ -398,6 +489,13 @@ describe('POST /:certificationId/budgetRequestApproval', () => {
     const response = await agent().post('/cert-1/budgetRequestApproval').send({})
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(403, { error: 'forbidden' }))
+    const response = await agent().post('/cert-1/budgetRequestApproval').send({})
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'forbidden' })
+  })
 })
 
 describe('POST /:certificationId/resultVerificationRequests', () => {
@@ -411,6 +509,13 @@ describe('POST /:certificationId/resultVerificationRequests', () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await agent().post('/cert-1/resultVerificationRequests').send({})
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid action' }))
+    const response = await agent().post('/cert-1/resultVerificationRequests').send({})
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid action' })
   })
 })
 
@@ -454,6 +559,13 @@ describe('GET /certificationRequests', () => {
     const response = await agent().get('/certificationRequests')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(401, { error: 'unauthorized' }))
+    const response = await agent().get('/certificationRequests')
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'unauthorized' })
+  })
 })
 
 describe('GET /:certificationId/submissions', () => {
@@ -467,6 +579,13 @@ describe('GET /:certificationId/submissions', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/cert-1/submissions')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the real upstream status and body on an HTTP error response', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/cert-1/submissions')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
   })
 })
 

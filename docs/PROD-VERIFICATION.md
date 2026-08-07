@@ -4303,6 +4303,59 @@ constant's value, only its identifier.
 
 ---
 
+## CHANGE 28 — round 2 branch-coverage push, 12 files, tests only
+
+Second parallel coverage push, closing the largest remaining gaps left
+after CHANGE 26's round 1 — several of the same files (their deferred
+`/createUser` flows and similar large sub-branches), plus a few smaller
+files never touched. Tests only; zero source-file changes, confirmed by
+`git status` and each file's own diff.
+
+**Files and what was added:**
+
+| File | New tests | What's new |
+|---|---|---|
+| `mpNHMUser.ts` | 13 | full `/createUser` flow (was deferred in round 1) |
+| `mobileAppApi.ts` | 33 | 7 whole routes round 1 left uncovered (certificateDownload, courseRecommendationCbp, updateUserProfile, WhatsApp consent ×2, 2 Kong proxy routes) |
+| `admin/userRegistration.ts` | 38 | `createUser`/`performNewUserSteps`/`insertBulkUploadStatus` helpers, previously untested despite being exported |
+| `upsmfUser.ts` | 7 | remaining `/createUser` role/branch combinations |
+| `rcEvents.ts` | 8 | `POST /events/users`' full call graph (role-assign/profile-update failure-but-continue, duplicate-phone recovery) |
+| `user/profile-details.ts` | 41 | all 7 routes round 1 explicitly deferred (`/migrateRegistry`, `/createUser`, `/completeUserInfo`, `/v2/updateUser`, 3 more createUser variants) |
+| `bnrcUser.ts` | 15 | remaining `getDetailsAsPerRole` switch branches, a retry-then-succeed Postgres path |
+| `certifications.ts` | 17 | the upstream-HTTP-error-forwarding branch for 17 routes that only had the network-failure branch covered |
+| `user/code.ts` | 2 | the `ce`/`fpJava` verify-type lookup branches |
+| `training.ts` | 13 | the upstream-HTTP-error-forwarding branch for 12 routes, one missing network-failure case |
+| `utils/apiWhiteList.ts` | 0 | investigated all 19 remaining uncovered conditions and confirmed every one is genuinely unreachable (`executeChecks`'s default-arg and throw branches, checked directly in Node) — documented with evidence rather than forcing a fake test |
+| `emailOrMobileLoginSignIn.ts` | 6 | request-body field-combination branches only (caller-supplied vs. auto-generated password, `phone` vs `mobileNumber` fallbacks) — deliberately did not touch `exchangeTokenAndEstablishSession`, already adversarially verified in CHANGE 23/26 |
+
+**Why fixed this way:** every agent was instructed to re-read its file's
+CURRENT test suite fully before adding anything (round 1 already extended
+most of these once), to never duplicate existing cases, and to assert
+documented bugs' current behavior rather than fix or skip them.
+`apiWhiteList.ts` is the interesting negative result — rather than
+padding the suite, the agent proved via direct Node verification that
+`Promise.allSettled` can't take the paths Sonar flags uncovered, and
+recorded that evidence as a comment instead of a synthetic test.
+
+**Impact: zero.** Every file's own test suite passed after its
+extension. Two new double-send hazards were discovered while writing
+tests (`mobileAppApi.ts`'s WhatsApp-consent routes, `userRegistration.ts`'s
+`UpdateKeycloakUserPassword` failure-without-`return` path) — both are the
+same structural class as the already-documented cases in this file
+family, left as `NOTE:` comments rather than exercised live, matching
+established convention; no source change. `tsc --noEmit` clean. Full
+regression: 216 suites / 3570 tests pass (up from 3414). One transient
+`mountRouter`-harness failure appeared on one coverage-instrumented run
+and was gone on immediate rerun — the established pattern throughout this
+whole campaign, not a regression (confirmed via 3 consecutive clean runs
+before trusting the result). `npm run build` exits 0, clean `dist/` (278
+files, unchanged count, zero `*.test.js` leaked).
+
+**MUST VERIFY IN PROD:** nothing — tests-only change, zero source files
+touched in this batch.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

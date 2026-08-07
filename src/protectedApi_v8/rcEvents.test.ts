@@ -9,6 +9,21 @@
  * Both need dedicated timer/stream handling, not a one-line mock; scheduled for
  * Phase 2 alongside the plan's other Cassandra-heavy files.
  *
+ * PHASE 2 (round 2 of this coverage push): re-confirmed the certificate-
+ * generation and S3-download endpoints are still out of scope for the same
+ * reasons as above (retry-loop timers and archiver/S3 streaming respectively
+ * have no existing mock pattern in this file and would need dedicated
+ * infrastructure, not a one-line mock). The remaining gap was instead almost
+ * entirely inside POST /events/users' own call graph: `createUserIfNotExists`
+ * and `checkIfuserExists` have several branches (role-assign failure,
+ * profile-update failure, the duplicate-phone-error recovery path and its
+ * own sub-branches, a non-duplicate upstream error, a network error with no
+ * `error.response`, and the nested `profileDetails.profileReq.personalDetails`
+ * fallback) that are within the already-in-scope Cassandra/linking endpoint
+ * but weren't yet exercised. Added below, following the same sequential
+ * `mockResolvedValueOnce`/`mockRejectedValueOnce` axios-call pattern already
+ * used by the "creates a new sunbird user" test.
+ *
  * `mockExecute` is named with the `mock` prefix required by Jest's hoisting
  * rules, so the jest.mock factory below (which runs before any other code due
  * to hoisting) is allowed to reference it.
@@ -38,7 +53,7 @@ jest.mock('../utils/env', () => ({
 }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
 import { sunbirdrRcCertificate } from './rcEvents'
 
@@ -396,6 +411,178 @@ describe('POST /events/users', () => {
     const response = await agent()
       .post('/events/users')
       .send({ eventId: 'evt-1', users: [{ firstName: 'No', lastName: 'Id', phone: '9876543210' }] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.failed).toBe(1)
+    expect(response.body.success).toBe(0)
+  })
+
+  it('finds an existing sphere user via the nested profileDetails fallback', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios.mockResolvedValue(
+      upstreamOk({
+        result: {
+          response: {
+            content: [
+              {
+                id: 'sunbird-user-2',
+                profileDetails: {
+                  profileReq: {
+                    personalDetails: { firstname: 'Nested', surname: 'Name' },
+                  },
+                },
+              },
+            ],
+            count: 1,
+          },
+        },
+      })
+    )
+
+    const response = await agent()
+      .post('/events/users')
+      .send({ eventId: 'evt-1', users: [{ phone: '9876543210', place: 'Delhi' }] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.success).toBe(1)
+    expect(mockExecute).toHaveBeenLastCalledWith(
+      expect.stringContaining('INSERT INTO sunbird.rc_events_users'),
+      expect.arrayContaining(['Nested', 'Name']),
+      { prepare: true }
+    )
+  })
+
+  it('creates a sunbird user and still succeeds when role assignment fails', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-2' } })) // createUserIfNotExists: create
+      .mockRejectedValueOnce(networkError()) // role assign fails
+      .mockResolvedValueOnce(upstreamOk({})) // profile update
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'RoleFail', lastName: 'User', phone: '9876543210' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.success).toBe(1)
+    expect(response.body.failed).toBe(0)
+  })
+
+  it('creates a sunbird user and still succeeds when the profile update fails', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-3' } })) // createUserIfNotExists: create
+      .mockResolvedValueOnce(upstreamOk({})) // role assign succeeds
+      .mockRejectedValueOnce(networkError()) // profile update fails
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'ProfileFail', lastName: 'User', phone: '9876543210' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.success).toBe(1)
+    expect(response.body.failed).toBe(0)
+  })
+
+  it('recovers via the existing-user lookup when user creation hits a duplicate-phone error', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockRejectedValueOnce(upstreamError(400, { params: { err: 'UOS_USRCRT0002' } })) // create: duplicate phone
+      .mockResolvedValueOnce(
+        upstreamOk({
+          result: { response: { content: [{ firstName: 'Existing', id: 'existing-user-1', lastName: 'User' }], count: 1 } },
+        })
+      ) // recovery lookup finds the existing user
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'Dup', lastName: 'User', phone: '9876543210' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.success).toBe(1)
+    expect(response.body.failed).toBe(0)
+  })
+
+  it('records a failure when the duplicate-phone recovery lookup finds nobody', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockRejectedValueOnce(upstreamError(400, { params: { err: 'UOS_USRCRT0002' } })) // create: duplicate phone
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // recovery lookup: still nobody
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'Dup', lastName: 'NotFound', phone: '9876543210' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.failed).toBe(1)
+    expect(response.body.success).toBe(0)
+  })
+
+  it('records a failure when the duplicate-phone recovery lookup itself throws', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockRejectedValueOnce(upstreamError(400, { params: { err: 'UOS_USRCRT0002' } })) // create: duplicate phone
+      .mockRejectedValueOnce(networkError()) // recovery lookup throws
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'Dup', lastName: 'Throws', phone: '9876543210' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.failed).toBe(1)
+    expect(response.body.success).toBe(0)
+  })
+
+  it('records a failure when user creation fails with a non-duplicate upstream error', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockRejectedValueOnce(upstreamError(500, { params: { err: 'SOME_OTHER_ERROR' } })) // create: generic upstream failure
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'Generic', lastName: 'Fail', phone: '9876543210' }],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.failed).toBe(1)
+    expect(response.body.success).toBe(0)
+  })
+
+  it('records a failure when user creation throws a network error with no response', async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [cassandraRow] }).mockResolvedValueOnce({})
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [], count: 0 } } })) // checkIfuserExists: no match
+      .mockRejectedValueOnce(networkError()) // create: transport-level failure, no error.response
+
+    const response = await agent()
+      .post('/events/users')
+      .send({
+        eventId: 'evt-1',
+        users: [{ firstName: 'Network', lastName: 'Fail', phone: '9876543210' }],
+      })
 
     expect(response.status).toBe(200)
     expect(response.body.failed).toBe(1)

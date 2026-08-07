@@ -41,6 +41,7 @@ jest.mock('../user/details', () => ({ wTokenApiMock: jest.fn() }))
 jest.mock('../user/roles', () => ({ updateRolesV2Mock: jest.fn() }))
 
 import axios from 'axios'
+import cassandraDriver from 'cassandra-driver'
 import { networkError, upstreamError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
 import {
@@ -50,7 +51,13 @@ import {
   UpdateKeycloakUserPassword,
 } from '../../utils/keycloak-user-creation'
 import { wTokenApiMock } from '../user/details'
-import { userRegistrationApi } from './userRegistration'
+import { updateRolesV2Mock } from '../user/roles'
+import {
+  createUser,
+  insertBulkUploadStatus,
+  performNewUserSteps,
+  userRegistrationApi,
+} from './userRegistration'
 
 const mockAxios = axios as jest.Mocked<typeof axios>
 const mockCreateKeycloakUser = createKeycloakUser as jest.Mock
@@ -58,6 +65,8 @@ const mockGetAuthToken = getAuthToken as jest.Mock
 const mockUpdatePassword = UpdateKeycloakUserPassword as jest.Mock
 const mockSendActionsEmail = sendActionsEmail as jest.Mock
 const mockWToken = wTokenApiMock as jest.Mock
+const mockUpdateRolesV2 = updateRolesV2Mock as jest.Mock
+const mockCassandraClient = cassandraDriver.Client as unknown as jest.Mock
 
 const agent = () => mountRouter(userRegistrationApi, { session: { userId: 'user-1' } })
 
@@ -286,6 +295,31 @@ describe('POST /create-user', () => {
     expect(mockWToken).not.toHaveBeenCalled()
   })
 
+  // KNOWN ISSUE — a first UpdateKeycloakUserPassword(id, false) failure is
+  // deliberately NOT exercised live here. Its .catch does
+  // `res.status(400).send(...)` with no `return` after it (userRegistration.ts
+  // ~line 184), so the handler falls through and later still runs
+  // `res.json({ data: 'User Created successfully!' })` — a second send on an
+  // already-sent response. Same double-send shape as the documented
+  // getAuthToken race above (docs/PROD-VERIFICATION.md, defect A): reproducing
+  // it here would throw "Cannot set headers after they are sent to the
+  // client" from inside Express internals, outside the request cycle, which
+  // Jest cannot assert against without crashing the runner. Recorded rather
+  // than forced.
+
+  it('does not call wTokenApiMock when the wToken user array is empty', async () => {
+    mockCreateKeycloakUser.mockResolvedValue({ id: 'kc-1' })
+    mockGetAuthToken.mockResolvedValue({ access_token: 'tok' })
+    mockWToken.mockResolvedValue({ user: [] })
+
+    const response = await agent().post('/create-user').send({ email: 'a@b.com' })
+
+    // wTokenResponse.user.length is falsy (0), so the logInfo branch is
+    // skipped, but the handler still completes successfully.
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ data: 'User Created successfully!' })
+  })
+
   // KNOWN ISSUE — getAuthToken(...) is called WITHOUT await (userRegistration.ts
   // ~line 189). Two responses therefore race:
   //   - the .catch on getAuthToken     -> res.status(400)
@@ -360,6 +394,16 @@ describe('POST /user/access-path', () => {
   // id-less /create-user gap above; not reproduced live here for the same
   // reason (an unresolved supertest request would hang this suite). See
   // docs/PROD-VERIFICATION.md.
+
+  it('falls back to 500 when constructing the cassandra client throws synchronously', async () => {
+    mockCassandraClient.mockImplementationOnce(() => {
+      throw new Error('client init failed')
+    })
+
+    const response = await agent().post('/user/access-path').send({ wid: 'user-1' })
+
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /user/update-access-path', () => {
@@ -515,5 +559,231 @@ describe('POST /user/department/update', () => {
     mockAxios.post.mockRejectedValue(upstreamError(400, { error: 'bad request' }))
     const response = await agent().post('/user/department/update').send({})
     expect(response.status).toBe(400)
+  })
+})
+
+/**
+ * PHASE 2 — createUser / performNewUserSteps / insertBulkUploadStatus.
+ *
+ * These three functions are exported directly from userRegistration.ts and are
+ * called internally from the /bulkUpload route's per-row loop. That loop also
+ * calls utils/helpers.ts's validateInputWithRegex, whose Promise executor never
+ * calls resolve/reject on any path (a pre-existing bug in a different file) —
+ * any row with actual name/email data makes the awaited call hang forever.
+ * That makes the /bulkUpload route itself untestable beyond its outer,
+ * no-data-rows path (below). Exercising these three functions directly sidesteps
+ * that hang entirely, since none of them touch validateInputWithRegex.
+ */
+describe('createUser', () => {
+  beforeEach(() => {
+    mockCreateKeycloakUser.mockReset()
+  })
+
+  it('resolves the new user id on success', async () => {
+    mockCreateKeycloakUser.mockResolvedValue({ id: 'kc-9' })
+
+    const result = await createUser({ body: { email: 'a@b.com' } })
+
+    expect(result).toBe('kc-9')
+  })
+
+  it('resolves undefined when keycloak creation is caught as an error', async () => {
+    mockCreateKeycloakUser.mockRejectedValue({ response: { status: 409 } })
+
+    const result = await createUser({ body: { email: 'dup@b.com' } })
+
+    // createKeycloakUser's rejection is caught and returned as the value, not
+    // re-thrown, so createKeycloak is a plain object with no `.id` — the
+    // `if (createKeycloak && createKeycloak.id)` guard is false and the
+    // function implicitly returns undefined.
+    expect(result).toBeUndefined()
+  })
+
+  it('resolves undefined when keycloak resolves without an id', async () => {
+    mockCreateKeycloakUser.mockResolvedValue({})
+
+    const result = await createUser({ body: { email: 'a@b.com' } })
+
+    expect(result).toBeUndefined()
+  })
+})
+
+describe('performNewUserSteps', () => {
+  beforeEach(() => {
+    mockUpdatePassword.mockReset().mockResolvedValue(undefined)
+    mockGetAuthToken.mockReset()
+    mockWToken.mockReset()
+    mockUpdateRolesV2.mockReset()
+    mockSendActionsEmail.mockReset().mockResolvedValue(undefined)
+  })
+
+  // header('wid') deliberately returns undefined so extractUserIdFromRequest
+  // falls through to req.session.userId, matching how a real authenticated
+  // request looks (no explicit wid override header).
+  const req = {
+    header: jest.fn((name: string) => (name === 'rootOrg' ? 'root-1' : undefined)),
+    session: { userId: 'actor-1' },
+  }
+
+  it('returns a closure that, when invoked, sets the password, fetches the token and assigns roles', async () => {
+    mockGetAuthToken.mockResolvedValue({ access_token: 'tok' })
+    mockWToken.mockResolvedValue({ user: { wid: 'wid-1' } })
+    mockUpdateRolesV2.mockResolvedValue(jest.fn())
+
+    // performNewUserSteps itself returns an async closure rather than running
+    // its body directly — matching the never-invoked-closure shape documented
+    // for updateRolesV2Mock (docs/PROD-VERIFICATION.md, change X). Calling the
+    // returned closure here is what actually exercises the body.
+    const runSteps = await performNewUserSteps('kc-1', req, 'a@b.com', ['PUBLIC'])
+    await runSteps()
+
+    expect(mockUpdatePassword).toHaveBeenCalledWith('kc-1', false)
+    expect(mockUpdatePassword).toHaveBeenCalledWith('kc-1', true)
+    expect(mockGetAuthToken).toHaveBeenCalledWith('a@b.com')
+    expect(mockWToken).toHaveBeenCalledWith(req, 'tok')
+    expect(mockUpdateRolesV2).toHaveBeenCalledWith(
+      'actor-1',
+      { operation: 'add', roles: ['PUBLIC'], users: ['wid-1'] },
+      'root-1'
+    )
+    expect(mockSendActionsEmail).toHaveBeenCalledWith('kc-1')
+  })
+
+  it('skips role assignment when no roles are passed', async () => {
+    mockGetAuthToken.mockResolvedValue({ access_token: 'tok' })
+    mockWToken.mockResolvedValue({ user: { wid: 'wid-1' } })
+
+    const runSteps = await performNewUserSteps('kc-1', req, 'a@b.com', [])
+    await runSteps()
+
+    expect(mockUpdateRolesV2).not.toHaveBeenCalled()
+  })
+
+  it('skips role assignment when wTokenApiMock resolves without a user', async () => {
+    mockGetAuthToken.mockResolvedValue({ access_token: 'tok' })
+    mockWToken.mockResolvedValue({})
+
+    const runSteps = await performNewUserSteps('kc-1', req, 'a@b.com', ['PUBLIC'])
+    await runSteps()
+
+    expect(mockWToken).toHaveBeenCalledWith(req, 'tok')
+    expect(mockUpdateRolesV2).not.toHaveBeenCalled()
+  })
+
+  it('skips the wToken call entirely when the token response has no access_token', async () => {
+    mockGetAuthToken.mockResolvedValue({})
+
+    const runSteps = await performNewUserSteps('kc-1', req, 'a@b.com', ['PUBLIC'])
+    await runSteps()
+
+    expect(mockWToken).not.toHaveBeenCalled()
+  })
+
+  it('completes without throwing when getAuthToken rejects', async () => {
+    mockGetAuthToken.mockRejectedValue(new Error('token failed'))
+
+    const runSteps = await performNewUserSteps('kc-1', req, 'a@b.com', [])
+
+    await expect(runSteps()).resolves.toBeUndefined()
+    expect(mockSendActionsEmail).toHaveBeenCalledWith('kc-1')
+  })
+
+  it('completes without throwing when the first or second password update rejects', async () => {
+    mockUpdatePassword
+      .mockReset()
+      .mockRejectedValueOnce(new Error('down'))
+      .mockRejectedValueOnce(new Error('still down'))
+    mockGetAuthToken.mockResolvedValue({})
+
+    const runSteps = await performNewUserSteps('kc-1', req, 'a@b.com', [])
+
+    await expect(runSteps()).resolves.toBeUndefined()
+  })
+
+  it('completes without throwing when sendActionsEmail rejects', async () => {
+    mockGetAuthToken.mockResolvedValue({})
+    mockSendActionsEmail.mockRejectedValue(new Error('smtp down'))
+
+    const runSteps = await performNewUserSteps('kc-1', req, 'a@b.com', [])
+
+    await expect(runSteps()).resolves.toBeUndefined()
+  })
+})
+
+describe('insertBulkUploadStatus', () => {
+  beforeEach(() => {
+    mockCassandraExecute.mockReset()
+    mockCassandraClient.mockClear()
+  })
+
+  it('logs success and shuts down the client when the insert succeeds', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(null, {})
+    })
+
+    await expect(
+      insertBulkUploadStatus({
+        name: 'file.csv',
+        report: null,
+        status: 'processing',
+        user_id: 'user-1',
+        uuid: 'uuid-1',
+      })
+    ).resolves.toBeUndefined()
+  })
+
+  it('logs an error and shuts down the client when the insert fails', async () => {
+    mockCassandraExecute.mockImplementation((_query, callback) => {
+      callback(new Error('cassandra down'), null)
+    })
+
+    await expect(
+      insertBulkUploadStatus({
+        name: 'file.csv',
+        report: null,
+        status: 'processing',
+        user_id: 'user-1',
+        uuid: 'uuid-1',
+      })
+    ).resolves.toBeUndefined()
+  })
+
+  it('swallows a synchronous error constructing the cassandra client', async () => {
+    mockCassandraClient.mockImplementationOnce(() => {
+      throw new Error('client init failed')
+    })
+
+    // insertBulkUploadStatus's own catch block only logs; it has no res to
+    // respond on since it isn't a route handler, so a synchronous construction
+    // failure simply resolves to undefined rather than rejecting.
+    await expect(
+      insertBulkUploadStatus({
+        name: 'file.csv',
+        report: null,
+        status: 'processing',
+        user_id: 'user-1',
+        uuid: 'uuid-1',
+      })
+    ).resolves.toBeUndefined()
+  })
+})
+
+describe('POST /bulkUpload', () => {
+  beforeEach(() => {
+    mockCassandraExecute.mockReset().mockImplementation((_query, callback) => {
+      callback(null, {})
+    })
+  })
+
+  it('responds immediately after starting the upload when the workbook has no sheets', async () => {
+    // node-xlsx is mocked to return [] at module scope (see top of file), so
+    // the per-row loop (and its hang-prone validateInputWithRegex call) never
+    // runs — this exercises only the route's outer, pre-loop behaviour.
+    const response = await agent()
+      .post('/bulkUpload')
+      .send({ content: 'data:text/csv;base64,ZGF0YQ==', name: 'users.csv' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toContain('User upload started with id:')
   })
 })

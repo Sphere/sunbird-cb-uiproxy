@@ -360,4 +360,171 @@ describe('POST /createUser', () => {
     expect(response.status).toBe(400)
     expect(response.body.message).toMatch(/Access denied/)
   })
+
+  it('creates a Faculty user end to end, exercising the Faculty branch of userProfileUpdate', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [] } } })) // getUserDetails: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'faculty-user-1' } })) // createUser
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } })) // assignRoleToUser
+      .mockResolvedValueOnce(upstreamOk({})) // userProfileUpdate
+
+    const response = await agent()
+      .post('/createUser')
+      .send({
+        value: {
+          request: {
+            formValues: {
+              district: 'Lucknow',
+              facultyType: 'Guest',
+              firstName: 'Ravi',
+              instituteName: 'City Institute',
+              instituteType: 'Government',
+              lastName: 'Sharma',
+              phone: 9876543211,
+              role: 'Faculty',
+              serviceType: 'Regular',
+            },
+          },
+        },
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('creates a Medical Officer-UP user end to end, exercising that branch of userProfileUpdate', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [] } } })) // getUserDetails: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'mo-user-1' } })) // createUser
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } })) // assignRoleToUser
+      .mockResolvedValueOnce(upstreamOk({})) // userProfileUpdate
+
+    const response = await agent()
+      .post('/createUser')
+      .send({
+        value: {
+          request: {
+            formValues: {
+              dateOfJoining: '2020-01-01',
+              district: 'Lucknow',
+              firstName: 'Anita',
+              lastName: 'Verma',
+              phone: 9876543212,
+              role: 'Medical Officer-UP',
+            },
+          },
+        },
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('creates an ANM-UP Government/Regular user, exercising that userProfileUpdate branch and the Government+Regular org-detail branch', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [] } } })) // getUserDetails: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'anm-user-1' } })) // createUser
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } })) // assignRoleToUser
+      .mockResolvedValueOnce(upstreamOk({})) // userProfileUpdate
+
+    const response = await agent()
+      .post('/createUser')
+      .send({
+        value: {
+          request: {
+            formValues: {
+              district: 'Lucknow',
+              dob: '1995-05-05',
+              firstName: 'Meena',
+              hrmsId: '12345',
+              lastName: 'Yadav',
+              phone: 9876543213,
+              block: 'Block A',
+              facilityCode: 'FC1',
+              facilityType: 'PHC',
+              role: 'ANM-UP',
+              roleForInService: 'Government',
+              serviceType: 'Regular',
+            },
+          },
+        },
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('creates an ANM-UP Private user, exercising the Private org-detail branch', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [] } } })) // getUserDetails: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'anm-user-2' } })) // createUser
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } })) // assignRoleToUser
+      .mockResolvedValueOnce(upstreamOk({})) // userProfileUpdate
+
+    const response = await agent()
+      .post('/createUser')
+      .send({
+        value: {
+          request: {
+            formValues: {
+              district: 'Lucknow',
+              dob: '1995-05-05',
+              firstName: 'Priya',
+              lastName: 'Singh',
+              phone: 9876543214,
+              role: 'ANM-UP',
+              roleForInService: 'Private',
+              serviceType: 'Private',
+            },
+          },
+        },
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('resolves without throwing when assignRoleToUser gets a non-SUCCESS response (roleAssign stays failed)', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { response: { content: [] } } })) // getUserDetails: no match
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-4' } })) // createUser
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'FAILED' } })) // assignRoleToUser: not 'SUCCESS', not an error
+      .mockResolvedValueOnce(upstreamOk({})) // userProfileUpdate
+
+    const response = await agent().post('/createUser').send(validStudentBody())
+
+    expect(response.status).toBe(400)
+    expect(response.body.userJourneyStatus.roleAssign).toBe('failed')
+  })
+
+  it('migrates and returns 400 access-denied when migrateUserToUpsmf resolves but the upstream response is not \'success\'', async () => {
+    mockAxios
+      .mockResolvedValueOnce(
+        upstreamOk({
+          result: {
+            response: {
+              content: [
+                {
+                  id: 'u1',
+                  profileDetails: { profileReq: { personalDetails: {}, professionalDetails: [{}] } },
+                  rootOrgName: 'National Health Mission (UP)',
+                },
+              ],
+            },
+          },
+        }),
+      ) // getUserDetails: existing user in a different valid org than the new Student org
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'PENDING' } })) // migrateUserToUpsmf: migrateUser call resolves but not 'success'
+      .mockResolvedValueOnce(upstreamOk({})) // migrateUserToUpsmf: profileUpdate call
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } })) // assignRoleToUser
+      .mockResolvedValueOnce(upstreamOk({})) // userProfileUpdate
+
+    const response = await agent().post('/createUser').send(validStudentBody())
+
+    // migrateUserToUpsmf implicitly returns undefined (falsy) here, same as the
+    // network-error case already covered — the handler doesn't branch on the
+    // migration result at all in this code path, so it still reports 200.
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
 })

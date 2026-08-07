@@ -416,4 +416,147 @@ describe('POST /createUser', () => {
     expect(response.body.status).toBe('SUCCESS')
     expect(mockPgQuery).toHaveBeenCalledTimes(2) // maxRetries = 2, both attempts failed
   })
+
+  it('retries the Postgres audit-log insert once and succeeds on the second attempt', async () => {
+    mockPgQuery.mockReset()
+    mockPgQuery
+      .mockRejectedValueOnce(new Error('transient connection error'))
+      .mockResolvedValueOnce(undefined)
+    mockAxios
+      .mockResolvedValueOnce(userNotFound)
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-5' } }))
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } }))
+      .mockResolvedValueOnce(upstreamOk({}))
+
+    const response = await agent().post('/createUser').send(createUserBody())
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+    // First attempt failed, retried once, second attempt succeeded -> loop breaks early.
+    expect(mockPgQuery).toHaveBeenCalledTimes(2)
+  })
+
+  it('creates an In Service / Private Health Facility (non-GNM) user', async () => {
+    mockAxios
+      .mockResolvedValueOnce(userNotFound)
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-6' } }))
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } }))
+      .mockResolvedValueOnce(upstreamOk({}))
+
+    const response = await agent()
+      .post('/createUser')
+      .send(
+        createUserBody(
+          studentFormValues({
+            courseSelection: undefined,
+            instituteName: undefined,
+            instituteType: undefined,
+            privateFacilityType: 'Some-Other-Type',
+            role: 'In Service',
+            roleForInService: 'Private Health Facility',
+          })
+        )
+      )
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('creates an In Service / Private Health Facility user with the GNM-Bihar designation override', async () => {
+    mockAxios
+      .mockResolvedValueOnce(userNotFound)
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-7' } }))
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } }))
+      .mockResolvedValueOnce(upstreamOk({}))
+
+    const response = await agent()
+      .post('/createUser')
+      .send(
+        createUserBody(
+          studentFormValues({
+            courseSelection: undefined,
+            instituteName: undefined,
+            instituteType: undefined,
+            privateFacilityType: 'GNM-Bihar',
+            role: 'In Service',
+            roleForInService: 'Private Health Facility',
+          })
+        )
+      )
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('creates an In Service / CHO user (a distinct roleForInService branch)', async () => {
+    mockAxios
+      .mockResolvedValueOnce(userNotFound)
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-8' } }))
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } }))
+      .mockResolvedValueOnce(upstreamOk({}))
+
+    const response = await agent()
+      .post('/createUser')
+      .send(
+        createUserBody(
+          studentFormValues({
+            block: 'Patna Sadar',
+            courseSelection: undefined,
+            facilityName: 'Patna CHC',
+            instituteName: undefined,
+            instituteType: undefined,
+            nin: '1234',
+            role: 'In Service',
+            roleForInService: 'CHO',
+          })
+        )
+      )
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('creates an In Service / Staff Nurses user (a distinct roleForInService branch)', async () => {
+    mockAxios
+      .mockResolvedValueOnce(userNotFound)
+      .mockResolvedValueOnce(upstreamOk({ result: { userId: 'new-user-9' } }))
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } }))
+      .mockResolvedValueOnce(upstreamOk({}))
+
+    const response = await agent()
+      .post('/createUser')
+      .send(
+        createUserBody(
+          studentFormValues({
+            courseSelection: undefined,
+            instituteName: undefined,
+            instituteType: undefined,
+            role: 'In Service',
+            roleForInService: 'Staff Nurses',
+          })
+        )
+      )
+
+    expect(response.status).toBe(200)
+    expect(response.body.status).toBe('SUCCESS')
+  })
+
+  it('returns 400 accessDenied when migrating an aastrika-org user succeeds at the HTTP level but the response body is not "success" (no rejection)', async () => {
+    mockAxios
+      .mockResolvedValueOnce(existingUserWithProfile('existing-6', 'aastrika')) // getUserDetails
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'FAILED' } })) // migrateUserToBnrc: migrateUser PATCH resolves, but not 'success'
+      .mockResolvedValueOnce(upstreamOk({})) // migrateUserToBnrc: profileUpdate PATCH
+      .mockResolvedValueOnce(upstreamOk({ result: { response: 'SUCCESS' } })) // assignRoleToUser
+      .mockResolvedValueOnce(upstreamOk({})) // userProfileUpdate
+
+    const response = await agent().post('/createUser').send(createUserBody())
+
+    // migrateUserToBnrc() falls off the end of its try block (no explicit
+    // return) when the response isn't 'success', yielding undefined -> falsy,
+    // which trips the aastrika branch's `!userMigrationStatus` check exactly
+    // like the mocked-rejection case above, but via a different code path
+    // (successful HTTP call, unsuccessful business response).
+    expect(response.status).toBe(400)
+    expect(response.body.message).toContain('Access denied')
+  })
 })
