@@ -212,10 +212,10 @@ describe('wTokenApiMock', () => {
   // Covers the outer try/catch of wTokenApiMock (details.ts lines 176-179):
   // a request object with no `body` throws synchronously when the code
   // reads `req.body.department`, which is caught inside the same
-  // try/catch and rejects the promise (with `reject()`, no argument) —
-  // no double-send, no crash. Safe to test live.
+  // try/catch and rejects the promise with that error — no double-send,
+  // no crash. Safe to test live.
   it('rejects when building the request options throws synchronously', async () => {
     const bodylessReq = { header: () => undefined }
-    await expect(wTokenApiMock(bodylessReq, 'kc-token')).rejects.toBeUndefined()
+    await expect(wTokenApiMock(bodylessReq, 'kc-token')).rejects.toThrow(TypeError)
   })
 })

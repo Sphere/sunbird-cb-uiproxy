@@ -18,11 +18,9 @@ import {
   formPlaylistupdateObj,
   transformToPlaylistV2,
   transformToPlaylistV3,
-  transformToSbExtCreateRequest,
   transformToSbExtDeleteRequest,
   transformToSbExtPatchRequest,
   transformToSbExtSyncRequest,
-  transformToSbExtUpdateRequest,
   transformToSbExtUpsertRequest,
 } from './playlist'
 
@@ -149,27 +147,6 @@ describe('transformToPlaylistV3', () => {
 })
 
 /**
- * @description Verifies transformToSbExtCreateRequest maps a playlist create
- * request to the sb-ext request shape.
- */
-describe('transformToSbExtCreateRequest', () => {
-  it('should map a create request to the sb-ext shape', () => {
-    const input = {
-      content_ids: ['c1', 'c2'],
-      createdBy: 'user-1',
-      playlist_title: 'New Playlist',
-      visibility: 'Public',
-    } as any
-
-    expect(transformToSbExtCreateRequest(input)).toEqual({
-      content_ids: ['c1', 'c2'],
-      playlist_title: 'New Playlist',
-      visibility: 'Public',
-    })
-  })
-})
-
-/**
  * @description Verifies transformToSbExtSyncRequest maps
  * only_sharedby_playlist_content into the sync request's content field.
  */
@@ -209,41 +186,6 @@ describe('transformToSbExtDeleteRequest', () => {
     const input = { contentIds: ['c1', 'c2'] }
     expect(transformToSbExtDeleteRequest(input)).toEqual({
       content: ['c1', 'c2'],
-    })
-  })
-})
-
-/**
- * @description Verifies transformToSbExtUpdateRequest maps content_ids to a
- * flat list of identifiers while passing through title/visibility unchanged,
- * including when content_ids is an empty array.
- */
-describe('transformToSbExtUpdateRequest', () => {
-  it('should map content_ids to a list of identifiers and pass through title/visibility', () => {
-    const input = {
-      content_ids: [{ identifier: 'c1' }, { identifier: 'c2' }],
-      playlist_title: 'Renamed Playlist',
-      visibility: 'Private',
-    } as any
-
-    expect(transformToSbExtUpdateRequest(input)).toEqual({
-      content_ids: ['c1', 'c2'],
-      playlist_title: 'Renamed Playlist',
-      visibility: 'Private',
-    })
-  })
-
-  it('should map an empty content_ids array to an empty array', () => {
-    const input = {
-      content_ids: [],
-      playlist_title: 'Empty',
-      visibility: 'Public',
-    } as any
-
-    expect(transformToSbExtUpdateRequest(input)).toEqual({
-      content_ids: [],
-      playlist_title: 'Empty',
-      visibility: 'Public',
     })
   })
 })

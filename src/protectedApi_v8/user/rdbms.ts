@@ -12,6 +12,7 @@ const API_ENDPOINTS = {
 
 const GENERAL_ERR_MSG = 'Failed due to unknown reason'
 
+// sonar-cleanup: extracted from rdbms.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8)
 /**
  * Logs the error under `label`, then responds with the upstream status code
  * (or 500) and the upstream error body (or a generic error message).

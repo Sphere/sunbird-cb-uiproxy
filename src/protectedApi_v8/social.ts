@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { Buffer } from 'buffer'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { UploadedFile } from 'express-fileupload'
 import FormData from 'form-data'
 import { axiosRequestConfig } from '../configs/request.config'
@@ -37,6 +37,27 @@ const API_END_POINTS = {
 }
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
+
+/**
+ * Logs the error under `label` (when given), then responds with the
+ * upstream status code (or 500) and the upstream error body (or a generic
+ * error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message; omit to skip logging
+ */
+// tslint:disable-next-line: no-any
+function handleSocialError(res: Response, err: any, label?: string) {
+  if (label) {
+    logError(label, err)
+  }
+  res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: GENERAL_ERROR_MSG,
+    }
+  )
+}
 
 export const socialApi = Router()
 
@@ -79,11 +100,7 @@ socialApi.post('/post/upload/:contentId', async (req, res) => {
       throw new Error('File not found')
     }
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -103,11 +120,7 @@ socialApi.post('/post/publish', async (req, res) => {
     const response = await axios.post(API_END_POINTS.publishPost, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -127,11 +140,7 @@ socialApi.post('/post/draft', async (req, res) => {
     const response = await axios.post(API_END_POINTS.draftPost, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -151,11 +160,7 @@ socialApi.put('/edit/tags', async (req, res) => {
     const response = await axios.put(API_END_POINTS.editTags, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 socialApi.put('/edit/meta', async (req, res) => {
@@ -174,12 +179,7 @@ socialApi.put('/edit/meta', async (req, res) => {
     const response = await axios.put(API_END_POINTS.editMeta, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('EDIT META ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err, 'EDIT META ERROR >')
   }
 })
 
@@ -204,12 +204,7 @@ socialApi.post('/post/delete', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR DELETING POST', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err, 'ERROR DELETING POST')
   }
 })
 
@@ -230,11 +225,7 @@ socialApi.post('/post/autocomplete', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -254,11 +245,7 @@ socialApi.post('/post/viewConversation', async (req, res) => {
     const response = await axios.post(API_END_POINTS.viewConversation, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -278,11 +265,7 @@ socialApi.post('/post/viewConversationV2', async (req, res) => {
     const response = await axios.post(API_END_POINTS.viewConversationV2, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -305,11 +288,7 @@ socialApi.post('/post/timeline', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -334,11 +313,7 @@ socialApi.post('/post/timelineV2', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 // moderator forum ends
@@ -365,11 +340,7 @@ socialApi.post('/moderator/moderatepost', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -394,11 +365,7 @@ socialApi.post('/moderator/timeline', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -426,11 +393,7 @@ socialApi.post('/admin/timeline', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 // admin timeline api ends
@@ -457,11 +420,7 @@ socialApi.post('/admin/deletePost', async (req, res) => {
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 // Admin reject post end
@@ -487,11 +446,7 @@ socialApi.post('/admin/reactivatePost', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 // admin reactivate post end
@@ -517,11 +472,7 @@ socialApi.post('/viewForum', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -547,11 +498,7 @@ socialApi.post('/forum/forumtimeline', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 // forum list end
@@ -575,11 +522,7 @@ socialApi.post('/post/activity/create', async (req, res) => {
     const response = await axios.post(API_END_POINTS.activityUpdate, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -601,11 +544,7 @@ socialApi.post('/createForum', async (req, res) => {
     const response = await axios.post(API_END_POINTS.createForum, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -627,11 +566,7 @@ socialApi.post('/editForum', async (req, res) => {
     const response = await axios.post(API_END_POINTS.editForum, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -651,11 +586,7 @@ socialApi.post('/post/acceptAnswer', async (req, res) => {
     const response = await axios.post(API_END_POINTS.acceptAnswer, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -675,11 +606,7 @@ socialApi.post('/post/activity/users', async (req, res) => {
     const response = await axios.post(API_END_POINTS.activityUsers, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -701,11 +628,7 @@ socialApi.post('/post/search', async (req, res) => {
     const response = await axios.post(API_END_POINTS.searchSocial, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })
 
@@ -728,10 +651,6 @@ socialApi.post('/catalog', async (req, res) => {
     const response = await axios.post(API_END_POINTS.authoringCatalog, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    handleSocialError(res, err)
   }
 })

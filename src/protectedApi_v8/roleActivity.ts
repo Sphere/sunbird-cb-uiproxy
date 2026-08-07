@@ -14,6 +14,7 @@ const API_END_POINTS = {
     searchNodes: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/searchNodes`,
 }
 
+// sonar-cleanup: extracted from roleActivity.ts's matching per-route catch blocks — same status/body shape (CHANGE 8); getAllRoles() itself was left as-is, it's static seed data, not duplicated logic (L1-21)
 /**
  * Responds with the upstream status code (or 500) and the upstream error
  * body (or a generic error message).

@@ -18,6 +18,7 @@ import {
   USER_SUCCESS_REGISTRATION_MESSAGE as userSuccessRegistrationMessage,
 } from '../utils/orgSignupConstants'
 import {
+  conditionalFieldValidator,
   optionalEmailValidator,
   requiredDistrictValidator,
   requiredFirstNameValidator,
@@ -59,17 +60,9 @@ interface UserDetails {
 }
 const ERHMS_CODE_KEY = 'ERHMS-code'
 const GOV_KEY = 'Government'
+const ANY_REQUIRED_KEY = 'any.required'
 const serviceSchemaJoi = Joi.object({
-    courseSelection: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Course selection is required for Student and Faculty roles',
-        }),
+    courseSelection: conditionalFieldValidator('Student', 'Course selection is required for Student and Faculty roles'),
     district: requiredDistrictValidator,
     dob: Joi.string()
         .allow('', null)
@@ -79,39 +72,11 @@ const serviceSchemaJoi = Joi.object({
         }),
 
     email: optionalEmailValidator,
-    facultyType: Joi.string()
-        .when('role', {
-            is: 'Faculty',
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Faculty type is required for Faculty role',
-        }),
+    facultyType: conditionalFieldValidator('Faculty', 'Faculty type is required for Faculty role'),
     firstName: requiredFirstNameValidator,
 
-    instituteName: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute name is required for Student and Faculty roles',
-        }),
-    instituteType: Joi.string()
-        .when('role', {
-            // tslint:disable-next-line: all
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute type is required for Student and Faculty roles',
-        }),
+    instituteName: conditionalFieldValidator(['Student', 'Faculty'], 'Institute name is required for Student and Faculty roles'),
+    instituteType: conditionalFieldValidator(['Student', 'Faculty'], 'Institute type is required for Student and Faculty roles'),
     lastName: requiredLastNameValidator,
 
     phone: requiredPhoneValidator,
@@ -121,12 +86,12 @@ const serviceSchemaJoi = Joi.object({
         .messages({
             // tslint:disable-next-line: all
             'any.only': 'Role must be either Student, Faculty, ANM-MP, CHO-MP, or Trainer-MP',
-            'any.required': 'Role is required',
+            [ANY_REQUIRED_KEY]: 'Role is required',
         }),
     // ✅ Newly Added Fields
 
     nursingRegistrationNumber: Joi.string().optional().messages({
-        'any.required': 'Nursing Registration Number is required',
+        [ANY_REQUIRED_KEY]: 'Nursing Registration Number is required',
     }),
 
     employmentType: Joi.string().allow('', null).optional(),
@@ -147,7 +112,7 @@ const serviceSchemaJoi = Joi.object({
         .pattern(/^\d{5,8}$/)
         .required()
         .messages({
-            'any.required': 'EHRMS Number is required',
+            [ANY_REQUIRED_KEY]: 'EHRMS Number is required',
             'string.pattern.base': 'EHRMS Number must be 5–8 digits',
         }),
 
@@ -159,7 +124,7 @@ const serviceSchemaJoi = Joi.object({
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'block is required',
+            [ANY_REQUIRED_KEY]: 'block is required',
         }),
 
     blockOthers: Joi.string()
@@ -169,7 +134,7 @@ const serviceSchemaJoi = Joi.object({
             then: Joi.string().required(),
         })
         .messages({
-            'any.required': 'Block name is required when block is set to Other',
+            [ANY_REQUIRED_KEY]: 'Block name is required when block is set to Other',
         }),
 
     facilityCode: Joi.string()
@@ -180,10 +145,10 @@ const serviceSchemaJoi = Joi.object({
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'Facility Code is required',
+            [ANY_REQUIRED_KEY]: 'Facility Code is required',
         }),
     facilityName: Joi.string().optional().messages({
-        'any.required': 'Facility name is required',
+        [ANY_REQUIRED_KEY]: 'Facility name is required',
     }),
 
     facilityNameOthers: Joi.string()
@@ -193,7 +158,7 @@ const serviceSchemaJoi = Joi.object({
             then: Joi.string().required(),
         })
         .messages({
-            'any.required': 'Facility name is required when facility name is set to Others',
+            [ANY_REQUIRED_KEY]: 'Facility name is required when facility name is set to Others',
         }),
 
     facilityType: Joi.string()
@@ -204,13 +169,13 @@ const serviceSchemaJoi = Joi.object({
         })
         .messages({
             // tslint:disable-next-line: all
-            'any.required': 'Facility Type is required',
+            [ANY_REQUIRED_KEY]: 'Facility Type is required',
         }),
     regNurseRegMidwifeNumber: Joi.string().optional().messages({
-        'any.required': 'RNRM Number is required',
+        [ANY_REQUIRED_KEY]: 'RNRM Number is required',
     }),
     roleForInService: Joi.string().optional().messages({
-        'any.required': 'Role for In-Service is required',
+        [ANY_REQUIRED_KEY]: 'Role for In-Service is required',
     }),
 
 })

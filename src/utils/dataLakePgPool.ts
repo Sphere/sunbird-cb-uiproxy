@@ -2,6 +2,7 @@ import { Pool } from 'pg'
 import { CONSTANTS } from './env'
 import { logError, logInfo } from './logger'
 
+// sonar-cleanup: extracted from upsmfUser.ts / mpNHMUser.ts / bnrcUser.ts / signupWithAutoLoginOrgForm.ts's identical inline `new Pool(...)` + error/connect/remove logging blocks (CHANGE 9) — each caller still gets its own pool instance, not a shared/singleton pool
 /**
  * Builds a Postgres connection pool for the data-lake database, using the
  * same timeouts and pool-size limits every org-signup route already relies

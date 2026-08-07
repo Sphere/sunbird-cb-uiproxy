@@ -1,3 +1,8 @@
+jest.mock('axios')
+jest.mock('./env', () => ({ CONSTANTS: { ES_PASSWORD: 'es-pass', ES_USERNAME: 'es-user' } }))
+
+import axios from 'axios'
+import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import {
   appendProxiesUrl,
   appendUrl,
@@ -6,8 +11,11 @@ import {
   processDisplayContentType,
   processDownloadUrl,
   processUrl,
+  sendAutoCompleteSearchResponse,
   shuffleContent,
 } from './contentHelpers'
+
+const mockAxios = axios as jest.Mocked<typeof axios>
 
 // tslint:disable-next-line: no-any
 const content = (overrides: any = {}): any => ({
@@ -150,5 +158,106 @@ describe('shuffleContent', () => {
       )
     }
     expect(reordered).toBe(true)
+  })
+})
+
+/**
+ * Direct unit coverage for sendAutoCompleteSearchResponse, shared by
+ * home.ts and content.ts's GET /searchAutoComplete (CHANGE 24). Only
+ * reached indirectly through those two files' own route tests before
+ * this file existed. Errors are deliberately NOT caught here (see the
+ * function's own doc comment) — the "propagates" test below is the
+ * direct proof of that contract, since callers rely on it to route to
+ * their own differently-shaped catch block.
+ */
+describe('sendAutoCompleteSearchResponse', () => {
+  // tslint:disable-next-line: no-any
+  function mockReq(query: Record<string, string> = {}, headers: Record<string, string> = {}): any {
+    return {
+      header: (name: string) => headers[name],
+      query,
+    }
+  }
+
+  function mockRes() {
+    const res = { json: jest.fn() }
+    return res
+  }
+
+  beforeEach(() => {
+    mockAxios.request.mockReset()
+  })
+
+  it('sends the filtered, non-empty searchTerm hits on success', async () => {
+    mockAxios.request.mockResolvedValue(
+      upstreamOk({
+        hits: {
+          hits: [{ _source: { searchTerm: 'react' } }, { _source: { searchTerm: '' } }],
+        },
+      })
+    )
+    const req = mockReq({ l: 'en', q: 'rea' })
+    const res = mockRes()
+
+    await sendAutoCompleteSearchResponse(req as never, res as never, 'https://es.test')
+
+    expect(res.json).toHaveBeenCalledWith([{ _source: { searchTerm: 'react' } }])
+  })
+
+  it('sends the ES auth credentials and composed URL', async () => {
+    mockAxios.request.mockResolvedValue(upstreamOk({ hits: { hits: [] } }))
+    const req = mockReq({ l: 'en', q: 'rea' })
+
+    await sendAutoCompleteSearchResponse(req as never, mockRes() as never, 'https://es.test')
+
+    expect(mockAxios.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: { password: 'es-pass', username: 'es-user' },
+        method: 'POST',
+        url: 'https://es.test/searchautocomplete_en/autocomplete/_search',
+      })
+    )
+  })
+
+  it('returns an empty array when the response has no hits', async () => {
+    mockAxios.request.mockResolvedValue(upstreamOk({}))
+    const req = mockReq({ l: 'en', q: 'rea' })
+    const res = mockRes()
+
+    await sendAutoCompleteSearchResponse(req as never, res as never, 'https://es.test')
+
+    expect(res.json).toHaveBeenCalledWith([])
+  })
+
+  it('treats an empty q as a request for suggested terms only', async () => {
+    mockAxios.request.mockResolvedValue(upstreamOk({ hits: { hits: [] } }))
+    const req = mockReq({ l: 'en', q: '' })
+
+    await sendAutoCompleteSearchResponse(req as never, mockRes() as never, 'https://es.test')
+
+    const sentBody = mockAxios.request.mock.calls[0][0].data
+    expect(sentBody.query.bool.should).toBeUndefined()
+    expect(sentBody.query.bool.filter).toContainEqual({ term: { isSuggested: true } })
+  })
+
+  it('propagates the upstream error to the caller instead of catching it', async () => {
+    mockAxios.request.mockRejectedValue(upstreamError(429, { error: 'rate limited' }))
+    const req = mockReq({ l: 'en', q: 'rea' })
+
+    await expect(sendAutoCompleteSearchResponse(req as never, mockRes() as never, 'https://es.test')).rejects.toThrow()
+  })
+
+  it('propagates a network-level failure to the caller instead of catching it', async () => {
+    mockAxios.request.mockRejectedValue(networkError())
+    const req = mockReq({ l: 'en', q: 'rea' })
+
+    await expect(sendAutoCompleteSearchResponse(req as never, mockRes() as never, 'https://es.test')).rejects.toThrow()
+  })
+
+  it('propagates a missing-q synchronous TypeError to the caller', async () => {
+    const req = mockReq({ l: 'en' })
+
+    await expect(sendAutoCompleteSearchResponse(req as never, mockRes() as never, 'https://es.test')).rejects.toThrow()
+    expect(mockAxios.request).not.toHaveBeenCalled()
   })
 })

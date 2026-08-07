@@ -104,9 +104,9 @@ describe('checkUUIDMaster', () => {
     await expect(checkUUIDMaster('k1')).resolves.toEqual({ key: 'k1' })
   })
 
-  it('rejects with false when no rows are found', async () => {
+  it('rejects with an Error when no rows are found', async () => {
     mockCassandraExecute.mockImplementation((_q, cb) => cb(null, { rows: [] }))
-    await expect(checkUUIDMaster('missing')).rejects.toBe(false)
+    await expect(checkUUIDMaster('missing')).rejects.toThrow('checkUUIDMaster: No records')
   })
 })
 

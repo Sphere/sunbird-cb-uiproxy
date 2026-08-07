@@ -37,6 +37,7 @@ const API_ENDPOINTS = {
 
 export const usersApi = Router()
 
+// sonar-cleanup: extracted from users.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8)
 /**
  * Logs the error under `label`, then responds with the upstream status code
  * (or 500) and the upstream error body (or an empty object).

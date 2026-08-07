@@ -10,6 +10,7 @@ import { extractUserIdFromRequest } from '../utils/requestExtract'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
+// sonar-cleanup: extracted from leaderboard.ts's repeated per-route catch blocks — same status/body shape (CHANGE 8)
 /**
  * Responds with the upstream status code (or 500) and the upstream error
  * body (or a generic error message).
@@ -188,8 +189,21 @@ leaderBoardApi.post('/badgeDetails', async (req: Request, res: Response) => {
   }
 })
 
-// Get Badges won For a user
-leaderBoardApi.post('/badgeWon', async (req: Request, res: Response) => {
+/**
+ * Shared body for the two badge-fetch routes below — same request shape,
+ * only the upstream endpoint and the response-processing function differ.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the processed result on
+ * @param url - the upstream badges endpoint to call
+ * @param processResponse - shapes the raw upstream data for this route
+ */
+async function fetchAndProcessBadges<T>(
+  req: Request,
+  res: Response,
+  url: string,
+  processResponse: (data: any) => T // tslint:disable-line: no-any
+) {
   try {
     const userId = extractUserIdFromRequest(req)
     const data = {
@@ -197,35 +211,25 @@ leaderBoardApi.post('/badgeWon', async (req: Request, res: Response) => {
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.badgeWon, data, axiosRequestConfig)
-    let result: IGamificationBdage[] | null = null
+    const response = await axios.post(url, data, axiosRequestConfig)
+    let result: T | null = null
     if (response.data) {
-      result = processBadgeArray(response.data)
+      result = processResponse(response.data)
     }
     res.send(result)
   } catch (err) {
     handleLeaderboardError(res, err)
   }
+}
+
+// Get Badges won For a user
+leaderBoardApi.post('/badgeWon', async (req: Request, res: Response) => {
+  await fetchAndProcessBadges(req, res, apiEndpoints.badgeWon, processBadgeArray)
 })
 
 // Get Badges yet to win For a user
 leaderBoardApi.post('/badgeYetToWin', async (req: Request, res: Response) => {
-  try {
-    const userId = extractUserIdFromRequest(req)
-    const data = {
-      ...apiParams,
-      ...req.body,
-      UserSourceSystemId: userId,
-    }
-    const response = await axios.post(apiEndpoints.badgeYetToWin, data, axiosRequestConfig)
-    let result: IGamificationBdageResponse | null = null
-    if (response.data) {
-      result = processAllBadges(response.data)
-    }
-    res.send(result)
-  } catch (err) {
-    handleLeaderboardError(res, err)
-  }
+  await fetchAndProcessBadges(req, res, apiEndpoints.badgeYetToWin, processAllBadges)
 })
 
 // get details of all the dealer codes

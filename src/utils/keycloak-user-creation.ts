@@ -62,7 +62,7 @@ export function checkUUIDMaster(uniqueKey: any): Promise<any> {
                     resolve(key)
                 } else {
                     logInfo('Error on DB request : ')
-                    reject(false)
+                    reject(new Error('checkUUIDMaster: No records'))
                 }
                 clientConnect.shutdown()
             })
@@ -176,7 +176,7 @@ export async function getAuthToken(email: any): Promise<any> {
         }, (err, _httpResponse, body) => {
             if (err) {
                 logError('err in getAuthToken api ', err)
-                reject(err)
+                reject(err instanceof Error ? err : new Error(String(err)))
             }
             if (body) {
                 resolve(JSON.parse(body))

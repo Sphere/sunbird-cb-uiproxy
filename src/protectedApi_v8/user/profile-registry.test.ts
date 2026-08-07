@@ -2,9 +2,10 @@
  * PHASE 1 — user/profile-registry.ts (179 uncovered).
  *
  * Standard axios-proxy shapes, plus three endpoints that read local JSON via
- * fs.readFile (callback style) rather than calling upstream. Scope: covers
- * all of these; /createUserRegistryV2/:userId (a near-duplicate of
- * /createUserRegistry further down the file) was not reached in this pass.
+ * fs.readFile (callback style) rather than calling upstream.
+ * /createUserRegistryV2/:userId shares its implementation with
+ * /createUserRegistry via createOrUpdateUserRegistry(); both are covered
+ * below.
  */
 
 jest.mock('axios')

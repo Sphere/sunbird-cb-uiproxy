@@ -71,7 +71,6 @@ module.exports = {
     '!src/configs/**',
     // --- logging / env loading ---
     '!src/utils/logger.ts',
-    '!src/utils/fileLogger.ts',
     '!src/utils/env.ts',
     // --- type-only declaration modules ---
     '!src/models/**',

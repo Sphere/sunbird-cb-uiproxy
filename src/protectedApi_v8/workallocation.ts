@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
@@ -33,11 +33,51 @@ const userIdFailedMessage = 'NO_USER_ID'
 const workAllocationIdFailedMessage = 'NO_WORK_ALLOCATION_ID'
 const workOrderIdFailedMessage = 'NO_WORKORDER_ID'
 
+/**
+ * Sends a 400 with `failMessage` and returns false if `value` is missing;
+ * otherwise returns true. Callers should return immediately on false.
+ *
+ * @param res - the Express response to send the 400 on, if the value is missing
+ * @param value - the route param/lookup result being checked
+ * @param failMessage - body to send when `value` is missing
+ */
+function requireParam(res: Response, value: string | undefined, failMessage: string): boolean {
+  if (!value) {
+    res.status(400).send(failMessage)
+    return false
+  }
+  return true
+}
+
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a generic error message).
+ *
+ * `useBuggyLog` preserves a pre-existing bug verbatim: most routes here log
+ * `Error + err` (string-coercing the global Error constructor, not the
+ * caught error's message) instead of the intended `failedToProcess + err`.
+ * Each call site passes whichever form that route already had — not fixed
+ * here, since that would be a behavior change beyond deduplication.
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param useBuggyLog - true for routes whose existing log call was `Error + err`
+ */
+// tslint:disable-next-line: no-any
+function handleWorkAllocationError(res: Response, err: any, useBuggyLog: boolean) {
+  // tslint:disable-next-line: no-any
+  logError(((useBuggyLog ? Error : failedToProcess) as any) + err)
+  res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: ERROR.GENERAL_ERR_MSG,
+    }
+  )
+}
+
 workAllocationApi.post('/add', async (req, res) => {
     try {
         const userId = extractUserId(req)
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.post(
@@ -53,20 +93,14 @@ workAllocationApi.post('/add', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
 workAllocationApi.post('/update', async (req, res) => {
     try {
         const userId = extractUserId(req)
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.post(
@@ -82,12 +116,7 @@ workAllocationApi.post('/update', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, false)
     }
 })
 
@@ -104,12 +133,7 @@ workAllocationApi.post('/userSearch', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, false)
     }
 })
 
@@ -126,12 +150,7 @@ workAllocationApi.get('/user/autocomplete/:searchTerm', async (req, res) => {
         })
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, false)
     }
 })
 
@@ -140,8 +159,7 @@ workAllocationApi.get('/user/autocomplete/:searchTerm', async (req, res) => {
 workAllocationApi.post('/v2/add', async (req, res) => {
     try {
         const userId = extractUserId(req)
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.post(
@@ -160,20 +178,14 @@ workAllocationApi.post('/v2/add', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
 workAllocationApi.post('/v2/update', async (req, res) => {
     try {
         const userId = extractUserId(req)
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.post(
@@ -191,19 +203,13 @@ workAllocationApi.post('/v2/update', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 workAllocationApi.post('/add/workorder', async (req, res) => {
     try {
         const userId = extractUserId(req)
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.post(
@@ -221,19 +227,13 @@ workAllocationApi.post('/add/workorder', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 workAllocationApi.post('/update/workorder', async (req, res) => {
     try {
         const userId = extractUserId(req)
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.post(
@@ -251,12 +251,7 @@ workAllocationApi.post('/update/workorder', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
@@ -276,20 +271,14 @@ workAllocationApi.post('/getWorkOrders', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
 workAllocationApi.get('/getWorkOrderById/:workOrderId', async (req, res) => {
     try {
         const workOrderId = req.params.workOrderId
-        if (!workOrderId) {
-            res.status(400).send(workOrderIdFailedMessage)
+        if (!requireParam(res, workOrderId, workOrderIdFailedMessage)) {
             return
         }
         const response = await axios.get(
@@ -305,20 +294,14 @@ workAllocationApi.get('/getWorkOrderById/:workOrderId', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
 workAllocationApi.get('/getWorkAllocationById/:workAllocationId', async (req, res) => {
     try {
         const workAllocationId = req.params.workAllocationId
-        if (!workAllocationId) {
-            res.status(400).send(workAllocationIdFailedMessage)
+        if (!requireParam(res, workAllocationId, workAllocationIdFailedMessage)) {
             return
         }
         const response = await axios.get(
@@ -334,20 +317,14 @@ workAllocationApi.get('/getWorkAllocationById/:workAllocationId', async (req, re
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
 workAllocationApi.post('/copy/workOrder', async (req, res) => {
     try {
         const userId = extractUserId(req)
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.post(
@@ -365,20 +342,14 @@ workAllocationApi.post('/copy/workOrder', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
 workAllocationApi.get('/getUserBasicInfo/:userId', async (req, res) => {
     try {
         const userId = req.params.userId
-        if (!userId) {
-            res.status(400).send(userIdFailedMessage)
+        if (!requireParam(res, userId, userIdFailedMessage)) {
             return
         }
         const response = await axios.get(
@@ -394,20 +365,14 @@ workAllocationApi.get('/getUserBasicInfo/:userId', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })
 
 workAllocationApi.get('/getWOPdf/:workOrderId', async (req, res) => {
     try {
         const workOrderId = req.params.workOrderId
-        if (!workOrderId) {
-            res.status(400).send(workOrderIdFailedMessage)
+        if (!requireParam(res, workOrderId, workOrderIdFailedMessage)) {
             return
         }
         const response = await axios.get(
@@ -427,11 +392,6 @@ workAllocationApi.get('/getWOPdf/:workOrderId', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(Error + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleWorkAllocationError(res, err, true)
     }
 })

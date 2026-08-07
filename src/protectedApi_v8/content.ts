@@ -1,10 +1,10 @@
 import axios from 'axios'
-import { Response, Router } from 'express'
+import { Request, Response, Router } from 'express'
 import request from 'request'
 import { axiosRequestConfig } from '../configs/request.config'
 import { ECollectionTypes, IContent, IContentMinimal } from '../models/content.model'
 import { IPaginatedApiResponse } from '../models/paginatedApi.model'
-import { getMinimalContent, processContent } from '../utils/contentHelpers'
+import { getMinimalContent, processContent, sendAutoCompleteSearchResponse, sendSearchResponse } from '../utils/contentHelpers'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
@@ -66,6 +66,26 @@ const DETAIL_CONTENT_FIELDS = [
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
+// sonar-cleanup: extracted from content.ts's repeated org/rootOrg header-guard blocks across ~15 routes (CHANGE 13)
+/**
+ * Reads the `org`/`rootOrg` headers most content routes require. Sends the
+ * standard 400 and returns `null` if either is missing — callers should
+ * return immediately when they get `null` back.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the 400 on, if headers are missing
+ */
+function requireOrgHeaders(req: Request, res: Response): { org: string; rootOrg: string } | null {
+  const org = req.header('org')
+  const rootOrg = req.header('rootOrg')
+  if (!org || !rootOrg) {
+    res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    return null
+  }
+  return { org, rootOrg }
+}
+
+// sonar-cleanup: extracted from content.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8); getParentDetails's catch (returns instead of sending) was deliberately left untouched
 /**
  * Optionally logs the error under `label`, then responds with the upstream
  * status code (or 500) and the upstream error body (or a generic error
@@ -115,12 +135,11 @@ export const contentApi = Router()
 
 contentApi.post('/kb/v3/reorder', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const url = `${API_END_POINTS.reorderV3}?rootOrg=${rootOrg}&org=${org}`
     const response = await axios.post(url, req.body,
       {
@@ -140,12 +159,11 @@ contentApi.post('/kb/v3/reorder', async (req, res) => {
 
 contentApi.post('/kb/v2/:apiType', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const apiType = req.params.apiType
     const url = `${API_END_POINTS.modifyKB(apiType)}?rootOrg=${rootOrg}&org=${org}`
     const response = await axios.post(url, req.body,
@@ -166,12 +184,11 @@ contentApi.post('/kb/v2/:apiType', async (req, res) => {
 
 contentApi.get('/multiple/:ids', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const ids = req.params.ids.split(',')
     const response = await getMultipleContent(ids, rootOrg, org, extractUserIdFromRequest(req))
     res.json(response)
@@ -241,12 +258,11 @@ export async function getParentDetails(contentId: string) {
 
 contentApi.get('/next/:contentId', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const contentId = req.params.contentId
     const response = await axios.get(`${API_END_POINTS.next}/${contentId}`, {
       ...axiosRequestConfig,
@@ -279,76 +295,7 @@ contentApi.post('/likeCount', async (req, res) => {
 
 contentApi.get('/searchAutoComplete', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    const query = req.query.q
-    const lang = req.query.l
-    // tslint:disable-next-line: no-any
-    const body: any = {
-      _source: ['searchTerm'],
-      query: {
-        bool: {
-          filter: [
-            {
-              term: {
-                rootOrg,
-              },
-            },
-            {
-              term: {
-                org,
-              },
-            },
-          ],
-          should: !query.length
-            ? undefined
-            : [
-              {
-                prefix: {
-                  'searchTermAnalysed.keyword': {
-                    boost: 4,
-                    value: query,
-                  },
-                },
-              },
-              {
-                prefix: {
-                  searchTermAnalysed: {
-                    boost: 2,
-                    value: query,
-                  },
-                },
-              },
-            ],
-        },
-      },
-      size: 20,
-    }
-    const isSuggestedTerm = {
-      term: {
-        isSuggested: true,
-      },
-    }
-    if (!query.length) {
-      body.query.bool.filter.push(isSuggestedTerm)
-    }
-    const response = await axios.request({
-      auth: {
-        password: CONSTANTS.ES_PASSWORD,
-        username: CONSTANTS.ES_USERNAME,
-      },
-      data: body,
-      method: 'POST',
-      ...axiosRequestConfig,
-      url: `${API_END_POINTS.searchAutoComplete}/searchautocomplete_${lang}/autocomplete/_search`,
-    })
-    let data = []
-    if (response.data && response.data.hits && response.data.hits.hits) {
-      data = response.data.hits.hits.filter((result: { _source: { searchTerm: string } }) => {
-        return result._source.searchTerm.length
-      })
-    }
-    res.json(data)
+    await sendAutoCompleteSearchResponse(req, res, API_END_POINTS.searchAutoComplete)
   } catch (err) {
     handleContentError(res, err, 'SEARCH AUTOCOMPLETE ERR -> ')
   }
@@ -393,12 +340,11 @@ contentApi.post('/searchV5', async (req, res) => {
 
 contentApi.post('/searchRegionRecommendation', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { rootOrg } = orgHeaders
     const userId = extractUserIdFromRequest(req)
     let reqBody = {
       ...req.body,
@@ -448,19 +394,7 @@ contentApi.post('/searchV6', async (req, res) => {
       uuid: extractUserIdFromRequest(req),
     }
     const response = await axios.post(API_END_POINTS.searchV6, body, axiosRequestConfig)
-    const contents: IContent[] = response.data.result
-    if (Array.isArray(contents)) {
-      response.data.result = contents.map((content) => processContent(content))
-    }
-    res.json(
-      response.data || {
-        filters: [],
-        filtersUsed: [],
-        notVisibleFilters: [],
-        result: [],
-        totalHits: 0,
-      }
-    )
+    sendSearchResponse(res, response)
   } catch (err) {
     handleContentError(res, err, 'SEARCH V6 API ERROR >')
   }
@@ -533,13 +467,12 @@ contentApi.get('/getWebModuleFiles', async (req, res) => {
 
 contentApi.get('/collection/:collectionType/:collectionId', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const userId = extractUserIdFromRequest(req)
 
     const { collectionType, collectionId } = req.params
     let parent = {}
@@ -597,16 +530,23 @@ contentApi.post('/removeSubset', async (req, res) => {
   }
 })
 
-contentApi.post('/hierarchy/update', async (req, res) => {
+/**
+ * Shared body for the two "update content hierarchy" routes below — they
+ * only differ in which upstream URL they post to.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result (or an error) on
+ * @param url - the resolved upstream hierarchy-update endpoint to post to
+ */
+async function updateContentHierarchy(req: Request, res: Response, url: string) {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const response = await axios.post(
-      `${API_END_POINTS.updateHierarchy}?rootOrg=${rootOrg}&org=${org}&wid=${req.header('wid')}`,
+      `${url}?rootOrg=${rootOrg}&org=${org}&wid=${req.header('wid')}`,
       req.body,
       {
         ...axiosRequestConfig,
@@ -617,41 +557,23 @@ contentApi.post('/hierarchy/update', async (req, res) => {
   } catch (err) {
     handleContentError(res, err)
   }
+}
+
+contentApi.post('/hierarchy/update', async (req, res) => {
+  await updateContentHierarchy(req, res, API_END_POINTS.updateHierarchy)
 })
 
 contentApi.post('/kb/:updateType', async (req, res) => {
-  try {
-    const { updateType } = req.params
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    const response = await axios.post(
-      `${API_END_POINTS.addHierarchy(updateType)}?rootOrg=${rootOrg}&org=${org}&wid=${req.header(
-        'wid'
-      )}`,
-      req.body,
-      {
-        ...axiosRequestConfig,
-        timeout: Number(CONSTANTS.KB_TIMEOUT),
-      }
-    )
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleContentError(res, err)
-  }
+  await updateContentHierarchy(req, res, API_END_POINTS.addHierarchy(req.params.updateType))
 })
 
 contentApi.post('/:contentId', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const { contentId } = req.params
     const additionalFields = req.body.additionalFields
     const fetchOneLevel = req.body.fetchOneLevel || false
@@ -749,12 +671,11 @@ export async function getContentMeta(
 contentApi.get('/external-access/:id', async (req, res) => {
   try {
     const id = req.params.id
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const response = await axios.get(
       `${API_END_POINTS.externalContentAccess(id, extractUserIdFromRequest(req))}`,
       {
@@ -773,13 +694,12 @@ contentApi.get('/external-access/:id', async (req, res) => {
 
 contentApi.post('/:contentId/parent', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const uuid = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const uuid = extractUserIdFromRequest(req)
     const contentId = req.params.contentId
     const response = await axios.post(API_END_POINTS.contentParent(contentId), req.body, {
       ...axiosRequestConfig,

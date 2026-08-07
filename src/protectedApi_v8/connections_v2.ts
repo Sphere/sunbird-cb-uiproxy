@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
@@ -10,6 +10,25 @@ import { extractUserToken } from '../utils/requestExtract'
 const _                 = require('lodash')
 
 const unknown = 'Connections Apis:- Failed due to unknown reason'
+
+/**
+ * Logs the error under `label`, then responds with the upstream status
+ * code (or 500) and the upstream error body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleConnectionsError(res: Response, err: any, label: string) {
+  logError(label, err)
+  res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: unknown,
+    }
+  )
+}
+
 const apiEndpoints = {
   detail: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/wid`,
   getConnectionEstablishedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/established`,
@@ -51,12 +70,7 @@ connectionsV2Api.get('/v2/connections/requested', async (req, res) => {
     res.send((response.data))
 
   } catch (err) {
-    logError('CONNECTIONS REQUESTS ERROR> ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'CONNECTIONS REQUESTS ERROR> ')
   }
 })
 
@@ -86,12 +100,7 @@ connectionsV2Api.get('/v2/connections/requests/received', async (req, res) => {
     res.send((response.data))
 
   } catch (err) {
-    logError('CONNECTIONS REQUESTS ERROR> ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'CONNECTIONS REQUESTS ERROR> ')
   }
 })
 
@@ -121,12 +130,7 @@ connectionsV2Api.get('/v2/connections/established', async (req, res) => {
     res.send((response.data))
 
   } catch (err) {
-    logError('CONNECTIONS ERROR', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'CONNECTIONS ERROR')
   }
 })
 
@@ -156,12 +160,7 @@ connectionsV2Api.get('/v2/connections/established/:id', async (req, res) => {
     res.send((response.data))
 
   } catch (err) {
-    logError('CONNECTIONS ERROR', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'CONNECTIONS ERROR')
   }
 })
 
@@ -191,12 +190,7 @@ connectionsV2Api.get('/v2/connections/suggests', async (req, res) => {
     res.send((response.data))
 
   } catch (err) {
-    logError('SUGGESTS ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'SUGGESTS ERROR >')
   }
 })
 
@@ -245,12 +239,7 @@ connectionsV2Api.post('/v2/add/connection', async (req, res) => {
     res.send(response.data)
 
   } catch (err) {
-    logError('ADD CONNECTION ERROR > ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'ADD CONNECTION ERROR > ')
   }
 })
 
@@ -302,12 +291,7 @@ connectionsV2Api.post('/v2/update/connection', async (req, res) => {
     res.send(response.data)
 
   } catch (err) {
-    logError('UPDATE CONNECTION ERROR > ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'UPDATE CONNECTION ERROR > ')
   }
 })
 
@@ -343,12 +327,7 @@ connectionsV2Api.post('/v2/connections/recommended', async (req, res) => {
     res.send(response.data)
 
   } catch (err) {
-    logError('RECOMMENDED ERROR > ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'RECOMMENDED ERROR > ')
   }
 })
 
@@ -449,11 +428,6 @@ connectionsV2Api.post('/v2/connections/recommended/userDepartment', async (req, 
     res.send(response.data)
 
   } catch (err) {
-    logError('RECOMMENDED ERROR > ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknown,
-      }
-    )
+    handleConnectionsError(res, err, 'RECOMMENDED ERROR > ')
   }
 })

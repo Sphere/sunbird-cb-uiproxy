@@ -4,6 +4,7 @@ import { API_END_POINTS } from './autoLoginSignupConstants'
 import { CONSTANTS } from './env'
 import { logInfo } from './logger'
 
+// sonar-cleanup: extracted from signupWithAutoLogin.ts / signupWithAutoLoginV2.ts / appSignUpWithAutoLogin.ts's byte-identical create-user request (CHANGE 10) — updateRoles was deliberately NOT merged with these, since v1 uses axiosRequestConfig while v2/app use axiosRequestConfigLong (L2-2, left unmerged)
 /**
  * Creates a Sunbird user account from the signup form data. Shared by the
  * auto-login signup flows (`signupWithAutoLogin`, `signupWithAutoLoginV2`,
@@ -37,6 +38,7 @@ export const createAccount = async (profileData: any) => {
   }
 }
 
+// sonar-cleanup: extracted from signupWithAutoLogin.ts / signupWithAutoLoginV2.ts / appSignUpWithAutoLogin.ts's byte-identical post-signup profile-update request (CHANGE 10)
 /**
  * Updates the newly created user's profile (name, default language) right
  * after signup. Shared by the same three auto-login signup flows.

@@ -1,15 +1,11 @@
 import {
   extractAuthorizationFromRequest,
-  extractRootOrgFromRequest,
   extractUserEmailFromRequest,
   extractUserId,
   extractUserIdFromRequest,
   extractUserNameFromRequest,
-  extractUserSessionState,
   extractUserToken,
   extractUserTokenContent,
-  extractUserTokenFromRequest,
-  getUUID,
 } from './requestExtract'
 
 /** Builds an express-like request with header lookups and optional kauth. */
@@ -79,12 +75,6 @@ describe('extractUserEmailFromRequest', () => {
   })
 })
 
-describe('extractUserSessionState', () => {
-  it('returns session_state', () => {
-    expect(extractUserSessionState(mockReq({}, CONTENT))).toBe('sess-abc')
-  })
-})
-
 describe('extractUserTokenContent / extractUserToken', () => {
   it('returns the whole content object', () => {
     expect(extractUserTokenContent(mockReq({}, CONTENT))).toEqual(CONTENT)
@@ -111,29 +101,3 @@ describe('extractAuthorizationFromRequest', () => {
   })
 })
 
-describe('header passthroughs', () => {
-  it('extractUserTokenFromRequest reads X-Authenticated-User-Token', () => {
-    expect(
-      extractUserTokenFromRequest(mockReq({ 'X-Authenticated-User-Token': 'xt' }, CONTENT))
-    ).toBe('xt')
-  })
-
-  it('extractRootOrgFromRequest reads rootorg', () => {
-    expect(extractRootOrgFromRequest(mockReq({ rootorg: 'org-1' }, CONTENT))).toBe('org-1')
-  })
-
-  it('returns undefined when the header is absent', () => {
-    expect(extractUserTokenFromRequest(mockReq({}, CONTENT))).toBeUndefined()
-    expect(extractRootOrgFromRequest(mockReq({}, CONTENT))).toBeUndefined()
-  })
-})
-
-describe('getUUID', () => {
-  it('returns a v1 uuid string', () => {
-    expect(getUUID()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
-  })
-
-  it('returns a different value on each call', () => {
-    expect(getUUID()).not.toBe(getUUID())
-  })
-})

@@ -490,19 +490,6 @@ describe('scormProxyCreatorRoute', () => {
   })
 })
 
-describe('proxyCreatorUpload', () => {
-  it('strips the action slug before proxying', () => {
-    const handler = captureHandler(proxyCreator.proxyCreatorUpload, 'https://upload.test')
-    const req = { originalUrl: '/proxies/v8/action/upload/1' }
-    handler(req, mockRes())
-    expect(mockWeb).toHaveBeenCalledWith(
-      req,
-      expect.anything(),
-      expect.objectContaining({ target: 'https://upload.test/upload/1' })
-    )
-  })
-})
-
 describe('proxyCreatorSunbirdSearch', () => {
   it('proxies directly to the target URL', () => {
     const handler = captureHandler(proxyCreator.proxyCreatorSunbirdSearch, 'https://search.test')

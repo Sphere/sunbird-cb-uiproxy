@@ -19,6 +19,7 @@ const apiEndpoints = {
   feedback: `${CONSTANTS.FEEDBACK_API_BASE}/v1`,
 }
 
+// sonar-cleanup: extracted from feedbackV2.ts's repeated per-route catch blocks — same status/body shape (CHANGE 8); the /categories catch sitting next to a documented route-shadowing bug was left untouched
 /**
  * Responds with the upstream status code (or 500) and the upstream error
  * body (or a generic error message).

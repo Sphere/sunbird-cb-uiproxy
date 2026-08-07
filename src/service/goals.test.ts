@@ -17,9 +17,7 @@ import {
   formContentRequestObj,
   formGoalRequestObj,
   formPlaylistupdateObj,
-  transformGoalUpsertRequest,
   transformGoalUpsertResponse,
-  transformResourceProgress,
   transformToCommonGoal,
   transformToCommonGoalGroup,
   transformToGoalForOthers,
@@ -234,31 +232,6 @@ describe('transformToUserGoals', () => {
 })
 
 /**
- * @description Verifies transformGoalUpsertRequest maps a goal upsert
- * request payload to the sb-ext request shape.
- */
-describe('transformGoalUpsertRequest', () => {
-  it('should map a goal upsert request to the sb-ext shape', () => {
-    const input = {
-      contentIds: ['c1'],
-      description: 'desc',
-      duration: 10,
-      id: 'g1',
-      name: 'name',
-      type: 'user',
-    }
-    expect(transformGoalUpsertRequest(input)).toEqual({
-      goal_content_id: ['c1'],
-      goal_desc: 'desc',
-      goal_duration: 10,
-      goal_id: 'g1',
-      goal_title: 'name',
-      goal_type: 'user',
-    })
-  })
-})
-
-/**
  * @description Verifies transformGoalUpsertResponse maps known error codes
  * through ERROR_CODE_HASH, passes through unknown codes unchanged, and
  * returns an empty object when there are no errors to report.
@@ -280,36 +253,6 @@ describe('transformGoalUpsertResponse', () => {
 
   it('should return an empty object when errors is absent', () => {
     expect(transformGoalUpsertResponse({})).toEqual({})
-  })
-})
-
-/**
- * @description Verifies transformResourceProgress maps sb-ext resource
- * progress fields onto the expected resource-progress shape.
- */
-describe('transformResourceProgress', () => {
-  it('should map sb-ext resource progress fields', () => {
-    const input = {
-      content_type: 'Course',
-      mime_type: 'application/pdf',
-      resource_duration: 60,
-      resource_id: 'r1',
-      resource_name: 'Resource One',
-      resource_progress: 25,
-      resourceType: 'pdf',
-      time_left: 35,
-    } as any
-
-    expect(transformResourceProgress(input)).toEqual({
-      contentType: 'Course',
-      displayContentType: 'pdf',
-      duration: 60,
-      id: 'r1',
-      mimeType: 'application/pdf',
-      name: 'Resource One',
-      progress: 25,
-      timeLeft: 35,
-    })
   })
 })
 

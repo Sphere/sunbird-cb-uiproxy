@@ -26,6 +26,7 @@ const scoringServiceheaders = {
     'Content-Type': 'application/json',
 }
 
+// sonar-cleanup: extracted from scoring.ts's repeated per-route catch blocks — same logError(failedToProcess + err) + status/body shape (CHANGE 8)
 /**
  * Logs the error, then responds with the upstream status code (or 500) and
  * the upstream error body (or a generic error message).

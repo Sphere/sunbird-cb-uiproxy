@@ -413,24 +413,6 @@ export function proxyHierarchyKnowledge(
   return route
 }
 
-export function proxyCreatorUpload(
-  route: Router,
-  targetUrl: string,
-  _timeout = 10000000
-): Router {
-  route.all('/*', (req, res) => {
-    const url = removePrefix(`${PROXY_SLUG}/action`, req.originalUrl)
-    // tslint:disable-next-line: no-console
-    console.log('REQ_URL_ORIGINAL proxyCreatorUpload', targetUrl)
-    proxy.web(req, res, {
-      changeOrigin: true,
-      ignorePath: true,
-      target: targetUrl + url,
-    })
-  })
-  return route
-}
-
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
 }

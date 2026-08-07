@@ -26,8 +26,6 @@ const API_ENDPOINT_TAILS = {
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
-export type actionType = 'Verify' | 'Submit'
-export type groupType = 'fp' | 'ce' | 'pf'
 export type verifySubmitType =
   | 'fpVerify'
   | 'fpSubmit'

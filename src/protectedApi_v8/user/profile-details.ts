@@ -61,29 +61,6 @@ const API_END_POINTS = {
     `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/v2/read/${userId}`,
 }
 
-export async function getUserProfileStatus(wid: string) {
-  try {
-    const response = await axios.post(
-      API_END_POINTS.userProfileStatus,
-      { wid },
-      {
-        ...axiosRequestConfig,
-      }
-    )
-    if (response.data.status) {
-      return true
-    } else {
-      return false
-    }
-  } catch (err) {
-    logError(
-      'ERROR GETTING USER PROFILE STATUS FROM  ${API_END_POINTS.userProfileStatus} >',
-      err
-    )
-    return false
-  }
-}
-
 export const profileDeatailsApi = Router()
 
 profileDeatailsApi.post('/createUserRegistry', async (req, res) => {

@@ -4,6 +4,7 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from './env'
 import { logError, logInfo } from './logger'
 
+// sonar-cleanup: extracted from signupWithAutoLogin.ts / signupWithAutoLoginV2.ts / appSignUpWithAutoLogin.ts / emailOrMobileLoginSignIn.ts's identical user-exists lookup (CHANGE 10) — scoped to just these 4 files as specified; builds its own URLs so it doesn't depend on any caller's own API_END_POINTS map
 /**
  * Checks whether a user already exists in Sunbird for the given email or
  * phone, via the `user/v1/exists/...` lookup. Shared by the auto-login

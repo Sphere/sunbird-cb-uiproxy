@@ -1,12 +1,11 @@
 /**
  * PHASE 1 — user/profile-details.ts (275 uncovered).
  *
- * Scope: the simple axios-proxy endpoints plus the exported getUserProfileStatus
- * helper. Deliberately OUT of scope for this pass: /createUser (~127 lines),
- * /completeUserInfo, /v2/updateUser, /createUserV2WithRegistry,
- * /createUserV2WithoutRegistry — each is a large multi-step Cassandra +
- * multi-upstream-call flow, not a one-line axios mock; scheduled for Phase 2
- * with the file's other Cassandra-dependent endpoints.
+ * Scope: the simple axios-proxy endpoints. Deliberately OUT of scope for this
+ * pass: /createUser (~127 lines), /completeUserInfo, /v2/updateUser,
+ * /createUserV2WithRegistry, /createUserV2WithoutRegistry — each is a large
+ * multi-step Cassandra + multi-upstream-call flow, not a one-line axios mock;
+ * scheduled for Phase 2 with the file's other Cassandra-dependent endpoints.
  *
  * encryptData is mocked because the real module reads AES config from env
  * AT IMPORT TIME and throws if it is absent — same landmine as elsewhere in
@@ -38,7 +37,7 @@ jest.mock('../../utils/env', () => ({
 import axios from 'axios'
 import { networkError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
-import { getUserProfileStatus, profileDeatailsApi } from './profile-details'
+import { profileDeatailsApi } from './profile-details'
 
 const mockAxios = axios as jest.Mocked<typeof axios>
 const agent = () => mountRouter(profileDeatailsApi)
@@ -46,23 +45,6 @@ const agent = () => mountRouter(profileDeatailsApi)
 beforeEach(() => {
   mockAxios.get.mockReset()
   mockAxios.post.mockReset()
-})
-
-describe('getUserProfileStatus (exported helper)', () => {
-  it('returns true when the upstream reports status', async () => {
-    mockAxios.post.mockResolvedValue(upstreamOk({ status: true }))
-    await expect(getUserProfileStatus('wid-1')).resolves.toBe(true)
-  })
-
-  it('returns false when the upstream reports no status', async () => {
-    mockAxios.post.mockResolvedValue(upstreamOk({ status: false }))
-    await expect(getUserProfileStatus('wid-1')).resolves.toBe(false)
-  })
-
-  it('returns false (not a rejection) when the upstream call fails', async () => {
-    mockAxios.post.mockRejectedValue(networkError())
-    await expect(getUserProfileStatus('wid-1')).resolves.toBe(false)
-  })
 })
 
 describe('POST /createUserRegistry', () => {

@@ -16,6 +16,7 @@ import {
   USER_SUCCESS_REGISTRATION_MESSAGE as userSuccessRegistrationMessage,
 } from '../utils/orgSignupConstants'
 import {
+  conditionalFieldValidator,
   optionalEmailValidator,
   requiredDistrictValidator,
   requiredFirstNameValidator,
@@ -88,49 +89,13 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'Role is required',
         }),
 
-    courseSelection: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            'any.required': 'Course selection is required for Student and Faculty roles',
-        }),
+    courseSelection: conditionalFieldValidator('Student', 'Course selection is required for Student and Faculty roles'),
 
-    instituteType: Joi.string()
-        .when('role', {
-            // tslint:disable-next-line: all
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute type is required for Student and Faculty roles',
-        }),
+    instituteType: conditionalFieldValidator(['Student', 'Faculty'], 'Institute type is required for Student and Faculty roles'),
 
-    instituteName: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute name is required for Student and Faculty roles',
-        }),
+    instituteName: conditionalFieldValidator(['Student', 'Faculty'], 'Institute name is required for Student and Faculty roles'),
 
-    facultyType: Joi.string()
-        .when('role', {
-            is: 'Faculty',
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Faculty type is required for Faculty role',
-        }),
+    facultyType: conditionalFieldValidator('Faculty', 'Faculty type is required for Faculty role'),
 
     roleForInService: Joi.string()
         .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility, shortHands.cho, shortHands.staffNurses)

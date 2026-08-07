@@ -1,10 +1,10 @@
 import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
-import { Pool } from 'pg'
 import { axiosRequestConfigLong } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
+import { createSearchPgPool } from '../utils/searchPgPool'
 
 export const publicSearch = Router()
 
@@ -13,21 +13,8 @@ const API_END_POINTS = {
   searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
 
 }
-const postgresConnectionDetails = {
-  database: CONSTANTS.POSTGRES_DATABASE,
-  host: CONSTANTS.POSTGRES_HOST,
-  password: CONSTANTS.POSTGRES_PASSWORD,
-  port: CONSTANTS.POSTGRES_PORT,
-  user: CONSTANTS.POSTGRES_USER,
-}
 
-const pool = new Pool({
-  database: postgresConnectionDetails.database,
-  host: postgresConnectionDetails.host,
-  password: postgresConnectionDetails.password,
-  port: Number(postgresConnectionDetails.port),
-  user: postgresConnectionDetails.user,
-})
+const pool = createSearchPgPool()
 const headers = {
   Accept: 'application/json, text/plain, */*',
   'Content-Type': 'application/json',

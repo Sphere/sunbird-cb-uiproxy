@@ -6,12 +6,11 @@ import {
   IPlaylistSbExtBase,
   IPlaylistSbExtRequest,
   IPlaylistSbExtSyncRequest,
-  IPlaylistSbUpdateRequest,
   IPlaylistSyncRequest,
-  IPlaylistUpdateTitleRequest,
   IPlaylistUpsertRequest,
 
 } from '../models/playlist.model'
+import { buildContentCreateRequest } from '../utils/contentCreateHelpers'
 
 function transformToPlaylistBase(playlistSbExt: IPlaylistSbExtBase): IPlaylist {
   return {
@@ -54,14 +53,6 @@ export function transformToPlaylistV3(playlistSbExt: IPlaylistGetRequest, playli
   return transformToPlaylistBaseV3(playlistSbExt, playlistId)
 }
 
-export function transformToSbExtCreateRequest(upsertRequest: IPlaylistCreateRequest): IPlaylistSbExtRequest {
-  return {
-    content_ids: upsertRequest.content_ids,
-    playlist_title: upsertRequest.playlist_title,
-    visibility: upsertRequest.visibility,
-  }
-}
-
 export function transformToSbExtSyncRequest(syncRequest: IPlaylistSyncRequest): IPlaylistSbExtSyncRequest {
   return {
     content: syncRequest.only_sharedby_playlist_content,
@@ -79,15 +70,6 @@ export function transformToSbExtDeleteRequest(upsertRequest: IPlaylistUpsertRequ
   /* delete contents from playlist*/
   return {
     content: upsertRequest.contentIds,
-  }
-}
-
-export function transformToSbExtUpdateRequest(updateRequest: IPlaylistUpdateTitleRequest): IPlaylistSbUpdateRequest {
-  /* for Patch request to change playlist title */
-  return {
-    content_ids: updateRequest.content_ids.map((content) => content.identifier),
-    playlist_title: updateRequest.playlist_title,
-    visibility: updateRequest.visibility,
   }
 }
 
@@ -113,22 +95,14 @@ export function transformToSbExtPatchRequest(req: { contentIds: string[] }, play
 }
 
 export function formPlaylistRequestObj(request: IPlaylistCreateRequest, userId: string, _userName: string) {
-  /* for Patch request to change playlist title */
-  return {
-    request: {
-      content: {
-        code: 'org.ekstep0.29884945860157064123',
-        contentType: 'Collection',
-        createdBy: userId,
-        creator: request.createdBy,
-        license: 'CC BY 4.0',
-        mimeType: 'application/vnd.ekstep.content-collection',
-        name: request.playlist_title,
-        primaryCategory: 'Playlist',
-        sharedWith: request.shareWith,
-      },
-    },
-  }
+  return buildContentCreateRequest(
+    request.createdBy,
+    userId,
+    request.playlist_title,
+    'Playlist',
+    undefined,
+    request.shareWith
+  )
 }
 
 export function formPlaylistupdateObj(req: { playlist_title: string, versionKey: string }) {

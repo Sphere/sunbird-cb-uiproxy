@@ -1,5 +1,4 @@
 import { Request } from 'express'
-import uuid from 'uuid'
 export interface IAuthorizedRequest extends Request {
   kauth?: {
     grant: {
@@ -49,10 +48,6 @@ export const extractUserEmailFromRequest = (req: IAuthorizedRequest) =>
   /* tslint:disable-next-line */
       req.kauth.grant.access_token.content.preferred_username)) as string
 
-export const extractUserSessionState = (req: IAuthorizedRequest) =>
-  /* tslint:disable-next-line */
-  (req.kauth && req.kauth.grant.access_token.content.session_state) as string
-
 export const extractUserTokenContent = (req: IAuthorizedRequest) => {
   return req.kauth && req.kauth.grant.access_token.content
 }
@@ -68,19 +63,3 @@ export const extractAuthorizationFromRequest = (
   // Bearer is added as other areas are using split function to get the token
   return 'Bearer ' + token
 }
-export const extractUserTokenFromRequest = (
-  req: IAuthorizedRequest
-  /* tslint:disable-next-line */
-): string => {
-  const xAuthorization = req.header('X-Authenticated-User-Token')
-  /* tslint:disable-next-line */
-  return xAuthorization as string
-}
-
-export const extractRootOrgFromRequest = (req: IAuthorizedRequest): string => {
-  const rootOrg = req.header('rootorg')
-  /* tslint:disable-next-line */
-  return rootOrg as string
-}
-
-export const getUUID = () => uuid.v1()

@@ -1,10 +1,10 @@
 import axios from 'axios'
-import { Response, Router } from 'express'
+import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { ITrackStatus } from '../../models/goal.model'
 import { formContentRequestObj, formGoalRequestObj, formPlaylistupdateObj, transformGoalUpsertResponse, transformToCommonGoalGroup, transformToGoalForOthers, transformToSbExtPatchRequest, transformToTrackStatus, transformToUserGoals } from '../../service/goals'
+import { patchContentViaHierarchyUpdate } from '../../utils/contentPatchHelpers'
 import { CONSTANTS } from '../../utils/env'
-import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
 
@@ -41,6 +41,25 @@ const API_END_POINTS = {
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
+// sonar-cleanup: extracted from goals.ts's repeated rootOrg header-guard blocks across ~15 routes (CHANGE 14)
+/**
+ * Reads the `rootOrg` header every goals route requires. Sends the
+ * standard 400 and returns `null` if it's missing — callers should return
+ * immediately when they get `null` back.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the 400 on, if the header is missing
+ */
+function requireRootOrg(req: Request, res: Response): string | null {
+  const rootOrg = req.header('rootOrg')
+  if (!rootOrg) {
+    res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    return null
+  }
+  return rootOrg
+}
+
+// sonar-cleanup: extracted from goals.ts's repeated per-route catch blocks — same status/body shape (CHANGE 8); POST /'s transformGoalUpsertResponse catch and PATCH /:goalId's pre-existing logError(err) catch were deliberately left untouched
 /**
  * Responds with the upstream status code (or 500) and the upstream error
  * body (or a generic error message).
@@ -64,9 +83,8 @@ goalsApi.get('/updateDurationCommonGoal/:goalType/:goalId', async (req, res) => 
   const userId = extractUserIdFromRequest(req)
   const duration = req.query.duration
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.put(
@@ -84,9 +102,8 @@ goalsApi.get('/updateDurationCommonGoal/:goalType/:goalId', async (req, res) => 
 goalsApi.post('/', async (req, res) => {
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const auth = req.header('Authorization')
@@ -129,60 +146,21 @@ goalsApi.post('/', async (req, res) => {
 
 goalsApi.patch('/:goalId', async (req, res) => {
   /* Patch request to update the title of a playlist */
-  try {
-    const request = req.body
-    const rootOrg = req.header('rootOrg')
-    const auth = req.header('Authorization')
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    const goalId = req.params.goalId
-    const url = `https://igot-dev.in/apis/proxies/v8/action/content/v3/update/${goalId}`
-    const response = await axios({
-      ...axiosRequestConfig,
-      data: formPlaylistupdateObj(request),
-      headers: {
-        Authorization: auth,
-        org: 'dopt',
-        rootOrg: 'igot',
-      },
-      method: 'PATCH',
-      url,
-    })
-
-    const urll = `https://igot-dev.in/apis/proxies/v8/action/content/v3/hierarchy/update`
-
-    const response1 = await axios({
-      ...axiosRequestConfig,
-      data: transformToSbExtPatchRequest(request, goalId),
-      headers: {
-        Authorization: auth,
-        org: 'dopt',
-        rootOrg: 'igot',
-      },
-      method: 'PATCH',
-      url: urll,
-    })
-    res.status(response.status || response1.status).send()
-  } catch (err) {
-    logError(err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
-  }
-
+  await patchContentViaHierarchyUpdate(
+    req,
+    res,
+    req.params.goalId,
+    formPlaylistupdateObj,
+    transformToSbExtPatchRequest
+  )
 })
 goalsApi.post('/share/:goalType/:goalId', async (req, res) => {
   const { goalType, goalId } = req.params
   const userId = extractUserIdFromRequest(req)
 
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.post(API_END_POINTS.share(userId, goalId, goalType), req.body, {
@@ -200,9 +178,8 @@ goalsApi.post('/sharev2/:goalType/:goalId', async (req, res) => {
   const userId = extractUserIdFromRequest(req)
 
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.post(API_END_POINTS.sharev2(userId, goalId, goalType), req.body, {
@@ -220,9 +197,8 @@ goalsApi.post('/action/:type/:goalType/:goalId', async (req, res) => {
   const confirm = req.query.confirm
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const requestBody = {
@@ -248,9 +224,8 @@ goalsApi.get('/action', async (req, res) => {
   const userId = extractUserIdFromRequest(req)
   const sourceFields = req.query.sourceFields
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.get(API_END_POINTS.actionRequired(userId, sourceFields), {
@@ -268,9 +243,8 @@ goalsApi.get('/action', async (req, res) => {
 goalsApi.get('/common', async (req, res) => {
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.get(API_END_POINTS.goalGroups(userId), {
@@ -287,9 +261,8 @@ goalsApi.get('/common', async (req, res) => {
 goalsApi.get('/common/:groupId', async (req, res) => {
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const groupId = req.params.groupId
@@ -308,9 +281,8 @@ goalsApi.get('/for-others', async (req, res) => {
   const sourceFields = req.query.sourceFields
 
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.get(API_END_POINTS.getGoalForOthers(userId, sourceFields), {
@@ -328,9 +300,8 @@ goalsApi.get('/track/:goalType/:goalId', async (req, res) => {
   const { goalType, goalId } = req.params
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.get(API_END_POINTS.track(userId, goalId, goalType), {
@@ -350,9 +321,8 @@ goalsApi.delete('/:goalType/:goalId', async (req, res) => {
   const userId = extractUserIdFromRequest(req)
 
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.delete(API_END_POINTS.deleteUserGoal(userId, goalId, goalType), {
@@ -370,9 +340,8 @@ goalsApi.post('/removeUsers/:goalType/:goalId', async (req, res) => {
   const { goalType, goalId } = req.params
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.post(
@@ -391,9 +360,8 @@ goalsApi.get('/:type', async (req, res) => {
   const userId = req.query.wid || extractUserIdFromRequest(req)
   const sourceFields = req.query.sourceFields
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.get(API_END_POINTS.getUserGoals(userId, goalType, sourceFields), {
@@ -412,9 +380,8 @@ goalsApi.patch('/addContent/:goalId/:contentId', async (req, res) => {
   const goalType = req.query.goal_type
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.patch(
@@ -434,9 +401,8 @@ goalsApi.delete('/removeContent/:goalId/:contentId', async (req, res) => {
   const goalType = req.query.goal_type
   const userId = extractUserIdFromRequest(req)
   try {
-    const rootOrg = req.header('rootOrg')
+    const rootOrg = requireRootOrg(req, res)
     if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
     const response = await axios.delete(

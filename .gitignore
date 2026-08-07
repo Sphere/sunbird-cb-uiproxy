@@ -43,3 +43,4 @@ Thumbs.db
 /nodemon/nodemon-aastar-stage.json
 /src/keys
 /src/publicApi_v8/keys
+src/keys/access_key
