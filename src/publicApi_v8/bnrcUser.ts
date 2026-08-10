@@ -9,12 +9,20 @@ import { logError } from '../utils/logger'
 import { logInfo } from '../utils/logger'
 import {
   API_END_POINTS,
-  INDIAN_COUNTRY_CODE as indianCountryCode,
-  MSG91_HEADERS as msg91Headers,
   REGISTRATION_SOURCE as registrationSource,
   STANDARD_DOB as standardDob,
   USER_SUCCESS_REGISTRATION_MESSAGE as userSuccessRegistrationMessage,
 } from '../utils/orgSignupConstants'
+// sonar-cleanup: local getUserDetails/createUser/assignRoleToUser/OTP-axios-calls/migrateUserToBnrc replaced with shared imports (CHANGE 30)
+import {
+  assignOrgSignupUserRole,
+  createOrgSignupUser,
+  getUserDetails,
+  migrateOrgSignupUser,
+  resendMsg91Otp,
+  sendMsg91Otp,
+  verifyMsg91Otp,
+} from '../utils/orgSignupHelpers'
 import {
   conditionalFieldValidator,
   optionalEmailValidator,
@@ -366,16 +374,7 @@ bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
                 status: 'error',
             })
         }
-        await axios({
-            headers: msg91Headers,
-            params: {
-                mobile: `${indianCountryCode}${phone}`,
-                template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
-            },
-
-            method: 'POST',
-            url: API_END_POINTS.msg91SendOtp,
-        })
+        await sendMsg91Otp(phone)
         logInfo('SEND_OTP: OTP sent successfully for BNRC', JSON.stringify(req.body))
         return res.status(200).json({
             message: `OTP successfully sent on phone ${phone}`,
@@ -400,16 +399,7 @@ bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
             })
         }
         logInfo('RESEND_OTP: SSO Resend OTP through phone', phone)
-        await axios({
-            headers: msg91Headers,
-            params: {
-                mobile: `${indianCountryCode}${phone}`,
-                retrytype: 'text',
-            },
-
-            method: 'POST',
-            url: API_END_POINTS.msg91ResendOtp,
-        })
+        await resendMsg91Otp(phone)
 
         return res.status(200).json({
             message: `OTP successfully re-sent on phone ${phone}`,
@@ -433,16 +423,7 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
                 status: 'error',
             })
         }
-        const verifyOtpResponse = await axios({
-            headers: msg91Headers,
-            method: 'GET',
-            params: {
-                mobile: `${indianCountryCode}${phone}`,
-                otp,
-            },
-
-            url: API_END_POINTS.msg91VerifyOtp,
-        })
+        const verifyOtpResponse = await verifyMsg91Otp(phone, otp)
         logInfo('VALIDATE_OTP: Verify OTP response BNRC', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
@@ -491,94 +472,11 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
 //         return false
 //     }
 // }
-const getUserDetails = async (phone: number) => {
-    try {
-        const userDetails = await axios({
-            data: {
-                request: {
-                    filters: {
-                        phone: phone.toString(),
-                    },
-                },
-            },
-            headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
-                'Content-Type': 'application/json',
-            },
-            method: 'POST',
-            url: API_END_POINTS.userSearch,
-        })
-        // tslint:disable-next-line: all
-        if (userDetails.data.result.response.content.length > 0) return { message: 'success', userDetails: userDetails.data.result.response.content[0] }
-        return { message: 'success', userDetails: '' }
-    } catch (error) {
-        logError('Error while user search', JSON.stringify(error))
-        return { message: 'failed' }
-    }
+const createUser = async (userDetails: UserDetails) =>
+    createOrgSignupUser(userDetails, 'bnrc', (details) => getDetailsAsPerRole(details).orgName)
 
-}
-
-const createUser = async (userDetails: UserDetails) => {
-    try {
-        logInfo('Create user bnrc body', JSON.stringify(userDetails))
-        const userChannel = getDetailsAsPerRole(userDetails).orgName
-        const userCreationData = {
-            request: {
-                channel: userChannel,
-                firstName: userDetails.firstName,
-                lastName: userDetails.lastName || userDetails.firstName,
-                password: CONSTANTS.BNRC_USER_DEFAULT_PASSWORD,
-                phone: JSON.stringify(userDetails.phone),
-            },
-        }
-        const userCreationResponse = await axios({
-            data: userCreationData,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-
-            method: 'POST',
-            url: API_END_POINTS.createUser,
-        })
-        if (userCreationResponse.data.result.userId) {
-            return {
-                message: 'success',
-                userId: userCreationResponse.data.result.userId,
-            }
-        }
-    } catch (error) {
-        logError('Error while user creation', JSON.stringify(error))
-        return {
-            message: 'failed',
-            userId: '',
-        }
-    }
-}
-const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
-    try {
-        const userRoleAssignData = {
-            request: {
-                organisationId: getDetailsAsPerRole(userDetails).orgId,
-                roles: ['PUBLIC'],
-                userId,
-            },
-        }
-        const roleAssignResponse = await axios({
-            data: userRoleAssignData,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'POST',
-            url: API_END_POINTS.assignRole,
-        })
-        if (roleAssignResponse.data.result.response == 'SUCCESS') {
-            return true
-        }
-    } catch (error) {
-        logError('Error while assigning user role', JSON.stringify(error))
-        return false
-    }
-}
+const assignRoleToUser = async (userId: string, userDetails: UserDetails) =>
+    assignOrgSignupUserRole(userId, userDetails, (details) => getDetailsAsPerRole(details).orgId)
 // tslint:disable-next-line: all
 const userProfileUpdate = async (user: UserDetails, userId: string) => {
     try {
@@ -988,49 +886,12 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 }
 
 const migrateUserToBnrc = async (userDetails, userFormDetails) => {
-    try {
-        const migrateUserData = {
-            request: {
-                channel: getDetailsAsPerRole(userFormDetails).orgName,
-                forceMigration: true,
-                notifyMigration: false,
-                softDeleteOldOrg: true,
-                userId: userDetails.userId,
-            },
-        }
-        const migrateUserResponse = await axios({
-            data: migrateUserData,
-            headers: {
-                'X-Authenticated-User-Token': '',
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'PATCH',
-            url: API_END_POINTS.migrateUser,
-        })
-        const userProfileDetails = userDetails.profileDetails
-        const updatedProfessionalDetails = { ...userProfileDetails.profileReq.professionalDetails[0], ...userFormDetails }
-        userProfileDetails.profileReq.professionalDetails[0] = updatedProfessionalDetails
-        userProfileDetails.profileReq.personalDetails.postalAddress = `India, Bihar, ${userFormDetails.district}`
-        userProfileDetails.profileReq.professionalDetails[0].designation = getUserDesignationFromRole[userFormDetails.role]
-        const userProfileUpdateBody = {
-            request: {
-                profileDetails: userProfileDetails,
-                userId: userDetails.id,
-            },
-        }
-        await axios({
-            data: userProfileUpdateBody,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'PATCH',
-            url: API_END_POINTS.profileUpdate,
-        })
-        if (migrateUserResponse.data.result.response == 'success') {
-            return true
-        }
-    } catch (error) {
-        logError('Error while migrating user to BNRC org', JSON.stringify(error))
-        return false
-    }
+    return migrateOrgSignupUser(
+        userDetails,
+        userFormDetails,
+        (details) => getDetailsAsPerRole(details).orgName,
+        (role) => getUserDesignationFromRole[role],
+        'Bihar',
+        'BNRC'
+    )
 }

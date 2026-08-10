@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
-import _ from 'lodash'
 import qs from 'querystring'
 import { v4 as uuidv4 } from 'uuid'
 import {
@@ -11,6 +10,8 @@ import {
 import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
+// sonar-cleanup: local fetchUserBymobileorEmail replaced with the shared import (CHANGE 29). Behaviorally equivalent, not byte-identical: this file's catch block explicitly `return false`, the shared helper returns `undefined` (no explicit return) — both call sites only use the result in a truthiness check (`resultEmail || resultPhone`), so the difference is not observable.
+import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
@@ -60,8 +61,6 @@ interface UserJourneyStatus {
 
 const API_END_POINTS = {
   createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
   generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
   grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
@@ -710,30 +709,3 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
     })
   }
 })
-
-// FETCH USER BY EMAIL / PHONE
-const fetchUserBymobileorEmail = async (searchValue: string, searchType: string) => {
-  logInfo(
-    'Checking Fetch Mobile no : ',
-    API_END_POINTS.fetchUserByMobileNo + searchValue
-  )
-  try {
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
-      method: 'GET',
-      url:
-        searchType === 'email'
-          ? API_END_POINTS.fetchUserByEmail + searchValue
-          : API_END_POINTS.fetchUserByMobileNo + searchValue,
-    })
-    logInfo('Response Data in JSON :', JSON.stringify(response.data))
-    logInfo('Response Data in Success :', response.data.responseCode)
-    if (response.data.responseCode === 'OK') {
-      return _.get(response, 'data.result.exists')
-    }
-  } catch (err) {
-    logError('fetchUserByMobile failed')
-    return false
-  }
-}

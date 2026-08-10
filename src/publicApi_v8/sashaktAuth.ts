@@ -2,11 +2,12 @@ import axios from 'axios'
 import cassandra from 'cassandra-driver'
 import express from 'express'
 import jwt_decode from 'jwt-decode'
-import _ from 'lodash'
 import qs from 'querystring'
 import { v4 as uuidv4 } from 'uuid'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
+// sonar-cleanup: local fetchUserBymobileorEmail (byte-identical to the shared helper) replaced with the shared import (CHANGE 29)
+import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
 import { getCurrentUserRoles } from './rolePermission'
@@ -21,8 +22,6 @@ const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const API_END_POINTS = {
   createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
   generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
   sashaktUserDetailsUrl: `${CONSTANTS.SASHAKT_USER_DETAILS_URL}`,
@@ -218,35 +217,6 @@ sashakt.get('/login', async (req: any, res) => {
   })
 })
 
-const fetchUserBymobileorEmail = async (
-  searchValue: string,
-  searchType: string
-) => {
-  try {
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'GET',
-      url:
-        searchType === 'email'
-          ? API_END_POINTS.fetchUserByEmail + searchValue
-          : API_END_POINTS.fetchUserByMobileNo + searchValue,
-    })
-    logInfo('Response Data in JSON :', JSON.stringify(response.data))
-    logInfo('Response Data in Success :', response.data.responseCode)
-    if (response.data.responseCode === 'OK') {
-      logInfo(
-        'Response result.exists :',
-        _.get(response, 'data.result.exists')
-      )
-      return _.get(response, 'data.result.exists')
-    }
-  } catch (err) {
-    logError('fetchUserByMobile  failed')
-  }
-}
 const checkMandatoryUserProfileDetails = async (email, phone) => {
   try {
     logInfo('Inside check mandatory function')

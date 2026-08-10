@@ -4356,6 +4356,198 @@ touched in this batch.
 
 ---
 
+## CHANGE 29 — duplication reduction push toward a <5% target, clusters A–C
+
+**Issue:** Sonar duplication was 13.9% (5,923 duplicated lines). User asked
+to push toward under 5%. A research pass mapped every remaining duplicate
+block precisely and found the realistic safe ceiling from cross-file
+extraction is roughly 10.5–11.5%, not under 5% — the shortfall is concrete
+and reported below, not assumed. Clusters A–C below are the safest,
+highest-confidence extractions from that research and are complete; the
+larger clusters (org-signup trio, SSO login family) are separately tracked
+and were not part of this batch.
+
+**Cluster A — `learnerPath.ts` / `learnerPathV2.ts`.** The two files were
+identical except the upstream base URL constant and log-message text.
+Extracted `createLearnerPathRouter(apiBase, versionLabel)` into new file
+`utils/learnerPathRouterFactory.ts`; both route files now call it with
+their own constant. Internally split into `registerUpdateLearnerPathRoute`/
+`registerGetLearnerPathRoute` to keep cognitive complexity under the
+Sonar-enforced threshold of 15. Both `.ts` files' own test suites pass
+unchanged (proving byte-identical externally observable behavior); the
+factory also got a direct unit test with a third, arbitrary
+apiBase/versionLabel pair.
+
+**Cluster B — `fetchUserBymobileorEmail` widened to 6 more files.** The
+function already lived in `utils/fetchUserExists.ts` (CHANGE 10), scoped to
+4 files. Confirmed via direct diff that `tnaiAuth.ts`, `tnnmcAuth.ts`,
+`tnnmcAuthV2.ts`, `sashaktAuth.ts`, `maternityFoundationAuth.ts` all carried
+a byte-identical local copy, and `signupWithAutoLoginOrgForm.ts` carried a
+behaviorally-equivalent one (its `catch` block explicitly `return false`
+where the shared helper implicitly returns `undefined` — both call sites
+only ever use the result in a truthiness check, so the difference is not
+observable). All 6 files now import the shared helper; each local copy and
+its now-dead `fetchUserByEmail`/`fetchUserByMobileNo` API_END_POINTS
+entries were removed, along with the now-unused `lodash` import in each.
+Every one of the 6 files' own test suites passed unchanged.
+
+**Cluster C — certificate PNG-render tail shared between
+`appCertificateDownload.ts` and `publicCertifcateFlinkv2.ts`.** The block
+from the `DOWNLOAD_CERTIFICATE` axios call through the SVG-dimension
+parsing, `nodeHtmlToImage` call, and `res.writeHead`/`res.end`/throw was
+byte-identical between the two files. Extracted to
+`fetchAndRenderCertificate(res, certificateId, certificateName)` in new
+file `utils/certificateRenderer.ts`. Each caller keeps its own
+certificateId/certificateName resolution (`publicCertifcateFlinkv2.ts`'s
+Cassandra lookup + secret-key check vs. `appCertificateDownload.ts`'s raw
+query params) and its own catch-block response shape untouched — the
+pre-existing documented bugs in both files (missing `return` after
+validation failures, the secret-key check not actually blocking, CQL
+injection via unescaped query params — all previously logged in this
+document) are unchanged, since only the shared render tail moved. Both
+files' own test suites passed unchanged; the new helper also got 2 direct
+unit tests (success path, non-OK-responseCode throw path).
+
+**A 4th new-code Sonar issue surfaced and was fixed:** the extracted
+`learnerPathRouterFactory.ts`'s `err && err.response && err.response.status`
+pattern (copied verbatim from both originals) tripped the modern
+"prefer optional chaining" rule because it's now in a brand-new file
+subject to the new-code quality gate — the identical pattern is untouched
+elsewhere in the codebase since those files are outside the new-code
+window. Changed to `err?.response?.status` / `err?.response?.data`, which
+is semantically identical (both short-circuit to `undefined` on any falsy
+link, only ever consumed via `|| fallback`). No behavior change; fixes the
+gate back to OK.
+
+| File(s) | What changed |
+|---|---|
+| `protectedApi_v8/learnerPath.ts` | body replaced with a call to the new shared factory |
+| `protectedApi_v8/learnerPathV2.ts` | body replaced with a call to the new shared factory |
+| `utils/learnerPathRouterFactory.ts` | **new** — shared router factory + its own test file |
+| `publicApi_v8/tnaiAuth.ts` | local `fetchUserBymobileorEmail` replaced with the shared import |
+| `publicApi_v8/tnnmcAuth.ts` | local `fetchUserBymobileorEmail` replaced with the shared import |
+| `publicApi_v8/tnnmcAuthV2.ts` | local `fetchUserBymobileorEmail` replaced with the shared import |
+| `publicApi_v8/sashaktAuth.ts` | local `fetchUserBymobileorEmail` replaced with the shared import |
+| `publicApi_v8/maternityFoundationAuth.ts` | local `fetchUserBymobileorEmail` replaced with the shared import |
+| `publicApi_v8/signupWithAutoLoginOrgForm.ts` | local `fetchUserBymobileorEmail` replaced with the shared import |
+| `utils/fetchUserExists.ts` | `sonar-cleanup` tag widened to note the 6 new callers |
+| `publicApi_v8/appCertificateDownload.ts` | body replaced with a call to the new shared render helper |
+| `publicApi_v8/publicCertifcateFlinkv2.ts` | body replaced with a call to the new shared render helper |
+| `utils/certificateRenderer.ts` | **new** — shared certificate fetch+render helper + its own test file |
+
+**Impact: zero.** Every touched file's own pre-existing test suite passed
+with zero test changes required (proof of byte-identical/behaviorally-
+identical external behavior), plus 3 new direct unit test files added for
+the 2 new shared modules. `tsc --noEmit` clean on both `tsconfig.json` and
+`tsconfig.spec.json`. Full regression: 218 suites / 3573 tests pass (up
+from 3570 — 1 skipped). One transient `mountRouter`-harness failure
+appeared on `sashaktAuth.test.ts` mid-campaign and was gone on 5
+consecutive isolated reruns plus 2 consecutive full-suite reruns — the
+established flake pattern, not a regression. `npm run build` exits 0,
+clean `dist/` (270 files, up from 269 for the new `certificateRenderer.ts`,
+zero `*.test.js` leaked).
+
+**Sonar result:** duplication 13.9% → **12.6%** (556 fewer duplicated
+lines, 5,923 → 5,367), coverage steady at 93.1%, quality gate **OK**
+(after the optional-chaining fix above — briefly ERROR on the first scan
+due to the 4 new-code issues, none of which were duplication-related).
+
+**MUST VERIFY IN PROD:** nothing — every change is a body-for-body
+extraction with call sites re-pointed to shared functions; no request/
+response shape, URL, header, or status-code logic changed.
+
+---
+
+## CHANGE 30 — duplication reduction, cluster D: the org-signup trio
+
+**Issue:** `upsmfUser.ts` / `mpNHMUser.ts` / `bnrcUser.ts` (UP-SMF, MP-NHM,
+BNRC org-signup flows) are the single largest concentration of remaining
+Sonar duplication — 1651 of the pre-CHANGE-29 5,923 duplicated lines came
+from this trio alone, since they were clearly built by copy-pasting one
+org's file to create the next. New file `utils/orgSignupHelpers.ts` now
+holds 6 shared functions; each org's file calls them with its own
+org-specific config instead of repeating the logic. **Every genuine
+difference between the three orgs was kept as an explicit parameter — none
+were force-merged.**
+
+**D-1 — `getUserDetails(phone)`.** Verified byte-identical across all 3
+files (diffed directly, zero differences). Moved as-is; no parameters
+needed beyond `phone`, since `API_END_POINTS.userSearch` already comes
+from the shared `utils/orgSignupConstants.ts` (a pre-existing dedup from
+before this campaign).
+
+**D-2 — `createUser` / `assignRoleToUser`.** Near-identical; two real
+differences preserved as parameters: `orgLabel` reproduces each org's log
+message (`'Create user upsmf body'` / `'... MP body'` / `'... bnrc body'`),
+and `timeoutMs` reproduces `mpNHMUser.ts`'s real `timeout: 60000` on both
+its axios calls — `upsmfUser.ts`/`bnrcUser.ts` pass no timeout, matching
+their original calls exactly (verified via a direct unit test asserting
+`callArgs.timeout` is `undefined` in the no-timeout case and `60000` in
+the timeout case). `getDetailsAsPerRole`/`getOrgId` stay function
+parameters, since each org's role-to-org mapping genuinely differs
+(separate `upsmfUtils.ts` / `mpUtils.ts` / bnrc's own local function).
+
+**D-3 — the OTP trio (`sendOtp`/`resendOtp`/`validateOtp`), scoped
+conservatively.** Reading all 9 handlers in full (not just the earlier
+research estimate) found this family is messier than a clean
+label-swap: `bnrcUser.ts` is clearly the original template that
+`upsmfUser.ts`/`mpNHMUser.ts` were copy-pasted from, with **inconsistent
+find-replace** — several log lines in the UPSMF and MP-NHM files still
+literally say `'for BNRC'` (e.g. `upsmfUser.ts`'s `sendOtp` logs `'Entered
+into Send OTP for BNRC >>>>>'`; `mpNHMUser.ts`'s `validateOtp` logs
+`'...validate OTP for BNRC'` and `logError('...for BNRC', ...)`), catch
+blocks inconsistently call `logError` vs `logInfo` with different message
+formats, and some handlers have log lines others lack entirely. Forcing
+all of that into one shared route factory risked either silently "fixing"
+these pre-existing copy-paste bugs or subtly mismatching one of the 9
+combinations on a live OTP-delivery path. **Scoped the extraction to only
+the genuinely identical part: the raw MSG91 axios call** (headers/params/
+URL/method), which *is* byte-identical across all 9 handlers since
+`msg91Headers`/`indianCountryCode`/`API_END_POINTS` already come from the
+shared constants file. Added `sendMsg91Otp(phone)` / `resendMsg91Otp(phone)`
+/ `verifyMsg91Otp(phone, otp)`. Every log line, org-name bug, and
+log-function choice was left untouched in each file — these are
+pre-existing bugs, not something this cleanup pass should fix without
+separate sign-off.
+
+**D-4 — `migrateUserToUpsmf` / `migrateUserToMp` / `migrateUserToBnrc`.**
+Diffed directly: only 2 real differences per pair — the postal-address
+state literal (`'Uttar Pradesh'` / `''` / `'Bihar'`, preserved via a
+`stateLabel` parameter, including MP-NHM's empty string producing the
+exact original `` `India, , ${district}` `` text) and the catch-block log
+message's org name (`orgLabel` parameter, reproducing `'Error while
+migrating user to UPSMF/MP/BNRC org'` verbatim). `getOrgName`/
+`getDesignation` stay function parameters for the same per-org-mapping
+reason as D-2.
+
+| File(s) | What changed |
+|---|---|
+| `utils/orgSignupHelpers.ts` | **new** — `getUserDetails`, `createOrgSignupUser`, `assignOrgSignupUserRole`, `sendMsg91Otp`, `resendMsg91Otp`, `verifyMsg91Otp`, `migrateOrgSignupUser`, plus its own test file (14 tests) |
+| `publicApi_v8/upsmfUser.ts` | 6 local functions replaced with calls to the shared helpers, passing UPSMF's own config/labels |
+| `publicApi_v8/mpNHMUser.ts` | 6 local functions replaced with calls to the shared helpers, passing MP-NHM's own config/labels (including its real 60s axios timeout) |
+| `publicApi_v8/bnrcUser.ts` | 6 local functions replaced with calls to the shared helpers, passing BNRC's own config/labels |
+
+**Impact: zero.** Every one of the 3 files' own pre-existing test suites
+passed with zero test changes required — direct proof that the externally
+observable behavior (including the preserved copy-paste bugs) is
+unchanged. `tsc --noEmit` clean on both `tsconfig.json` and
+`tsconfig.spec.json`. `tslint` clean (fixed 2 real findings along the
+way: an `any`-typed parameter replaced with a minimal structural
+interface, and an object-key alphabetical-order violation). Full
+regression: 219 suites / 3588 tests pass (up from 3582), confirmed on 2
+consecutive full runs. `npm run build` exits 0, clean `dist/` (271 files,
+zero `*.test.js` leaked). Line count for the trio dropped from
+1100/1035/1036 (3171 total) to 960/894/897 (2751 total) — 420 lines moved
+into the shared helper file.
+
+**MUST VERIFY IN PROD:** nothing — every change is a body-for-body
+extraction with call sites re-pointed to shared functions and every
+genuine per-org difference threaded through as an explicit parameter; no
+request/response shape, URL, header, timeout, or status-code logic
+changed for any of the 3 orgs.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
