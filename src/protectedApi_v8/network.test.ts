@@ -37,6 +37,59 @@ beforeEach(() => {
   mockAxios.post.mockReset()
 })
 
+/**
+ * @description CHANGE 33 regression: all 5 GET routes now funnel through
+ * the shared fetchConnectionsList helper. This proves each route calls
+ * its OWN distinct upstream endpoint, not a copy-pasted neighbor's — the
+ * exact bug class a shared-helper refactor risks (e.g. /suggests
+ * accidentally calling the /requested endpoint).
+ */
+describe('each GET route calls its own distinct endpoint (CHANGE 33)', () => {
+  it('/connections/requested calls the requested endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/connections/requested'))
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/connections/profile/fetch/requested',
+      expect.anything()
+    )
+  })
+
+  it('/connections/requests/received calls the requests/received endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/connections/requests/received'))
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/connections/profile/fetch/requests/received',
+      expect.anything()
+    )
+  })
+
+  it('/connections/established calls the established endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/connections/established'))
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/connections/profile/fetch/established',
+      expect.anything()
+    )
+  })
+
+  it('/connections/established/:id calls the established endpoint with the path param as userId', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/connections/established/user-99'))
+    const callArgs = mockAxios.get.mock.calls[0]
+    expect(callArgs[0]).toBe('https://kong.test/connections/profile/fetch/established')
+    expect(callArgs[1].headers.userId).toBe('user-99')
+  })
+
+  it('/connections/suggests calls the suggests endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/connections/suggests'))
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/connections/profile/find/suggests',
+      expect.anything()
+    )
+  })
+})
+
 describe('GET /connections/requested', () => {
   it('forwards requested connections', async () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ id: 'c1' }]))

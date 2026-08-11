@@ -1,8 +1,6 @@
 import axios from 'axios'
 import cassandra from 'cassandra-driver'
 import express from 'express'
-import jwt_decode from 'jwt-decode'
-import qs from 'querystring'
 import { v4 as uuidv4 } from 'uuid'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
@@ -10,7 +8,8 @@ import { CONSTANTS } from '../utils/env'
 import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
-import { getCurrentUserRoles } from './rolePermission'
+// sonar-cleanup: local Keycloak token-exchange block replaced with the shared import (CHANGE 31)
+import { exchangeSsoKeycloakToken } from './ssoKeycloakExchange'
 
 const client = new cassandra.Client({
   contactPoints: [CONSTANTS.CASSANDRA_IP],
@@ -22,7 +21,6 @@ const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const API_END_POINTS = {
   createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
   sashaktUserDetailsUrl: `${CONSTANTS.SASHAKT_USER_DETAILS_URL}`,
   searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
@@ -164,43 +162,13 @@ sashakt.get('/login', async (req: any, res) => {
 
     }
 
-    const encodedData = qs.stringify({
-      client_id: 'eShashakt',
-      client_secret: `${CONSTANTS.KEYCLOAK_CLIENT_SECRET_SASHAKT}`,
-      grant_type: 'password',
-      scope: 'offline_access',
-      username: sashaktPhone || sashaktEmail,
-    })
-    logInfo('Entered into authorization part.' + encodedData)
-
-    const authTokenResponse = await axios({
-      ...axiosRequestConfig,
-      data: encodedData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      method: 'POST',
-      url: API_END_POINTS.generateToken,
-    })
-    if (authTokenResponse.data) {
-      const accessToken = authTokenResponse.data.access_token
-      // tslint:disable-next-line: no-any
-      const decodedToken: any = jwt_decode(accessToken)
-      const decodedTokenArray = decodedToken.sub.split(':')
-      const userId = decodedTokenArray[decodedTokenArray.length - 1]
-      req.session.userId = userId
-      logInfo(userId, 'userid......................')
-      req.kauth = {
-        grant: {
-          access_token: { content: decodedToken, token: accessToken },
-        },
-      }
-      req.session.grant = {
-        access_token: { content: decodedToken, token: accessToken },
-      }
-      logInfo('Success ! Entered into usertokenResponse..')
-      await getCurrentUserRoles(req, accessToken)
-    } else {
+    const accessToken = await exchangeSsoKeycloakToken(
+      req,
+      'eShashakt',
+      `${CONSTANTS.KEYCLOAK_CLIENT_SECRET_SASHAKT}`,
+      sashaktPhone || sashaktEmail
+    )
+    if (!accessToken) {
       res.status(302).json({
         msg: AUTH_FAIL,
         status: 'error',

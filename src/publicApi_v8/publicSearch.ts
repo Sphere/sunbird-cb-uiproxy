@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { Router } from 'express'
-import _ from 'lodash'
 import { axiosRequestConfigLong } from '../configs/request.config'
+// sonar-cleanup: '/getCourses' query-branch replaced with the shared import (CHANGE 33)
+import { searchCoursesByQuery } from '../utils/courseQuerySearch'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { createSearchPgPool } from '../utils/searchPgPool'
@@ -122,105 +123,7 @@ publicSearch.post('/getCourses', async (request, response) => {
     }
     // .................................For search button with query on home page..............................
     if (courseSearchRequestData.request.query) {
-      const courseSearchPrimaryData = {
-        request: {
-          facets,
-          fields: [],
-          filters,
-          limit: 100,
-          query: `${courseSearchRequestData.request.query}`,
-          sort_by: sortMethod,
-        },
-        sort: [
-          {
-            lastUpdatedOn: 'asc',
-          },
-        ],
-      }
-      const esResponsePrimaryCourses = await axios({
-        ...axiosRequestConfigLong,
-        data: courseSearchPrimaryData,
-        headers,
-        method: 'post',
-        url: API_END_POINTS.searchv1,
-      })
-      let courseDataPrimary = esResponsePrimaryCourses.data.result.content
-      const facetsData = esResponsePrimaryCourses.data.result.facets
-      try {
-        let finalConcatenatedData = []
-        // tslint:disable-next-line: no-any
-
-        const result = await pool.query(
-          `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
-          ['Competency', '%' + courseSearchRequestData.request.query + '%']
-        )
-        // tslint:disable-next-line: no-any
-        const postgresResponseData = result.rows.map((val: any) => val.id)
-        let courseDataSecondary = []
-        if (postgresResponseData.length > 0) {
-          const elasticSearchData = []
-          for (const postgresResponse of postgresResponseData) {
-            // adding Competency Level Ids to search for all the competencies in ES
-            for (const value of [1, 2, 3, 4, 5]) {
-              elasticSearchData.push(`${postgresResponse}-${value}`)
-            }
-          }
-          const courseSearchSecondaryData = {
-            limit: 50,
-            request: {
-              filters,
-              sort_by: sortMethod,
-            },
-            sort: [{ lastUpdatedOn: 'desc' }],
-          }
-          courseSearchSecondaryData.request.filters.competencySearch =
-            elasticSearchData
-          try {
-            const elasticSearchResponseSecond = await axios({
-              ...axiosRequestConfigLong,
-              data: courseSearchSecondaryData,
-              headers,
-              method: 'post',
-              url: API_END_POINTS.searchv1,
-            })
-            courseDataSecondary =
-              elasticSearchResponseSecond.data.result.content || []
-          } catch (error) {
-            logInfo(JSON.stringify(error))
-            return response.status(500).json({
-              message: 'Something went wrong while fetching competency filtered data',
-            })
-          }
-
-        }
-        if (!courseDataPrimary) courseDataPrimary = []
-        const finalFilteredData = []
-        finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
-        if (finalConcatenatedData.length == 0) {
-          response.status(200).json(nullResponseStatus)
-          return
-        }
-        finalConcatenatedData.forEach((element) => {
-          if (!element.competency) {
-            finalFilteredData.push(element)
-          }
-        })
-        const uniqueCourseData = _.uniqBy(finalFilteredData, 'identifier')
-
-        response.status(200).json({
-          responseCode: 'OK',
-          result: {
-            content: uniqueCourseData,
-            count: uniqueCourseData.length,
-            facets: facetsData,
-          },
-          status: 200,
-        })
-      } catch (error) {
-        response.status(400).json({
-          message: 'Something went wrong while connecting search service',
-        })
-      }
+      await searchCoursesByQuery(response, pool, courseSearchRequestData, filters, facets, sortMethod)
     }
   } catch (err) {
     logInfo(JSON.stringify(err))

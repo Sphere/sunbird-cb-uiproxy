@@ -1,10 +1,10 @@
 import axios from 'axios'
-import { axiosRequestConfig } from '../configs/request.config'
+import { axiosRequestConfig, axiosRequestConfigLong } from '../configs/request.config'
 import { API_END_POINTS } from './autoLoginSignupConstants'
 import { CONSTANTS } from './env'
-import { logInfo } from './logger'
+import { logError, logInfo } from './logger'
 
-// sonar-cleanup: extracted from signupWithAutoLogin.ts / signupWithAutoLoginV2.ts / appSignUpWithAutoLogin.ts's byte-identical create-user request (CHANGE 10) — updateRoles was deliberately NOT merged with these, since v1 uses axiosRequestConfig while v2/app use axiosRequestConfigLong (L2-2, left unmerged)
+// sonar-cleanup: extracted from signupWithAutoLogin.ts / signupWithAutoLoginV2.ts / appSignUpWithAutoLogin.ts's byte-identical create-user request (CHANGE 10)
 /**
  * Creates a Sunbird user account from the signup form data. Shared by the
  * auto-login signup flows (`signupWithAutoLogin`, `signupWithAutoLoginV2`,
@@ -75,5 +75,38 @@ export const profileUpdate = async (profileData: any, userId: any) => {
     })
   } catch (error) {
     logInfo(JSON.stringify(error))
+  }
+}
+
+// sonar-cleanup: extracted from signupWithAutoLoginV2.ts / appSignUpWithAutoLogin.ts's
+// byte-identical updateRoles (CHANGE 31) — scoped to just these 2 files;
+// signupWithAutoLogin.ts's own updateRoles uses axiosRequestConfig instead
+// of axiosRequestConfigLong (a genuine difference, noted since CHANGE 10)
+// and stays unmerged, matching createAccount/profileUpdate's precedent above.
+/**
+ * Assigns the PUBLIC role to a newly signed-up user in the shared
+ * auto-login org. Shared by `signupWithAutoLoginV2` and
+ * `appSignUpWithAutoLogin` — they both use the long-timeout axios config.
+ *
+ * @param userUUId - the id of the just-created user
+ */
+export const updateRoles = async (userUUId: string) => {
+  try {
+    return await axios({
+      ...axiosRequestConfigLong,
+      data: {
+        request: {
+          organisationId: '0132317968766894088',
+          roles: ['PUBLIC'],
+          userId: userUUId,
+        },
+      },
+      headers: { Authorization: CONSTANTS.SB_API_KEY },
+      method: 'POST',
+      url: API_END_POINTS.userRoles,
+    })
+  } catch (err) {
+    logError('update roles failed ' + err)
+    return 'false'
   }
 }

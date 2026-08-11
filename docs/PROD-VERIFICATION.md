@@ -4548,6 +4548,368 @@ changed for any of the 3 orgs.
 
 ---
 
+## CHANGE 31 — duplication reduction, clusters E and F
+
+**Cluster E — `updateRoles` shared between `signupWithAutoLoginV2.ts` and
+`appSignUpWithAutoLogin.ts`.** Diffed directly: byte-identical, both use
+`axiosRequestConfigLong` and the fixed org id `'0132317968766894088'`.
+`signupWithAutoLogin.ts` (v1) has its own separate `updateRoles` using
+`axiosRequestConfig` (not `Long`) — a genuine difference already noted in
+this file's CHANGE 10 comment — and stays unmerged, matching the existing
+`createAccount`/`profileUpdate` precedent exactly. Added `updateRoles` to
+the existing shared `utils/signupAccountHelpers.ts` (previously had no
+direct test file despite being shared by 3 routes — added one, including
+a concurrency test for 2 orgs calling it at once).
+
+**Cluster F — Keycloak token-exchange tail shared across `tnaiAuth.ts`,
+`tnnmcAuth.ts`, `sashaktAuth.ts`, `maternityFoundationAuth.ts`.** Reading
+all 4 handlers in full found real, meaningful divergence in what
+surrounds the token exchange: the auth-fail status code differs (302 in 3
+files, 400 in `maternityFoundationAuth.ts`), the catch-block behavior
+differs (silent in one, an immediate 400 return in another, a
+redirect-URL fallback in two others), and the final response shape
+differs (with/without a `resRedirectUrl` field) — including a
+pre-existing documented double-send bug tied to this exact shape in 3 of
+the 4 files. Rather than force all of that into one parameterized
+function (high risk of subtly wiring the wrong behavior to the wrong
+org on live external-partner SSO endpoints), only the genuinely identical
+middle section was extracted into new file
+`publicApi_v8/ssoKeycloakExchange.ts`: build the password-grant request →
+exchange it → decode the token → establish `req.session`/`req.kauth` →
+fetch roles. It returns the access token on success or `undefined` on a
+falsy token response, matching every caller's own
+`if (authTokenResponse.data)` check exactly — each caller keeps its own
+status code, catch behavior, and response shape untouched.
+
+| File(s) | What changed |
+|---|---|
+| `utils/signupAccountHelpers.ts` | added `updateRoles`, plus a new direct test file (7 tests incl. 1 concurrency test) |
+| `publicApi_v8/signupWithAutoLoginV2.ts` | local `updateRoles` replaced with the shared import; dead `axiosRequestConfigLong` import removed |
+| `publicApi_v8/appSignUpWithAutoLogin.ts` | local `updateRoles` replaced with the shared import; dead `axiosRequestConfigLong` import removed |
+| `publicApi_v8/ssoKeycloakExchange.ts` | **new** — shared token-exchange helper, plus its own test file (5 tests incl. 1 concurrency test) |
+| `publicApi_v8/tnaiAuth.ts` | token-exchange block replaced with a call to the shared helper; dead `qs`/`jwt_decode`/`getCurrentUserRoles` imports and the dead `generateToken` endpoint entry removed |
+| `publicApi_v8/tnnmcAuth.ts` | same as above |
+| `publicApi_v8/sashaktAuth.ts` | same as above |
+| `publicApi_v8/maternityFoundationAuth.ts` | same as above |
+
+**Impact: zero.** All 5 touched route files' own pre-existing test suites
+passed with zero test changes required (including `tnnmcAuthV2.test.ts`,
+untouched but re-run to confirm no side effects). `tsc --noEmit` and
+`tslint` clean on both configs. Full regression: 222 suites / 3610 tests
+pass, confirmed on 2 consecutive runs. `npm run build` exits 0, clean
+`dist/` (272 files, zero `*.test.js` leaked).
+
+**MUST VERIFY IN PROD:** nothing — every caller's own status code, catch
+behavior, and response shape is byte-for-byte unchanged; only the shared
+middle section moved.
+
+---
+
+## CHANGE 32 — dead-code removal (3-month-inactivity rule)
+
+**Context:** a two-pass dead-code sweep. The first pass (manual grep) produced
+2 confirmed **false positives** — `getMyAnalyticsLearningHistory` in
+`user/myAnalytics.ts` (actually live, passed as Express middleware by bare
+reference rather than called with parens, so a naive grep for
+`functionName(` missed it) and 4 interfaces in `myAnalytics.model.ts`
+(actually used transitively as property types inside `IMyAnalytics`,
+which itself is imported and used — TypeScript types can be "used"
+without their name ever appearing in an importing file). Given that, a
+second pass used `ts-prune` (AST-based unused-export detection, aware of
+transitive type usage) instead of grep, cross-checked against `git log -1`
+per file/symbol so **nothing touched in the last 3 months was
+removed**, even if flagged as unused — protecting recent or
+still-in-progress work.
+
+**Two genuinely-dead-but-tested items were found and deliberately
+NOT removed**, flagged for a separate team decision instead:
+`authorizationV2Api.ts` (2022) and `searchUser.ts`'s `fetchUser` (2021) —
+both have zero real callers, but each already has a full test suite
+someone deliberately wrote (`authorizationV2Api.ts`'s own test file
+documents it as "likely superseded by ssoLogin.ts's `/login` route, which
+does the same sequence inline" — investigated and left in place by an
+earlier pass in this same campaign). Recent test investment is treated as
+a signal of intent, same spirit as the 3-month rule for code changes.
+
+**Two rounds of transitive-cascade checking were needed.** After the
+first round of removals, re-running `ts-prune` surfaced 2 more items that
+had only appeared "used" because the thing that used them was itself
+being removed in the same batch: `IResourceSbExt` in `playlist.model.ts`
+(only referenced by `IPlaylistSbExt`, which was itself dead) and 4 exports
+in `authoring/models/content-model.ts` — `IContentUserDetails`,
+`TMimeTypes`, `TLearningMode`, `TStatus` (only ever imported by
+`authoring/models/response/search-model.ts`, which was deleted in the
+same batch as a whole orphaned file). Removing those made
+`content-model.ts` itself fully dead, so the whole file was removed too.
+A third `ts-prune` run after fixing both showed zero further diff —
+confirmed stable.
+
+**What was removed:**
+
+*Whole files (never imported anywhere, 2021–2026-07 vintage, all past the
+3-month bar):*
+- `models/search.model.ts` (empty, 0 bytes)
+- `models/account-settings.model.ts` (`IAccountSettings`, `IAccountSocialDetails`)
+- `models/learningHistory.model.ts` (`ILearningHistory`, `ILearningHistoryItem`)
+- `authoring/models/response/search-model.ts` (5 interfaces)
+- `authoring/models/content-model.ts` (`IContent` + the 4 cascade-orphaned exports above)
+- `utils/test.ts` + `utils/test.test.ts` — a placeholder object (`{key:'a',key1:'b',key2:'c'}`) from the initial 2021 commit
+- `authoring/authBackend.ts` + `authoring/authBackend.test.ts` — a full HTTP-proxy-passthrough router, never mounted in `server.ts`; `authApi` (from `authoring/content/index.ts`) is mounted at the same `/authApi` path instead and appears to have superseded it
+
+*Specific symbols only (file stays, still has live exports):*
+| File | Removed |
+|---|---|
+| `models/catalog.model.ts` | `ICatalogItem` |
+| `models/content.model.ts` | `IContact`, `IRecommendationResponse`, `EDisplayContentType` |
+| `models/goal.model.ts` | `IGoalUpsertRequest`, `IGoalUpsertSbExt`, `IProgressResource` |
+| `models/playlist.model.ts` | `EPlaylistTypes`, `IPlaylistSbExt`, `IResourceSbExt` (cascade), `IPlaylistSbUpdateRequest`, `IPlaylistUpdateTitleRequest`, `IPlayListContentResource` (cascade), `IPlayListUpdateRequest`, `IPlaylistResource` (cascade), `IPlaylistShareRequestSbExt`, `IPlaylistShareRequest` |
+| `models/topic.model.ts` | `IInterestApiResponse` |
+| `models/user.model.ts` | `IUserPreferencesResponse`, `IUserPreferences` (cascade), `IUserRolesResponse`, `IUserTncResponse`, `IUserLoggedIn`, `IUserProfileResult`, `IUser` |
+| `models/myAnalytics.model.ts` | `ICreateObj`; `IUserProgressResponse` + cascade (`IGoalProgress`, `IGoalsShared`, `ILearningHistory`, `ILearningHistoryProgress`, `IPlaylistProgress`, `IPlaylistShared`, `ITopContentByJl`); `INsoResponse` + cascade (`IArtificatsShared`, `IExpertsContacted`, `IFeatureUsageStatistics`, `INsoRoles`, `IPlayGroundDetails`, `IContentCreated`) — `INsoContentProgress` kept, genuinely used externally in `user/myAnalytics.ts` |
+| `protectedApi_v8/catalog.ts` | `ITerms` (cascade), `ICatalogResponse` |
+
+Every removed item is compile-time-only (a TypeScript interface/type/enum
+with zero runtime footprint) or a fully-unmounted router/placeholder
+object — none of it executes in production either before or after
+removal.
+
+**Excluded regardless of dead-status (too recent — within 3 months):**
+`test-support/authFixtures.ts` (12 days old at time of check),
+`roleActivity.ts` and `content.ts` (both 4 days old — this very campaign's
+own recent work), `contentSearchService.ts` (~5 weeks old).
+
+**Reclassified, not dead code:** several exports flagged by the first
+manual pass as "unused" (`roleActivity.ts`, `cohorts.ts`, `catalog.ts`'s
+`ICatalogResponse` before deeper checking, `content.ts`'s
+`VALID_HIERARCHY_TYPES`/`getContentMeta`) turned out to be used — just
+only from within their own file, not from outside it. That's an
+export-visibility nitpick, not dead code; left untouched.
+
+**Impact: zero.** `tsc --noEmit` clean on both `tsconfig.json` and
+`tsconfig.spec.json` (confirms no dangling references from the
+dependency tracing above). `tslint` clean, including one real fixed
+finding (an unused `EMimeTypes`/`TContentType` import left behind after
+`playlist.model.ts`'s cascade removal). Full regression: 220 suites (down
+from 222 — the 2 deleted `.test.ts` files) / 3606 tests pass (down from
+3610, since no test asserted behavior of dead code), confirmed on 3
+consecutive runs. `npm run build` exits 0, clean `dist/` (265 files, down
+from 272 — the 7 whole files removed net of one file created in CHANGE
+31, zero `*.test.js` leaked). A final `ts-prune` diff against the
+pre-removal baseline confirmed zero unexpected new findings — only the
+intentionally-removed items disappeared.
+
+**MUST VERIFY IN PROD:** nothing — every removed symbol was confirmed
+unreferenced by both grep and an AST-aware tool, and none of it compiles
+to any runtime code path. `authBackend.ts`'s router was the only
+non-type removal; it was never mounted, so removing it cannot change any
+live route's behavior.
+
+---
+
+## CHANGE 33 — duplication reduction, next tier: 5 clusters (B, C, D, A, E)
+
+Continuation of the reduction campaign into files never previously
+researched (`social.ts`, `mobileAppApi.ts`, `network.ts`, `connections_v2.ts`,
+`publicSearch.ts`, `ratingsSearch.ts`, the `signupWithAutoLogin*` family).
+A research pass mapped 5 clusters with real, verified duplicate blocks
+before any code was touched; executed lowest-risk first.
+
+### Cluster B — `network.ts` + `connections_v2.ts`
+
+`connections_v2.ts` already had `handleConnectionsError` (CHANGE 17);
+`network.ts` still had the identical inline catch body repeated in all 9
+routes — added the same pattern locally as `handleNetworkError` (kept
+file-local per this codebase's established convention, not shared
+cross-file, since each file's `unknown` message text differs). Separately,
+5 GET routes (`requested`, `requests/received`, `established`,
+`established/:id`, `suggests`) hit byte-identical Kong endpoints in both
+files with the same header shape — extracted to
+`utils/connectionsListFetch.ts`'s `fetchConnectionsList(req, res, endpoint,
+userId)`. `userId` is passed in already-resolved rather than resolved
+inside the helper, since the two files use genuinely different extractors
+(`extractUserIdFromRequest` reads `req.session.userId`;
+`connections_v2.ts`'s `/suggests` route uses `extractUserId`, which reads
+Keycloak claims from `req.kauth` instead). The 3 POST routes
+(`/add/connection`, `/update/connection`, `/connections/recommended/
+userDepartment`) were confirmed to use genuinely different request-body
+contracts and even different upstream backend services between v1/v2 —
+left untouched.
+
+### Cluster C — `mobileAppApi.ts`, 5 independent sub-clusters
+
+1. **Kong CDN-replacement pair** (`/kong/course/v2/hierarchy/*` /
+   `/kong/content/v1/read/*`) — byte-identical aside from the path
+   segment, log prefix, and error-fallback message. Extracted to
+   `fetchAndReplaceCdnUrls`. The `backendUrl` variable (built with the
+   query string re-appended, then only logged — the real request relies
+   on axios's own `params: req.query`) is preserved verbatim as existing
+   debug-logging behavior, not "fixed."
+2. **7-occurrence catch-block family** (`/publicSearch/
+   courseRecommendationCbp`, the 5 `*/homepageconfig` routes,
+   `/user/enrollment/list/adhocCertificates`) — extracted to
+   `handleMobileApiDefaultError(res, err, logErrorPrefix?)`; 5 of the 7
+   originals call `logInfo('error', ...)`, the other 2 call
+   `logInfo(...)` with no prefix — the optional parameter preserves both
+   forms exactly.
+3. **3 ratings POST routes** (`/ratings/upsert`, `/ratings/v2/read`,
+   `/ratings/ratingLookUp`) share an identical POST-with-body shape —
+   extracted to `proxyRatingsPostRoute`. `/ratings/summary` (GET, upfront
+   validation, no body) is genuinely different and stays untouched.
+4. **cmi5/v2 progress-read tail** (`/cmi5/updateProgress`,
+   `/cmi5/readProgress`, `/v2/updateProgress`) — the stateReadBody-build +
+   READ_PROGRESS-call + 200-response tail is byte-identical across all 3;
+   extracted to `fetchAndSendProgressRead`. The surrounding
+   `if (accesTokenResult.status == 200) { ... }` wrapper in the two
+   updateProgress routes — which has **no else branch**, a pre-existing
+   bug where a non-200 token silently sends no response — is left
+   completely untouched in each caller.
+5. **`/ios/certificateDownload` wired as a 3rd caller of the existing
+   `certificateRenderer.ts`** (CHANGE 29's shared helper, previously used
+   by `appCertificateDownload.ts` and `publicCertifcateFlinkv2.ts`) — its
+   fetch+render tail was confirmed byte-identical, including the same
+   `DOWNLOAD_CERTIFICATE` URL construction. The dead `DOWNLOAD_CERTIFICATE`
+   `API_END_POINTS` entry and the now-fully-unused `nodeHtmlToImage`
+   import were removed as a consequence.
+
+### Cluster D — `publicSearch.ts` ↔ `ratingsSearch.ts`
+
+Direct diff confirmed the **entire** `/getCourses` query branch
+(`if (courseSearchRequestData.request.query) { ... }`, ~100 lines each,
+including the final `_.uniqBy` + response) is byte-identical between the
+two files — both already shared `createSearchPgPool()` (CHANGE 20) and
+both are public-router (no trust-boundary concern). Extracted to
+`utils/courseQuerySearch.ts`'s `searchCoursesByQuery`, with `pool` passed
+in as a parameter rather than created inside the helper, so each file
+keeps managing its own Postgres pool exactly as before. The no-query
+branch's 3 real differences (`publicSearch.ts` adds a `contentType`
+filter and uses `limit: 200`; `ratingsSearch.ts` uses `limit: 20` and
+enriches results via `getCombinedRatingsResult`) stay untouched in each
+file.
+
+### Cluster A — `social.ts`, 23 of 25 routes
+
+The largest single extraction this session. All 23 routes shared the
+identical `org`/`rootOrg` header guard → body-merge → `axios({...})` call
+→ status/body-forward shape, differing only in HTTP method, upstream
+endpoint, an optional extra merged body field, timeout presence, and
+error-log label. Extracted to `proxySocialRoute(req, res, method, url,
+{extraFields?, timeout?, label?})`. Every genuine per-route difference was
+threaded through explicitly: `/catalog`'s field is the lowercase `userid`
+(not `userId`); `/post/timelineV2`'s userId is
+`req.query.wid || extractUserIdFromRequest(req)`, not a plain extractor
+call; `moderatorId`/`adminId`/`forumCreator`/`forumEditor` are each their
+own route's field; `/edit/meta` and `/post/delete` keep their own logged
+error label; the 2 DELETE routes (`/post/delete`,
+`/admin/deletePost` — the latter previously used `axios.delete(url,
+{...config, data})`, confirmed functionally equivalent to the unified
+`axios({...config, data, method: 'DELETE', url})` form used everywhere
+else) use `method: 'DELETE'`. `/post/upload/:contentId` (multipart,
+callback-based `.submit()`, not axios) and `/post/autocomplete`
+(org/rootOrg sent as headers, not merged into the body) are structurally
+different and stay fully untouched.
+
+Given the size and risk of this cluster, the existing table-driven test
+suite (which only verified response-forwarding shape) was extended with
+15 new tests asserting the actual request each route builds — the exact
+extra-field key/value per route, which routes set the `SOCIAL_TIMEOUT`
+override and which rely on `axiosRequestConfig`'s own default timeout
+instead, which 2 routes log with their own label, and a concurrency test
+proving 3 simultaneous requests to different routes never leak each
+other's extra fields. `file.ts` dropped from 656 to 325 lines.
+
+### Cluster E — `signupWithAutoLogin.ts` / `V2` / `appSignUpWithAutoLogin.ts`, OTP tails
+
+**E-1 (OTP-dispatch tail, all 3 files).** Diffed directly: the
+phone-then-email OTP-send block is byte-identical across all 3 files,
+except `appSignUpWithAutoLogin.ts`'s two success responses include one
+extra field (`userUUId: userId`) the other two don't. Extracted to new
+file `publicApi_v8/signupOtpDispatch.ts`'s `sendRegistrationOtp(res,
+userPhone, userEmail, userId, extraSuccessFields?)`.
+
+**E-2 (OTP-verify tail, v1 + v2 only).** Diffed directly: the
+phone-then-email OTP-verify block is byte-identical between
+`signupWithAutoLogin.ts` and `signupWithAutoLoginV2.ts`.
+`appSignUpWithAutoLogin.ts`'s verify flow is structurally different (no
+`session.save`/`regenerate` wrapping, a different response shape) and was
+excluded. **A real bug was found and fixed during this extraction, not
+merely refactored around:** the original code used
+`return res.status(400).json(...)` inside the verify block on a
+failure — a `return` that exits the **entire route handler** immediately.
+A naive extraction returning a plain boolean loses that early-exit:
+`signupWithAutoLoginV2.ts`'s caller has an `else` branch that ALSO sends
+a response when the result is falsy, and a first version of this
+extraction caused a double `res.send` there (caught by the existing test
+suite — `signupWithAutoLoginV2.test.ts` failed with "Cannot set headers
+after they are sent"). Fixed by having `verifyRegistrationOtp` return
+`undefined` specifically for "a response was already sent, caller must
+return immediately," distinct from `false` ("neither phone nor email was
+provided, continue with your own existing true/false handling" — which
+differs by file: v2 has an `else` sending a 400 for that case,
+`signupWithAutoLogin.ts` has no such else, a separate pre-existing gap
+left untouched). Both callers now do
+`if (userOtpVerified === undefined) return` before their own
+`if (userOtpVerified) {...}` logic. 6 new tests were added specifically
+covering this, including 2 that directly assert exactly one `res.status`
+call on a verification failure.
+
+**E-3 (Keycloak-exchange tail, v2 only) — deliberately NOT extracted.**
+`signupWithAutoLoginV2.ts`'s block superficially matches the shared
+`ssoKeycloakExchange.ts` helper (CHANGE 31) — same client_id/client_secret/
+grant_type/scope/username shape, same decode+session+roles sequence — but
+reading it in full found 4 real logging differences from the shared
+helper's existing 4 callers: a missing `logInfo(userId, 'userid...')`
+line, a differently-worded final success log, a differently-worded
+"entered into authorization part" log that also wraps an
+already-a-string value in `JSON.stringify` (producing different logged
+text than the shared helper's plain concatenation), and an extra
+intermediate log line the shared helper doesn't have. Given the OTP-verify
+work in this same cluster had just demonstrated how easily a
+looks-safe merge can introduce a live double-send bug, and the shared
+helper already serves 4 stable callers that parameterizing further would
+put at risk, this was judged not worth the ~35-line gain and left as-is.
+
+| File(s) | What changed |
+|---|---|
+| `protectedApi_v8/network.ts` | 9 catch blocks + 5 GET routes replaced with shared calls |
+| `protectedApi_v8/connections_v2.ts` | 5 GET routes replaced with the shared import |
+| `utils/connectionsListFetch.ts` | **new** — shared GET-route helper + test file (incl. concurrency test) |
+| `publicApi_v8/mobileAppApi.ts` | 5 sub-clusters extracted/wired (see above) |
+| `publicApi_v8/publicSearch.ts` | query branch replaced with the shared import |
+| `publicApi_v8/ratingsSearch.ts` | query branch replaced with the shared import |
+| `utils/courseQuerySearch.ts` | **new** — shared query-branch helper + test file (incl. concurrency test) |
+| `protectedApi_v8/social.ts` | 23 routes replaced with `proxySocialRoute` calls; file 656 → 325 lines |
+| `protectedApi_v8/social.test.ts` | +15 tests verifying exact request construction per route + 1 concurrency test |
+| `publicApi_v8/signupWithAutoLogin.ts` | OTP-dispatch + OTP-verify tails replaced with shared imports |
+| `publicApi_v8/signupWithAutoLoginV2.ts` | same, plus the double-send fix |
+| `publicApi_v8/appSignUpWithAutoLogin.ts` | OTP-dispatch tail replaced with the shared import (`userUUId` extra field) |
+| `publicApi_v8/signupOtpDispatch.ts` | **new** — shared OTP-dispatch/verify helpers + test file (13 tests incl. the double-send regression tests) |
+
+**Impact: zero.** Every touched route's own pre-existing test suite
+passed with zero test changes required, except `social.test.ts` (extended
+with deeper assertions, not changed) and `signupWithAutoLoginV2.test.ts`
+(which caught the real bug above during development — fixed before this
+batch was considered done, not shipped with a known issue). `tsc --noEmit`
+and `tslint` clean on both configs. One further real fix: 2 new-code Sonar
+findings in `mobileAppApi.ts`'s newly-extracted functions (the same
+`err && err.response...` → `err?.response?...` optional-chaining pattern
+fixed in earlier changes) — semantically identical, fixed to restore the
+gate to OK. Full regression: 223 suites / 3644 tests pass (up from 220 /
+3606 before this batch), confirmed on 3 consecutive runs including 2
+coverage-instrumented runs. `npm run build` exits 0, clean `dist/` (268
+files, zero `*.test.js` leaked).
+
+**Sonar result:** duplication **11.3% → 8.3%** (1,312 fewer duplicated
+lines, 4,731 → 3,419; 68 fewer blocks, 224 → 156), coverage steady at
+93.2%, quality gate **OK**.
+
+**MUST VERIFY IN PROD:** nothing — every extraction is a body-for-body
+move with every genuine per-route/per-file difference threaded through as
+an explicit parameter; the one real behavioral bug found
+(signupWithAutoLoginV2.ts's double-send) was fixed, not shipped, and is
+covered by new regression tests.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

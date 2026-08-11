@@ -1,20 +1,18 @@
 import axios from 'axios'
 import express from 'express'
-import jwt_decode from 'jwt-decode'
-import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 // sonar-cleanup: local fetchUserBymobileorEmail (byte-identical to the shared helper) replaced with the shared import (CHANGE 29)
 import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
 import { generateRandomPassword } from '../utils/randomPasswordGenerator'
-import { getCurrentUserRoles } from './rolePermission'
+// sonar-cleanup: local Keycloak token-exchange block replaced with the shared import (CHANGE 31)
+import { exchangeSsoKeycloakToken } from './ssoKeycloakExchange'
 
 const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const API_END_POINTS = {
   createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
   maternityFoundationUserDetailsUrl:
     CONSTANTS.MATERNITY_FOUNDATION_USER_DETAILS_URL,
   profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
@@ -143,43 +141,13 @@ maternityFoundationAuth.post('/login', async (req: any, res) => {
       })
       logInfo('Data after profile update', userProfileUpdate.data)
     }
-    const encodedData = qs.stringify({
-      client_id: 'Maternity-Foundation',
-      client_secret: CONSTANTS.KEYCLOAK_CLIENT_SECRET_MATERNITY_FOUNDATION,
-      grant_type: 'password',
-      scope: 'offline_access',
-      username: maternityFoundationPhone || maternityFoundationEmail,
-    })
-    logInfo('Entered into authorization part.' + encodedData)
-
-    const authTokenResponse = await axios({
-      ...axiosRequestConfig,
-      data: encodedData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      method: 'POST',
-      url: API_END_POINTS.generateToken,
-    })
-    if (authTokenResponse.data) {
-      const accessToken = authTokenResponse.data.access_token
-      // tslint:disable-next-line: no-any
-      const decodedToken: any = jwt_decode(accessToken)
-      const decodedTokenArray = decodedToken.sub.split(':')
-      const userId = decodedTokenArray[decodedTokenArray.length - 1]
-      req.session.userId = userId
-      logInfo(userId, 'userid......................')
-      req.kauth = {
-        grant: {
-          access_token: { content: decodedToken, token: accessToken },
-        },
-      }
-      req.session.grant = {
-        access_token: { content: decodedToken, token: accessToken },
-      }
-      logInfo('Success ! Entered into usertokenResponse..')
-      await getCurrentUserRoles(req, accessToken)
-    } else {
+    const accessToken = await exchangeSsoKeycloakToken(
+      req,
+      'Maternity-Foundation',
+      CONSTANTS.KEYCLOAK_CLIENT_SECRET_MATERNITY_FOUNDATION,
+      maternityFoundationPhone || maternityFoundationEmail
+    )
+    if (!accessToken) {
       res.status(400).json({
         msg: AUTH_FAIL,
         status: 'error',
