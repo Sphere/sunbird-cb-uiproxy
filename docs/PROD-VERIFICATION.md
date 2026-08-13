@@ -5460,6 +5460,52 @@ otherwise need 4 synchronized edits).
 
 ---
 
+## Post-commit re-verification (CHANGE 34–43, commit `ddcc1b3`)
+
+CHANGE 34 through 43 were committed as `ddcc1b3` on
+`feat-sonarqube-integration-v2` ("Dedupe discussionHub, profile-details,
+search, training/certifications, and org-header guards"), 23 files
+changed. Before reporting this work as safe to build on, the entire
+committed diff was independently re-verified end to end in a fresh
+session — not by re-reading the claims above, but by re-running every
+check from a clean working tree:
+
+- **`tsc --noEmit`** on both `tsconfig.json` and `tsconfig.spec.json` —
+  clean, zero errors.
+- **`tslint -c tslint.json -p tsconfig.json`**, full repo (not just
+  touched files) — clean, zero findings.
+- **Full Jest suite, 3 consecutive runs** — 223 suites / 3,664 tests
+  passing every time, zero regressions. No flakes surfaced this round
+  (contrast with individual CHANGE entries above, several of which hit
+  and cleared a transient `mountRouter`-harness flake — see each
+  entry's own testing note).
+- **A focused re-run of every file touched across all 10 changes**,
+  isolated from the rest of the suite (15 test files, 548 tests) — all
+  green, confirming no cross-file interaction masked anything under
+  full-suite parallelism.
+- **`npm run build`** — clean. `dist/` has 272 `.js` files (matching
+  CHANGE 43's count) and zero leaked `.test.js` files.
+- **Router-mount audit** — grepped every router exported from a file
+  touched this session (`profileDeatailsApi`, `topicsApi`, `postsApi`,
+  `writeApi`, `trainingApi`, `certificationApi`, `userRegistrationApi`,
+  `recommendationApi`, `userContentApi`, `followApi`, `playlistApi`,
+  `ratingsSearch`, `courseRecommendation`, `publicSearch`) against
+  `protectedApiV8.ts`, `publicApiV8.ts`, `admin/admin.ts`, and
+  `user/user.ts` — confirmed all 13 are still mounted at their original
+  path. This catches the one failure mode none of the other checks
+  would: a router silently orphaned by an import/export edit during
+  refactoring, which would compile, lint, and even pass tests (since
+  route tests mount the router directly, bypassing the aggregator) while
+  quietly 404ing in production.
+
+No new findings. The Sonar dashboard itself could not be re-scanned in
+this follow-up session (local Sonar server/Docker not running) — the
+6.1% figure and gate-OK status reported per change above are the last
+live scan taken immediately after CHANGE 43, before the commit; they
+were not re-confirmed today, only the code-level checks were.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
