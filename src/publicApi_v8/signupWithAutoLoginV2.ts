@@ -105,7 +105,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
               client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
               grant_type: 'password',
               scope: 'offline_access',
-              username: mobileNumber ? mobileNumber : email,
+              username: mobileNumber || email,
             })
             logInfo('VALIDATE_OTP:Entered into authorization part.' + JSON.stringify(transformedData))
             const authTokenResponse = await axios({

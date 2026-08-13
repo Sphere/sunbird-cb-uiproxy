@@ -125,7 +125,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
                 client_id: 'portal',
                 grant_type: 'password',
                 password,
-                username: mobileNumber ? mobileNumber : email,
+                username: mobileNumber || email,
               })
               logInfo('VALIDATE_OTP:Entered into authorization part.' + transformedData)
               const authTokenResponse = await axios({
