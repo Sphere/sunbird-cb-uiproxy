@@ -59,6 +59,7 @@ jest.mock('cassandra-driver', () => ({
 }))
 jest.mock('request')
 jest.mock('http-proxy', () => ({ createProxyServer: jest.fn(() => ({ web: jest.fn() })) }))
+jest.mock('node-html-to-image', () => jest.fn())
 jest.mock('../utils/logger', () => ({ logError: jest.fn(), logInfo: jest.fn() }))
 jest.mock('../utils/jumbler', () => ({ jumbler: jest.fn() }))
 jest.mock('../utils/assessmentSubmitHelper', () => ({ assessmentCreator: jest.fn() }))
@@ -99,6 +100,7 @@ jest.mock('../utils/env', () => ({
 import axios from 'axios'
 import jwt from 'jsonwebtoken'
 import jwtDecode from 'jwt-decode'
+import nodeHtmlToImage from 'node-html-to-image'
 import request from 'request'
 import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
@@ -122,6 +124,7 @@ const mockAppendPilotMockEntity = appendPilotMockEntity as jest.Mock
 const mockSearchContent = searchContent as jest.Mock
 const mockSearchContentV2 = searchContentV2 as jest.Mock
 const mockRequest = request as unknown as jest.Mock
+const mockNodeHtmlToImage = nodeHtmlToImage as unknown as jest.Mock
 
 const agent = () => mountRouter(mobileAppApi)
 const AUTH_HEADER = 'x-authenticated-user-token'
@@ -149,6 +152,7 @@ beforeEach(() => {
   mockJwtDecode.mockReset()
   mockCassandraExecute.mockReset()
   mockCassandraShutdown.mockReset()
+  mockNodeHtmlToImage.mockReset()
 })
 
 describe('module import', () => {
@@ -951,6 +955,7 @@ describe('GET /ios/certificateDownload (documented pre-existing auth-bypass bug 
 
   it('renders and returns the certificate image for a valid token and correct secretKey', async () => {
     mockCassandraExecute.mockResolvedValue(certRow)
+    mockNodeHtmlToImage.mockResolvedValue(Buffer.from('fake-png-bytes'))
     mockAxios.mockResolvedValue(
       upstreamOk({
         responseCode: 'OK',

@@ -5712,6 +5712,74 @@ result of this re-check.
 
 ---
 
+## CHANGE 45 — fix a CI-only flaky test: missing `node-html-to-image` mock
+
+**Symptom:** GitHub Actions' `Test with coverage` step failed
+intermittently with `mobileAppApi.test.ts`'s
+`GET /ios/certificateDownload ... renders and returns the certificate
+image for a valid token and correct secretKey` expecting `200`, getting
+`500`. Consistently passed locally (4+ consecutive local runs, isolated
+and full-suite, all green) — a CI-environment-only failure, not
+reproducible on a dev machine.
+
+**Root cause:** this test (and only this test, in this file) exercises
+the real certificate-render pipeline —
+`certificateRenderer.ts`'s `fetchAndRenderCertificate` calls
+`renderCertificateImage`, which calls `node-html-to-image`, which
+launches **real headless Chrome via Puppeteer**. `mobileAppApi.test.ts`
+was missing the mock for that dependency. Every other test file that
+exercises the same shared render helper already mocks it —
+`certificateRenderer.test.ts`, `appCertificateDownload.test.ts`, and
+`publicCertifcateFlinkv2.test.ts` all have
+`jest.mock('node-html-to-image', () => jest.fn())`. Only
+`mobileAppApi.test.ts`'s copy of this same route (added when
+`/ios/certificateDownload` was wired as a 3rd caller of the shared
+helper in CHANGE 29/33) never got the matching mock.
+
+Real Puppeteer launches are a well-known source of CI-only flakiness —
+GitHub Actions' shared runners are memory- and CPU-constrained relative
+to a dev machine, and 223 Jest suites (many run in parallel workers)
+competing for resources makes an occasional Chrome-launch failure or
+timeout far more likely there than locally, where the same test passed
+every time it was tried.
+
+**Confirmed pre-existing, not a regression from this session:** `git
+log` shows the test file was last touched `d24bfba` (2026-08-07,
+"Extend branch-coverage tests, round 2"), well before CHANGE 34–45; the
+missing mock has been there since that test was written, not introduced
+by anything in this campaign.
+
+**Fix:** added the same 4 pieces every sibling file already has —
+`jest.mock('node-html-to-image', () => jest.fn())` alongside the
+file's other top-of-file mocks, the `import nodeHtmlToImage from
+'node-html-to-image'` + `const mockNodeHtmlToImage = nodeHtmlToImage as
+unknown as jest.Mock` cast, a `mockNodeHtmlToImage.mockReset()` in the
+shared `beforeEach`, and `mockNodeHtmlToImage.mockResolvedValue(Buffer.from('fake-png-bytes'))`
+in the one test that reaches the render call — matching
+`appCertificateDownload.test.ts`'s exact established pattern for the
+same shared helper.
+
+**Not touched:** the plain, non-iOS `GET /certificateDownload` route in
+the same file returns a JSON body (`certUrl`) directly and never calls
+the render pipeline — confirmed by reading its test assertions before
+concluding it didn't need the same mock.
+
+**Testing:** full `mobileAppApi.test.ts` suite (98 tests) passes, and
+noticeably faster (~7.6s vs. ~9.1–9.6s before, since real Chrome no
+longer launches). Full repo suite run twice after the fix — 223 suites
+/ 3,664 tests passing both times, no regressions, and each run itself
+faster (33–36s vs. CI's reported 62s for the same step, further
+supporting that the removed Puppeteer launch was the source of both the
+flakiness and the extra time). `tsc --noEmit` clean on both configs,
+`tslint` clean across the repo, `npm run build` clean, `dist/` has 272
+`.js` files (unchanged — this is a test-file-only change, no source
+file touched) and zero leaked `.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing — this changes only test-double setup
+in a `.test.ts` file; no production source file was modified.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
