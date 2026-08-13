@@ -6,11 +6,11 @@ import { IUserAutocomplete } from '../models/user.model'
 import { CONSTANTS } from '../utils/env'
 import { getDateRangeString, getEmailLocalPart, getStringifiedQueryParams } from '../utils/helpers'
 import { extractUserEmailFromRequest } from '../utils/requestExtract'
+// sonar-cleanup: catch blocks replaced with the shared import (CHANGE 37)
+import { forwardUpstreamError } from '../utils/upstreamErrorForward'
 const apiEndpoints = {
   training: `${CONSTANTS.LEARNING_HUB_API_BASE}/lHub/v1`,
 }
-
-const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
 const TRAINING_ENDPOINT = '/:trainingId'
 
@@ -43,11 +43,7 @@ trainingApi.get('/content/:contentId/trainings', async (req: Request, res: Respo
 
     return res.send(trainings)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -62,11 +58,7 @@ trainingApi.get('/trainingsId/sessions', async (req: Request, res: Response) => 
 
     return res.send(trainingSessions)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -83,11 +75,7 @@ trainingApi.get('/content/:contentId/trainings/count', async (req: Request, res:
 
     return res.send(countsObj)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -100,11 +88,7 @@ trainingApi.post('/count', async (req: Request, res: Response) => {
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -125,11 +109,7 @@ trainingApi.post(TRAINING_ENDPOINT, async (req: Request, res: Response) => {
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -147,11 +127,7 @@ trainingApi.delete(TRAINING_ENDPOINT, async (req: Request, res: Response) => {
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -182,11 +158,7 @@ trainingApi.post('/:trainingId/nominees', async (req: Request, res: Response) =>
 
     return res.send(resp)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -213,11 +185,7 @@ trainingApi.post('/:trainingId/share', async (req: Request, res: Response) => {
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -232,11 +200,7 @@ trainingApi.get('/watchlist', async (req: Request, res: Response) => {
 
     return res.send(watchlist)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -259,11 +223,7 @@ trainingApi.get('/watchlist/content/:contentId/status', async (req: Request, res
 
     return res.send({ inWatchlist })
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -279,11 +239,7 @@ trainingApi.post('/watchlist/content/:contentId', async (req: Request, res: Resp
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -301,11 +257,7 @@ trainingApi.delete('/watchlist/content/:contentId', async (req: Request, res: Re
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -320,11 +272,7 @@ trainingApi.get('/trainings/jit', async (req: Request, res: Response) => {
 
     return res.send(jitRequests)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -352,11 +300,7 @@ trainingApi.post('/trainings/jit', async (req: Request, res: Response) => {
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err, 500)
   }
 })
 
@@ -371,11 +315,7 @@ trainingApi.get('/trainingsForApproval', async (req: Request, res: Response) => 
 
     return res.send(trainingRequests)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -394,11 +334,7 @@ trainingApi.patch(TRAINING_ENDPOINT, async (req: Request, res: Response) => {
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -419,11 +355,7 @@ trainingApi.get('/trainings/feedback', async (req: Request, res: Response) => {
 
     return res.send(trainingsForFeedback)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -438,11 +370,7 @@ trainingApi.get('/feedback/:formId', async (req: Request, res: Response) => {
 
     return res.send(feedbackQuestions)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -469,11 +397,7 @@ trainingApi.post('/trainings/:trainingId/feedback', async (req: Request, res: Re
 
     return res.send(apiResult)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -491,10 +415,6 @@ trainingApi.get('/userInfo', async (req: Request, res: Response) => {
 
     return res.send(isJL6OrAbove)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })

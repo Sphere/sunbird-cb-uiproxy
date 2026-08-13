@@ -16,7 +16,7 @@ jest.mock('../utils/env', () => ({
 }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
 import { trainingApi } from './training'
 
@@ -49,6 +49,13 @@ describe('GET /content/:contentId/trainings', () => {
     const response = await agent().get('/content/c1/trainings?fromDate=2024-01-01&toDate=2024-01-31')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().get('/content/c1/trainings?fromDate=2024-01-01&toDate=2024-01-31')
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
+  })
 })
 
 describe('GET /trainingsId/sessions', () => {
@@ -63,6 +70,13 @@ describe('GET /trainingsId/sessions', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/trainingsId/sessions')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(503, { error: 'service unavailable' }))
+    const response = await agent().get('/trainingsId/sessions')
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'service unavailable' })
   })
 })
 
@@ -79,6 +93,13 @@ describe('GET /content/:contentId/trainings/count', () => {
     const response = await agent().get('/content/c1/trainings/count')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().get('/content/c1/trainings/count')
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
+  })
 })
 
 describe('POST /count', () => {
@@ -92,6 +113,13 @@ describe('POST /count', () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await agent().post('/count').send({ identifiers: ['c1'] })
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().post('/count').send({ identifiers: ['c1'] })
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
   })
 })
 
@@ -108,6 +136,13 @@ describe('POST /:trainingId (register)', () => {
     const response = await agent().post('/t1')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(409, { error: 'already registered' }))
+    const response = await agent().post('/t1')
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'already registered' })
+  })
 })
 
 describe('DELETE /:trainingId (deregister)', () => {
@@ -121,6 +156,13 @@ describe('DELETE /:trainingId (deregister)', () => {
     mockAxios.delete.mockRejectedValue(networkError())
     const response = await agent().delete('/t1')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.delete.mockRejectedValue(upstreamError(404, { error: 'not registered' }))
+    const response = await agent().delete('/t1')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not registered' })
   })
 })
 
@@ -141,6 +183,25 @@ describe('POST /:trainingId/nominees', () => {
     const response = await agent().post('/t1/nominees').send({})
     expect(response.status).toBe(400)
     expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('forwards an empty nominee list when nominees is an empty array', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk([]))
+    const response = await agent().post('/t1/nominees').send({ nominees: [] })
+    expect(response.status).toBe(200)
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ manager: 'user1', nominees: [] })
+    )
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(409, { error: 'already nominated' }))
+    const response = await agent()
+      .post('/t1/nominees')
+      .send({ nominees: [{ email: 'a@b.com' }] })
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'already nominated' })
   })
 })
 
@@ -169,6 +230,15 @@ describe('POST /:trainingId/share', () => {
     const response = await agent().post('/t1/share').send({})
     expect(response.status).toBe(400)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(403, { error: 'not allowed' }))
+    const response = await agent()
+      .post('/t1/share')
+      .send({ users: [{ email: 'a@b.com' }] })
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'not allowed' })
+  })
 })
 
 describe('GET /watchlist', () => {
@@ -182,6 +252,13 @@ describe('GET /watchlist', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/watchlist')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().get('/watchlist')
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
   })
 })
 
@@ -200,10 +277,24 @@ describe('GET /watchlist/content/:contentId/status', () => {
     expect(response.body).toEqual({ inWatchlist: false })
   })
 
+  it('reports false for an empty watchlist', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    const response = await agent().get('/watchlist/content/c1/status')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ inWatchlist: false })
+  })
+
   it('returns 400 on an upstream failure', async () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/watchlist/content/c1/status')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(504, { error: 'gateway timeout' }))
+    const response = await agent().get('/watchlist/content/c1/status')
+    expect(response.status).toBe(504)
+    expect(response.body).toEqual({ error: 'gateway timeout' })
   })
 })
 
@@ -219,6 +310,13 @@ describe('POST /watchlist/content/:contentId', () => {
     const response = await agent().post('/watchlist/content/c1')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(409, { error: 'already in watchlist' }))
+    const response = await agent().post('/watchlist/content/c1')
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'already in watchlist' })
+  })
 })
 
 describe('DELETE /watchlist/content/:contentId', () => {
@@ -233,6 +331,13 @@ describe('DELETE /watchlist/content/:contentId', () => {
     const response = await agent().delete('/watchlist/content/c1')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.delete.mockRejectedValue(upstreamError(404, { error: 'not in watchlist' }))
+    const response = await agent().delete('/watchlist/content/c1')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not in watchlist' })
+  })
 })
 
 describe('GET /trainings/jit', () => {
@@ -246,6 +351,13 @@ describe('GET /trainings/jit', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/trainings/jit')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().get('/trainings/jit')
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
   })
 })
 
@@ -262,10 +374,28 @@ describe('POST /trainings/jit', () => {
     )
   })
 
+  it('falls back to searchedContent when contentName is absent', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ res_code: 1 }))
+    await agent()
+      .post('/trainings/jit')
+      .send({ searchedContent: 'Fallback Content', startDate: '2024-05-01' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ content_name: 'Fallback Content' })
+    )
+  })
+
   it('returns 500 on an upstream failure', async () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await agent().post('/trainings/jit').send({ startDate: '2024-05-01' })
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid jit request' }))
+    const response = await agent().post('/trainings/jit').send({ startDate: '2024-05-01' })
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid jit request' })
   })
 })
 
@@ -281,6 +411,13 @@ describe('GET /trainingsForApproval', () => {
     const response = await agent().get('/trainingsForApproval')
     expect(response.status).toBe(400)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().get('/trainingsForApproval')
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
+  })
 })
 
 describe('PATCH /:trainingId', () => {
@@ -294,6 +431,13 @@ describe('PATCH /:trainingId', () => {
     mockAxios.patch.mockRejectedValue(networkError())
     const response = await agent().patch('/t1').send({ status: 'rejected' })
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.patch.mockRejectedValue(upstreamError(409, { error: 'conflicting status' }))
+    const response = await agent().patch('/t1').send({ status: 'rejected' })
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'conflicting status' })
   })
 })
 
@@ -317,6 +461,20 @@ describe('GET /trainings/feedback', () => {
     const response = await agent().get('/trainings/feedback')
     expect(response.status).toBe(400)
   })
+
+  it('handles an empty pending-feedback list', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    const response = await agent().get('/trainings/feedback')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(503, { error: 'service unavailable' }))
+    const response = await agent().get('/trainings/feedback')
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'service unavailable' })
+  })
 })
 
 describe('GET /feedback/:formId', () => {
@@ -330,6 +488,13 @@ describe('GET /feedback/:formId', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/feedback/f1')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'form not found' }))
+    const response = await agent().get('/feedback/f1')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'form not found' })
   })
 })
 
@@ -345,6 +510,20 @@ describe('POST /trainings/:trainingId/feedback', () => {
     const response = await agent().post('/trainings/t1/feedback').send({ answers: [] })
     expect(response.status).toBe(400)
     expect(mockAxios.post).not.toHaveBeenCalled()
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(400, { error: 'invalid feedback' }))
+    const response = await agent().post('/trainings/t1/feedback?formId=f1').send({ answers: [] })
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'invalid feedback' })
+  })
+
+  it('falls back to the generic error body on a network failure', async () => {
+    mockAxios.post.mockRejectedValue(networkError())
+    const response = await agent().post('/trainings/t1/feedback?formId=f1').send({ answers: [] })
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'Failed due to unknown reason' })
   })
 })
 
@@ -367,5 +546,12 @@ describe('GET /userInfo', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/userInfo')
     expect(response.status).toBe(400)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(401, { error: 'unauthorized' }))
+    const response = await agent().get('/userInfo')
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'unauthorized' })
   })
 })

@@ -9,6 +9,8 @@ import { getStringifiedQueryParams } from '../utils/helpers'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserEmailFromRequest, extractUserIdFromRequest } from '../utils/requestExtract'
+// sonar-cleanup: file-local requireOrgHeaders replaced with the shared import (CHANGE 43)
+import { requireOrgHeaders } from '../utils/requireOrgHeaders'
 
 const API_END_POINTS = {
   interest: (userId: string) => `${CONSTANTS.RECOMMENDATION_API_BASE}/${userId}/recommendations/interest`,
@@ -43,13 +45,12 @@ function handleRecommendationError(res: Response, err: any, label: string) {
 
 recommendationApi.get('/', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('locale')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('locale')
     const filters = req.query.filters
     let decodedFilters = {
       recommendationCategory: 'org',
@@ -97,13 +98,12 @@ recommendationApi.get('/', async (req, res) => {
 
 recommendationApi.get('/interestBased', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('langCode') || 'en'
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('langCode') || 'en'
     const pageNo = req.query.pageNo || 0
     const pageSize = req.query.pageSize || 20
     const queryParams = getStringifiedQueryParams({
@@ -196,13 +196,12 @@ recommendationApi.get('/keyword', async (req, res) => {
 
 recommendationApi.get('/usageBased', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('locale')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('locale')
     const pageNo = req.query.pageNo || 0
     const pageSize = req.query.pageSize || 20
     const queryParams = getStringifiedQueryParams({
@@ -238,13 +237,12 @@ recommendationApi.get('/usageBased', async (req, res) => {
 
 recommendationApi.get('/:recommendationType', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('locale')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('locale')
     const filters = req.query.filters
     let decodedFilters = {
       recommendationCategory: 'org',

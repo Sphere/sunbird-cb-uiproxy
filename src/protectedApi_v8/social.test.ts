@@ -16,7 +16,9 @@ jest.mock('../utils/logger', () => ({ logError: jest.fn(), logInfo: jest.fn() })
 jest.mock('../utils/requestExtract', () => ({
   extractUserIdFromRequest: jest.fn(() => 'user-1'),
 }))
-jest.mock('../utils/env', () => ({ CONSTANTS: { NODE_API_BASE: 'https://social.test' } }))
+jest.mock('../utils/env', () => ({
+  CONSTANTS: { NODE_API_BASE: 'https://social.test', SOCIAL_TIMEOUT: '9999' },
+}))
 
 import axios from 'axios'
 import FormData from 'form-data'
@@ -110,6 +112,163 @@ describe.each(SIMPLE_PROXY_ENDPOINTS)('$method $path', ({ method, path }) => {
     const response = await agent()[method](path).set('org', 'o1').set('rootOrg', 'r1').send({})
 
     expect(response.status).toBe(500)
+  })
+})
+
+/**
+ * @description CHANGE 33 introduced a single shared proxySocialRoute
+ * function behind the table above, parameterized by method/url/
+ * extraFields/timeout/label. The table only proves the response shape is
+ * unchanged; these tests prove the REQUEST each route builds is unchanged
+ * too — the exact extra field key/value each route merges in, which
+ * routes set a timeout and which don't, which 2 routes use DELETE, and
+ * which 2 routes log with their own label on failure.
+ */
+describe('proxySocialRoute per-route request construction (CHANGE 33)', () => {
+  beforeEach(() => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ ok: true }))
+  })
+
+  it('/catalog merges the lowercase `userid` key, not `userId`', async () => {
+    await agent().post('/catalog').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    const callArgs = mockAxiosCallable.mock.calls[0][0]
+    expect(callArgs.data.userid).toBe('user-1')
+    expect(callArgs.data.userId).toBeUndefined()
+    expect(callArgs.url).toBe('https://social.test/catalog/fetch')
+    expect(callArgs.method).toBe('POST')
+  })
+
+  it('/moderator/moderatepost merges moderatorId', async () => {
+    await agent().post('/moderator/moderatepost').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    expect(mockAxiosCallable.mock.calls[0][0].data.moderatorId).toBe('user-1')
+  })
+
+  it('/admin/deletePost merges adminId, calls DELETE, and does not apply the SOCIAL_TIMEOUT override', async () => {
+    await agent().post('/admin/deletePost').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    const callArgs = mockAxiosCallable.mock.calls[0][0]
+    expect(callArgs.data.adminId).toBe('user-1')
+    expect(callArgs.method).toBe('DELETE')
+    // axiosRequestConfig's own default timeout applies; SOCIAL_TIMEOUT (9999) does not override it here
+    expect(callArgs.timeout).not.toBe(9999)
+  })
+
+  it('/admin/reactivatePost merges adminId and sets the SOCIAL_TIMEOUT timeout', async () => {
+    await agent().post('/admin/reactivatePost').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    const callArgs = mockAxiosCallable.mock.calls[0][0]
+    expect(callArgs.data.adminId).toBe('user-1')
+    expect(callArgs.timeout).toBe(9999)
+  })
+
+  it('/createForum merges forumCreator', async () => {
+    await agent().post('/createForum').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    expect(mockAxiosCallable.mock.calls[0][0].data.forumCreator).toBe('user-1')
+  })
+
+  it('/editForum merges forumEditor', async () => {
+    await agent().post('/editForum').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    expect(mockAxiosCallable.mock.calls[0][0].data.forumEditor).toBe('user-1')
+  })
+
+  it('/post/timelineV2 uses query.wid when present, ignoring extractUserIdFromRequest', async () => {
+    await agent()
+      .post('/post/timelineV2')
+      .set('org', 'o1')
+      .set('rootOrg', 'r1')
+      .query({ wid: 'wid-from-query' })
+      .send({})
+
+    expect(mockAxiosCallable.mock.calls[0][0].data.userId).toBe('wid-from-query')
+  })
+
+  it('/post/timelineV2 falls back to extractUserIdFromRequest when query.wid is absent', async () => {
+    await agent().post('/post/timelineV2').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    expect(mockAxiosCallable.mock.calls[0][0].data.userId).toBe('user-1')
+  })
+
+  it('/post/timeline sets the SOCIAL_TIMEOUT timeout with no extra field', async () => {
+    await agent().post('/post/timeline').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    const callArgs = mockAxiosCallable.mock.calls[0][0]
+    expect(callArgs.timeout).toBe(9999)
+    expect(callArgs.data.userId).toBeUndefined()
+  })
+
+  it('/post/publish does not apply the SOCIAL_TIMEOUT override and merges no extra field', async () => {
+    await agent().post('/post/publish').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    const callArgs = mockAxiosCallable.mock.calls[0][0]
+    expect(callArgs.timeout).not.toBe(9999)
+    expect(Object.keys(callArgs.data).sort()).toEqual(['org', 'rootOrg'])
+  })
+
+  it('/edit/meta logs with its own label on failure', async () => {
+    mockAxiosCallable.mockRejectedValue(networkError())
+    const { logError } = jest.requireMock('../utils/logger')
+    logError.mockClear()
+
+    await agent().put('/edit/meta').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    expect(logError).toHaveBeenCalledWith('EDIT META ERROR >', expect.anything())
+  })
+
+  it('/post/delete logs with its own label on failure', async () => {
+    mockAxiosCallable.mockRejectedValue(networkError())
+    const { logError } = jest.requireMock('../utils/logger')
+    logError.mockClear()
+
+    await agent().post('/post/delete').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    expect(logError).toHaveBeenCalledWith('ERROR DELETING POST', expect.anything())
+  })
+
+  it('/post/publish does not log on failure (no label)', async () => {
+    mockAxiosCallable.mockRejectedValue(networkError())
+    const { logError } = jest.requireMock('../utils/logger')
+    logError.mockClear()
+
+    await agent().post('/post/publish').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    expect(logError).not.toHaveBeenCalled()
+  })
+
+  it('/edit/tags calls PUT and does not apply the SOCIAL_TIMEOUT override', async () => {
+    await agent().put('/edit/tags').set('org', 'o1').set('rootOrg', 'r1').send({})
+
+    const callArgs = mockAxiosCallable.mock.calls[0][0]
+    expect(callArgs.method).toBe('PUT')
+    expect(callArgs.timeout).not.toBe(9999)
+  })
+
+  /**
+   * @description Concurrency: this file's 23 routes all funnel through the
+   * same shared proxySocialRoute function. Fires 3 concurrent requests to
+   * different routes with different extra fields, and confirms each
+   * call's own extra field/timeout/method never leaks into another
+   * concurrently-running route's call.
+   */
+  it('concurrent requests to different routes never cross-contaminate their extra fields', async () => {
+    await Promise.all([
+      agent().post('/catalog').set('org', 'o1').set('rootOrg', 'r1').send({}),
+      agent().post('/admin/deletePost').set('org', 'o1').set('rootOrg', 'r1').send({}),
+      agent().post('/post/timeline').set('org', 'o1').set('rootOrg', 'r1').send({}),
+    ])
+
+    const calls = mockAxiosCallable.mock.calls.map((c) => c[0])
+    const catalogCall = calls.find((c) => c.url.endsWith('/catalog/fetch'))
+    const deleteCall = calls.find((c) => c.method === 'DELETE')
+    const timelineCall = calls.find((c) => c.url.endsWith('/post/timeline'))
+    expect(catalogCall.data.userid).toBe('user-1')
+    expect(deleteCall.data.adminId).toBe('user-1')
+    expect(timelineCall.timeout).toBe(9999)
+    expect(timelineCall.data.adminId).toBeUndefined()
+    expect(catalogCall.data.adminId).toBeUndefined()
   })
 })
 

@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sonar Duplication Reduction — sunbird-cb-uiproxy</title>
+<style>
+  @font-face {
+    font-family: 'JBMono';
+    src: local('JetBrains Mono'), local('Menlo'), local('Consolas');
+  }
+
+  :root {
+    --bg: #f6f7f9;
+    --bg-raised: #ffffff;
+    --bg-sunken: #eef0f3;
+    --border: #d9dee4;
+    --border-soft: #e6e9ed;
+    --text: #1c2128;
+    --text-dim: #57606a;
+    --text-faint: #8b949e;
+    --accent: #0969da;
+    --accent-soft: #ddf0ff;
+    --good: #1a7f37;
+    --good-bg: #dafbe1;
+    --bad: #cf222e;
+    --bad-bg: #ffebe9;
+    --warn: #9a6700;
+    --warn-bg: #fff8c5;
+    --mono: 'SFMono-Regular', 'JBMono', 'Menlo', 'Consolas', monospace;
+    --sans: -apple-system, 'Segoe UI', 'Inter', system-ui, sans-serif;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --bg-raised: #161b22;
+      --bg-sunken: #010409;
+      --border: #30363d;
+      --border-soft: #21262d;
+      --text: #e6edf3;
+      --text-dim: #9198a1;
+      --text-faint: #6e7681;
+      --accent: #58a6ff;
+      --accent-soft: #10233d;
+      --good: #7ee787;
+      --good-bg: #0d2818;
+      --bad: #ff7b72;
+      --bad-bg: #2d1214;
+      --warn: #e3b341;
+      --warn-bg: #2b2111;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --bg-raised: #161b22;
+    --bg-sunken: #010409;
+    --border: #30363d;
+    --border-soft: #21262d;
+    --text: #e6edf3;
+    --text-dim: #9198a1;
+    --text-faint: #6e7681;
+    --accent: #58a6ff;
+    --accent-soft: #10233d;
+    --good: #7ee787;
+    --good-bg: #0d2818;
+    --bad: #ff7b72;
+    --bad-bg: #2d1214;
+    --warn: #e3b341;
+    --warn-bg: #2b2111;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f6f7f9;
+    --bg-raised: #ffffff;
+    --bg-sunken: #eef0f3;
+    --border: #d9dee4;
+    --border-soft: #e6e9ed;
+    --text: #1c2128;
+    --text-dim: #57606a;
+    --text-faint: #8b949e;
+    --accent: #0969da;
+    --accent-soft: #ddf0ff;
+    --good: #1a7f37;
+    --good-bg: #dafbe1;
+    --bad: #cf222e;
+    --bad-bg: #ffebe9;
+    --warn: #9a6700;
+    --warn-bg: #fff8c5;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+  }
+
+  body {
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header.top {
+    margin-bottom: 40px;
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+
+  .lede {
+    color: var(--text-dim);
+    max-width: 62ch;
+    margin: 0;
+    font-size: 15.5px;
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  .meta-row span b { color: var(--text-dim); font-weight: 600; }
+
+  /* ---- summary stat strip ---- */
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 28px 0 20px;
+  }
+
+  .stat {
+    background: var(--bg-raised);
+    padding: 18px 16px;
+  }
+
+  .stat .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    margin: 0 0 8px;
+  }
+
+  .stat .value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .stat .value small {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-faint);
+  }
+
+  .stat .sub {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--good);
+    font-family: var(--mono);
+  }
+
+  .stat.gate .value { color: var(--good); }
+
+  /* ---- trend bars ---- */
+
+  .trend {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px 16px;
+    margin-bottom: 36px;
+  }
+
+  .trend h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+
+  .trend-rows { display: flex; flex-direction: column; gap: 7px; }
+
+  .trend-row {
+    display: grid;
+    grid-template-columns: 92px 1fr 74px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .trend-row .tag {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+
+  .trend-row .bar-track {
+    height: 16px;
+    background: var(--bg-sunken);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .trend-row .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--good));
+    border-radius: 4px 0 0 4px;
+  }
+
+  .trend-row.session-start .bar-fill { background: var(--text-faint); }
+
+  .trend-row .pct {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .trend-foot {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-soft);
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: var(--mono);
+  }
+
+  /* ---- verification band ---- */
+
+  .verify-band {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 40px;
+  }
+
+  .verify-chip {
+    background: var(--good-bg);
+    border: 1px solid var(--good);
+    border-radius: 8px;
+    padding: 11px 14px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .verify-chip .check {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--good);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .verify-chip .check::after {
+    content: '';
+    width: 5px;
+    height: 8px;
+    border-right: 2px solid var(--bg-raised);
+    border-bottom: 2px solid var(--bg-raised);
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+
+  .verify-chip .txt {
+    font-size: 12.5px;
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .verify-chip .txt small {
+    display: block;
+    font-weight: 400;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    margin-top: 1px;
+  }
+
+  /* ---- module list ---- */
+
+  section.modules { margin-top: 8px; }
+
+  section.modules > h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+
+  section.modules > .modules-lede {
+    color: var(--text-dim);
+    font-size: 13.5px;
+    margin: 0 0 24px;
+    max-width: 68ch;
+  }
+
+  .module {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .module-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px 16px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .module-head .idn {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .module-head .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 7px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+
+  .module-head h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+
+  .module-head .files {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    text-align: right;
+    white-space: nowrap;
+    flex: none;
+    padding-top: 3px;
+  }
+
+  .module-body { padding: 16px 20px 18px; }
+
+  .module-body .why {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    margin: 0 0 14px;
+  }
+
+  .module-body .why b { color: var(--text); font-weight: 600; }
+
+  .module-body code {
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .filerow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border-soft);
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+
+  .filerow:first-of-type { border-top: none; padding-top: 0; }
+
+  .filerow .path {
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  .filerow .path.new::before {
+    content: 'new ';
+    color: var(--good);
+    font-weight: 700;
+  }
+
+  .filerow .delta {
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .filerow .delta .plus { color: var(--good); }
+  .filerow .delta .minus { color: var(--bad); }
+
+  .preserved {
+    margin-top: 14px;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn);
+    border-radius: 7px;
+    padding: 10px 13px;
+    font-size: 12.5px;
+    color: var(--text);
+  }
+
+  .preserved b {
+    display: block;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--warn);
+    margin-bottom: 4px;
+  }
+
+  .preserved code {
+    font-family: var(--mono);
+    background: var(--bg-sunken);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  .module-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-soft);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+
+  .module-foot .sonar {
+    color: var(--good);
+    font-weight: 600;
+  }
+
+  /* ---- floor section ---- */
+
+  .floor {
+    margin-top: 44px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+
+  .floor h2 {
+    font-size: 16px;
+    margin: 0 0 8px;
+  }
+
+  .floor p {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    margin: 0 0 14px;
+    max-width: 68ch;
+  }
+
+  .floor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .floor-card {
+    background: var(--bg-sunken);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .floor-card .lines {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .floor-card .lines small {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+  }
+
+  .floor-card .name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  .floor-card .reason {
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  /* ---- re-verification band ---- */
+
+  .reverify {
+    margin-top: 36px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+
+  .reverify h2 {
+    font-size: 16px;
+    margin: 0 0 4px;
+    color: var(--text);
+  }
+
+  .reverify .sub {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin: 0 0 16px;
+  }
+
+  .reverify ul {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .reverify li { margin-bottom: 7px; }
+  .reverify li b { color: var(--text); }
+  .reverify code { font-family: var(--mono); font-size: 12px; }
+
+  .reverify .caveat {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--accent);
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+
+  footer.page {
+    margin-top: 48px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .module-head { flex-direction: column; }
+    .module-head .files { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="kicker">sunbird-cb-uiproxy &middot; sonarqube duplication campaign</p>
+    <h1>Ten dedup passes, one commit, zero behavior changes</h1>
+    <p class="lede">
+      A module-by-module record of every extraction landed in commit <code style="font-family:var(--mono)">ddcc1b3</code> —
+      what moved, what stayed different on purpose, and the exact verification each change went through
+      before it was allowed to land.
+    </p>
+    <div class="meta-row">
+      <span>branch <b>feat-sonarqube-integration-v2</b></span>
+      <span>commit <b>ddcc1b3</b></span>
+      <span>files touched <b>23</b></span>
+      <span>changes documented <b>CHANGE 34&ndash;43</b></span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <p class="label">Duplication, session start</p>
+      <p class="value">8.3<small>%</small></p>
+    </div>
+    <div class="stat">
+      <p class="label">Duplication, session end</p>
+      <p class="value">6.1<small>%</small></p>
+      <p class="sub">&minus;2.2 pts</p>
+    </div>
+    <div class="stat">
+      <p class="label">Duplicated lines removed</p>
+      <p class="value">953<small>lines</small></p>
+      <p class="sub">3,419 &rarr; 2,466</p>
+    </div>
+    <div class="stat gate">
+      <p class="label">Quality gate</p>
+      <p class="value">OK</p>
+      <p class="sub">every rescan, all 10 rounds</p>
+    </div>
+  </div>
+
+  <div class="trend">
+    <h2>Duplication after each round (Sonar rescan, live)</h2>
+    <div class="trend-rows">
+      <div class="trend-row session-start">
+        <span class="tag">start</span>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+        <span class="pct">8.3%</span>
+      </div>
+      <div class="trend-row">
+        <span class="tag">CH 34+35</span>
+        <div class="bar-track"><div class="bar-fill" style="width:84.3%"></div></div>
+        <span class="pct">7.0%</span>
+      </div>
+      <div class="trend-row">
+        <span class="tag">CH 36</span>
+        <div class="bar-track"><div class="bar-fill" style="width:81.9%"></div></div>
+        <span class="pct">6.8%</span>
+      </div>
+      <div class="trend-row">
+        <span class="tag">CH 37</span>
+        <div class="bar-track"><div class="bar-fill" style="width:80.7%"></div></div>
+        <span class="pct">6.7%</span>
+      </div>
+      <div class="trend-row">
+        <span class="tag">CH 38+39</span>
+        <div class="bar-track"><div class="bar-fill" style="width:77.1%"></div></div>
+        <span class="pct">6.4%</span>
+      </div>
+      <div class="trend-row">
+        <span class="tag">CH 40</span>
+        <div class="bar-track"><div class="bar-fill" style="width:75.9%"></div></div>
+        <span class="pct">6.3%</span>
+      </div>
+      <div class="trend-row">
+        <span class="tag">CH 41</span>
+        <div class="bar-track"><div class="bar-fill" style="width:73.5%"></div></div>
+        <span class="pct">6.1%</span>
+      </div>
+      <div class="trend-row">
+        <span class="tag">CH 42+43</span>
+        <div class="bar-track"><div class="bar-fill" style="width:73.5%"></div></div>
+        <span class="pct">6.1%</span>
+      </div>
+    </div>
+    <div class="trend-foot">
+      <span>bar length is relative to the 8.3% starting density</span>
+      <span>gate condition <code>new_violations &gt; 0</code> never fired uncorrected</span>
+    </div>
+  </div>
+
+  <div class="verify-band">
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">tsc &mdash;noEmit<small>tsconfig.json + tsconfig.spec.json, clean every round</small></span>
+    </div>
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">tslint, full repo<small>0 findings on final pass</small></span>
+    </div>
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">Jest full suite<small>3,664 / 3,664 passing &middot; run 3&times; back-to-back</small></span>
+    </div>
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">Focused re-run<small>548 / 548 &middot; every touched file's own suite</small></span>
+    </div>
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">npm run build<small>clean, zero errors</small></span>
+    </div>
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">dist/ sanity<small>272 .js files &middot; 0 leaked .test.js</small></span>
+    </div>
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">Router mount audit<small>all 13 touched routers confirmed still wired</small></span>
+    </div>
+    <div class="verify-chip">
+      <span class="check"></span>
+      <span class="txt">Flakes chased down<small>4 transient failures, all isolated &amp; cleared</small></span>
+    </div>
+  </div>
+
+  <section class="modules">
+    <h2>What changed, module by module</h2>
+    <p class="modules-lede">
+      Ten changes (CHANGE 34&ndash;43 in <code>docs/PROD-VERIFICATION.md</code>),
+      in the order they landed. Every extraction follows the same rule: if two code
+      blocks differ for a real reason, thread that difference through as an explicit
+      parameter &mdash; never force a merge that would erase it.
+    </p>
+
+    <!-- CHANGE 34 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 34</span>
+          <h3>discussionHub &mdash; reuse the existing error handler</h3>
+        </div>
+        <div class="files">2 files &middot; 34 lines</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          <b>topics.ts</b> (6 routes) and <b>posts.ts</b> (1 route) each hand-wrote the same
+          catch block that <b>writeApi.ts</b> already had a named helper for
+          (<code>handleWriteApiError</code>). Exported it and
+          pointed all 7 call sites at the existing function instead of leaving 7 inline copies.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/discussionHub/topics.ts</span><span class="delta"><span class="minus">&minus;18</span> <span class="plus">+9</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/discussionHub/posts.ts</span><span class="delta"><span class="minus">&minus;4</span> <span class="plus">+3</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/discussionHub/writeApi.ts</span><span class="delta"><span class="minus">&minus;1</span> <span class="plus">+3</span></span></div>
+        <div class="preserved">
+          <b>bug kept, not fixed</b>
+          topics.ts's <code>/unread/total</code> route already logged the wrong label
+          (<code>'... /unread &gt;'</code> instead of <code>'... /unread/total &gt;'</code>) &mdash; a
+          copy-paste leftover from the route above it. Passed through byte-for-byte.
+        </div>
+        <div class="module-foot">
+          <span>94 discussionHub tests, unchanged, all green</span>
+          <span class="sonar">Sonar: part of the 8.3%&rarr;7.0% combined drop with CH 35</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 35 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 35</span>
+          <h3>profile-details.ts merge + a new shared course-search helper</h3>
+        </div>
+        <div class="files">4 files &middot; 1 new util</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          Two routes in <b>profile-details.ts</b>
+          (<code>/createUserV2WithRegistry</code> and
+          <code>/createUserWithoutInvitationEmail</code>) were
+          byte-identical &mdash; confirmed with a direct diff, only whitespace and quote style differed.
+          Made them the same function. Separately, <b>ratingsSearch.ts</b> and
+          <b>courseRecommendation.ts</b> shared a ~90% identical search route, extracted to a
+          new <code>courseRecommendationSearch.ts</code>,
+          parameterized by the 3 real differences: <code>limit</code>/<code>offset</code>
+          pass-through, a <code>lang</code> filter, and whether
+          results get ratings-enriched afterward.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/user/profile-details.ts</span><span class="delta"><span class="minus">&minus;122</span> <span class="plus">+45</span></span></div>
+        <div class="filerow"><span class="path">src/publicApi_v8/ratingsSearch.ts</span><span class="delta"><span class="minus">&minus;113</span> <span class="plus">+6</span></span></div>
+        <div class="filerow"><span class="path">src/publicApi_v8/courseRecommendation.ts</span><span class="delta"><span class="minus">&minus;124</span> <span class="plus">+6</span></span></div>
+        <div class="filerow"><span class="path new">src/utils/courseRecommendationSearch.ts</span><span class="delta"><span class="plus">+182</span></span></div>
+        <div class="preserved">
+          <b>real difference, not merged away</b>
+          <code>/createUserV2WithoutRegistry</code> stayed a separate function &mdash; it genuinely
+          skips the OpenSaber registry step, that's not incidental duplication.
+        </div>
+        <div class="preserved">
+          <b>dead code the compiler surfaced, not introduced</b>
+          Extracting courseRecommendation.ts's route body made <code>tsc</code> flag its
+          <code>API_END_POINTS</code> object as fully unused &mdash; a hard compile error. Confirmed
+          those two keys were already unreferenced before this change; removed to keep the build
+          compiling, not a functional edit.
+        </div>
+        <div class="module-foot">
+          <span>9 new deep-verification tests (exact limit/offset/lang/enrichment assertions)</span>
+          <span>2 Sonar findings fixed post-scan: optional chaining, cognitive complexity</span>
+          <span class="sonar">Sonar: 8.3% &rarr; 7.0% &middot; &minus;552 dup lines &middot; gate OK</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 36 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 36</span>
+          <h3>user/playlist.ts &mdash; one error handler for 11 call sites</h3>
+        </div>
+        <div class="files">2 files</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          11 catch sites shared the identical status/body shape. New file-local
+          <code>handleUserPlaylistError(res, err, label?)</code>
+          &mdash; kept local because the existing same-named helper in the sibling
+          <b>protectedApi_v8/playlist.ts</b> uses <code>.json()</code>
+          and a different message format, a genuinely different shape, not a fit for reuse.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/user/playlist.ts</span><span class="delta"><span class="minus">&minus;68</span> <span class="plus">+28</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/user/playlist.test.ts</span><span class="delta"><span class="plus">+22</span></span></div>
+        <div class="preserved">
+          <b>inconsistency kept, not fixed</b>
+          2 of the 11 sites (<code>/sync/:playlistId</code>, <code>/recent</code>) log a route-specific
+          label before responding; the other 9 log nothing. The optional <code>label</code> param only
+          logs when given &mdash; verified with a new explicit "does not log" test on
+          <code>/accept/:playlistId</code> so the merge couldn't silently add logging to routes that never had it.
+        </div>
+        <div class="module-foot">
+          <span>58 existing + 3 new logging-behavior tests = 61, all pass</span>
+          <span class="sonar">Sonar: 7.0% &rarr; 6.8% &middot; &minus;73 dup lines &middot; gate OK</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 37 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 37</span>
+          <h3>training.ts + certifications.ts &mdash; the biggest single win</h3>
+        </div>
+        <div class="files">3 files &middot; 1 new util</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          All 20 routes in <b>training.ts</b> and all 25 in <b>certifications.ts</b> shared the
+          exact same catch shape &mdash; including a byte-identical error-message constant across
+          both files. First genuinely new cross-file helper this round:
+          <code>upstreamErrorForward.ts</code>'s
+          <code>forwardUpstreamError(res, err, fallbackStatus = 400)</code>.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/training.ts</span><span class="delta"><span class="minus">&minus;100</span> <span class="plus">+24</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/certifications.ts</span><span class="delta"><span class="minus">&minus;133</span> <span class="plus">+21</span></span></div>
+        <div class="filerow"><span class="path new">src/utils/upstreamErrorForward.ts</span><span class="delta"><span class="plus">+26</span></span></div>
+        <div class="preserved">
+          <b>real difference, threaded through</b>
+          19 of 20 training.ts routes and 24 of 25 certifications.ts routes fall back to 400 on a
+          non-upstream error &mdash; training.ts's one <code>POST /trainings/jit</code> route alone
+          falls back to <b>500</b>. Passed as an optional <code>fallbackStatus</code> parameter, called
+          with <code>500</code> explicitly at exactly that one site. The existing test suite already had
+          a dedicated 500 assertion just for this route.
+        </div>
+        <div class="module-foot">
+          <span>148 existing tests (69 + 79), zero new tests needed, all pass</span>
+          <span>1 Sonar optional-chaining finding fixed post-scan</span>
+          <span class="sonar">Sonar: 6.8% &rarr; 6.7% &middot; &minus;86 dup lines &middot; gate OK</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 38 + 39 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 38&ndash;39</span>
+          <h3>userRegistration.ts's own helper + writeApi.ts's leftover routes</h3>
+        </div>
+        <div class="files">2 files</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          <b>admin/userRegistration.ts</b>: 13 of 14 routes shared a catch shape sending status 500
+          and an empty-object fallback &mdash; different from every existing shared helper in the
+          codebase, so a new file-local <code>handleUserRegistrationError</code>.
+          <b>discussionHub/writeApi.ts</b>: its two <code>POST /topics</code> routes
+          turned out to already match an existing local helper
+          (<code>postWithUserUid</code>, built earlier for the
+          bookmark/vote routes) &mdash; rewired to call it, no new code at all.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/admin/userRegistration.ts</span><span class="delta"><span class="minus">&minus;68</span> <span class="plus">+21</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/discussionHub/writeApi.ts</span><span class="delta"><span class="minus">&minus;44</span> <span class="plus">+15</span></span></div>
+        <div class="preserved">
+          <b>typos kept, not fixed</b>
+          userRegistration.ts's <code>/register</code> label already read
+          <code>'ERROR ON REGISTRATIO USERS &gt;'</code> (missing the second N).
+          writeApi.ts's <code>/topics/:topicId</code> label had a double space before "POST". Both
+          preserved verbatim &mdash; a dedup pass isn't the place to quietly fix typos in log text
+          someone might grep for.
+        </div>
+        <div class="module-foot">
+          <span>53 + 18 existing tests, zero new tests needed, all pass</span>
+          <span>1 flake in an untouched file, confirmed clean in isolation</span>
+          <span class="sonar">Sonar: 6.7% &rarr; 6.4% &middot; &minus;97 dup lines &middot; gate OK</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 40 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 40</span>
+          <h3>recommendation.ts &mdash; the org/rootOrg guard, extracted</h3>
+        </div>
+        <div class="files">1 file</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          4 of 5 routes shared the identical "missing org/rootOrg header &rarr; 400" guard
+          (<code>/keyword</code> doesn't need both headers,
+          correctly left alone). Mirrored the exact same helper name and shape already proven in
+          <b>content.ts</b>.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/recommendation.ts</span><span class="delta"><span class="minus">&minus;21</span> <span class="plus">+17</span></span></div>
+        <div class="preserved">
+          <b>real difference confirmed untouched</b>
+          <code>/:recommendationType</code> genuinely omits the <code>shuffleContent(contents)</code>
+          call the other 3 routes make &mdash; verified by reading the file before and after; the merge
+          only touched the guard clause, never the response-building logic beneath it.
+        </div>
+        <div class="module-foot">
+          <span>19 existing tests, unchanged, all pass</span>
+          <span>1 flake in an untouched file, confirmed clean in isolation</span>
+          <span class="sonar">Sonar: 6.4% &rarr; 6.3% &middot; &minus;34 dup lines &middot; gate OK</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 41 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 41</span>
+          <h3>user/content.ts + user/follow.ts guards &mdash; plus a bonus merge</h3>
+        </div>
+        <div class="files">2 files</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          Same org/rootOrg guard pattern applied to both files (4 of 5 routes in content.ts, 8 of 9
+          in follow.ts). Collapsing content.ts's guard left <code>/like/:contentId</code>
+          and <code>/unlike/:contentId</code> byte-identical
+          apart from the HTTP method &mdash; tslint's own <code>no-identical-functions</code>
+          rule caught it the moment the noise was removed. Merged those two into a third function,
+          <code>likeOrUnlikeContent</code>, parameterized by
+          the one real difference: POST vs DELETE.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/user/content.ts</span><span class="delta"><span class="minus">&minus;76</span> <span class="plus">+68</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/user/follow.ts</span><span class="delta"><span class="minus">&minus;38</span> <span class="plus">+26</span></span></div>
+        <div class="module-foot">
+          <span>29 + 29 = 58 existing tests, unchanged, all pass</span>
+          <span class="sonar">Sonar: 6.3% &rarr; 6.1% &middot; &minus;87 dup lines &middot; gate OK</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 42 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 42</span>
+          <h3>publicSearch.ts / ratingsSearch.ts &mdash; the competency-sort block</h3>
+        </div>
+        <div class="files">2 files &middot; 1 new util</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          Both files had a byte-identical ~30-line block: group courses by language, sort each
+          group by parsed competency level, tiebreak on most-recently-updated &mdash; gated behind
+          an identical <code>competencySearch.length &ge; 5</code>
+          check. Extracted to <code>competencyLevelSort.ts</code>.
+          The only real difference &mdash; which local variable gets sorted &mdash; needs no
+          parameterization, since each file passes its own variable in and reassigns from the return value.
+        </p>
+        <div class="filerow"><span class="path">src/publicApi_v8/publicSearch.ts</span><span class="delta"><span class="minus">&minus;30</span> <span class="plus">+7</span></span></div>
+        <div class="filerow"><span class="path">src/publicApi_v8/ratingsSearch.ts</span><span class="delta"><span class="minus">&minus;30</span> <span class="plus">+3</span></span></div>
+        <div class="filerow"><span class="path new">src/utils/competencyLevelSort.ts</span><span class="delta"><span class="plus">+61</span></span></div>
+        <div class="module-foot">
+          <span>27 existing tests with exact-order assertions, unchanged, all pass</span>
+          <span>1 flake in an untouched file, confirmed clean in isolation</span>
+          <span class="sonar">Sonar: &minus;24 dup lines &middot; density holds at 6.1% &middot; gate OK</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CHANGE 43 -->
+    <article class="module">
+      <div class="module-head">
+        <div class="idn">
+          <span class="num">CH 43</span>
+          <h3>closing a gap this session's own work opened</h3>
+        </div>
+        <div class="files">4 files &middot; 1 new util</div>
+      </div>
+      <div class="module-body">
+        <p class="why">
+          CHANGE 40 and 41 each added a file-local <code>requireOrgHeaders</code>
+          to recommendation.ts, user/content.ts, and user/follow.ts &mdash; deliberately kept local at
+          the time, matching an existing per-file-helper convention. A Sonar rescan flagged the 4 now-identical
+          copies as new duplication. Per this campaign's own rule (first applied at CH 34/37: share it
+          when the shape, including message text, is identical with zero exceptions), consolidated all
+          4 into one <code>src/utils/requireOrgHeaders.ts</code>.
+        </p>
+        <div class="filerow"><span class="path">src/protectedApi_v8/content.ts</span><span class="delta"><span class="minus">&minus;19</span> <span class="plus">+3</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/recommendation.ts</span><span class="delta"><span class="minus">&minus;17</span> <span class="plus">+3</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/user/content.ts</span><span class="delta"><span class="minus">&minus;19</span> <span class="plus">+3</span></span></div>
+        <div class="filerow"><span class="path">src/protectedApi_v8/user/follow.ts</span><span class="delta"><span class="minus">&minus;19</span> <span class="plus">+4</span></span></div>
+        <div class="filerow"><span class="path new">src/utils/requireOrgHeaders.ts</span><span class="delta"><span class="plus">+27</span></span></div>
+        <div class="preserved">
+          <b>confirmed identical before merging, not assumed</b>
+          All 4 copies read headers via <code>req.header(...)</code> (no raw property access), all 4
+          send the identical 400 body, all 4 return the same shape. The one typing difference
+          (<code>user/content.ts</code>'s copy took <code>IAuthorizedRequest</code>, which extends
+          Express's <code>Request</code>) resolves fine through normal structural typing &mdash;
+          confirmed by a clean <code>tsc</code> pass, not assumed.
+        </div>
+        <div class="module-foot">
+          <span>136 existing tests across all 4 files, zero new tests needed, all pass</span>
+          <span class="sonar">Sonar: density holds at 6.1% &middot; the new shared file itself: 0% duplication</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <div class="floor">
+    <h2>Why this stops at 6.1%, not 5%</h2>
+    <p>
+      A dedicated research pass checked every remaining flagged file. What's left splits into two
+      buckets, neither of them a safe dedup target under this campaign's own rule of zero real
+      behavioral risk:
+    </p>
+    <div class="floor-grid">
+      <div class="floor-card">
+        <div class="lines">1,151 <small>lines</small></div>
+        <div class="name">upsmfUser / mpNHMUser / bnrcUser</div>
+        <div class="reason">Genuinely different per-organization profile-field object literals. Same data shape, different values &mdash; not duplication.</div>
+      </div>
+      <div class="floor-card">
+        <div class="lines">137 <small>lines</small></div>
+        <div class="name">roleActivity.ts</div>
+        <div class="reason">Static seed data, not logic. There's nothing to parameterize.</div>
+      </div>
+      <div class="floor-card">
+        <div class="lines">~200 <small>lines</small></div>
+        <div class="name">SSO auth family + Keycloak exchange</div>
+        <div class="reason">Documented real client_id/secret/logging differences across 4&ndash;6 providers. Already checked and rejected for merge earlier in the campaign.</div>
+      </div>
+      <div class="floor-card">
+        <div class="lines">37 <small>lines</small></div>
+        <div class="name">publicCertifcateFlinkv2.ts</div>
+        <div class="reason">Not duplication &mdash; a real bug. Its 400 responses are missing <code>return</code>, so execution falls through. Needs a bug-fix decision, not a merge.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reverify">
+    <h2>Post-commit re-verification</h2>
+    <p class="sub">Run independently, in a fresh session, against commit <code>ddcc1b3</code> &mdash; not a re-assertion of the claims above.</p>
+    <ul>
+      <li><b>tsc &mdash;noEmit</b> on both <code>tsconfig.json</code> and <code>tsconfig.spec.json</code> &mdash; clean.</li>
+      <li><b>tslint</b>, full repo (not just touched files) &mdash; clean, zero findings.</li>
+      <li><b>Full Jest suite, 3 consecutive runs</b> &mdash; 223 suites / 3,664 tests passing every time, zero regressions, zero flakes this round.</li>
+      <li><b>Focused re-run</b> of every file touched across all 10 changes, isolated from the rest of the suite &mdash; 15 files, 548 tests, all green.</li>
+      <li><b>npm run build</b> &mdash; clean. <code>dist/</code> has 272 <code>.js</code> files, zero leaked <code>.test.js</code>.</li>
+      <li><b>Router-mount audit</b> &mdash; confirmed all 13 routers touched this session are still wired at their original path in <code>protectedApiV8.ts</code>, <code>publicApiV8.ts</code>, <code>admin/admin.ts</code>, and <code>user/user.ts</code>. This is the one failure mode none of the other checks catch: a router silently orphaned by an import/export edit, which would still compile, lint, and pass tests (route tests mount the router directly, bypassing the aggregator) while quietly 404ing in production.</li>
+    </ul>
+    <p class="caveat">
+      The Sonar dashboard itself could not be re-scanned in the follow-up session (local Sonar
+      server/Docker not running). The 6.1% figure and gate-OK status above are the last live scan,
+      taken immediately after CHANGE 43, before the commit &mdash; not re-confirmed in this pass,
+      only the code-level checks were.
+    </p>
+  </div>
+
+  <footer class="page">
+    Report reflects commit ddcc1b3 on feat-sonarqube-integration-v2. Sonar figures are from the live
+    rescan taken immediately after CHANGE 43, before commit. Full per-change evidence (test names,
+    diff excerpts, exact preserved-bug quotes) lives in docs/PROD-VERIFICATION.md.
+  </footer>
+
+</div>
+</body>
+</html>

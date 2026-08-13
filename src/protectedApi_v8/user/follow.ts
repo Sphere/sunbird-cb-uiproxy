@@ -2,8 +2,9 @@ import axios from 'axios'
 import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
-import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+// sonar-cleanup: file-local requireOrgHeaders replaced with the shared import (CHANGE 43)
+import { requireOrgHeaders } from '../../utils/requireOrgHeaders'
 
 const API_END_POINTS = {
   follow: `${CONSTANTS.NODE_API_BASE}/follow`,
@@ -37,12 +38,11 @@ function handleFollowError(res: Response, err: any) {
 followApi.post('/fetchAll', async (req, res) => {
   try {
     const userid = extractUserIdFromRequest(req)
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,
@@ -75,12 +75,11 @@ followApi.get('/following/:type', async (req, res) => {
     const type = req.params.type
     const userId = extractUserIdFromRequest(req)
 
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       org,
@@ -101,12 +100,11 @@ followApi.get('/getFollowing', async (req, res) => {
     const { type } = req.query
     const userId = req.query.wid || extractUserIdFromRequest(req)
 
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       org,
@@ -124,16 +122,14 @@ followApi.get('/getFollowing', async (req, res) => {
 
 followApi.post('/getFollowingv3', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
+      return
+    }
+    const { org, rootOrg } = orgHeaders
 
     const isIntranet = req.query.isIntranet
     const isStandAlone = req.query.isStandAlone
-
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
 
     const requestBody = {
       org,
@@ -154,12 +150,11 @@ followApi.post('/getFollowingv3', async (req, res) => {
 
 followApi.post('/getFollowersv3', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,
@@ -180,12 +175,11 @@ followApi.post('/getFollowersv3', async (req, res) => {
 
 followApi.post('/', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,
@@ -202,12 +196,11 @@ followApi.post('/', async (req, res) => {
 
 followApi.post('/unfollow', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const requestBody = {
       ...req.body,
       org,
@@ -223,12 +216,11 @@ followApi.post('/unfollow', async (req, res) => {
 
 followApi.post('/getFollowers', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,

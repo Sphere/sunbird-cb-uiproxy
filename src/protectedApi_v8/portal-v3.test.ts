@@ -14,7 +14,7 @@ jest.mock('../utils/logger', () => ({ logError: jest.fn(), logInfo: jest.fn() })
 jest.mock('../utils/env', () => ({ CONSTANTS: { SB_EXT_API_BASE_2: 'https://ext.test' } }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
 import {
   addUserRole,
@@ -390,5 +390,180 @@ describe('additional guarded-route branches', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/cbc/department/d1').set('wid', 'u1')
     expect(response.status).toBe(500)
+  })
+})
+
+/** Every handler's catch block branches on whether the rejection carries an
+ *  upstream `response` (forward its real status/body) or not (fall back to
+ *  500 + a generic error object). The suites above only exercise the
+ *  no-`response` fallback via networkError(); these assert the other side of
+ *  that `||` using upstreamError(), which the mockAxios helper module
+ *  provides specifically for this branch.
+ */
+describe('upstream-error-response forwarding branch', () => {
+  it('GET /listDeptNames forwards the upstream status and body verbatim', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+    const response = await agent().get('/listDeptNames')
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
+  })
+
+  it('GET /spv/department forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/spv/department').set('wid', 'u1')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
+
+  it('GET /spv/department/:deptId forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(403, { error: 'forbidden' }))
+    const response = await agent().get('/spv/department/d1').set('wid', 'u1')
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'forbidden' })
+  })
+
+  it('POST /spv/department forwards a non-500 upstream status', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(409, { error: 'conflict' }))
+    const response = await agent().post('/spv/department').set('wid', 'u1').send({})
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'conflict' })
+  })
+
+  it('DELETE /spv/deleteDepartment/:deptId forwards a non-500 upstream status', async () => {
+    mockAxios.delete.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().delete('/spv/deleteDepartment/d1').set('wid', 'u1')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
+
+  it('GET /cbc/department forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(401, { error: 'unauthorized' }))
+    const response = await agent().get('/cbc/department').set('wid', 'u1')
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'unauthorized' })
+  })
+
+  it('GET /cbc/department/:deptId forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(400, { error: 'bad request' }))
+    const response = await agent().get('/cbc/department/d1').set('wid', 'u1')
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'bad request' })
+  })
+
+  it('GET /deptRole/:deptTypeName forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/deptRole/committee')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
+
+  it('GET /departmentType/:deptType forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/departmentType/committee')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
+
+  it('GET /userrole/:userId forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/userrole/u1')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
+
+  it('shared helper getMyDepartment forwards a non-500 upstream status', async () => {
+    mockAxios.get.mockRejectedValue(upstreamError(503, { error: 'unavailable' }))
+    const res = mockRes()
+    await getMyDepartment('mdo', { headers: {}, originalUrl: '/x', query: {} }, res)
+    expect(res.statusCode).toBe(503)
+    expect(res.body).toEqual({ error: 'unavailable' })
+  })
+
+  it('shared helper updateDepartment forwards a non-500 upstream status', async () => {
+    mockAxios.patch.mockRejectedValue(upstreamError(409, { error: 'conflict' }))
+    const res = mockRes()
+    await updateDepartment('mdo', { body: {}, headers: { wid: 'u1' } }, res)
+    expect(res.statusCode).toBe(409)
+    expect(res.body).toEqual({ error: 'conflict' })
+  })
+
+  it('shared helper addUserRole forwards a non-500 upstream status', async () => {
+    mockAxios.post.mockRejectedValue(upstreamError(422, { error: 'invalid' }))
+    const res = mockRes()
+    await addUserRole('mdo', { body: {}, headers: {} }, res)
+    expect(res.statusCode).toBe(422)
+    expect(res.body).toEqual({ error: 'invalid' })
+  })
+
+  it('shared helper updateUserRole forwards a non-500 upstream status', async () => {
+    mockAxios.patch.mockRejectedValue(upstreamError(422, { error: 'invalid' }))
+    const res = mockRes()
+    await updateUserRole('mdo', { body: {}, headers: {} }, res)
+    expect(res.statusCode).toBe(422)
+    expect(res.body).toEqual({ error: 'invalid' })
+  })
+})
+
+/** The `isUserInfoRequired` local defaults to `false` only when the query
+ *  value is falsy; a truthy `allUsers` query string exercises the other side
+ *  of that `if (!isUserInfoRequired)` guard in each of the four routes/
+ *  helpers that read it.
+ */
+describe('allUsers query parameter (isUserInfoRequired) truthy branch', () => {
+  it('GET /spv/mydepartment passes allUsers=true straight through unmodified', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ id: 'dept-1' }))
+    const response = await agent().get('/spv/mydepartment?allUsers=true')
+    expect(response.status).toBe(200)
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining('allUsers=true'),
+      expect.anything()
+    )
+  })
+
+  it('GET /spv/department/:deptId passes allUsers=true straight through unmodified', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ id: 'd1' }))
+    const response = await agent()
+      .get('/spv/department/d1?allUsers=true')
+      .set('wid', 'u1')
+    expect(response.status).toBe(200)
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining('allUsers=true'),
+      expect.anything()
+    )
+  })
+
+  it('DELETE /spv/deleteDepartment/:deptId ignores a truthy allUsers query (deleteDepartmentApi takes no such param)', async () => {
+    mockAxios.delete.mockResolvedValue(upstreamOk({ deleted: true }))
+    const response = await agent()
+      .delete('/spv/deleteDepartment/d1?allUsers=true')
+      .set('wid', 'u1')
+    expect(response.status).toBe(200)
+  })
+
+  it('GET /cbc/department/:deptId passes allUsers=true straight through unmodified', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ id: 'd1' }))
+    const response = await agent()
+      .get('/cbc/department/d1?allUsers=true')
+      .set('wid', 'u1')
+    expect(response.status).toBe(200)
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining('allUsers=true'),
+      expect.anything()
+    )
+  })
+
+  it('shared helper getMyDepartment passes a truthy allUsers query through unmodified', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ id: 'dept-1' }))
+    const res = mockRes()
+    await getMyDepartment(
+      'mdo',
+      { headers: {}, originalUrl: '/x', query: { allUsers: 'true' } },
+      res
+    )
+    expect(res.statusCode).toBe(200)
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining('allUsers=true'),
+      expect.anything()
+    )
   })
 })

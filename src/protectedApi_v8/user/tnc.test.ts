@@ -34,7 +34,7 @@ jest.mock('../../utils/env', () => ({
 }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
 import { protectedTnc } from './tnc'
@@ -90,6 +90,24 @@ describe('GET /status', () => {
     const response = await withOrg(agent().get('/status'))
     expect(response.status).toBe(500)
   })
+
+  it('returns false without erroring when the upstream responds with an HTTP error', async () => {
+    // getTncStatus swallows all errors from getTnc -- including an upstream HTTP
+    // error response, not just a network failure -- and resolves to false. See
+    // the PHASE 1 note atop this file / docs/PROD-VERIFICATION.md.
+    mockAxiosGet.mockRejectedValue(upstreamError(502))
+    mockAxios.mockRejectedValue(upstreamError(502))
+    const response = await withOrg(agent().get('/status'))
+    expect(response.status).toBe(200)
+    expect(response.body).toBe(false)
+  })
+
+  it('returns false when the upstream reports no acceptance and no terms', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk({ isAccepted: false, termsAndConditions: [] }))
+    const response = await withOrg(agent().get('/status'))
+    expect(response.status).toBe(200)
+    expect(response.body).toBe(false)
+  })
 })
 
 describe('GET /', () => {
@@ -135,6 +153,42 @@ describe('GET /', () => {
       expect.objectContaining({ headers: expect.objectContaining({ langCode: 'fr' }) })
     )
   })
+
+  it('computes isNewUser false when the upstream reports acceptance', async () => {
+    mockAxiosGet.mockResolvedValue(
+      upstreamOk({ isAccepted: true, termsAndConditions: [{ acceptedVersion: 'v1' }] })
+    )
+    const response = await withOrg(agent().get('/'))
+    expect(response.status).toBe(200)
+    expect(response.body.isNewUser).toBe(false)
+  })
+
+  it('computes isNewUser false when there are no terms and conditions at all', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk({ isAccepted: false, termsAndConditions: [] }))
+    const response = await withOrg(agent().get('/'))
+    expect(response.status).toBe(200)
+    expect(response.body.isNewUser).toBe(false)
+  })
+
+  it('falls back to a generic 500 when both calls fail, even with an upstream HTTP error', async () => {
+    // getCommonTnc's catch re-wraps whatever it receives as `new Error(e)`, which
+    // drops the original `.response` (status/data). So the route handler's own
+    // catch never sees a `.response` here and always takes the 500/generic-body
+    // fallback, regardless of the upstream's actual status code.
+    mockAxiosGet.mockRejectedValue(upstreamError(502, { error: 'terms service down' }))
+    mockAxios.mockRejectedValue(upstreamError(502, { error: 'terms service down' }))
+    const response = await withOrg(agent().get('/'))
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Failed due to unknown reason' })
+  })
+
+  it('returns 500 when extracting the user id throws', async () => {
+    mockExtractUserId.mockImplementationOnce(() => {
+      throw new Error('no session')
+    })
+    const response = await withOrg(agent().get('/'))
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('POST /accept', () => {
@@ -158,6 +212,28 @@ describe('POST /accept', () => {
 
   it('returns 500 on an upstream failure', async () => {
     mockAxios.mockRejectedValue(networkError())
+    const response = await withOrg(agent().post('/accept')).send({ termsAccepted: 'v1' })
+    expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.mockRejectedValue(upstreamError(409, { error: 'conflict' }))
+    const response = await withOrg(agent().post('/accept')).send({ termsAccepted: 'v1' })
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'conflict' })
+  })
+
+  it('returns 500 when the upstream result is missing entirely', async () => {
+    mockAxios.mockResolvedValue(upstreamOk({}))
+    const response = await withOrg(agent().post('/accept')).send({ termsAccepted: 'v1' })
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({})
+  })
+
+  it('returns 500 when extracting the user id throws', async () => {
+    mockExtractUserId.mockImplementationOnce(() => {
+      throw new Error('no session')
+    })
     const response = await withOrg(agent().post('/accept')).send({ termsAccepted: 'v1' })
     expect(response.status).toBe(500)
   })
@@ -187,6 +263,21 @@ describe('PATCH /postprocessing', () => {
     const response = await withOrg(agent().patch('/postprocessing'))
     expect(response.status).toBe(500)
   })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxios.mockRejectedValue(upstreamError(403, { error: 'forbidden' }))
+    const response = await withOrg(agent().patch('/postprocessing'))
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'forbidden' })
+  })
+
+  it('returns 500 when extracting the user id throws', async () => {
+    mockExtractUserId.mockImplementationOnce(() => {
+      throw new Error('no session')
+    })
+    const response = await withOrg(agent().patch('/postprocessing'))
+    expect(response.status).toBe(500)
+  })
 })
 
 describe('GET /system/settings/:configName', () => {
@@ -201,6 +292,20 @@ describe('GET /system/settings/:configName', () => {
     mockAxiosGet.mockRejectedValue(networkError())
     const response = await agent().get('/system/settings/someConfig')
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxiosGet.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await agent().get('/system/settings/someConfig')
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
+
+  it('forwards a non-200 upstream success status verbatim', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk({ value: 'partial' }, 206))
+    const response = await agent().get('/system/settings/someConfig')
+    expect(response.status).toBe(206)
+    expect(response.body).toEqual({ value: 'partial' })
   })
 })
 
@@ -222,5 +327,30 @@ describe('POST /sbacceptTnc', () => {
       .set('Authorization', 'bearer tok-1')
       .send({})
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream status and body on an upstream HTTP error', async () => {
+    mockAxiosPost.mockRejectedValue(upstreamError(401, { error: 'unauthorized' }))
+    const response = await agent()
+      .post('/sbacceptTnc')
+      .set('Authorization', 'bearer tok-1')
+      .send({})
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'unauthorized' })
+  })
+
+  it('still forwards the request when the Authorization header is absent', async () => {
+    // No `!token` guard exists for this route -- String(undefined) becomes the
+    // literal string 'undefined' and is sent upstream as-is.
+    mockAxiosPost.mockResolvedValue(upstreamOk({ accepted: true }))
+    const response = await agent().post('/sbacceptTnc').send({ termsAccepted: 'v1' })
+    expect(response.status).toBe(200)
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Authenticated-User-Token': 'undefined' }),
+      })
+    )
   })
 })

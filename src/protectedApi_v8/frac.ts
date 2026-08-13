@@ -1,6 +1,6 @@
 /* eslint-disable */
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
@@ -21,6 +21,24 @@ const API_END_POINTS = {
 
 export const fracApi = Router()
 const unknownError = 'Failed due to unknown reason'
+
+// sonar-cleanup: extracted from frac.ts's repeated per-route catch blocks — same status/body shape (Sonar duplication follow-up)
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a fallback error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param message - the fallback error message; defaults to the generic unknown-reason string
+ */
+// tslint:disable-next-line: no-any
+function handleFracError(res: Response, err: any, message: string = unknownError) {
+  res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: message,
+    }
+  )
+}
 
 fracApi.get('/getAllNodes/:type', async (req, res) => {
   try {
@@ -51,11 +69,7 @@ fracApi.get('/getAllNodes/:type', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleFracError(res, err)
   }
 })
 
@@ -69,11 +83,7 @@ fracApi.post('/addDataNode', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleFracError(res, err)
   }
 })
 
@@ -91,11 +101,7 @@ fracApi.post('/addDataNodeBulk', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleFracError(res, err)
   }
 })
 
@@ -109,11 +115,7 @@ fracApi.post('/searchNodes', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleFracError(res, err)
   }
 })
 
@@ -129,11 +131,7 @@ fracApi.get('/getNodeById/:id/:type', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleFracError(res, err)
   }
 })
 /* eslint-disable no-use-before-define */
@@ -173,10 +171,6 @@ fracApi.get('/:type/:key', async (req, res) => {
     res.status(200).send(response.data)
   } catch (err) {
     logError('ERROR --> ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      }
-    )
+    handleFracError(res, err, ERROR.GENERAL_ERR_MSG)
   }
 })

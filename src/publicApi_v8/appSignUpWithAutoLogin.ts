@@ -1,10 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
 import qs from 'querystring'
-import {
-  axiosRequestConfig,
-  axiosRequestConfigLong,
-} from '../configs/request.config'
+import { axiosRequestConfig } from '../configs/request.config'
 import {
   API_END_POINTS,
   INDIAN_COUNTRY_CODE as indianCountryCode,
@@ -13,33 +10,15 @@ import {
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
-import { logError, logInfo } from '../utils/logger'
-import { createAccount, profileUpdate } from '../utils/signupAccountHelpers'
-import { getOTP, validateOTP } from './otp'
+import { logInfo } from '../utils/logger'
+import { createAccount, profileUpdate, updateRoles } from '../utils/signupAccountHelpers'
+import { validateOTP } from './otp'
+// sonar-cleanup: OTP-dispatch tail replaced with the shared import (CHANGE 33)
+import { sendRegistrationOtp } from './signupOtpDispatch'
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
 
-const updateRoles = async (userUUId: string) => {
-  try {
-    return await axios({
-      ...axiosRequestConfigLong,
-      data: {
-        request: {
-          organisationId: '0132317968766894088',
-          roles: ['PUBLIC'],
-          userId: userUUId,
-        },
-      },
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
-      method: 'POST',
-      url: API_END_POINTS.userRoles,
-    })
-  } catch (err) {
-    logError('update roles failed ' + err)
-    return 'false'
-  }
-}
 export const appSignUpWithAutoLogin = Router()
 appSignUpWithAutoLogin.post('/register', async (req, res) => {
   try {
@@ -80,59 +59,7 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
     await updateRoles(userId)
 
     await profileUpdate(profileData, userId)
-    if (userPhone) {
-      try {
-        logInfo('Autologin send otp through phone', userPhone)
-        await axios({
-          headers: msg91Headers,
-          params: {
-            mobile: `${indianCountryCode}${userPhone}`,
-            template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
-          },
-
-          method: 'POST',
-          url: API_END_POINTS.msg91SendOtp,
-        })
-        return res.status(200).json({
-          data: `OTP successfully sent on email ${userPhone}`,
-          message: 'User successfully created',
-          status: 200,
-          userId,
-          userUUId: userId,
-
-        })
-      } catch (error) {
-        logError('Error while sending mobile OTP', JSON.stringify(error))
-        return res.status(500).send({
-          message: `OTP generation fail for phone ${userPhone}`,
-          status: 'failed',
-        })
-      }
-
-    }
-    if (userEmail) {
-      try {
-        logInfo('Autologin send otp through email', userEmail)
-        await getOTP(
-          userId,
-          userEmail,
-          'email'
-        )
-        res.status(200).json({
-          data: `OTP successfully sent on email ${userEmail}`,
-          message: 'User successfully created',
-          status: 200,
-          userId,
-          userUUId: userId,
-        })
-      } catch (error) {
-        logError('Error while sending email OTP', JSON.stringify(error))
-        res.status(500).send({
-          message: `OTP generation fail for email ${userEmail}`,
-          status: 'failed',
-        })
-      }
-    }
+    await sendRegistrationOtp(res, userPhone, userEmail, userId, { userUUId: userId })
   } catch (error) {
     logInfo('Error in user creation >>>>>>' + error)
     res.status(500).send({

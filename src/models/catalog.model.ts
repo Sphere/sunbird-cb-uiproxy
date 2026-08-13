@@ -1,10 +1,3 @@
-export interface ICatalogItem {
-    identifier: string,
-    value: string,
-    children: string[],
-    parent: string[]
-}
-
 export interface ICatalogTreeNode {
     identifier: string,
     value: string,

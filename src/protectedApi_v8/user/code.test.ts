@@ -108,6 +108,10 @@ describe('viewLastSubmission (exported helper)', () => {
 })
 
 describe('checkForBlockedStatement', () => {
+  it('returns null when req.body is absent', () => {
+    expect(checkForBlockedStatement({})).toBeNull()
+  })
+
   it('returns null when the language is not the restricted one (16)', () => {
     expect(checkForBlockedStatement({ body: { code: 'os.system("ls")', language: 1 } })).toBeNull()
   })
@@ -157,6 +161,16 @@ describe('GET /viewLastSubmission/:contentId', () => {
     expect(response.status).toBe(400)
   })
 
+  it('rejects a request with org but no rootOrg header', async () => {
+    const response = await agent().get('/viewLastSubmission/c1').set('org', 'o1')
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects a request with rootOrg but no org header', async () => {
+    const response = await agent().get('/viewLastSubmission/c1').set('rootOrg', 'r1')
+    expect(response.status).toBe(400)
+  })
+
   it('returns the last submission with rewritten submission urls', async () => {
     mockAxiosCallable.mockResolvedValue(
       upstreamOk({ response: [{ submission_url: 'http://private-abc/f.zip' }] })
@@ -188,6 +202,22 @@ describe('POST /:group/:action/:contentId', () => {
     expect(response.status).toBe(400)
   })
 
+  it('rejects a request with org but no rootOrg header', async () => {
+    const response = await agent()
+      .post('/fp/verify/c1')
+      .set('org', 'o1')
+      .send({ code: 'print(1)', language: 1 })
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects a request with rootOrg but no org header', async () => {
+    const response = await agent()
+      .post('/fp/verify/c1')
+      .set('rootOrg', 'r1')
+      .send({ code: 'print(1)', language: 1 })
+    expect(response.status).toBe(400)
+  })
+
   it('verifies fp code and returns the upstream result', async () => {
     mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'pass' }))
     const response = await withOrgHeaders(agent().post('/fp/verify/c1')).send({
@@ -203,6 +233,65 @@ describe('POST /:group/:action/:contentId', () => {
     const response = await withOrgHeaders(agent().post('/ce/submit/c1')).send({})
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ result: 'submitted' })
+  })
+
+  it('verifies ce code and returns the upstream result', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'ce-verified' }))
+    const response = await withOrgHeaders(agent().post('/ce/verify/c1')).send({})
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ result: 'ce-verified' })
+    expect(mockAxiosCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('multilanguage-submission?type=verify'),
+      })
+    )
+  })
+
+  it('verifies fpJava code and returns the upstream result', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'java-verified' }))
+    const response = await withOrgHeaders(agent().post('/fpJava/verify/c1')).send({
+      code: 'class A {}',
+    })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ result: 'java-verified' })
+    expect(mockAxiosCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('java-submission?type=verify'),
+      })
+    )
+  })
+
+  it('submits pf code (a group/action with no verify variant) and returns the upstream result', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'pf-submitted' }))
+    const response = await withOrgHeaders(agent().post('/pf/submit/c1')).send({})
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ result: 'pf-submitted' })
+  })
+
+  it('submits fpJava code and returns the upstream result', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'java-submitted' }))
+    const response = await withOrgHeaders(agent().post('/fpJava/submit/c1')).send({
+      code: 'class A {}',
+    })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ result: 'java-submitted' })
+  })
+
+  // group+action is asserted to verifySubmitType but is really built from two
+  // route params at runtime with no whitelist check, so an unrecognised
+  // combination looks up API_ENDPOINT_TAILS[type] as undefined and the
+  // request still goes out (with "undefined" in the URL) rather than being
+  // rejected. Current behavior, not a bug fix target here.
+  it('still calls upstream with an unrecognised group/action combination', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: 'ok' }))
+    const response = await withOrgHeaders(agent().post('/bogus/thing/c1')).send({})
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ result: 'ok' })
+    expect(mockAxiosCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('undefined'),
+      })
+    )
   })
 
   // verifySubmit() swallows axios errors internally and resolves to {} —

@@ -7,10 +7,11 @@
  * (status codes, header guards, request forwarding), not about verifying the
  * exact shape those transforms produce.
  *
- * Scope: covers the endpoints read during this pass (sync, recent, accept,
- * reject, share, get-by-id, delete, list, patch). POST /create,
- * POST /:playlistId/:type and the trailing GET /:type were not reached in this
- * pass and remain uncovered.
+ * Scope: covers every route (sync, recent, accept, reject, share, get-by-id,
+ * delete, list, patch, create, add/delete content, trailing get-by-type),
+ * including the upstream-HTTP-error branch (err.response present, status/body
+ * forwarded) alongside the network-error fallback, and structural edge cases
+ * (?wid override, empty pending list, unrecognized :type on the upsert route).
  */
 
 jest.mock('axios')
@@ -33,18 +34,21 @@ jest.mock('../../utils/env', () => ({
 }))
 
 import axios from 'axios'
-import { networkError, upstreamOk } from '../../test-support/mockAxios'
+import { networkError, upstreamError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
+import { logError } from '../../utils/logger'
 import { getPlaylist, playlistApi } from './playlist'
 
 const mockAxios = axios as unknown as jest.Mock
 const mockAxiosGet = (axios as jest.Mocked<typeof axios>).get
+const mockLogError = logError as jest.MockedFunction<typeof logError>
 const agent = () => mountRouter(playlistApi)
 const withRootOrg = (req: ReturnType<typeof agent>) => req.set('rootOrg', 'r1')
 
 beforeEach(() => {
   mockAxios.mockReset()
   mockAxiosGet.mockReset()
+  mockLogError.mockReset()
 })
 
 describe('getPlaylist (exported helper)', () => {
@@ -76,6 +80,19 @@ describe('GET /sync/:playlistId', () => {
     const response = await withRootOrg(agent().get('/sync/pl-1'))
     expect(response.status).toBe(500)
   })
+
+  it('forwards the upstream error status and body when the upstream call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(502, { error: 'sync failed upstream' }))
+    const response = await withRootOrg(agent().get('/sync/pl-1'))
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'sync failed upstream' })
+  })
+
+  it('logs under the SYNC PLAYLIST label on failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    await withRootOrg(agent().get('/sync/pl-1'))
+    expect(mockLogError).toHaveBeenCalledWith('SYNC PLAYLIST ERROR >', expect.anything())
+  })
 })
 
 describe('GET /recent', () => {
@@ -95,6 +112,19 @@ describe('GET /recent', () => {
     mockAxios.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().get('/recent')).set('org', 'o1')
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream error status and body when the upstream call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(503, { error: 'recent contents unavailable' }))
+    const response = await withRootOrg(agent().get('/recent')).set('org', 'o1')
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'recent contents unavailable' })
+  })
+
+  it('logs under the RECENT PLAYLIST CONTENTS FETCH label on failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    await withRootOrg(agent().get('/recent')).set('org', 'o1')
+    expect(mockLogError).toHaveBeenCalledWith('RECENT PLAYLIST CONTENTS FETCH ERROR >', expect.anything())
   })
 })
 
@@ -125,6 +155,21 @@ describe('POST /accept/:playlistId', () => {
     const response = await withRootOrg(agent().post('/accept/pl-1')).send({})
     expect(response.status).toBe(500)
   })
+
+  it('does not log on failure, unlike /sync and /recent', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk([{ id: 'pl-1', name: 'x' }]))
+    mockAxios.mockRejectedValue(networkError())
+    await withRootOrg(agent().post('/accept/pl-1')).send({})
+    expect(mockLogError).not.toHaveBeenCalled()
+  })
+
+  it('forwards the upstream error status and body when the accept call fails with a response', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk([{ id: 'pl-1', name: 'x' }]))
+    mockAxios.mockRejectedValue(upstreamError(409, { error: 'already accepted' }))
+    const response = await withRootOrg(agent().post('/accept/pl-1')).send({})
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'already accepted' })
+  })
 })
 
 describe('POST /reject/:playlistId', () => {
@@ -138,6 +183,13 @@ describe('POST /reject/:playlistId', () => {
     mockAxios.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().post('/reject/pl-1')).send({})
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream error status and body when the reject call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(404, { error: 'playlist not found' }))
+    const response = await withRootOrg(agent().post('/reject/pl-1')).send({})
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'playlist not found' })
   })
 
   it('rejects a request missing rootOrg', async () => {
@@ -167,6 +219,15 @@ describe('POST /share/:playlistId', () => {
       .send({ users: ['u2'] })
     expect(response.status).toBe(500)
   })
+
+  it('forwards the upstream error status and body when the share call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(403, { error: 'not permitted to share' }))
+    const response = await withRootOrg(agent().post('/share/pl-1'))
+      .set('Authorization', 'Bearer tok')
+      .send({ users: ['u2'] })
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'not permitted to share' })
+  })
 })
 
 describe('GET /:type/:playlistId', () => {
@@ -187,6 +248,13 @@ describe('GET /:type/:playlistId', () => {
     const response = await withRootOrg(agent().get('/goal/pl-1'))
     expect(response.status).toBe(500)
   })
+
+  it('forwards the upstream error status and body when the fetch-by-id call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(404, { error: 'not found' }))
+    const response = await withRootOrg(agent().get('/goal/pl-1'))
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not found' })
+  })
 })
 
 describe('DELETE /:playlistId', () => {
@@ -206,6 +274,13 @@ describe('DELETE /:playlistId', () => {
     mockAxios.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().delete('/pl-1'))
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream error status and body when the delete call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(409, { error: 'cannot delete: in use' }))
+    const response = await withRootOrg(agent().delete('/pl-1'))
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'cannot delete: in use' })
   })
 })
 
@@ -238,6 +313,20 @@ describe('GET /', () => {
     const response = await withRootOrg(agent().get('/'))
     expect(response.status).toBe(500)
   })
+
+  it('forwards the upstream error status and body when the playlists fetch fails with a response', async () => {
+    mockAxiosGet.mockRejectedValue(upstreamError(502, { error: 'playlists service down' }))
+    const response = await withRootOrg(agent().get('/'))
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'playlists service down' })
+  })
+
+  it('uses the wid query param as the userId when present, overriding the token user', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk([]))
+    const response = await withRootOrg(agent().get('/').query({ wid: 'other-user' }))
+    expect(response.status).toBe(200)
+    expect(mockAxiosGet.mock.calls[0][0]).toContain('/users/other-user/')
+  })
 })
 
 describe('PATCH /:playlistId', () => {
@@ -258,6 +347,13 @@ describe('PATCH /:playlistId', () => {
     mockAxios.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().patch('/pl-1')).send({})
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream error status and body when the patch call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(400, { error: 'invalid patch' }))
+    const response = await withRootOrg(agent().patch('/pl-1')).send({})
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'invalid patch' })
   })
 })
 
@@ -282,6 +378,25 @@ describe('POST /create', () => {
 
   it('returns 500 when the create upstream call fails', async () => {
     mockAxios.mockRejectedValue(networkError())
+    const response = await withRootOrg(agent().post('/create'))
+      .set('Authorization', 'Bearer tok')
+      .send({ playlist_title: 'New Playlist' })
+    expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream error status and body when the create call fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(422, { error: 'invalid content' }))
+    const response = await withRootOrg(agent().post('/create'))
+      .set('Authorization', 'Bearer tok')
+      .send({ playlist_title: 'New Playlist' })
+    expect(response.status).toBe(422)
+    expect(response.body).toEqual({ error: 'invalid content' })
+  })
+
+  it('returns 500 when the second call (hierarchy patch) fails after content create succeeds', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ node_id: 'new-content-1' })) // create succeeds
+      .mockRejectedValueOnce(networkError()) // hierarchy patch fails
     const response = await withRootOrg(agent().post('/create'))
       .set('Authorization', 'Bearer tok')
       .send({ playlist_title: 'New Playlist' })
@@ -321,6 +436,20 @@ describe('POST /:playlistId/:type', () => {
     expect(response.status).toBe(200)
   })
 
+  it('leaves the hierarchy children unchanged for a :type that is neither add nor delete', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { content: { childNodes: ['existing-1'] } } }))
+      .mockResolvedValueOnce(upstreamOk({ updated: true }))
+    const response = await withRootOrg(agent().post('/pl-1/unknown-type'))
+      .set('Authorization', 'Bearer tok')
+      .send({ contentIds: ['c1'] })
+    expect(response.status).toBe(200)
+    // Neither the add nor delete branch runs, so the second axios call's body
+    // should carry the childNodes array untouched (still just 'existing-1').
+    const hierarchyPatchCall = mockAxios.mock.calls[1][0]
+    expect(hierarchyPatchCall.data.request.data.hierarchy['pl-1'].children).toEqual(['existing-1'])
+  })
+
   it('rejects a request missing rootOrg', async () => {
     const response = await agent().post('/pl-1/add').send({ contentIds: ['c1'] })
     expect(response.status).toBe(400)
@@ -333,6 +462,26 @@ describe('POST /:playlistId/:type', () => {
       .send({ contentIds: ['c1'] })
     expect(response.status).toBe(500)
   })
+
+  it('forwards the upstream error status and body when the hierarchy fetch fails with a response', async () => {
+    mockAxios.mockRejectedValue(upstreamError(404, { error: 'playlist hierarchy not found' }))
+    const response = await withRootOrg(agent().post('/pl-1/add'))
+      .set('Authorization', 'Bearer tok')
+      .send({ contentIds: ['c1'] })
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'playlist hierarchy not found' })
+  })
+
+  it('forwards the upstream error status and body when the hierarchy update patch fails with a response', async () => {
+    mockAxios
+      .mockResolvedValueOnce(upstreamOk({ result: { content: { childNodes: ['existing-1'] } } }))
+      .mockRejectedValueOnce(upstreamError(409, { error: 'version conflict' }))
+    const response = await withRootOrg(agent().post('/pl-1/add'))
+      .set('Authorization', 'Bearer tok')
+      .send({ contentIds: ['c1'] })
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'version conflict' })
+  })
 })
 
 describe('GET /:type', () => {
@@ -341,6 +490,13 @@ describe('GET /:type', () => {
     const response = await withRootOrg(agent().get('/pending'))
     expect(response.status).toBe(200)
     expect(response.body).toEqual([{ id: 'pl-1' }])
+  })
+
+  it('returns an empty array when there are no pending playlists', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk([]))
+    const response = await withRootOrg(agent().get('/pending'))
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
   })
 
   it('rejects a request missing rootOrg', async () => {
@@ -352,5 +508,12 @@ describe('GET /:type', () => {
     mockAxiosGet.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().get('/pending'))
     expect(response.status).toBe(500)
+  })
+
+  it('forwards the upstream error status and body when the pending-playlists fetch fails with a response', async () => {
+    mockAxiosGet.mockRejectedValue(upstreamError(502, { error: 'pending fetch failed' }))
+    const response = await withRootOrg(agent().get('/pending'))
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'pending fetch failed' })
   })
 })

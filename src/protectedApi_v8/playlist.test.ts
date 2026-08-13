@@ -35,11 +35,17 @@ jest.mock('../utils/env', () => ({
 
 import axios from 'axios'
 import { playlistApi } from './playlist'
+import { logError } from '../utils/logger'
 import { networkError, upstreamError, upstreamOk } from '../test-support/mockAxios'
 import { mountRouter } from '../test-support/mountRouter'
 
 const mockAxios = axios as jest.Mocked<typeof axios>
+const mockLogError = logError as jest.Mock
 const agent = () => mountRouter(playlistApi)
+
+beforeEach(() => {
+  mockLogError.mockClear()
+})
 
 describe('POST /search', () => {
   const validBody = {
@@ -89,7 +95,7 @@ describe('POST /search', () => {
     expect(response.body).toEqual({ error: 'not found' })
   })
 
-  it('falls back to 500 on a transport failure', async () => {
+  it('falls back to 500 on a transport failure, without an "unexpected error" log line', async () => {
     mockAxios.post.mockRejectedValue(networkError())
 
     const response = await agent().post('/search').send(validBody)
@@ -99,6 +105,10 @@ describe('POST /search', () => {
       message: 'Internal server error',
       status: 'error',
     })
+    // /search's original catch block never logged the transport-failure case
+    // (unlike /create and /update below) — preserved via handlePlaylistError's
+    // logUnexpected=false argument for this route specifically.
+    expect(mockLogError).not.toHaveBeenCalled()
   })
 })
 
@@ -163,7 +173,7 @@ describe('POST /create', () => {
     expect(response.body).toEqual({ error: 'conflict' })
   })
 
-  it('falls back to 500 on a transport failure', async () => {
+  it('falls back to 500 on a transport failure, logging an "unexpected error" line', async () => {
     mockAxios.post.mockRejectedValue(networkError())
 
     const response = await agent().post('/create').send(validBody)
@@ -173,6 +183,7 @@ describe('POST /create', () => {
       message: 'Internal server error',
       status: 'error',
     })
+    expect(mockLogError).toHaveBeenCalledWith(expect.stringContaining('unexpected error'))
   })
 })
 
@@ -250,7 +261,7 @@ describe('PUT /update', () => {
     expect(response.body).toEqual({ error: 'invalid' })
   })
 
-  it('falls back to 500 on a transport failure', async () => {
+  it('falls back to 500 on a transport failure, logging an "unexpected error" line', async () => {
     mockAxios.put.mockRejectedValue(networkError())
 
     const response = await agent().put('/update').send(validBody)
@@ -260,5 +271,6 @@ describe('PUT /update', () => {
       message: 'Internal server error',
       status: 'error',
     })
+    expect(mockLogError).toHaveBeenCalledWith(expect.stringContaining('unexpected error'))
   })
 })

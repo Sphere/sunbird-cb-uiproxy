@@ -3,18 +3,15 @@ import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
 import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
-import {
-  API_END_POINTS,
-  INDIAN_COUNTRY_CODE as indianCountryCode,
-  MSG91_HEADERS as msg91Headers,
-} from '../utils/autoLoginSignupConstants'
+import { API_END_POINTS } from '../utils/autoLoginSignupConstants'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
 import { createAccount, profileUpdate } from '../utils/signupAccountHelpers'
-import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
+// sonar-cleanup: OTP-dispatch/verify tails replaced with the shared import (CHANGE 33)
+import { sendRegistrationOtp, verifyRegistrationOtp } from './signupOtpDispatch'
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
@@ -81,56 +78,7 @@ signupWithAutoLogin.post('/register', async (req, res) => {
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail.data.result.userId
     await profileUpdate(profileData, userId)
-    if (userPhone) {
-      try {
-        logInfo('Autologin send otp through phone', userPhone)
-        await axios({
-          headers: msg91Headers,
-          params: {
-            mobile: `${indianCountryCode}${userPhone}`,
-            template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
-          },
-
-          method: 'POST',
-          url: API_END_POINTS.msg91SendOtp,
-        })
-        return res.status(200).json({
-          data: `OTP successfully sent on email ${userPhone}`,
-          message: 'User successfully created',
-          status: 200,
-          userId,
-        })
-      } catch (error) {
-        logError('Error while sending mobile OTP', JSON.stringify(error))
-        return res.status(500).send({
-          message: `OTP generation fail for phone ${userPhone}`,
-          status: 'failed',
-        })
-      }
-
-    }
-    if (userEmail) {
-      try {
-        logInfo('Autologin send otp through email', userEmail)
-        await getOTP(
-          userId,
-          userEmail,
-          'email'
-        )
-        res.status(200).json({
-          data: `OTP successfully sent on email ${userEmail}`,
-          message: 'User successfully created',
-          status: 200,
-          userId,
-        })
-      } catch (error) {
-        logError('Error while sending email OTP', JSON.stringify(error))
-        res.status(500).send({
-          message: `OTP generation fail for email ${userEmail}`,
-          status: 'failed',
-        })
-      }
-    }
+    await sendRegistrationOtp(res, userPhone, userEmail, userId)
   } catch (error) {
     logInfo('Error in user creation >>>>>>' + error)
     res.status(500).send({
@@ -161,42 +109,8 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         res.status(400).send({ message: OTP_MISSING, status: 'error' })
         return
       }
-      let userOtpVerified = false
-      if (mobileNumber) {
-        logInfo('VALIDATE_OTP: for phone', mobileNumber, validOtp)
-        const verifyOtpResponse = await axios({
-          headers: msg91Headers,
-          method: 'GET',
-          params: {
-            mobile: `${indianCountryCode}${mobileNumber}`,
-            otp: validOtp,
-          },
-          url: API_END_POINTS.msg91VerifyOtp,
-        })
-        logInfo('VALIDATE_OTP: response phone', JSON.stringify(verifyOtpResponse.data))
-        if (verifyOtpResponse.data.type !== 'success') {
-          return res.status(400).json({
-            message: 'Phone OTP validation failed try again',
-          })
-        }
-        userOtpVerified = true
-      }
-      if (email) {
-        logInfo('VALIDATE_OTP: for email')
-        const verifyOtpResponse = await validateOTP(
-          userUUId,
-          email,
-          'email',
-          validOtp
-        )
-        logInfo('VALIDATE_OTP: response email', JSON.stringify(verifyOtpResponse.data))
-        if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
-          return res.status(400).json({
-            message: 'Email OTP validation failed try again',
-          })
-        }
-        userOtpVerified = true
-      }
+      const userOtpVerified = await verifyRegistrationOtp(res, mobileNumber, email, userUUId, validOtp)
+      if (userOtpVerified === undefined) return
       if (userOtpVerified) {
         logInfo('VALIDATE_OTP: Otp is verified. Now autologin started.')
         await updateRoles(userUUId)

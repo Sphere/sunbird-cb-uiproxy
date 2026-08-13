@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
+// sonar-cleanup: 5 GET-route bodies replaced with the shared helper (CHANGE 33)
+import { fetchConnectionsList } from '../utils/connectionsListFetch'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
@@ -46,29 +48,7 @@ export const connectionsV2Api = Router()
 
 connectionsV2Api.get('/v2/connections/requested', async (req, res) => {
   try {
-    const rootOrg = req.headers.rootorg
-    const userId = extractUserIdFromRequest(req)
-
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    if (!userId) {
-      res.status(400).send(ERROR.GENERAL_ERR_MSG)
-      return
-    }
-    const response = await axios.get(apiEndpoints.getConnectionRequestsData, {
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        rootOrg,
-        userId,
-         // tslint:disable-next-line: all
-         'x-authenticated-user-token': extractUserToken(req),
-      },
-    })
-    res.send((response.data))
-
+    await fetchConnectionsList(req, res, apiEndpoints.getConnectionRequestsData, extractUserIdFromRequest(req))
   } catch (err) {
     handleConnectionsError(res, err, 'CONNECTIONS REQUESTS ERROR> ')
   }
@@ -76,29 +56,12 @@ connectionsV2Api.get('/v2/connections/requested', async (req, res) => {
 
 connectionsV2Api.get('/v2/connections/requests/received', async (req, res) => {
   try {
-    const rootOrg = req.headers.rootorg
-    const userId = extractUserIdFromRequest(req)
-
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    if (!userId) {
-      res.status(400).send(ERROR.GENERAL_ERR_MSG)
-      return
-    }
-    const response = await axios.get(apiEndpoints.getConnectionRequestsReceivedData, {
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        rootOrg,
-        userId,
-         // tslint:disable-next-line: all
-         'x-authenticated-user-token': extractUserToken(req),
-      },
-    })
-    res.send((response.data))
-
+    await fetchConnectionsList(
+      req,
+      res,
+      apiEndpoints.getConnectionRequestsReceivedData,
+      extractUserIdFromRequest(req)
+    )
   } catch (err) {
     handleConnectionsError(res, err, 'CONNECTIONS REQUESTS ERROR> ')
   }
@@ -106,29 +69,7 @@ connectionsV2Api.get('/v2/connections/requests/received', async (req, res) => {
 
 connectionsV2Api.get('/v2/connections/established', async (req, res) => {
   try {
-    const rootOrg = req.headers.rootorg
-    const userId = extractUserIdFromRequest(req)
-
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    if (!userId) {
-      res.status(400).send(ERROR.GENERAL_ERR_MSG)
-      return
-    }
-    const response = await axios.get(apiEndpoints.getConnectionEstablishedData, {
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        rootOrg,
-        userId,
-        // tslint:disable-next-line: all
-        'x-authenticated-user-token': extractUserToken(req),
-      },
-    })
-    res.send((response.data))
-
+    await fetchConnectionsList(req, res, apiEndpoints.getConnectionEstablishedData, extractUserIdFromRequest(req))
   } catch (err) {
     handleConnectionsError(res, err, 'CONNECTIONS ERROR')
   }
@@ -136,29 +77,7 @@ connectionsV2Api.get('/v2/connections/established', async (req, res) => {
 
 connectionsV2Api.get('/v2/connections/established/:id', async (req, res) => {
   try {
-    const rootOrg = req.headers.rootorg
-    const userId = req.params.id
-
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    if (!userId) {
-      res.status(400).send(ERROR.GENERAL_ERR_MSG)
-      return
-    }
-    const response = await axios.get(apiEndpoints.getConnectionEstablishedData, {
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        rootOrg,
-        userId,
-        // tslint:disable-next-line: all
-        'x-authenticated-user-token': extractUserToken(req),
-      },
-    })
-    res.send((response.data))
-
+    await fetchConnectionsList(req, res, apiEndpoints.getConnectionEstablishedData, req.params.id)
   } catch (err) {
     handleConnectionsError(res, err, 'CONNECTIONS ERROR')
   }
@@ -166,29 +85,7 @@ connectionsV2Api.get('/v2/connections/established/:id', async (req, res) => {
 
 connectionsV2Api.get('/v2/connections/suggests', async (req, res) => {
   try {
-    const rootOrg = req.headers.rootorg
-    const userId = extractUserId(req)
-
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    if (!userId) {
-      res.status(400).send(ERROR.GENERAL_ERR_MSG)
-      return
-    }
-    const response = await axios.get(apiEndpoints.getConnectionSuggestsData, {
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        rootOrg,
-        userId,
-         // tslint:disable-next-line: all
-         'x-authenticated-user-token': extractUserToken(req),
-      },
-    })
-    res.send((response.data))
-
+    await fetchConnectionsList(req, res, apiEndpoints.getConnectionSuggestsData, extractUserId(req))
   } catch (err) {
     handleConnectionsError(res, err, 'SUGGESTS ERROR >')
   }

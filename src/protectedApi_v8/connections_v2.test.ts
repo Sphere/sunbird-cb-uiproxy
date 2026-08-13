@@ -52,6 +52,61 @@ beforeEach(() => {
   mockAxios.post.mockReset()
 })
 
+/**
+ * @description CHANGE 33 regression: all 5 GET routes now funnel through
+ * the shared fetchConnectionsList helper. This proves each route calls
+ * its OWN distinct upstream endpoint, and that /v2/connections/suggests
+ * specifically uses extractUserId (Keycloak claims), not
+ * extractUserIdFromRequest (session) like its 4 siblings.
+ */
+describe('each GET route calls its own distinct endpoint (CHANGE 33)', () => {
+  it('/v2/connections/requested calls the requested endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/v2/connections/requested'))
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/connections/profile/fetch/requested',
+      expect.anything()
+    )
+  })
+
+  it('/v2/connections/requests/received calls the requests/received endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/v2/connections/requests/received'))
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/connections/profile/fetch/requests/received',
+      expect.anything()
+    )
+  })
+
+  it('/v2/connections/established calls the established endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/v2/connections/established'))
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/connections/profile/fetch/established',
+      expect.anything()
+    )
+  })
+
+  it('/v2/connections/established/:id calls the established endpoint with the path param as userId', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    await withOrg(agent().get('/v2/connections/established/user-99'))
+    const callArgs = mockAxios.get.mock.calls[0]
+    expect(callArgs[0]).toBe('https://kong.test/connections/profile/fetch/established')
+    expect(callArgs[1].headers.userId).toBe('user-99')
+  })
+
+  it('/v2/connections/suggests calls the suggests endpoint using extractUserId, not extractUserIdFromRequest', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk([]))
+    mockExtractUserId.mockReturnValueOnce('keycloak-user')
+    await withOrg(agent().get('/v2/connections/suggests'))
+    const callArgs = mockAxios.get.mock.calls[0]
+    expect(callArgs[0]).toBe('https://kong.test/connections/profile/find/suggests')
+    expect(callArgs[1].headers.userId).toBe('keycloak-user')
+    expect(mockExtractUserId).toHaveBeenCalled()
+    expect(mockExtractUserIdFromRequest).not.toHaveBeenCalled()
+  })
+})
+
 describe('GET /v2/connections/requested', () => {
   it('forwards the requested connections', async () => {
     mockAxios.get.mockResolvedValue(upstreamOk([{ id: 'c1' }]))

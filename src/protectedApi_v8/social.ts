@@ -63,6 +63,70 @@ export const socialApi = Router()
 
 const INVALID_ORG_MSG = ERROR.ERROR_NO_ORG_DATA
 
+// sonar-cleanup: extracted from 23 of this file's route bodies, which all
+// shared the same org/rootOrg guard, body-merge, and axios({...}) call
+// shape (CHANGE 33). Genuine per-route differences are threaded through as
+// explicit parameters: `extraFields` covers each route's own additional
+// merged field (moderatorId/adminId/forumCreator/forumEditor/userId, with
+// '/catalog's lowercase `userid` key and '/post/timelineV2's distinct
+// `req.query.wid || extractUserIdFromRequest(req)` derivation preserved
+// verbatim), `timeout` covers the ~9 routes that set
+// `Number(CONSTANTS.SOCIAL_TIMEOUT)`, and `label` covers the 2 routes with
+// their own logged error label. `/post/upload/:contentId` (multipart,
+// callback-based, not axios) and `/post/autocomplete` (org/rootOrg sent as
+// headers, not merged into the body) are structurally different and stay
+// untouched.
+/**
+ * Validates the org/rootOrg headers are present, merges them (plus any
+ * extra fields) into the request body, and proxies it to the given
+ * upstream social-service endpoint.
+ * @param req the Express request; its org/rootOrg headers and body are read
+ * @param res the Express response to send the result or error to
+ * @param method the HTTP method to call the upstream endpoint with
+ * @param url the upstream social-service endpoint to call
+ * @param options.extraFields resolves additional fields to merge into the request body
+ * @param options.timeout when true, sets the axios timeout to CONSTANTS.SOCIAL_TIMEOUT
+ * @param options.label text prefixed to the logged error message on failure; omit to skip logging
+ */
+async function proxySocialRoute(
+  // tslint:disable-next-line: no-any
+  req: any,
+  res: Response,
+  method: 'POST' | 'PUT' | 'DELETE',
+  url: string,
+  options?: {
+    // tslint:disable-next-line: no-any
+    extraFields?: (req: any) => object
+    timeout?: boolean
+    label?: string
+  }
+) {
+  try {
+    const org = req.header('org')
+    const rootOrg = req.header('rootOrg')
+    if (!org || !rootOrg) {
+      res.status(400).send(INVALID_ORG_MSG)
+      return
+    }
+    const data = {
+      ...req.body,
+      org,
+      rootOrg,
+      ...(options?.extraFields ? options.extraFields(req) : {}),
+    }
+    const response = await axios({
+      ...axiosRequestConfig,
+      data,
+      method,
+      url,
+      ...(options?.timeout ? { timeout: Number(CONSTANTS.SOCIAL_TIMEOUT) } : {}),
+    })
+    res.status(response.status).send(response.data)
+  } catch (err) {
+    handleSocialError(res, err, options?.label)
+  }
+}
+
 socialApi.post('/post/upload/:contentId', async (req, res) => {
   try {
     const org = req.header('org')
@@ -105,107 +169,22 @@ socialApi.post('/post/upload/:contentId', async (req, res) => {
 })
 
 socialApi.post('/post/publish', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.publishPost, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.publishPost)
 })
 
 socialApi.post('/post/draft', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.draftPost, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.draftPost)
 })
 
 socialApi.put('/edit/tags', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.put(API_END_POINTS.editTags, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'PUT', API_END_POINTS.editTags)
 })
 socialApi.put('/edit/meta', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.put(API_END_POINTS.editMeta, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err, 'EDIT META ERROR >')
-  }
+  await proxySocialRoute(req, res, 'PUT', API_END_POINTS.editMeta, { label: 'EDIT META ERROR >' })
 })
 
 socialApi.post('/post/delete', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios({
-      ...axiosRequestConfig,
-      data,
-      method: 'DELETE',
-      url: API_END_POINTS.deletePost,
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err, 'ERROR DELETING POST')
-  }
+  await proxySocialRoute(req, res, 'DELETE', API_END_POINTS.deletePost, { label: 'ERROR DELETING POST' })
 })
 
 socialApi.post('/post/autocomplete', async (req, res) => {
@@ -230,427 +209,117 @@ socialApi.post('/post/autocomplete', async (req, res) => {
 })
 
 socialApi.post('/post/viewConversation', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.viewConversation, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.viewConversation)
 })
 
 socialApi.post('/post/viewConversationV2', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.viewConversationV2, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.viewConversationV2)
 })
 
 socialApi.post('/post/timeline', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.timeline, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.timeline, { timeout: true })
 })
 
 socialApi.post('/post/timelineV2', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = req.query.wid || extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userId,
-    }
-    const response = await axios.post(API_END_POINTS.timelineV2, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.timelineV2, {
+    extraFields: (r) => ({ userId: r.query.wid || extractUserIdFromRequest(r) }),
+    timeout: true,
+  })
 })
 // moderator forum ends
 // moderator content-approve/reject start
 
 socialApi.post('/moderator/moderatepost', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const moderatorId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      moderatorId,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.moderatorReact, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.moderatorReact, {
+    extraFields: (r) => ({ moderatorId: extractUserIdFromRequest(r) }),
+    timeout: true,
+  })
 })
 
 socialApi.post('/moderator/timeline', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userId,
-    }
-    const response = await axios.post(API_END_POINTS.moderatorPostsTimeline, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.moderatorPostsTimeline, {
+    extraFields: (r) => ({ userId: extractUserIdFromRequest(r) }),
+    timeout: true,
+  })
 })
 
 //// moderator content-approve end
 
 // Admin timeline api start
 socialApi.post('/admin/timeline', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userId,
-    }
-    const response = await axios.post(API_END_POINTS.adminPostsTimeline, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.adminPostsTimeline, {
+    extraFields: (r) => ({ userId: extractUserIdFromRequest(r) }),
+    timeout: true,
+  })
 })
 // admin timeline api ends
 // Admin reject post start
 socialApi.post('/admin/deletePost', async (req, res) => {
-  try {
-    const adminId = extractUserIdFromRequest(req)
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      adminId,
-      org,
-      rootOrg,
-    }
-    const response = await axios.delete(API_END_POINTS.adminDeletePosts, {
-      ...axiosRequestConfig,
-      data,
-    })
-
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'DELETE', API_END_POINTS.adminDeletePosts, {
+    extraFields: (r) => ({ adminId: extractUserIdFromRequest(r) }),
+  })
 })
 // Admin reject post end
 // Admin reactivate post start
 socialApi.post('/admin/reactivatePost', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const adminId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      adminId,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.adminReactivatePost, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.adminReactivatePost, {
+    extraFields: (r) => ({ adminId: extractUserIdFromRequest(r) }),
+    timeout: true,
+  })
 })
 // admin reactivate post end
 
 socialApi.post('/viewForum', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userId,
-    }
-    const response = await axios.post(API_END_POINTS.viewForum, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.viewForum, {
+    extraFields: (r) => ({ userId: extractUserIdFromRequest(r) }),
+    timeout: true,
+  })
 })
 
 // forum list view start
 socialApi.post('/forum/forumtimeline', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userId,
-    }
-    const response = await axios.post(API_END_POINTS.viewForumlist, data, {
-      ...axiosRequestConfig,
-      timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.viewForumlist, {
+    extraFields: (r) => ({ userId: extractUserIdFromRequest(r) }),
+    timeout: true,
+  })
 })
 // forum list end
 // social search start
 // social search end
 socialApi.post('/post/activity/create', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userId,
-    }
-    const response = await axios.post(API_END_POINTS.activityUpdate, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.activityUpdate, {
+    extraFields: (r) => ({ userId: extractUserIdFromRequest(r) }),
+  })
 })
 
 socialApi.post('/createForum', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const forumCreator = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      forumCreator,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.createForum, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.createForum, {
+    extraFields: (r) => ({ forumCreator: extractUserIdFromRequest(r) }),
+  })
 })
 
 socialApi.post('/editForum', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const forumEditor = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      forumEditor,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.editForum, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.editForum, {
+    extraFields: (r) => ({ forumEditor: extractUserIdFromRequest(r) }),
+  })
 })
 
 socialApi.post('/post/acceptAnswer', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.acceptAnswer, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.acceptAnswer)
 })
 
 socialApi.post('/post/activity/users', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-    }
-    const response = await axios.post(API_END_POINTS.activityUsers, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.activityUsers)
 })
 
 socialApi.post('/post/search', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userId,
-    }
-    const response = await axios.post(API_END_POINTS.searchSocial, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.searchSocial, {
+    extraFields: (r) => ({ userId: extractUserIdFromRequest(r) }),
+  })
 })
 
 socialApi.post('/catalog', async (req, res) => {
-  try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const userId = extractUserIdFromRequest(req)
-
-    if (!org || !rootOrg) {
-      res.status(400).send(INVALID_ORG_MSG)
-      return
-    }
-    const data = {
-      ...req.body,
-      org,
-      rootOrg,
-      userid: userId,
-    }
-    const response = await axios.post(API_END_POINTS.authoringCatalog, data, axiosRequestConfig)
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleSocialError(res, err)
-  }
+  await proxySocialRoute(req, res, 'POST', API_END_POINTS.authoringCatalog, {
+    extraFields: (r) => ({ userid: extractUserIdFromRequest(r) }),
+  })
 })
