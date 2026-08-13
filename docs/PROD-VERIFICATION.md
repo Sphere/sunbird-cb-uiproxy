@@ -5593,6 +5593,125 @@ re-add the desired branch names to the `push.branches` list.
 
 ---
 
+## Dead-code sweep (post CHANGE 44) — 2 new findings, flagged, not removed
+
+A fresh `ts-prune -p tsconfig.json` run (same AST-aware tool used for
+CHANGE 32's sweep, which catches transitive/type-only usage a grep-based
+pass misses), filtered to drop "used in module" self-matches, found 4
+exports with zero live callers. 2 are already documented and were
+deliberately left alone in CHANGE 32
+(`authorizationV2Api.ts`'s `authorizationV2Api`, `searchUser.ts`'s
+`fetchUser` — both have dedicated test suites, flagged for a team
+decision, still unresolved). The other 2 are new:
+
+- **`transformToSbExtUpsertRequest`** (`src/service/playlist.ts:62`,
+  present since the initial 2021 commit) — the only reference anywhere
+  in the codebase is inside a **commented-out import** in
+  `src/protectedApi_v8/user/playlist.ts` (line 24). Never called, live
+  or dead.
+- **`transformToSbExtDeleteRequest`** (`src/service/playlist.ts:69`,
+  same 2021 origin) — only called inside a commented-out
+  `else if (type === EPlaylistUpsertTypes.delete)` branch of
+  `POST /:playlistId/:type` in the same file (lines 526–539), disabled
+  since the initial commit. The live code only ever handles
+  `EPlaylistUpsertTypes.add`; the `delete` case has been dead for the
+  file's entire history.
+
+Both pass the 3-month-inactivity bar easily (5 years untouched, `git
+log -L` confirms neither the function nor the commented-out call site
+has been touched since `cf5127a`, the initial commit) — but, matching
+the existing 2 findings, each has its own dedicated test in
+`src/service/playlist.test.ts` (`describe('transformToSbExtUpsertRequest', ...)`,
+`describe('transformToSbExtDeleteRequest', ...)`). Per this campaign's
+standing rule — code with a deliberately-written test suite is treated
+as "someone kept this reachable on purpose for a reason not visible from
+the code alone," not auto-deleted even when genuinely dead — **these are
+flagged here for a team decision, not removed.**
+
+If a decision is made to remove them: delete the 2 functions, their 2
+`describe` blocks in `service/playlist.test.ts`, and the disabled
+`else if` branch + its 3 fully-commented import lines in
+`user/playlist.ts` (lines 11–13, 21, 24, and 526–539) — all in the same
+commit, since the branch is the only reason
+`transformToSbExtDeleteRequest` is imported (commented) at all.
+
+---
+
+## SSO/Keycloak auth family — re-verified, rejection upheld with sharper evidence
+
+At the repo owner's request, re-checked (skeptically, not by re-reading the
+prior verdict) whether the SSO auth family
+(`tnaiAuth.ts`/`tnnmcAuth.ts`/`tnnmcAuthV2.ts`/`sashaktAuth.ts`/`maternityFoundationAuth.ts`)
+had any safe further-merge opportunity missed by earlier passes (CHANGE
+31, CHANGE 33 section E-3). Read every file in full again, cross-checked
+against every existing `// sonar-cleanup:` tag in the family, and looked
+specifically for (1) whether the "create→assign role→patch profile"
+sequence is really as similar as "org-signup-trio-like" implies, (2)
+whether the client_id/secret/logging differences cited earlier are still
+the real blocker or could be parameterized like other clusters in this
+campaign, (3) any 2-of-5 or 2-of-4 pairwise sub-slice never isolated on
+its own, and (4) whether existing tests would actually catch a bad merge.
+
+**Result: the prior rejection holds, and the fresh read sharpens rather
+than weakens it.**
+
+- **client_id/client_secret was already fully solved, not a live
+  blocker.** CHANGE 31's `ssoKeycloakExchange.ts` already threads
+  `clientId`/`clientSecret`/`username` through as explicit parameters
+  for all 4 non-outlier files, the same technique used elsewhere in this
+  campaign (CHANGE 35's `includeOffsetLimit`/`includeLangFilter`,
+  CHANGE 37's `fallbackStatus`). Citing "client_id/secret differences"
+  as the reason not to merge further was shorthand that undersold the
+  real barrier.
+- **The real, still-unparameterizable barrier is the profile-PATCH body
+  shape**, which is not 4 instances of one schema with different
+  values — it's 4 different schemas. `tnnmcAuth.ts` alone adds a whole
+  extra `professionalDetails` array (keyed off a role→designation
+  lookup), `regNurseRegMidwifeNumber`, `gender`, and duplicates
+  `firstName`/`lastName` at the top level of the request — fields no
+  sibling file has. `sashaktAuth.ts`/`maternityFoundationAuth.ts` omit
+  `preferences.language` entirely (present in the other two) and use a
+  hardcoded `dob` neither of the other two files has. `sashaktAuth.ts`
+  additionally runs a 4th step (a Cassandra insert into
+  `user_sso_bulkupload_v2`) and its own `checkMandatoryUserProfileDetails`
+  helper that no other file has at all. `tnaiAuth.ts` uniquely writes a
+  `tnaiUserId` field sourced from the partner API's own numeric id.
+- **No safe pairwise sub-slice exists.** The closest pair by surface
+  similarity (`sashaktAuth.ts`/`maternityFoundationAuth.ts`, both
+  omitting `preferences.language`) still diverges on the Cassandra step,
+  the mandatory-field helper, GET-vs-POST, and the upstream call shape
+  (Bearer-GET vs. token-in-body-POST). The closest pair by
+  control-flow (`tnaiAuth.ts`/`tnnmcAuth.ts`, both redirect-on-catch)
+  diverges sharply on the PATCH body and the upstream token-validation
+  method (KEY/TOKEN vs. HMAC signature + custom headers).
+  `tnnmcAuthV2.ts` doesn't even use the shared `ssoKeycloakExchange.ts`
+  helper — confirmed via grep, zero hits — it inlines its own Keycloak
+  call with an org-membership gate and a migration path no sibling has,
+  making it the most structurally distinct file in the family.
+- **The status-code/catch-shape/response-shape differences already
+  documented (changes T, AD, AH, BS) are real and load-bearing** — 302
+  vs. 400 on auth failure, silent fallthrough vs. explicit 400 JSON vs.
+  redirect-fallback in the catch block, `resRedirectUrl` present in 2
+  files and absent in 2 — each tied to a separately-documented
+  double-send bug specific to that file. Preserved, not merged, exactly
+  as CHANGE 31 already chose.
+- **Existing tests would not catch every regression a merge could
+  introduce.** Coverage is solid on response status/redirect behavior
+  per file, but none of the 5 files' test suites assert the exact
+  outbound PATCH body field-by-field — a merge that cross-wired, say,
+  `tnnmcAuth.ts`'s `professionalDetails` block onto `tnaiAuth.ts`'s org
+  could pass every existing test while being wrong for a real user. Any
+  future attempt at even the closest pairwise merge would need new
+  exact-request-shape tests first, the same standard this campaign
+  already applied to `social.ts` (CHANGE 33) once a similar gap was
+  found there.
+
+**Conclusion:** this is confirmed structurally irreducible business
+logic, not under-researched duplication. No code change made as a
+result of this re-check.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
