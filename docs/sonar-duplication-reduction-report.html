@@ -485,13 +485,14 @@
     </div>
     <div class="mid">&rarr;</div>
     <div class="num to">
-      <div class="value">6.1%</div>
-      <div class="cap">Last confirmed today</div>
+      <div class="value">4.9%</div>
+      <div class="cap">Confirmed today</div>
     </div>
   </div>
   <p class="headline-note">
-    Roughly 10,000 fewer duplicated lines out of an original ~12,400 &mdash; measured by
-    SonarQube, the tool that scans the code and reports this number.
+    Roughly 10,400 fewer duplicated lines out of an original ~12,400 (12,389 &rarr; 1,972)
+    &mdash; measured by SonarQube, the tool that scans the code and reports this number.
+    The original 5% goal has been reached and passed.
   </p>
 
   <div class="callout">
@@ -581,13 +582,23 @@
     </tr>
     <tr>
       <td class="stage">Workflow &amp; work-allocation files</td>
-      <td><span class="unmeasured">Not yet confirmed</span></td>
-      <td class="what">2 files re-examined and found to have real safe duplication after all</td>
+      <td class="pct">6.1% &rarr; 5.6%</td>
+      <td class="what">2 files re-examined and found to have real safe duplication after all, plus 3 more clusters cleaned up in the mobile-app API file</td>
     </tr>
     <tr>
-      <td class="stage">Mobile-app API file</td>
-      <td><span class="unmeasured">Not yet confirmed</span></td>
-      <td class="what">3 more clusters found and cleaned up in the same file</td>
+      <td class="stage">Two small readability fixes</td>
+      <td class="pct">5.6%</td>
+      <td class="what">A confusing nested condition split into a clear step, in 2 files</td>
+    </tr>
+    <tr>
+      <td class="stage">Admin, feedback, recommendation, certificate files</td>
+      <td class="pct">5.6% &rarr; 5.0%</td>
+      <td class="what">4 more files' repeated logic combined, goal of 5% reached exactly</td>
+    </tr>
+    <tr>
+      <td class="stage">Password-reset file</td>
+      <td class="pct">5.0% &rarr; 4.9%</td>
+      <td class="what">One more file's repeated logic combined; remaining duplication re-checked and confirmed unmergeable</td>
     </tr>
     </tbody>
   </table>
@@ -805,11 +816,65 @@
     </div>
   </div>
 
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Code-quality fixes</span><span class="files">workflow-handler.ts, workallocation.ts</span></div>
+    <h3>Cleaned up a confusing condition flagged by the code scanner</h3>
+    <p>Both files had the same pattern: a decision nested inside another decision, on one line, which the scanner flags as hard to read even though it works correctly. Pulled the inner decision out onto its own line first. No change in what either file does.</p>
+  </div>
+
+  <h2>Latest round &mdash; five more files, goal reached</h2>
+  <p class="section-sub">
+    A further pass looked at every file that still had any duplication left, checking each
+    one from scratch rather than trusting earlier notes. Most turned out to be the same
+    already-confirmed cases below. Five had genuinely new safe combining opportunities.
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">admin/bulkExtendedMethod.ts</span></div>
+    <h3>Combined the "save profile and log it" ending shared by two functions</h3>
+    <p>Two functions in this file both end the same way: send the updated profile to the backend, then log three lines about it. Combined that ending into one shared piece.</p>
+    <div class="why-box"><b>Why safe</b> One of the three log lines had a small wording inconsistency in the original code (one function's version was missing a word the other two lines in the same function had) &mdash; kept exactly as it was rather than smoothed over.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">user/feedbackV2.ts</span></div>
+    <h3>Combined the "submit feedback" logic shared by two routes</h3>
+    <p>Two feedback-submission routes built and sent almost the same request. Combined the shared parts into one function.</p>
+    <div class="why-box"><b>Why safe</b> One of the two routes includes an extra "sentiment" field in what it sends and the other never does &mdash; kept as an explicit setting, not merged away.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">recommendation.ts</span></div>
+    <h3>Combined the "shape and send results" ending shared by two routes</h3>
+    <p>Two recommendation routes both end by pulling results out of the response, shuffling them, and sending them back the same way. Combined that ending into one shared piece.</p>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">publicCertifcateFlinkv2.ts, mobileAppApi.ts</span></div>
+    <h3>Combined the certificate-lookup step shared by two download routes</h3>
+    <p>Both a public certificate-download route and a mobile-app one checked the same 3 pieces of information, looked the certificate up the same way, then rendered it. Combined that shared middle step into one place both routes call.</p>
+    <div class="bug-box"><b>Pre-existing quirk kept as-is</b> Both routes have the same small bug: a couple of validation checks send a "this is wrong" response but don't actually stop the rest of the code from continuing to run afterward. This was true before the change and is still true after &mdash; not something introduced or something fixed, deliberately left untouched since fixing it would be a behavior change, not a duplication cleanup.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">forgotPassword.ts</span></div>
+    <h3>Combined the "send the reset code" ending shared by the email and phone routes</h3>
+    <p>Resetting a password by email and resetting it by phone both end the same way once the account is found: request a one-time code, then confirm it was sent. Combined that ending into one shared piece.</p>
+    <div class="why-box"><b>Why safe</b> The two routes log slightly different wording at this step &mdash; kept as explicit settings. Also removed one leftover comment describing code that was already disabled and never ran, which was just clutter, not logic.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Follow-up</span><span class="files">bulkExtendedMethod.ts, forgotPassword.ts</span></div>
+    <h3>Cleaned up two logging lines flagged right after the merge above</h3>
+    <p>Combining the repeated code in these two files surfaced an old habit that was previously hidden in duplicate copies: a line that logs a network response by gluing it onto a piece of text, which prints as unhelpful text like "[object Object]" instead of anything readable. This was already happening before today's changes, just in more places at once &mdash; now that it's down to one place per file, it was easy to fix properly.</p>
+  </div>
+
   <h2>What's deliberately left alone, and why</h2>
   <p class="section-sub">
     Not everything that looks like duplication can be safely combined. These are the
     parts of the codebase that were investigated and specifically decided against
-    touching &mdash; not overlooked, decided.
+    touching &mdash; not overlooked, decided, and checked again in the most recent round
+    to make sure that was still the right call.
   </p>
 
   <div class="keep-away">
@@ -862,6 +927,35 @@
     </p>
   </div>
 
+  <div class="keep-away">
+    <h3>The remaining sign-up file overlap</h3>
+    <p>
+      Four sign-up files still share a small remaining piece of code &mdash; the step
+      right after exchanging a login code with the identity system. Checked again
+      specifically to see whether this piece could finally be combined too. It can't: the
+      actual data sent to exchange the code is different between files (one still sends a
+      password field the others dropped), the way each file checks whether it worked is
+      different, and every file logs this step with different wording and severity.
+      A smaller attempt &mdash; combining just the outer wrapper around this step &mdash;
+      was also considered and rejected, since that wrapper's contents are exactly the
+      part that can't be combined, so it wouldn't have actually reduced anything.
+    </p>
+  </div>
+
+  <div class="keep-away">
+    <h3>Two user-profile files' overlapping update logic (profile-details.ts)</h3>
+    <p>
+      This file has a few blocks that look similar to each other and to a route in the
+      mobile-app file. Looked closely at each: one pair shares a setup step but then
+      genuinely splits &mdash; one path creates an extra registry entry afterward, the
+      other skips it and returns immediately. Another pair requires different form
+      fields entirely. And the version that looks similar to the mobile-app file uses a
+      completely different way of proving who's making the request. None of these can be
+      combined without either erasing that fork in what happens next, or forcing two
+      different login/authentication styles to pretend they're the same.
+    </p>
+  </div>
+
   <h2>Plain-language glossary</h2>
   <p class="section-sub">A few terms used throughout this document, explained simply.</p>
   <div class="glossary">
@@ -877,7 +971,7 @@
       <dt>Regression test / automated test</dt>
       <dd>A small program that runs the real code and checks the result matches what's expected. If a change accidentally breaks something, a test is supposed to catch it immediately, before anyone else does.</dd>
       <dt>SonarQube / the scanning tool</dt>
-      <dd>The automated tool that measures duplication percentage, among other code-quality things. It needs to be running to get a fresh number &mdash; the two most recent changes in this report were made and fully tested, but the tool happened to be offline, so their exact effect on the percentage isn't confirmed yet.</dd>
+      <dd>The automated tool that measures duplication percentage, among other code-quality things. Every number in the table above, including the final 4.9%, has been confirmed by re-running this tool.</dd>
     </dl>
   </div>
 
