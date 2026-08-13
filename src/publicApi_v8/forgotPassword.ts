@@ -47,7 +47,7 @@ async function sendPasswordResetOtp(
     method: 'POST',
     url: API_END_POINTS.generateOtp,
   })
-  logInfo(sentLogLabel + sendResponse)
+  logInfo(sentLogLabel + JSON.stringify(sendResponse))
   res.status(200).send({ message: 'Success ! Please verify the OTP .' })
 }
 

@@ -53,7 +53,7 @@ async function patchProfileAndLog(
 
     logInfo(`Total ${csvLabel} in bulkextended are >>>>>>>>>>>>> : ` + JSON.stringify(request))
     logInfo(`UserId ${userIdLabel}in bulkextended >>>>>>>>>>>>> : ` + JSON.stringify(userId))
-    logInfo(`Total ${csvLabel} data are >>>>>>>>>>>>> : ` + sbUserProfileUpdateResp)
+    logInfo(`Total ${csvLabel} data are >>>>>>>>>>>>> : ` + JSON.stringify(sbUserProfileUpdateResp))
     return request
 }
 
