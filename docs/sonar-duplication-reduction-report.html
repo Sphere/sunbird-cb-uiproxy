@@ -118,50 +118,24 @@
 
   a { color: var(--link); }
 
-  /* ---------- masthead ---------- */
-
-  .masthead {
-    background: var(--navy-500);
-    color: #fff;
-    padding: 20px 24px;
-    margin: 0 -24px 48px;
-  }
-  .masthead-inner {
-    max-width: 752px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .wordmark {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--sans);
-    font-weight: 700;
-    font-size: 15px;
-    letter-spacing: 0.06em;
-    color: #fff;
-  }
-  .wordmark .mark {
-    width: 26px;
-    height: 26px;
-    flex: none;
-  }
-  .masthead .doc-label {
-    font-family: var(--caption);
-    font-size: 12.5px;
-    color: var(--teal-100);
-    letter-spacing: 0.02em;
-  }
-
   /* ---------- header ---------- */
 
   header.intro {
+    padding-top: 40px;
     margin-bottom: 40px;
   }
+
+  .eyebrow {
+    font-family: var(--caption);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--teal-700);
+    margin-bottom: 10px;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eyebrow { color: var(--teal-300); } }
+  :root[data-theme="dark"] .eyebrow { color: var(--teal-300); }
 
   h1 {
     font-family: var(--sans);
@@ -278,15 +252,17 @@
 
   /* ---------- timeline table ---------- */
 
-  .table-wrap { overflow-x: auto; margin-bottom: 12px; }
+  .table-wrap {
+    overflow-x: auto;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
   .timeline {
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
   }
   .timeline th {
     text-align: left;
@@ -296,18 +272,26 @@
     letter-spacing: 0.04em;
     color: var(--text-soft);
     font-weight: 700;
-    padding: 10px 14px;
+    padding: 12px 16px;
     background: var(--off-white);
     border-bottom: 1px solid var(--border);
   }
   :root[data-theme="dark"] .timeline th { background: var(--navy-400); }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .timeline th { background: #1f2937; } }
+  .timeline th:first-child { border-top-left-radius: 9px; }
+  .timeline th:last-child { border-top-right-radius: 9px; }
   .timeline td {
-    padding: 11px 14px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
   }
+  .timeline tbody tr:nth-child(even) td { background: var(--off-white); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .timeline tbody tr:nth-child(even) td { background: #161f2b; } }
+  :root[data-theme="dark"] .timeline tbody tr:nth-child(even) td { background: #161f2b; }
   .timeline tr:last-child td { border-bottom: none; }
+  .timeline tr:last-child td:first-child { border-bottom-left-radius: 9px; }
+  .timeline tr:last-child td:last-child { border-bottom-right-radius: 9px; }
+  .timeline td.stage { font-weight: 600; color: var(--text); white-space: nowrap; }
   .timeline td.pct {
     font-variant-numeric: tabular-nums;
     font-weight: 700;
@@ -483,23 +467,10 @@
 </head>
 <body>
 
-<div class="masthead">
-  <div class="masthead-inner">
-    <span class="wordmark">
-      <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
-        <polygon points="13,1 24,7 24,19 13,25 2,19 2,7" fill="#1E8F8E"/>
-        <polygon points="7,9 13,6 19,9 13,12" fill="#ffffff" opacity="0.9"/>
-        <polygon points="7,14 13,11 19,14 13,17" fill="#ffffff" opacity="0.6"/>
-      </svg>
-      TARENTO
-    </span>
-    <span class="doc-label">Engineering report &middot; sunbird-cb-uiproxy</span>
-  </div>
-</div>
-
 <div class="page">
 
   <header class="intro">
+    <div class="eyebrow">sunbird-cb-uiproxy &middot; engineering report</div>
     <h1>Why the codebase changed, module by module</h1>
     <p class="lede">
       A plain-language record of every code cleanup done so far: what was combined,
@@ -549,72 +520,76 @@
   </p>
   <div class="table-wrap">
   <table class="timeline">
+    <thead>
     <tr><th>Stage</th><th>Score</th><th>What happened</th></tr>
+    </thead>
+    <tbody>
     <tr>
-      <td>Starting point</td>
+      <td class="stage">Starting point</td>
       <td class="pct">26.8%</td>
       <td class="what">Investigation only &mdash; mapped every duplicated block before touching any code</td>
     </tr>
     <tr>
-      <td>Early cleanup</td>
+      <td class="stage">Early cleanup</td>
       <td class="pct">13.9%</td>
       <td class="what">A large early batch of safe, boilerplate-only merges (see "Early rounds" below)</td>
     </tr>
     <tr>
-      <td>Learner-path &amp; certificate files</td>
+      <td class="stage">Learner-path &amp; certificate files</td>
       <td class="pct">13.9% &rarr; 12.6%</td>
       <td class="what">3 file groups combined</td>
     </tr>
     <tr>
-      <td>Network, search, social, sign-up</td>
+      <td class="stage">Network, search, social, sign-up</td>
       <td class="pct">11.3% &rarr; 8.3%</td>
       <td class="what">5 larger file groups combined; one real bug found and fixed mid-way</td>
     </tr>
     <tr>
-      <td>Discussion &amp; profile files</td>
+      <td class="stage">Discussion &amp; profile files</td>
       <td class="pct">8.3% &rarr; 7.0%</td>
       <td class="what">2 more file groups combined</td>
     </tr>
     <tr>
-      <td>Playlist file</td>
+      <td class="stage">Playlist file</td>
       <td class="pct">7.0% &rarr; 6.8%</td>
       <td class="what">One file's repeated error-handling combined</td>
     </tr>
     <tr>
-      <td>Training &amp; certifications files</td>
+      <td class="stage">Training &amp; certifications files</td>
       <td class="pct">6.8% &rarr; 6.7%</td>
       <td class="what">2 large files (45 routes) sharing one new helper</td>
     </tr>
     <tr>
-      <td>Admin &amp; discussion files</td>
+      <td class="stage">Admin &amp; discussion files</td>
       <td class="pct">6.7% &rarr; 6.4%</td>
       <td class="what">2 more files cleaned up</td>
     </tr>
     <tr>
-      <td>Recommendation, content, follow files</td>
+      <td class="stage">Recommendation, content, follow files</td>
       <td class="pct">6.4% &rarr; 6.1%</td>
       <td class="what">3 files' header-checking logic combined</td>
     </tr>
     <tr>
-      <td>Search-sorting logic</td>
+      <td class="stage">Search-sorting logic</td>
       <td class="pct">6.1%</td>
       <td class="what">One shared sorting function extracted</td>
     </tr>
     <tr>
-      <td>Header-check cleanup, round 2</td>
+      <td class="stage">Header-check cleanup, round 2</td>
       <td class="pct">6.1%</td>
       <td class="what">4 files' near-identical header checks combined into one shared version</td>
     </tr>
     <tr>
-      <td>Workflow &amp; work-allocation files</td>
+      <td class="stage">Workflow &amp; work-allocation files</td>
       <td><span class="unmeasured">Not yet confirmed</span></td>
       <td class="what">2 files re-examined and found to have real safe duplication after all</td>
     </tr>
     <tr>
-      <td>Mobile-app API file</td>
+      <td class="stage">Mobile-app API file</td>
       <td><span class="unmeasured">Not yet confirmed</span></td>
       <td class="what">3 more clusters found and cleaned up in the same file</td>
     </tr>
+    </tbody>
   </table>
   </div>
 
