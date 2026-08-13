@@ -14,8 +14,10 @@ import request from 'request'
 import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { axiosRequestConfig } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
-// sonar-cleanup: certificate-fetch+render tail replaced with the shared import (CHANGE 33)
-import { fetchAndRenderCertificate } from '../utils/certificateRenderer'
+// sonar-cleanup: certificate-fetch+render tail replaced with the shared import (CHANGE 33);
+// widened to resolveAndRenderCertificateFromCassandra to also share the
+// Cassandra-lookup middle section with publicCertifcateFlinkv2.ts (CHANGE 48)
+import { resolveAndRenderCertificateFromCassandra } from '../utils/certificateRenderer'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
@@ -813,53 +815,17 @@ mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
     handleMobileApiDefaultError(res, err, undefined, 'Exception occured in recommendation service')
   }
 })
+// sonar-cleanup: the userid/courseid/secretKey-through-Cassandra-lookup
+// middle section (previously duplicated from publicCertifcateFlinkv2.ts's
+// '/download') replaced with the shared
+// resolveAndRenderCertificateFromCassandra helper (CHANGE 48). This route's
+// own token-gate wrapper stays as-is, including the pre-existing quirk
+// where a non-200 token silently sends no response at all (no else branch).
 mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.status == 200) {
-      const userid = req.query.userid
-      const courseid = req.query.courseid
-      const secretKey = req.query.secretKey
-
-      if (!(userid || courseid || secretKey)) {
-        res.status(400).json({
-          msg: 'UserID, courseID or secretKey can not be empty',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY
-      if (certificateKey !== secretKey) {
-        res.status(400).json({
-          msg: 'Invalid certificate download key',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      const client = new cassandra.Client({
-        contactPoints: [CONSTANTS.CASSANDRA_IP],
-        keyspace: 'sunbird_courses',
-        localDataCenter: 'datacenter1',
-      })
-      // tslint:disable-next-line: max-line-length
-      const query = `SELECT userid, courseid, batchid, issued_certificates FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`
-      const certificateData = await client.execute(query)
-      if (!certificateData) {
-        res.status(400).json({
-          msg: 'Certificate ID cannot be fetched',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      client.shutdown()
-      const certificateId =
-        certificateData.rows[0].issued_certificates[0].identifier
-      const certificateName =
-        certificateData.rows[0].issued_certificates[0].name
-      // sonar-cleanup: certificate-fetch+render tail replaced with the
-      // shared helper already used by appCertificateDownload.ts /
-      // publicCertifcateFlinkv2.ts (CHANGE 33)
-      await fetchAndRenderCertificate(res, certificateId, certificateName)
+      await resolveAndRenderCertificateFromCassandra(req, res)
     }
   } catch (error) {
     logError('Error in downloading certificate  >>>>>>' + error)

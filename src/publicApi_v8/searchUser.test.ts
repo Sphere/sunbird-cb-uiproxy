@@ -1,9 +1,11 @@
 /**
  * searchUser.ts — NOT a route-handler file. It exports one plain async
- * helper, `fetchUser(searchValue, searchType)`, consumed by ssoLogin.ts and
- * emailOrMobileLoginSignIn.ts (each of those wraps its own call site in a
- * try/catch). There is no Router here, so these tests call the function
- * directly rather than going through mountRouter/supertest.
+ * helper, `fetchUser(searchValue, searchType)`. Confirmed via repo-wide grep
+ * that it has no live callers: ssoLogin.ts and emailOrMobileLoginSignIn.ts
+ * each hit the same LEARNER_SERVICE_API_BASE search endpoint, but through
+ * their own inline axios calls, not through this function. There is no
+ * Router here, so these tests call the function directly rather than going
+ * through mountRouter/supertest.
  *
  * The function's shape:
  *   try {

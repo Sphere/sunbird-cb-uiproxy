@@ -73,6 +73,13 @@ describe('GET /', () => {
     const response = await agent().get('/').set('org', 'o1').set('rootOrg', 'r1')
     expect(response.status).toBe(500)
   })
+
+  it('falls back to empty contents when the upstream result shape is malformed', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: {} }))
+    const response = await agent().get('/').set('org', 'o1').set('rootOrg', 'r1')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ contents: [], hasMore: false })
+  })
 })
 
 describe('GET /interestBased', () => {
@@ -92,6 +99,13 @@ describe('GET /interestBased', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/interestBased').set('org', 'o1').set('rootOrg', 'r1')
     expect(response.status).toBe(500)
+  })
+
+  it('falls back to empty contents when the upstream result shape is malformed', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({ result: {} }))
+    const response = await agent().get('/interestBased').set('org', 'o1').set('rootOrg', 'r1')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ contents: [], hasMore: false })
   })
 })
 

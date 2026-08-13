@@ -24,12 +24,15 @@ jest.mock('../../utils/env', () => ({
 
 import axios from 'axios'
 import { networkError, upstreamOk } from '../../test-support/mockAxios'
+import { logInfo } from '../../utils/logger'
 import { bulkExtendedMethod, saveExtendedData } from './bulkExtendedMethod'
 
 const mockAxiosCallable = axios as unknown as jest.Mock
+const mockLogInfo = logInfo as jest.Mock
 
 beforeEach(() => {
   mockAxiosCallable.mockReset()
+  mockLogInfo.mockReset()
 })
 
 /**
@@ -90,6 +93,20 @@ describe('bulkExtendedMethod', () => {
     const result = await bulkExtendedMethod(request, 'user-1')
 
     expect(result).toBeUndefined()
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Warning ! Error While updating user profile of bulk upload after role assign')
+    )
+  })
+
+  it('logs the exact non-SaveExtended success label text, including the "UserId" line which (unlike the other two) has no CSVObjects in it', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: {} }))
+
+    await bulkExtendedMethod(request, 'user-1')
+
+    expect(mockLogInfo).toHaveBeenCalledWith(expect.stringContaining('Total CSVObjects in bulkextended are'))
+    expect(mockLogInfo).toHaveBeenCalledWith(expect.stringMatching(/^UserId in bulkextended/))
+    expect(mockLogInfo).toHaveBeenCalledWith(expect.stringContaining('Total CSVObjects data are'))
+    expect(mockLogInfo).not.toHaveBeenCalledWith(expect.stringContaining('SaveExtended'))
   })
 })
 
@@ -135,5 +152,18 @@ describe('saveExtendedData', () => {
     const result = await saveExtendedData(request, 'user-2')
 
     expect(result).toBeUndefined()
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Warning ! SaveExtended Error While updating user profile of bulk upload after role assign')
+    )
+  })
+
+  it('logs the exact SaveExtended-prefixed success label text on all three lines', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ result: {} }))
+
+    await saveExtendedData(request, 'user-2')
+
+    expect(mockLogInfo).toHaveBeenCalledWith(expect.stringContaining('Total SaveExtended CSVObjects in bulkextended are'))
+    expect(mockLogInfo).toHaveBeenCalledWith(expect.stringContaining('UserId SaveExtended in bulkextended'))
+    expect(mockLogInfo).toHaveBeenCalledWith(expect.stringContaining('Total SaveExtended CSVObjects data are'))
   })
 })

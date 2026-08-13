@@ -5,6 +5,7 @@ import nodeHtmlToImage from 'node-html-to-image'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from './env'
 import { logInfo } from './logger'
+const cassandra = require('cassandra-driver')
 
 // sonar-cleanup: extracted from appCertificateDownload.ts / publicCertifcateFlinkv2.ts,
 // whose certificate-fetch+render tail (from the DOWNLOAD_CERTIFICATE axios call
@@ -110,4 +111,64 @@ export async function fetchAndRenderCertificate(
       _.get(response.data, 'params.errmsg') || _.get(response.data, 'params.err')
     )
   }
+}
+
+// sonar-cleanup: extracted from publicCertifcateFlinkv2.ts's '/download' and
+// mobileAppApi.ts's '/ios/certificateDownload', whose userid/courseid/
+// secretKey validation through the Cassandra lookup was byte-identical
+// (CHANGE 48). Each caller keeps its own auth gate (mobileAppApi.ts's route
+// requires a valid token first, publicCertifcateFlinkv2.ts's doesn't) and
+// its own catch-block response shape/message — only this shared middle
+// section moved here. Both pre-existing `if (...) { res.status(400)... }`
+// checks below have no `return`, so a failing check does not actually stop
+// the request — that quirk is preserved exactly, not fixed.
+/**
+ * Validates the userid/courseid/secretKey query params against
+ * `CONSTANTS.CERTIFICATE_DOWNLOAD_KEY`, looks up the issued certificate for
+ * that user/course in Cassandra, and renders it via
+ * `fetchAndRenderCertificate`.
+ * @param req the Express request; `userid`, `courseid`, and `secretKey` are read from its query string
+ * @param res the Express response to send the rendered certificate or a validation error to
+ */
+// tslint:disable-next-line: no-any
+export async function resolveAndRenderCertificateFromCassandra(req: any, res: Response) {
+  const userid = req.query.userid
+  const courseid = req.query.courseid
+  const secretKey = req.query.secretKey
+
+  if (!(userid || courseid || secretKey)) {
+    res.status(400).json({
+      msg: 'UserID, courseID or secretKey can not be empty',
+      status: 'error',
+      status_code: 400,
+    })
+  }
+  const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY
+  if (certificateKey !== secretKey) {
+    res.status(400).json({
+      msg: 'Invalid certificate download key',
+      status: 'error',
+      status_code: 400,
+    })
+  }
+  const client = new cassandra.Client({
+    contactPoints: [CONSTANTS.CASSANDRA_IP],
+    keyspace: 'sunbird_courses',
+    localDataCenter: 'datacenter1',
+  })
+  // tslint:disable-next-line: max-line-length
+  const query = `SELECT userid, courseid, batchid, issued_certificates FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`
+  const certificateData = await client.execute(query)
+  if (!certificateData) {
+    res.status(400).json({
+      msg: 'Certificate ID cannot be fetched',
+      status: 'error',
+      status_code: 400,
+    })
+  }
+  client.shutdown()
+  const certificateId =
+    certificateData.rows[0].issued_certificates[0].identifier
+  const certificateName = certificateData.rows[0].issued_certificates[0].name
+  await fetchAndRenderCertificate(res, certificateId, certificateName)
 }
