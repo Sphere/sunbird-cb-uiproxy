@@ -5780,6 +5780,110 @@ in a `.test.ts` file; no production source file was modified.
 
 ---
 
+## CHANGE 46 — duplication reduction: workflow-handler.ts and workallocation.ts, re-examined and merged
+
+**Context:** both files had been researched earlier in this campaign and
+judged low-value/too-fragmented to merge safely. At the repo owner's
+request to look again for any safe reduction toward 5%, both were
+re-read in full — not by re-reading the prior verdict — and the prior
+call turned out to be wrong for the bulk of each file: both have a
+large, genuinely mergeable core, with only a small number of routes
+that are real exceptions.
+
+### workflow-handler.ts
+
+**What:** all 9 routes shared the identical
+`axios.<method>(url, [body,] {...axiosRequestConfig, headers}) ->
+res.status(response.status).send(response.data)` shape feeding into the
+already-extracted `handleWorkflowError`. Extracted to a new
+`proxyWorkflowRoute(req, res, method, url, sendBody, orgHeaders?, wid?)`.
+Every real per-route difference threaded through as an explicit
+parameter: HTTP method, whether the body is forwarded, whether org
+headers are attached at all and in what form (both `org`+`rootOrg` via
+the existing `requireWorkflowOrgHeaders` guard on 5 routes; both headers
+read raw with no guard on 2 routes — `/nextActionSearch`,
+`/historyByApplicationIdAndWfId`, `/historyByApplicationId`; `rootOrg`
+alone on `/workflowProcess`), and whether the `wid` header is sent
+(`/userWfSearch`, `/userWFApplicationFieldsSearch` only).
+
+**Testing:** existing suite (42 tests) already asserted exact upstream
+URL per route, including the `wid`-header-forwarding assertion for the
+2 routes that send it — so no new tests were needed to trust the merge.
+All 42 pass unchanged.
+
+### workallocation.ts
+
+**What:** 9 of the file's 12 routes (`/v2/add`, `/v2/update`,
+`/add/workorder`, `/update/workorder`, `/getWorkOrders`,
+`/getWorkOrderById/:workOrderId`, `/getWorkAllocationById/:workAllocationId`,
+`/copy/workOrder`, `/getUserBasicInfo/:userId`) shared the identical
+`axios.<method>(url, [body,] {...axiosRequestConfig, headers}) ->
+res.status(response.status).send(response.data)` shape, all using
+`handleWorkAllocationError(res, err, true)` (the pre-existing
+buggy-log-string variant — see that function's own doc comment).
+Extracted to a new `proxyWorkAllocationRoute(req, res, method, url,
+sendBody, guard?, userIdHeader?)`. Real per-route differences
+threaded through: HTTP method, whether the body is forwarded, whether
+a required-value guard applies before the call (and which value/message
+it checks — `userId` from `extractUserId(req)`, a route param, or none
+at all for `/getWorkOrders`), and whether the resolved `userId` is sent
+as a header.
+
+**Explicitly excluded, confirmed genuinely different, not merged:**
+- `/add`, `/update` — v1 endpoints using `extractAuthorizationFromRequest(req)`
+  for `Authorization` instead of the constant `CONSTANTS.SB_API_KEY`
+  every v2 route uses; a real, different auth mechanism.
+- `/userSearch` — sends no auth headers at all (`headers: {}`).
+- `/user/autocomplete/:searchTerm` — uses `CONSTANTS.SB_API_KEY` like the
+  merged routes but with `useBuggyLog: false`, the non-buggy log variant;
+  a real, different (correct) logging behavior, not folded into the
+  9-route merge which is uniformly `useBuggyLog: true`.
+- `/getWOPdf/:workOrderId` — sends `Accept: application/pdf` and sets
+  `responseType: 'arraybuffer'`, neither of which any other route does;
+  a real, different response-handling contract for a binary download.
+
+**Testing:** the existing suite (35 tests) checked status codes and the
+userId-missing 400 path but never asserted the exact upstream URL,
+method, or `userId`-header presence/absence per route — a real gap this
+merge could have silently broken without new coverage. Added 9 new
+tests, one per merged route, asserting exact request construction:
+resolved URL, whether the body is forwarded, and whether `userId`
+appears in the outbound headers (present for the 5 routes deriving it
+from `extractUserId(req)`, explicitly absent for `/getWorkOrders`,
+which has no guard and sends no `userId` at all). All 44 tests
+(35 existing + 9 new) pass.
+
+**Combined verification:** full suite run 3 times (3673/3674 — 1
+skipped, as always — on runs 2 and 3; run 1 had 2 failures in files
+untouched by this change — `discussionHub/users.test.ts`,
+`signupWithAutoLoginV2.test.ts` — both showing the documented
+`mountRouter`-adjacent "Parse Error: Expected HTTP/" flake signature,
+confirmed clean in isolation immediately after, not a regression).
+`tsc --noEmit` clean on both configs, `tslint` clean across the repo
+(one style finding — `guard?: {value: string | undefined; ...}` should
+be `guard?: {value?: string; ...}` — fixed during this same change,
+same behavior). `npm run build` clean, `dist/` has 272 `.js` files
+(unchanged — both merges stay within their existing files, no new
+file created) and zero leaked `.test.js` files. Both routers
+(`workAllocationApi`, `workflowHandlerApi`) confirmed still mounted at
+their original paths (`/workallocation`, `/workflowhandler`) in
+`protectedApiV8.ts`.
+
+**MUST VERIFY IN PROD:** nothing — every route's method, URL, body
+forwarding, header set (including the pre-existing buggy-log-string
+behavior, the `wid` header, and the org-header guard/no-guard split),
+and error response shape is unchanged.
+
+**Sonar result:** not measured — the local Sonar server was unreachable
+at the time of this change (same as CHANGE 45). Based on the ~99 net
+source lines removed across both files (283+279 lines replaced with
+much shorter route registrations plus 2 shared helpers), expect a
+further reduction from the last confirmed 6.1%, but this has not been
+confirmed by a live scan. Rescan and update this figure once Sonar is
+reachable again.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
