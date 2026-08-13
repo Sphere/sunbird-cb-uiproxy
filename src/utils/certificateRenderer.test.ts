@@ -3,13 +3,26 @@
  * appCertificateDownload.ts and publicCertifcateFlinkv2.ts (CHANGE 29).
  * Exercised directly against a bare mock Response, independent of either
  * call site's own test file.
+ *
+ * resolveAndRenderCertificateFromCassandra — shared userid/courseid/
+ * secretKey-validation-through-Cassandra-lookup middle section behind
+ * publicCertifcateFlinkv2.ts's '/download' and mobileAppApi.ts's
+ * '/ios/certificateDownload' (CHANGE 48). Both pre-existing `if (...) {
+ * res.status(400)... }` checks have no `return`, so a failing check falls
+ * through into the real Cassandra query rather than stopping the request —
+ * asserted here at the unit level, not fixed.
  */
 
 jest.mock('axios')
 jest.mock('node-html-to-image', () => jest.fn())
 jest.mock('./logger', () => ({ logError: jest.fn(), logInfo: jest.fn() }))
+jest.mock('cassandra-driver', () => ({
+  Client: jest.fn(() => ({ execute: mockCassandraExecute, shutdown: mockCassandraShutdown })),
+}))
 jest.mock('./env', () => ({
   CONSTANTS: {
+    CASSANDRA_IP: '127.0.0.1',
+    CERTIFICATE_DOWNLOAD_KEY: 'valid-secret-key',
     HTTPS_HOST: 'https://kc.test',
     SB_API_KEY: 'sb-api-key',
   },
@@ -17,14 +30,18 @@ jest.mock('./env', () => ({
 
 import axios from 'axios'
 import nodeHtmlToImage from 'node-html-to-image'
-import { fetchAndRenderCertificate } from './certificateRenderer'
+import { fetchAndRenderCertificate, resolveAndRenderCertificateFromCassandra } from './certificateRenderer'
 
 const mockAxiosCallable = axios as unknown as jest.Mock
 const mockNodeHtmlToImage = nodeHtmlToImage as unknown as jest.Mock
+const mockCassandraExecute = jest.fn()
+const mockCassandraShutdown = jest.fn()
 
 function mockResponse() {
   return {
     end: jest.fn(),
+    json: jest.fn(),
+    status: jest.fn().mockReturnThis(),
     writeHead: jest.fn(),
   } as unknown as import('express').Response
 }
@@ -32,6 +49,8 @@ function mockResponse() {
 beforeEach(() => {
   mockAxiosCallable.mockReset()
   mockNodeHtmlToImage.mockReset()
+  mockCassandraExecute.mockReset()
+  mockCassandraShutdown.mockReset()
 })
 
 /**
@@ -117,4 +136,57 @@ it('concurrent calls for different certificates never cross-write to the wrong r
     expect.objectContaining({ 'Content-Disposition': expect.stringContaining('CertificateB.png') })
   )
   expect(resB.end).toHaveBeenCalledWith(Buffer.from('image-b'), 'binary')
+})
+
+const certRow = {
+  rows: [{ issued_certificates: [{ identifier: 'cert-1', name: 'My Certificate' }] }],
+}
+
+/**
+ * @description Verifies the correct-input path resolves the certificate
+ * from Cassandra and renders it via fetchAndRenderCertificate, and that
+ * the Cassandra client is shut down afterward.
+ */
+it('resolveAndRenderCertificateFromCassandra: resolves and renders the certificate for a correct secretKey', async () => {
+  mockCassandraExecute.mockResolvedValue(certRow)
+  mockAxiosCallable.mockResolvedValue({
+    data: {
+      responseCode: 'OK',
+      result: { printUri: "data:image/svg+xml,<svg width='800' height='600'>...</svg>" },
+    },
+  })
+  mockNodeHtmlToImage.mockResolvedValue(Buffer.from('fake-png-bytes'))
+  const req = { query: { courseid: 'c1', secretKey: 'valid-secret-key', userid: 'u1' } }
+  const res = mockResponse()
+
+  await resolveAndRenderCertificateFromCassandra(req as unknown as import('express').Request, res)
+
+  expect(mockCassandraShutdown).toHaveBeenCalled()
+  expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
+    'Content-Disposition': expect.stringContaining('My Certificate.png'),
+  }))
+})
+
+/**
+ * @description Documents the pre-existing bug: an incorrect secretKey
+ * sends a 400 but has no `return`, so execution falls through into the
+ * real Cassandra lookup and render anyway.
+ */
+it('resolveAndRenderCertificateFromCassandra: falls through to the Cassandra lookup even after sending 400 for a wrong secretKey', async () => {
+  mockCassandraExecute.mockResolvedValue(certRow)
+  mockAxiosCallable.mockResolvedValue({
+    data: {
+      responseCode: 'OK',
+      result: { printUri: "data:image/svg+xml,<svg width='800' height='600'>...</svg>" },
+    },
+  })
+  mockNodeHtmlToImage.mockResolvedValue(Buffer.from('fake-png-bytes'))
+  const req = { query: { courseid: 'c1', secretKey: 'wrong-key', userid: 'u1' } }
+  const res = mockResponse()
+
+  await resolveAndRenderCertificateFromCassandra(req as unknown as import('express').Request, res)
+
+  expect(res.status).toHaveBeenCalledWith(400)
+  expect(mockCassandraExecute).toHaveBeenCalled()
+  expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
 })

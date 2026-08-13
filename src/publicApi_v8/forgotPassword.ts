@@ -15,6 +15,42 @@ const API_END_POINTS = {
 const ACCOUNT_RESET_FAIL_MSG = 'Sorry ! There is some issue in resetting your account. Please contact admin.'
 const VERIFY_OTP_FAIL = 'Sorry ! There is some issue in verifying your account. Please try after sometime.'
 
+// sonar-cleanup: extracted from /reset/proxy/password's byte-identical
+// email/phone success tails (CHANGE 48) — same generateOtp call, same
+// 200 response. Real difference threaded through: each branch's own
+// userId-found log label and send-confirmation log label.
+/**
+ * Sends a password-reset OTP for a user that was just found by email or
+ * phone, then responds 200. Shared by `/reset/proxy/password`'s email and
+ * phone branches.
+ *
+ * @param res - the Express response to send the 200 confirmation on
+ * @param userUUId - the id of the user found by the preceding search
+ * @param sbUsername - the raw email or phone the caller submitted
+ * @param userType - `'email'` or `'phone'`, forwarded to the generateOtp request
+ * @param userIdLogLabel - text logged (with `userUUId` appended) once the user id is resolved
+ * @param sentLogLabel - text logged (with the generateOtp response appended) after the OTP request completes
+ */
+async function sendPasswordResetOtp(
+  // tslint:disable-next-line: no-any
+  res: any, userUUId: string, sbUsername: string, userType: string, userIdLogLabel: string, sentLogLabel: string
+) {
+  logInfo(userIdLogLabel, userUUId)
+
+  // generate otp
+  const sendResponse = await axios({
+    ...axiosRequestConfig,
+    data: {
+      request: { userId: userUUId, key: sbUsername, type: userType },
+    },
+    headers: { Authorization: CONSTANTS.SB_API_KEY },
+    method: 'POST',
+    url: API_END_POINTS.generateOtp,
+  })
+  logInfo(sentLogLabel + JSON.stringify(sendResponse))
+  res.status(200).send({ message: 'Success ! Please verify the OTP .' })
+}
+
 export const forgotPassword = Router()
 
 forgotPassword.post('/reset/proxy/password', async (req, res) => {
@@ -43,21 +79,9 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
           _.find(searchresponse.data.result.response.content, 'userId'),
           'userId'
         )
-        logInfo('>>>>>>>> User Id : ', userUUId)
-
-        // generate otp
-        const sendResponse = await axios({
-          ...axiosRequestConfig,
-          data: {
-            request: { userId: userUUId, key: sbUsername, type: userType },
-          },
-          headers: { Authorization: CONSTANTS.SB_API_KEY },
-          method: 'POST',
-          url: API_END_POINTS.generateOtp,
-        })
-        logInfo('Sending Responses in email : ' + sendResponse)
-        // res.status(200).send(userUUId)
-        res.status(200).send({ message: 'Success ! Please verify the OTP .' })
+        await sendPasswordResetOtp(
+          res, userUUId, sbUsername, userType, '>>>>>>>> User Id : ', 'Sending Responses in email : '
+        )
         return
       } else {
         logInfo(
@@ -81,20 +105,9 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
           _.find(searchresponse.data.result.response.content, 'userId'),
           'userId'
         )
-        logInfo('User Id : ', userUUId)
-
-        // generate otp
-        const sendResponse = await axios({
-          ...axiosRequestConfig,
-          data: {
-            request: { userId: userUUId, key: sbUsername, type: userType },
-          },
-          headers: { Authorization: CONSTANTS.SB_API_KEY },
-          method: 'POST',
-          url: API_END_POINTS.generateOtp,
-        })
-        logInfo('Sending Responses in phone part : ' + sendResponse)
-        res.status(200).send({ message: 'Success ! Please verify the OTP .' })
+        await sendPasswordResetOtp(
+          res, userUUId, sbUsername, userType, 'User Id : ', 'Sending Responses in phone part : '
+        )
         return
       } else {
         logInfo(

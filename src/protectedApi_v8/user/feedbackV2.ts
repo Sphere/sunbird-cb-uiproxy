@@ -36,6 +36,55 @@ function handleFeedbackError(res: Response, err: any) {
   )
 }
 
+// sonar-cleanup: extracted from the identical build-body/POST/send tail
+// shared by sendSentimentNeutralFeedback and the /platform handler below.
+// `includeSentiment` carries the one real difference: /platform's body
+// always carries `feedback.sentiment`, sendSentimentNeutralFeedback's never
+// does (hence its name). Each caller keeps its own try/catch around this
+// call, since resolving rootOrg/uuid/feedback happens in its own order
+// before this runs and a failure there needs the same error handling.
+/**
+ * Builds the feedback-submit body from `feedback`/`uuid` (including
+ * `sentiment` only when `includeSentiment` is set, and `rootFeedbackId`/
+ * `category` when present on `feedback`), posts it, and sends the upstream
+ * response body back to the caller.
+ *
+ * @param res - the Express response to send the result on
+ * @param feedback - the incoming feedback payload
+ * @param uuid - the submitting user's id
+ * @param rootOrg - the resolved rootOrg header value, forwarded upstream
+ * @param includeSentiment - whether to include `feedback.sentiment` in the submitted body
+ */
+async function submitFeedback(
+  res: Response, feedback: IFeedback, uuid: string, rootOrg: string | string[], includeSentiment: boolean
+) {
+  const body: IFeedbackSubmit = {
+    text: feedback.text,
+    type: feedback.type,
+    user_id: uuid,
+  }
+
+  if (includeSentiment) {
+    body.sentiment = feedback.sentiment
+  }
+
+  if (feedback.rootFeedbackId) {
+    body.rootFeedbackId = feedback.rootFeedbackId
+  }
+
+  if (feedback.category) {
+    body.category = feedback.category
+  }
+
+  const response = await axios.post(`${apiEndpoints.feedback}/feedback/submit`, body, {
+    ...axiosRequestConfig,
+    headers: { rootOrg },
+    params: { role: feedback.role },
+  })
+
+  return res.send(response.data)
+}
+
 // Middleware function for content request and service request submission
 const sendSentimentNeutralFeedback = async (req: Request, res: Response) => {
   try {
@@ -48,27 +97,7 @@ const sendSentimentNeutralFeedback = async (req: Request, res: Response) => {
     const uuid = extractUserIdFromRequest(req)
     const feedback = req.body as IFeedback
 
-    const body: IFeedbackSubmit = {
-      text: feedback.text,
-      type: feedback.type,
-      user_id: uuid,
-    }
-
-    if (feedback.rootFeedbackId) {
-      body.rootFeedbackId = feedback.rootFeedbackId
-    }
-
-    if (feedback.category) {
-      body.category = feedback.category
-    }
-
-    const response = await axios.post(`${apiEndpoints.feedback}/feedback/submit`, body, {
-      ...axiosRequestConfig,
-      headers: { rootOrg },
-      params: { role: feedback.role },
-    })
-
-    return res.send(response.data)
+    return await submitFeedback(res, feedback, uuid, rootOrg, false)
   } catch (err) {
     return handleFeedbackError(res, err)
   }
@@ -85,27 +114,7 @@ feedbackV2Api.post('/platform', async (req: Request, res: Response) => {
       return
     }
 
-    const body: IFeedbackSubmit = {
-      sentiment: feedback.sentiment,
-      text: feedback.text,
-      type: feedback.type,
-      user_id: uuid,
-    }
-
-    if (feedback.rootFeedbackId) {
-      body.rootFeedbackId = feedback.rootFeedbackId
-    }
-
-    if (feedback.category) {
-      body.category = feedback.category
-    }
-
-    const response = await axios.post(`${apiEndpoints.feedback}/feedback/submit`, body, {
-      ...axiosRequestConfig,
-      headers: { rootOrg },
-      params: { role: feedback.role },
-    })
-    return res.send(response.data)
+    return await submitFeedback(res, feedback, uuid, rootOrg, true)
   } catch (err) {
     return handleFeedbackError(res, err)
   }

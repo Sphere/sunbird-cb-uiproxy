@@ -5780,6 +5780,330 @@ in a `.test.ts` file; no production source file was modified.
 
 ---
 
+## CHANGE 46 — duplication reduction: workflow-handler.ts and workallocation.ts, re-examined and merged
+
+**Context:** both files had been researched earlier in this campaign and
+judged low-value/too-fragmented to merge safely. At the repo owner's
+request to look again for any safe reduction toward 5%, both were
+re-read in full — not by re-reading the prior verdict — and the prior
+call turned out to be wrong for the bulk of each file: both have a
+large, genuinely mergeable core, with only a small number of routes
+that are real exceptions.
+
+### workflow-handler.ts
+
+**What:** all 9 routes shared the identical
+`axios.<method>(url, [body,] {...axiosRequestConfig, headers}) ->
+res.status(response.status).send(response.data)` shape feeding into the
+already-extracted `handleWorkflowError`. Extracted to a new
+`proxyWorkflowRoute(req, res, method, url, sendBody, orgHeaders?, wid?)`.
+Every real per-route difference threaded through as an explicit
+parameter: HTTP method, whether the body is forwarded, whether org
+headers are attached at all and in what form (both `org`+`rootOrg` via
+the existing `requireWorkflowOrgHeaders` guard on 5 routes; both headers
+read raw with no guard on 2 routes — `/nextActionSearch`,
+`/historyByApplicationIdAndWfId`, `/historyByApplicationId`; `rootOrg`
+alone on `/workflowProcess`), and whether the `wid` header is sent
+(`/userWfSearch`, `/userWFApplicationFieldsSearch` only).
+
+**Testing:** existing suite (42 tests) already asserted exact upstream
+URL per route, including the `wid`-header-forwarding assertion for the
+2 routes that send it — so no new tests were needed to trust the merge.
+All 42 pass unchanged.
+
+### workallocation.ts
+
+**What:** 9 of the file's 12 routes (`/v2/add`, `/v2/update`,
+`/add/workorder`, `/update/workorder`, `/getWorkOrders`,
+`/getWorkOrderById/:workOrderId`, `/getWorkAllocationById/:workAllocationId`,
+`/copy/workOrder`, `/getUserBasicInfo/:userId`) shared the identical
+`axios.<method>(url, [body,] {...axiosRequestConfig, headers}) ->
+res.status(response.status).send(response.data)` shape, all using
+`handleWorkAllocationError(res, err, true)` (the pre-existing
+buggy-log-string variant — see that function's own doc comment).
+Extracted to a new `proxyWorkAllocationRoute(req, res, method, url,
+sendBody, guard?, userIdHeader?)`. Real per-route differences
+threaded through: HTTP method, whether the body is forwarded, whether
+a required-value guard applies before the call (and which value/message
+it checks — `userId` from `extractUserId(req)`, a route param, or none
+at all for `/getWorkOrders`), and whether the resolved `userId` is sent
+as a header.
+
+**Explicitly excluded, confirmed genuinely different, not merged:**
+- `/add`, `/update` — v1 endpoints using `extractAuthorizationFromRequest(req)`
+  for `Authorization` instead of the constant `CONSTANTS.SB_API_KEY`
+  every v2 route uses; a real, different auth mechanism.
+- `/userSearch` — sends no auth headers at all (`headers: {}`).
+- `/user/autocomplete/:searchTerm` — uses `CONSTANTS.SB_API_KEY` like the
+  merged routes but with `useBuggyLog: false`, the non-buggy log variant;
+  a real, different (correct) logging behavior, not folded into the
+  9-route merge which is uniformly `useBuggyLog: true`.
+- `/getWOPdf/:workOrderId` — sends `Accept: application/pdf` and sets
+  `responseType: 'arraybuffer'`, neither of which any other route does;
+  a real, different response-handling contract for a binary download.
+
+**Testing:** the existing suite (35 tests) checked status codes and the
+userId-missing 400 path but never asserted the exact upstream URL,
+method, or `userId`-header presence/absence per route — a real gap this
+merge could have silently broken without new coverage. Added 9 new
+tests, one per merged route, asserting exact request construction:
+resolved URL, whether the body is forwarded, and whether `userId`
+appears in the outbound headers (present for the 5 routes deriving it
+from `extractUserId(req)`, explicitly absent for `/getWorkOrders`,
+which has no guard and sends no `userId` at all). All 44 tests
+(35 existing + 9 new) pass.
+
+**Combined verification:** full suite run 3 times (3673/3674 — 1
+skipped, as always — on runs 2 and 3; run 1 had 2 failures in files
+untouched by this change — `discussionHub/users.test.ts`,
+`signupWithAutoLoginV2.test.ts` — both showing the documented
+`mountRouter`-adjacent "Parse Error: Expected HTTP/" flake signature,
+confirmed clean in isolation immediately after, not a regression).
+`tsc --noEmit` clean on both configs, `tslint` clean across the repo
+(one style finding — `guard?: {value: string | undefined; ...}` should
+be `guard?: {value?: string; ...}` — fixed during this same change,
+same behavior). `npm run build` clean, `dist/` has 272 `.js` files
+(unchanged — both merges stay within their existing files, no new
+file created) and zero leaked `.test.js` files. Both routers
+(`workAllocationApi`, `workflowHandlerApi`) confirmed still mounted at
+their original paths (`/workallocation`, `/workflowhandler`) in
+`protectedApiV8.ts`.
+
+**MUST VERIFY IN PROD:** nothing — every route's method, URL, body
+forwarding, header set (including the pre-existing buggy-log-string
+behavior, the `wid` header, and the org-header guard/no-guard split),
+and error response shape is unchanged.
+
+**Sonar result:** not measured — the local Sonar server was unreachable
+at the time of this change (same as CHANGE 45). Based on the ~99 net
+source lines removed across both files (283+279 lines replaced with
+much shorter route registrations plus 2 shared helpers), expect a
+further reduction from the last confirmed 6.1%, but this has not been
+confirmed by a live scan. Rescan and update this figure once Sonar is
+reachable again.
+
+---
+
+## CHANGE 47 — duplication reduction: mobileAppApi.ts, 3 more clusters found on re-read
+
+**Context:** `mobileAppApi.ts`'s remaining ~96 duplicated lines had been
+researched and judged "generic boilerplate, too entangled to safely
+template further" earlier in this campaign. Same as CHANGE 46, a fresh,
+skeptical re-read (not a re-read of the prior summary) found real safe
+duplication the earlier pass had mischaracterized or missed entirely.
+
+### Cluster 1 — the 5 `/*/homepageconfig` routes
+
+**What:** `/create`, `/read`, `/getById`, `/updateById`,
+`/deleteById/homepageconfig` all share the identical
+`axios({...headers: {Authorization: CONSTANTS.SB_API_KEY,
+contentTypeHeader}, method, url}) -> res.status(response.status).send(response.data)`
+shape feeding into the already-extracted `handleMobileApiDefaultError(res,
+err, 'error')`. The earlier pass called this "mostly generic boilerplate" —
+on a fresh read it's the exact same axios-call-plus-headers pattern
+already proven safe to merge in `workflow-handler.ts`/`workallocation.ts`
+(CHANGE 46), not incidental repetition. Extracted to
+`proxyHomepageConfigRoute(req, res, method, url, sendBody, logResponse?)`.
+
+**Real difference preserved exactly, caught by re-reading twice:** the
+first attempt at this extraction dropped a real behavior — 2 of the 5
+routes (`updateById`, `deleteById`) log the upstream response body
+*after* a successful call (`logInfo('Response from homepageconfig',
+JSON.stringify(response.data))`), which the other 3 don't do. Caught
+this by re-reading the diff against the original before running any
+tests, not by a test failure — added it back via an explicit
+`logResponse` parameter, defaulting to `false` (the 3 routes that don't
+log) and passed `true` only at the 2 call sites that need it.
+
+Each route's own pre-call `logInfo` (wording and arguments vary
+per-route, including 2 that literally reuse the string `'Inside CBP
+course recommendation route '` — a pre-existing copy-paste artifact from
+an unrelated route, left as-is) stays at the call site, not folded into
+the shared helper.
+
+### Cluster 2 — 5 of 7 scattered `(err && err.response && err.response.status) || 500` catch blocks
+
+**What:** this second family of duplicated catch blocks — distinct from
+`handleMobileApiDefaultError`'s existing call sites — was not mentioned
+by the earlier pass at all. 7 occurrences
+(`/updateUserProfile` ×2, `/courseRemommendationv2`, `/learnerPath`
+POST/GET, `/getUnreadUserNotifications`, `/ext-forms/*`) used the same
+status/body-fallback logic as `handleMobileApiDefaultError`, just written
+in the older `&&`-chain style instead of optional chaining. 5 of the 7
+(`/courseRemommendationv2`, both `/learnerPath` routes,
+`/getUnreadUserNotifications`, `/ext-forms/*`) call `logInfo(JSON.stringify(err))`
+with no prefix — exactly matching `handleMobileApiDefaultError`'s
+no-prefix branch — and were rewired to call it directly, with an added
+optional `errorMessage` parameter (defaulting to the existing
+`DEFAULT_ERROR_MSG` so every pre-existing caller's behavior is
+unchanged) so each route's own distinct fallback message text is
+preserved.
+
+**Deliberately NOT touched — a real difference found and correctly left
+alone:** the other 2 occurrences, both inside `/updateUserProfile`
+(the inner Joi-validation catch and the outer route catch), call
+`logError(...)`, not `logInfo(...)` — a genuinely different log
+severity. Merging them into `handleMobileApiDefaultError` would have
+silently downgraded an error-level log to info-level, a real behavior
+change disguised as deduplication. Left as-is.
+
+### Cluster 3 — getEntityById / getAllEntity
+
+**What:** both routes share an identical `verifyToken` guard ->
+`axios` POST -> `res.status(response.data.responseCode).send(...)`
+shape and both use `logError` (matching each other, so safe to merge
+unlike cluster 2's exception). Extracted to `proxyEntityRoute(req, res,
+url, requestLogLabel, errorLogLabel, failMessage, applyPilotMockEntity)`.
+The one real behavioral difference — `getAllEntity` alone
+post-processes the response through the pilot-demo `appendPilotMockEntity`
+wrapper — threaded through as an explicit boolean, not force-merged.
+
+**Testing:** the existing suite (98 tests) already covered most of the
+touched routes' status codes, but per this campaign's deep-verification
+standard, 3 real gaps were found and closed with 8 new tests before
+trusting any of the 3 merges:
+- `getAllEntity` had no URL assertion — added one.
+- 4 of the 5 homepageconfig routes (`create`, `read`, `updateById`,
+  `deleteById`) had no method/URL assertion at all, and none of the 5
+  had a failure-path test — added exact method+URL+body assertions for
+  all 4, plus a 500-on-failure test for each of the 5 routes (4 new,
+  `create` already had one).
+- Both `/learnerPath` routes had **zero** failure-path test — only the
+  userId-mismatch 400 branch was covered. Added 4 new tests: an
+  upstream-error-with-response case and a transport-failure case for
+  each of POST and GET, confirming both the error-forwarding path and
+  the default-message fallback path.
+
+All 106 tests (98 existing + 8 new) pass.
+
+Full suite run 3 times, all clean (3681/3682 — 1 skipped, as always —
+every time, zero flakes this round). `tsc --noEmit` clean on both
+configs. `tslint` clean across the repo (5 findings surfaced during this
+change and fixed: a multi-line function signature broke a
+`tslint:disable-next-line: no-any` comment's scoping on 2 new helper
+functions — fixed by keeping signatures effectively single-statement
+with the disable comment directly above the `any`-typed parameters; a
+4-element `'POST' | 'GET' | 'PUT' | 'DELETE'` union was replaced with
+axios's own `Method` type; an optional `logResponse?: boolean` parameter
+was given an explicit `= false` default). `npm run build` clean, `dist/`
+has 272 `.js` files (unchanged — both new helpers stay within the
+existing file) and zero leaked `.test.js` files. Router
+(`mobileAppApi`) confirmed still mounted at `/mobileApp/` in
+`publicApiV8.ts`.
+
+**MUST VERIFY IN PROD:** nothing — every route's method, URL, body
+forwarding, response-logging behavior (including which 2 of 5
+homepageconfig routes log the response and which 3 don't), log
+severity (`logInfo` vs `logError`, preserved exactly per site), fallback
+error message text, and the `appendPilotMockEntity` pilot-only
+post-processing step are all unchanged.
+
+**Sonar result:** not measured — Sonar still unreachable. Based on line
+count (270 lines replaced with ~220, net ~50 source lines removed
+across 3 clusters, on top of the ~99 from CHANGE 46), expect further
+reduction from 6.1%; not yet confirmed by a live scan.
+
+---
+
+## CHANGE 48 — duplication reduction: forgotPassword.ts's email/phone OTP-send tail
+
+**File:** `src/publicApi_v8/forgotPassword.ts`.
+
+**Context:** an exploratory pass over the last handful of files still
+showing Sonar duplication after the campaign's 5% target was already hit.
+Confirmed via the Sonar duplications API which exact lines were flagged
+before touching anything, then re-checked the other 5 candidate files
+against this campaign's own prior decisions (see below).
+
+### What changed and why
+
+`/reset/proxy/password`'s email and phone branches, once a user is found,
+did the identical sequence: log the resolved `userUUId`, call
+`API_END_POINTS.generateOtp` with the same request shape, log the axios
+response, and send the same 200 body. Direct diff confirmed the two real
+differences are just text: the userId-log label (`'>>>>>>>> User Id : '`
+vs `'User Id : '`) and the send-confirmation log label (`'Sending
+Responses in email : '` vs `'...in phone part : '`). Extracted to
+`sendPasswordResetOtp(res, userUUId, sbUsername, userType,
+userIdLogLabel, sentLogLabel)`, with both labels threaded through as
+explicit parameters rather than homogenized. A stray, already-dead
+comment (`// res.status(200).send(userUUId)`, commented out and never
+executed) that sat only in the email branch was dropped along with it.
+
+The `else` branches (user not found, `res.status(302).send(count)` —
+including this file's own pre-existing `res.send(0)` bug, documented in
+this file's test header) and the outer `/verifyOtp` route were left
+completely untouched; they weren't part of the flagged duplication and
+carry their own separate pre-existing issues already documented in
+`forgotPassword.test.ts`.
+
+### Other 5 candidate files: re-checked, nothing further merged
+
+- **`mobileAppApi.ts`** — the one remaining flagged block (27 lines,
+  `/updateUserProfile`'s Joi-validate-then-patch tail) is a cross-file
+  match against `protectedApi_v8/user/profile-details.ts`'s
+  `/updateUser`, a file already confirmed unmergeable earlier in this
+  campaign. Direct diff confirmed the same reasoning still holds:
+  `mobileAppApi.ts` gates the whole body behind
+  `verifyToken`/`accesTokenResult.status == 200` and forwards the
+  caller's own token via `getHeaders(req)`; `profile-details.ts` has no
+  such gate and calls upstream with a static `Authorization:
+  CONSTANTS.SB_API_KEY` service key instead — a real auth-model
+  difference, not cosmetic. Left untouched.
+- **`signupWithAutoLoginV2.ts` / `signupWithAutoLogin.ts` /
+  `appSignUpWithAutoLogin.ts` / `signupWithAutoLoginOrgForm.ts`** — all 4
+  remaining flagged blocks are the family's post-Keycloak-token-exchange
+  tail (decode token, set session/kauth, call `getCurrentUserRoles`,
+  respond 200), the same block CHANGE 33's cluster E-3 already
+  investigated and deliberately left unmerged against the shared
+  `ssoKeycloakExchange.ts` helper. Re-diffing the 3-way match among the
+  family members themselves (not against the shared helper this time)
+  found the same category of real differences that motivated the
+  original rejection, now confirmed across 3 files instead of 1: the
+  token-exchange payload shape itself differs (v1 sends `client_id:
+  'portal'` with an actual `password` field; V2/OrgForm send `client_id:
+  'aastrika-sso-login'` with `client_secret` + `scope`, no password —
+  a real auth-flow difference, not text); the guard condition differs
+  (`authTokenResponse.data` vs `authTokenResponse.data?.access_token`);
+  every log line's text and/or level differs across all 3 files
+  (`logInfo` vs `logError`, `'VALIDATE_OTP:'`-prefixed vs not, `+ e` vs
+  `+ JSON.stringify(e)`). The smaller "outer shell" duplication (the
+  `verifyRegistrationOtp` result-handling wrapper around the
+  `session.save`/`regenerate` call, shared byte-for-byte between v1 and
+  V2 only) was also considered and rejected: its inner body is exactly
+  the block above, so extracting the shell alone would only relocate the
+  same rejected duplication into a callback parameter without reducing
+  it, fragmenting a linear handler for no real simplification. Left
+  untouched, consistent with and extending CHANGE 33's original
+  reasoning.
+
+### Verified
+
+- `forgotPassword.test.ts`'s existing 19 tests: all pass with zero test
+  changes required, proving both branches' external behavior
+  (status codes, response bodies, exact log call arguments via the
+  mocked logger) is unchanged.
+- Coverage on `forgotPassword.ts`: 100% statements/branches/functions/
+  lines, no new tests needed.
+- Full Jest suite: 223 suites, 3689 passed / 1 skipped (matches the
+  pre-existing baseline).
+- `npx tsc --noEmit -p tsconfig.json`: clean.
+- `npx tslint -c tslint.json -p tsconfig.json`: clean (one `no-any`
+  finding surfaced on the new helper's `res` parameter, fixed by moving
+  the `tslint:disable-next-line` directly above the parameter line,
+  matching this file's own multi-line-signature convention elsewhere in
+  the codebase).
+- `npm run build`: exits 0, clean `dist/`, zero leaked `.test.js` files.
+
+### MUST VERIFY IN PROD
+
+- [ ] None expected — the extracted function is a body-for-body move of
+      both branches' tail with the only two genuine differences (the two
+      log labels) threaded through as explicit parameters; every request
+      shape, header, URL, and response body is byte-identical to before.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

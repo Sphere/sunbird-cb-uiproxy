@@ -131,6 +131,16 @@ describe('POST /v2/add', () => {
     const response = await agent().post('/v2/add').send({})
     expect(response.status).toBe(500)
   })
+
+  it('requests the v2 add endpoint with the body forwarded and userId in headers', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({}))
+    await agent().post('/v2/add').send({ name: 'x' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/add',
+      { name: 'x' },
+      expect.objectContaining({ headers: expect.objectContaining({ userId: 'user-1' }) })
+    )
+  })
 })
 
 describe('POST /v2/update', () => {
@@ -150,6 +160,16 @@ describe('POST /v2/update', () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await agent().post('/v2/update').send({})
     expect(response.status).toBe(500)
+  })
+
+  it('requests the v2 update endpoint with the body forwarded and userId in headers', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({}))
+    await agent().post('/v2/update').send({ name: 'x' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/update',
+      { name: 'x' },
+      expect.objectContaining({ headers: expect.objectContaining({ userId: 'user-1' }) })
+    )
   })
 })
 
@@ -171,6 +191,16 @@ describe('POST /add/workorder', () => {
     const response = await agent().post('/add/workorder').send({})
     expect(response.status).toBe(500)
   })
+
+  it('requests the add-workorder endpoint with the body forwarded and userId in headers', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({}))
+    await agent().post('/add/workorder').send({ name: 'x' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/add/workorder',
+      { name: 'x' },
+      expect.objectContaining({ headers: expect.objectContaining({ userId: 'user-1' }) })
+    )
+  })
 })
 
 describe('POST /update/workorder', () => {
@@ -191,6 +221,16 @@ describe('POST /update/workorder', () => {
     const response = await agent().post('/update/workorder').send({})
     expect(response.status).toBe(500)
   })
+
+  it('requests the update-workorder endpoint with the body forwarded and userId in headers', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({}))
+    await agent().post('/update/workorder').send({ name: 'x' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/update/workorder',
+      { name: 'x' },
+      expect.objectContaining({ headers: expect.objectContaining({ userId: 'user-1' }) })
+    )
+  })
 })
 
 describe('POST /getWorkOrders', () => {
@@ -204,6 +244,18 @@ describe('POST /getWorkOrders', () => {
     mockAxios.post.mockRejectedValue(networkError())
     const response = await agent().post('/getWorkOrders').send({})
     expect(response.status).toBe(500)
+  })
+
+  it('requests the getWorkOrders endpoint with the body forwarded and no userId header', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({}))
+    await agent().post('/getWorkOrders').send({ filter: 'x' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/getWorkOrders',
+      { filter: 'x' },
+      expect.anything()
+    )
+    const [, , config] = mockAxios.post.mock.calls[0]
+    expect(config.headers).not.toHaveProperty('userId')
   })
 })
 
@@ -219,6 +271,15 @@ describe('GET /getWorkOrderById/:workOrderId', () => {
     const response = await agent().get('/getWorkOrderById/wo1')
     expect(response.status).toBe(500)
   })
+
+  it('requests the resolved work-order-by-id endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({}))
+    await agent().get('/getWorkOrderById/wo1')
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/getWorkOrderById/wo1',
+      expect.anything()
+    )
+  })
 })
 
 describe('GET /getWorkAllocationById/:workAllocationId', () => {
@@ -232,6 +293,15 @@ describe('GET /getWorkAllocationById/:workAllocationId', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/getWorkAllocationById/wa1')
     expect(response.status).toBe(500)
+  })
+
+  it('requests the resolved work-allocation-by-id endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({}))
+    await agent().get('/getWorkAllocationById/wa1')
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/getWorkAllocationById/wa1',
+      expect.anything()
+    )
   })
 })
 
@@ -253,6 +323,16 @@ describe('POST /copy/workOrder', () => {
     const response = await agent().post('/copy/workOrder').send({})
     expect(response.status).toBe(500)
   })
+
+  it('requests the copy-workOrder endpoint with the body forwarded and userId in headers', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({}))
+    await agent().post('/copy/workOrder').send({ name: 'x' })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/copy/workOrder',
+      { name: 'x' },
+      expect.objectContaining({ headers: expect.objectContaining({ userId: 'user-1' }) })
+    )
+  })
 })
 
 describe('GET /getUserBasicInfo/:userId', () => {
@@ -266,6 +346,15 @@ describe('GET /getUserBasicInfo/:userId', () => {
     mockAxios.get.mockRejectedValue(networkError())
     const response = await agent().get('/getUserBasicInfo/u1')
     expect(response.status).toBe(500)
+  })
+
+  it('requests the resolved user-basic-info endpoint', async () => {
+    mockAxios.get.mockResolvedValue(upstreamOk({}))
+    await agent().get('/getUserBasicInfo/u1')
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://kong.test/v2/workallocation/user/basicInfo/u1',
+      expect.anything()
+    )
   })
 })
 

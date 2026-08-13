@@ -64,225 +64,133 @@ function handleWorkflowError(res: Response, err: any) {
     )
 }
 
-workflowHandlerApi.post('/transition', async (req, res) => {
+// sonar-cleanup: extracted from this file's 9 routes' repeated
+// axios.<method>(url, [body,] {...axiosRequestConfig, headers}) -> forward
+// status/data -> handleWorkflowError shape (CHANGE 46). Real per-route
+// differences threaded through explicitly: method, whether the request body
+// is forwarded, whether/how org headers are attached (both org+rootOrg,
+// rootOrg only, or neither), and whether the `wid` header is sent.
+/**
+ * Proxies a workflow-handler request: makes the upstream axios call, then
+ * forwards the upstream status/body, or the caught error, back to the
+ * caller.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result or error on
+ * @param method - 'GET' or 'POST'
+ * @param url - the resolved upstream endpoint
+ * @param sendBody - whether to forward `req.body` as the request body (GET routes here never do)
+ * @param orgHeaders - `{org, rootOrg}` to attach, `{rootOrg}` alone, or `undefined` to attach neither
+ * @param wid - the `wid` header value to attach, when the route forwards one
+ */
+async function proxyWorkflowRoute(
+    req: Request,
+    res: Response,
+    method: 'GET' | 'POST',
+    url: string,
+    sendBody: boolean,
+    orgHeaders?: { org?: string; rootOrg: string },
+    wid?: string
+) {
     try {
-        const orgHeaders = requireWorkflowOrgHeaders(req, res)
-        if (!orgHeaders) {
-            return
+        const headers: { [key: string]: string | undefined } = {
+            Authorization: CONSTANTS.SB_API_KEY,
+            // tslint:disable-next-line: all
+            'x-authenticated-user-token': extractUserToken(req),
         }
-        const { org: orgValue, rootOrg: rootOrgValue } = orgHeaders
-        const response = await axios.post(
-            API_END_POINTS.applicationTransition,
-            req.body,
-            {
-                ...axiosRequestConfig,
-                headers: {
-                    Authorization: CONSTANTS.SB_API_KEY,
-                    org: orgValue,
-                    rootOrg: rootOrgValue,
-                     // tslint:disable-next-line: all
-                     'x-authenticated-user-token': extractUserToken(req),
-                },
+        if (orgHeaders) {
+            headers.rootOrg = orgHeaders.rootOrg
+            if (orgHeaders.org) {
+                headers.org = orgHeaders.org
             }
-        )
+        }
+        if (wid) {
+            headers.wid = wid
+        }
+        const body = sendBody ? req.body : undefined
+        const response = method === 'POST'
+            ? await axios.post(url, body, { ...axiosRequestConfig, headers })
+            : await axios.get(url, { ...axiosRequestConfig, headers })
         res.status(response.status).send(response.data)
     } catch (err) {
         handleWorkflowError(res, err)
     }
+}
+
+workflowHandlerApi.post('/transition', async (req, res) => {
+    const orgHeaders = requireWorkflowOrgHeaders(req, res)
+    if (!orgHeaders) {
+        return
+    }
+    await proxyWorkflowRoute(req, res, 'POST', API_END_POINTS.applicationTransition, true, orgHeaders)
 })
 
 workflowHandlerApi.post('/applicationsSearch', async (req, res) => {
-    try {
-        const orgHeaders = requireWorkflowOrgHeaders(req, res)
-        if (!orgHeaders) {
-            return
-        }
-        const { org: orgValue, rootOrg: rootOrgValue } = orgHeaders
-        const response = await axios.post(
-            API_END_POINTS.applicationsSearch,
-            req.body,
-            {
-                ...axiosRequestConfig,
-                headers: {
-                    Authorization: CONSTANTS.SB_API_KEY,
-                    org: orgValue,
-                    rootOrg: rootOrgValue,
-                     // tslint:disable-next-line: all
-                     'x-authenticated-user-token': extractUserToken(req),
-                },
-            }
-        )
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
+    const orgHeaders = requireWorkflowOrgHeaders(req, res)
+    if (!orgHeaders) {
+        return
     }
+    await proxyWorkflowRoute(req, res, 'POST', API_END_POINTS.applicationsSearch, true, orgHeaders)
 })
 
 workflowHandlerApi.get('/nextActionSearch/:serviceName/:state', async (req, res) => {
-    try {
-        const serviceName = req.params.serviceName
-        const state = req.params.state
-        const rootOrgValue = req.headers.rootorg
-        const orgValue = req.headers.org
-        const response = await axios.get(API_END_POINTS.nextActionSearch(serviceName, state), {
-            ...axiosRequestConfig,
-            headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
-                org: orgValue,
-                rootOrg: rootOrgValue,
-                 // tslint:disable-next-line: all
-                 'x-authenticated-user-token': extractUserToken(req),
-            },
-        })
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
-    }
+    const serviceName = req.params.serviceName
+    const state = req.params.state
+    await proxyWorkflowRoute(
+        req, res, 'GET', API_END_POINTS.nextActionSearch(serviceName, state), false,
+        { org: req.headers.org as string, rootOrg: req.headers.rootorg as string }
+    )
 })
 
 workflowHandlerApi.get('/historyByApplicationIdAndWfId/:applicationId/:wfId', async (req, res) => {
-    try {
-        const wfId = req.params.wfId
-        const applicationId = req.params.applicationId
-        const rootOrgValue = req.headers.rootorg
-        const orgValue = req.headers.org
-        const response = await axios.get(API_END_POINTS.historyBasedOnWfId(wfId, applicationId), {
-            ...axiosRequestConfig,
-            headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
-                org: orgValue,
-                rootOrg: rootOrgValue,
-                 // tslint:disable-next-line: all
-                 'x-authenticated-user-token': extractUserToken(req),
-            },
-        })
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
-    }
+    const wfId = req.params.wfId
+    const applicationId = req.params.applicationId
+    await proxyWorkflowRoute(
+        req, res, 'GET', API_END_POINTS.historyBasedOnWfId(wfId, applicationId), false,
+        { org: req.headers.org as string, rootOrg: req.headers.rootorg as string }
+    )
 })
 
 workflowHandlerApi.get('/workflowProcess/:wfId', async (req, res) => {
-    try {
-        const wfId = req.params.wfId
-        const rootOrgValue = req.headers.rootorg
-        const response = await axios.get(API_END_POINTS.workflowProcess(wfId), {
-            ...axiosRequestConfig,
-            headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
-                rootOrg: rootOrgValue,
-                 // tslint:disable-next-line: all
-                 'x-authenticated-user-token': extractUserToken(req),
-            },
-        })
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
-    }
+    const wfId = req.params.wfId
+    await proxyWorkflowRoute(
+        req, res, 'GET', API_END_POINTS.workflowProcess(wfId), false,
+        { rootOrg: req.headers.rootorg as string }
+    )
 })
 
 workflowHandlerApi.get('/historyByApplicationId/:applicationId', async (req, res) => {
-    try {
-        const applicationId = req.params.applicationId
-        const rootOrgValue = req.headers.rootorg
-        const orgValue = req.headers.org
-        const response = await axios.get(API_END_POINTS.historyBasedOnApplicationId(applicationId), {
-            ...axiosRequestConfig,
-            headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
-                org: orgValue,
-                rootOrg: rootOrgValue,
-                  // tslint:disable-next-line: all
-                  'x-authenticated-user-token': extractUserToken(req),
-            },
-        })
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
-    }
+    const applicationId = req.params.applicationId
+    await proxyWorkflowRoute(
+        req, res, 'GET', API_END_POINTS.historyBasedOnApplicationId(applicationId), false,
+        { org: req.headers.org as string, rootOrg: req.headers.rootorg as string }
+    )
 })
 
 workflowHandlerApi.post('/updateUserProfileWf', async (req, res) => {
-    try {
-        const orgHeaders = requireWorkflowOrgHeaders(req, res)
-        if (!orgHeaders) {
-            return
-        }
-        const { org: orgValue, rootOrg: rootOrgValue } = orgHeaders
-        const response = await axios.post(
-            API_END_POINTS.userProfileUpdate,
-            req.body,
-            {
-                ...axiosRequestConfig,
-                headers: {
-                    Authorization: CONSTANTS.SB_API_KEY,
-                    org: orgValue,
-                    rootOrg: rootOrgValue,
-                     // tslint:disable-next-line: all
-                     'x-authenticated-user-token': extractUserToken(req),
-                },
-            }
-        )
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
+    const orgHeaders = requireWorkflowOrgHeaders(req, res)
+    if (!orgHeaders) {
+        return
     }
+    await proxyWorkflowRoute(req, res, 'POST', API_END_POINTS.userProfileUpdate, true, orgHeaders)
 })
 
 workflowHandlerApi.post('/userWfSearch', async (req, res) => {
-    try {
-        const orgHeaders = requireWorkflowOrgHeaders(req, res)
-        if (!orgHeaders) {
-            return
-        }
-        const { org: orgValue, rootOrg: rootOrgValue } = orgHeaders
-        const wid = req.headers.wid
-        const response = await axios.post(
-            API_END_POINTS.userWfSearch,
-            req.body,
-            {
-                ...axiosRequestConfig,
-                headers: {
-                    Authorization: CONSTANTS.SB_API_KEY,
-                    org: orgValue,
-                    rootOrg: rootOrgValue,
-                    wid,
-                    // tslint:disable-next-line: all
-                    'x-authenticated-user-token': extractUserToken(req),
-                },
-            }
-        )
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
+    const orgHeaders = requireWorkflowOrgHeaders(req, res)
+    if (!orgHeaders) {
+        return
     }
+    await proxyWorkflowRoute(
+        req, res, 'POST', API_END_POINTS.userWfSearch, true, orgHeaders, req.headers.wid as string
+    )
 })
 
 workflowHandlerApi.post('/userWFApplicationFieldsSearch', async (req, res) => {
-    try {
-        const orgHeaders = requireWorkflowOrgHeaders(req, res)
-        if (!orgHeaders) {
-            return
-        }
-        const { org: orgValue, rootOrg: rootOrgValue } = orgHeaders
-        const wid = req.headers.wid
-        const response = await axios.post(
-            API_END_POINTS.userWfFieldsSearch,
-            req.body,
-            {
-                ...axiosRequestConfig,
-                headers: {
-                    Authorization: CONSTANTS.SB_API_KEY,
-                    org: orgValue,
-                    rootOrg: rootOrgValue,
-                    wid,
-                     // tslint:disable-next-line: all
-                     'x-authenticated-user-token': extractUserToken(req),
-                },
-            }
-        )
-        res.status(response.status).send(response.data)
-    } catch (err) {
-        handleWorkflowError(res, err)
+    const orgHeaders = requireWorkflowOrgHeaders(req, res)
+    if (!orgHeaders) {
+        return
     }
+    await proxyWorkflowRoute(
+        req, res, 'POST', API_END_POINTS.userWfFieldsSearch, true, orgHeaders, req.headers.wid as string
+    )
 })

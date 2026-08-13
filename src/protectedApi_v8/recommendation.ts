@@ -43,6 +43,42 @@ function handleRecommendationError(res: Response, err: any, label: string) {
     })
 }
 
+// sonar-cleanup: extracted from the identical result-shaping tail shared by
+// '/' and '/interestBased' below — both dig the same
+// result.response.result array out of the upstream payload, map it through
+// processContent, shuffle it, and send it wrapped in an
+// IPaginatedApiResponse with hasMore always false. Both callers await their
+// own (differently-built) axios response before reaching this.
+/**
+ * Extracts the recommendation content array from an upstream response
+ * (falling back to an empty array if the expected `result.response.result`
+ * path isn't an array), shuffles it, and sends it as a paginated response.
+ *
+ * @param res - the Express response to send the result on
+ * @param response - the already-awaited upstream axios response
+ */
+// tslint:disable-next-line: no-any
+function sendShuffledRecommendations(res: Response, response: any) {
+  let contents: IContent[] = []
+  if (
+    Array.isArray(
+      response.data.result &&
+      response.data.result.response &&
+      response.data.result.response.result
+    )
+  ) {
+    contents = response.data.result.response.result.map((content: IContent) =>
+      processContent(content)
+    )
+  }
+  contents = shuffleContent(contents)
+  const result: IPaginatedApiResponse = {
+    contents,
+    hasMore: false,
+  }
+  res.json(result)
+}
+
 recommendationApi.get('/', async (req, res) => {
   try {
     const orgHeaders = requireOrgHeaders(req, res)
@@ -73,24 +109,7 @@ recommendationApi.get('/', async (req, res) => {
       method: 'GET',
       url,
     })
-    let contents: IContent[] = []
-    if (
-      Array.isArray(
-        response.data.result &&
-        response.data.result.response &&
-        response.data.result.response.result
-      )
-    ) {
-      contents = response.data.result.response.result.map((content: IContent) =>
-        processContent(content)
-      )
-    }
-    contents = shuffleContent(contents)
-    const result: IPaginatedApiResponse = {
-      contents,
-      hasMore: false,
-    }
-    res.json(result)
+    sendShuffledRecommendations(res, response)
   } catch (err) {
     handleRecommendationError(res, err, 'RECOMMENDATIONS FETCH ERROR >')
   }
@@ -120,25 +139,7 @@ recommendationApi.get('/interestBased', async (req, res) => {
         rootOrg,
       },
     })
-    let contents: IContent[] = []
-    if (
-      Array.isArray(
-        response.data.result &&
-        response.data.result.response &&
-        response.data.result.response.result
-      )
-    ) {
-      contents = response.data.result.response.result.map((content: IContent) =>
-        processContent(content)
-      )
-    }
-    contents = shuffleContent(contents)
-
-    const result: IPaginatedApiResponse = {
-      contents,
-      hasMore: false,
-    }
-    res.json(result)
+    sendShuffledRecommendations(res, response)
   } catch (err) {
     handleRecommendationError(res, err, 'INTEREST BASED RECOMMENDATIONS FETCH ERROR >')
   }

@@ -92,6 +92,32 @@ describe('POST /platform', () => {
       expect.anything()
     )
   })
+
+  it('always includes a sentiment key in the submitted body, even when undefined', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ submitted: true }))
+    await withRootOrg(agent().post('/platform')).send({
+      text: 'great app',
+      type: 'general',
+      role: 'learner',
+      sentiment: 'positive',
+    })
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ sentiment: 'positive' }),
+      expect.anything()
+    )
+
+    mockAxios.post.mockClear()
+    mockAxios.post.mockResolvedValue(upstreamOk({ submitted: true }))
+    await withRootOrg(agent().post('/platform')).send({
+      text: 'great app',
+      type: 'general',
+      role: 'learner',
+    })
+    const noSentimentBody = mockAxios.post.mock.calls[0][1]
+    expect(noSentimentBody).toHaveProperty('sentiment')
+    expect(noSentimentBody.sentiment).toBeUndefined()
+  })
 })
 
 describe('POST /content/:contentId', () => {
@@ -176,6 +202,18 @@ describe('POST /content-request', () => {
       expect.objectContaining({ rootFeedbackId: 'root-1', category: 'bug' }),
       expect.anything()
     )
+  })
+
+  it('never includes a sentiment key in the submitted body, even if the request supplies one', async () => {
+    mockAxios.post.mockResolvedValue(upstreamOk({ submitted: true }))
+    await withRootOrg(agent().post('/content-request')).send({
+      text: 'please add X',
+      type: 'content-request',
+      role: 'learner',
+      sentiment: 'positive',
+    })
+    const submittedBody = mockAxios.post.mock.calls[0][1]
+    expect(submittedBody).not.toHaveProperty('sentiment')
   })
 })
 

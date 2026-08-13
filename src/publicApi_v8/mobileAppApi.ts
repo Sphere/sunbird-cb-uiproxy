@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { Method } from 'axios'
 import fs from 'fs'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
@@ -14,8 +14,10 @@ import request from 'request'
 import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { axiosRequestConfig } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
-// sonar-cleanup: certificate-fetch+render tail replaced with the shared import (CHANGE 33)
-import { fetchAndRenderCertificate } from '../utils/certificateRenderer'
+// sonar-cleanup: certificate-fetch+render tail replaced with the shared import (CHANGE 33);
+// widened to resolveAndRenderCertificateFromCassandra to also share the
+// Cassandra-lookup middle section with publicCertifcateFlinkv2.ts (CHANGE 48)
+import { resolveAndRenderCertificateFromCassandra } from '../utils/certificateRenderer'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
@@ -93,13 +95,14 @@ const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
 /**
  * Logs the error (optionally prefixed with `logErrorPrefix`), then
  * responds with the upstream status code (or 500) and the upstream error
- * body (or the shared default error message).
+ * body (or `errorMessage`, defaulting to the shared default error message).
  * @param res the Express response to send the error on
  * @param err the caught error, expected to optionally carry an axios-style `response`
  * @param logErrorPrefix optional text logged before the stringified error
+ * @param errorMessage the fallback error message when there's no upstream body, defaulting to DEFAULT_ERROR_MSG
  */
 // tslint:disable-next-line: no-any
-function handleMobileApiDefaultError(res: any, err: any, logErrorPrefix?: string) {
+function handleMobileApiDefaultError(res: any, err: any, logErrorPrefix?: string, errorMessage = DEFAULT_ERROR_MSG) {
   if (logErrorPrefix) {
     logInfo(logErrorPrefix, JSON.stringify(err))
   } else {
@@ -107,7 +110,7 @@ function handleMobileApiDefaultError(res: any, err: any, logErrorPrefix?: string
   }
   res.status(err?.response?.status || DEFAULT_ERROR_STATUS).send(
     err?.response?.data || {
-      error: DEFAULT_ERROR_MSG,
+      error: errorMessage,
     }
   )
 }
@@ -508,7 +511,27 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
     })
   }
 })
-mobileAppApi.post('/getEntityById/:id', async (req, res) => {
+// sonar-cleanup: extracted from /getEntityById/:id and /getAllEntity's
+// identical verifyToken -> axios POST -> forward responseCode/data shape
+// (CHANGE 47). Real differences threaded through: the URL, the logged
+// request-body message, the failure message, and whether the response goes
+// through the appendPilotMockEntity post-processing step (getAllEntity only).
+/**
+ * Proxies an entity-lookup request to the upstream Entity API and forwards
+ * the result, or a fixed 500 failure body, back to the caller.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result or error on
+ * @param url - the resolved upstream endpoint
+ * @param requestLogLabel - text logged with the request body before the call
+ * @param errorLogLabel - text logged (with the caught error appended) on failure
+ * @param failMessage - the `message` field sent on a 500 failure
+ * @param applyPilotMockEntity - whether to post-process the response through appendPilotMockEntity (getAllEntity only)
+ */
+async function proxyEntityRoute(
+  // tslint:disable-next-line: no-any
+  req: any, res: any, url: string, requestLogLabel: string, errorLogLabel: string, failMessage: string, applyPilotMockEntity: boolean
+) {
   try {
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.status == 200) {
@@ -519,45 +542,36 @@ mobileAppApi.post('/getEntityById/:id', async (req, res) => {
           contentTypeHeader,
         },
         method: 'POST',
-        url: `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
+        url,
       })
-      logInfo('Check req body of getEntityByID >> ' + req.body)
-      res.status(response.data.responseCode).send(response.data)
-    }
-  } catch (error) {
-    logError('Error in getEntityById  >>>>>>' + error)
-    res.status(500).send({
-      message: GET_ENTITY_BY_ID_FAIL,
-      status: 'failed',
-    })
-  }
-})
-mobileAppApi.post('/getAllEntity', async (req, res) => {
-  try {
-    const accesTokenResult = verifyToken(req, res)
-    if (accesTokenResult.status == 200) {
-      const response = await axios({
-        data: req.body,
-        headers: {
-          authenticatedToken: req.headers[authenticatedToken],
-          contentTypeHeader,
-        },
-        method: 'POST',
-        url: API_END_POINTS.GET_ALL_ENTITY,
-      })
-      logInfo('Check req body of getAllEntity >> ' + req.body)
-      // PILOT DEMO ADD-ON: returns response.data untouched unless the pilot
-      // flag is on. Remove this wrapper + its import to drop the add-on.
-      const payload = await appendPilotMockEntity(response.data, req.body)
+      logInfo(requestLogLabel + req.body)
+      const payload = applyPilotMockEntity
+        // PILOT DEMO ADD-ON: returns response.data untouched unless the pilot
+        // flag is on. Remove this wrapper + its import to drop the add-on.
+        ? await appendPilotMockEntity(response.data, req.body)
+        : response.data
       res.status(response.data.responseCode).send(payload)
     }
   } catch (error) {
-    logError('Error in GET_ALL_ENTITY  >>>>>>' + error)
+    logError(errorLogLabel + error)
     res.status(500).send({
-      message: GET_ALL_ENTITY_FAIL,
+      message: failMessage,
       status: 'failed',
     })
   }
+}
+
+mobileAppApi.post('/getEntityById/:id', async (req, res) => {
+  await proxyEntityRoute(
+    req, res, `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
+    'Check req body of getEntityByID >> ', 'Error in getEntityById  >>>>>>', GET_ENTITY_BY_ID_FAIL, false
+  )
+})
+mobileAppApi.post('/getAllEntity', async (req, res) => {
+  await proxyEntityRoute(
+    req, res, API_END_POINTS.GET_ALL_ENTITY,
+    'Check req body of getAllEntity >> ', 'Error in GET_ALL_ENTITY  >>>>>>', GET_ALL_ENTITY_FAIL, true
+  )
 })
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
@@ -798,61 +812,20 @@ mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: 'Exception occured in recommendation service',
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, 'Exception occured in recommendation service')
   }
 })
+// sonar-cleanup: the userid/courseid/secretKey-through-Cassandra-lookup
+// middle section (previously duplicated from publicCertifcateFlinkv2.ts's
+// '/download') replaced with the shared
+// resolveAndRenderCertificateFromCassandra helper (CHANGE 48). This route's
+// own token-gate wrapper stays as-is, including the pre-existing quirk
+// where a non-200 token silently sends no response at all (no else branch).
 mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.status == 200) {
-      const userid = req.query.userid
-      const courseid = req.query.courseid
-      const secretKey = req.query.secretKey
-
-      if (!(userid || courseid || secretKey)) {
-        res.status(400).json({
-          msg: 'UserID, courseID or secretKey can not be empty',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY
-      if (certificateKey !== secretKey) {
-        res.status(400).json({
-          msg: 'Invalid certificate download key',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      const client = new cassandra.Client({
-        contactPoints: [CONSTANTS.CASSANDRA_IP],
-        keyspace: 'sunbird_courses',
-        localDataCenter: 'datacenter1',
-      })
-      // tslint:disable-next-line: max-line-length
-      const query = `SELECT userid, courseid, batchid, issued_certificates FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`
-      const certificateData = await client.execute(query)
-      if (!certificateData) {
-        res.status(400).json({
-          msg: 'Certificate ID cannot be fetched',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      client.shutdown()
-      const certificateId =
-        certificateData.rows[0].issued_certificates[0].identifier
-      const certificateName =
-        certificateData.rows[0].issued_certificates[0].name
-      // sonar-cleanup: certificate-fetch+render tail replaced with the
-      // shared helper already used by appCertificateDownload.ts /
-      // publicCertifcateFlinkv2.ts (CHANGE 33)
-      await fetchAndRenderCertificate(res, certificateId, certificateName)
+      await resolveAndRenderCertificateFromCassandra(req, res)
     }
   } catch (error) {
     logError('Error in downloading certificate  >>>>>>' + error)
@@ -1075,117 +1048,93 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
   }
 })
 
-mobileAppApi.post('/create/homepageconfig', async (req, res) => {
+// sonar-cleanup: extracted from the 5 /*/homepageconfig routes' repeated
+// axios({...}) -> forward status/data -> handleMobileApiDefaultError(res, err,
+// 'error') shape (CHANGE 47). Each route's own logInfo call(s) before the
+// upstream call — which vary in wording and arguments — stay at the call
+// site rather than folded into this helper. The 2 routes (update/delete)
+// that also log the response after a successful call are preserved via the
+// optional `logResponse` flag, matching their original behavior exactly.
+/**
+ * Proxies a homepageconfig request: makes the upstream axios call and
+ * forwards the upstream status/body, or the caught error, back to the
+ * caller.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result or error on
+ * @param method - the HTTP method to use upstream
+ * @param url - the resolved upstream endpoint
+ * @param sendBody - whether to forward `req.body` as the request data
+ * @param logResponse - whether to log the upstream response body before sending it (update/delete routes only)
+ */
+async function proxyHomepageConfigRoute(
+  // tslint:disable-next-line: no-any
+  req: any, res: any, method: Method, url: string, sendBody: boolean, logResponse = false
+) {
   try {
-    /* tslint:disable-next-line */
-    logInfo('Inside home config route');
-    const searchRequestBody = req.body
     const response = await axios({
-      data: searchRequestBody,
+      ...(sendBody ? { data: req.body } : {}),
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: 'POST',
-      url: API_END_POINTS.formHomeConfig,
+      method,
+      url,
     })
+    if (logResponse) {
+      logInfo('Response from homepageconfig', JSON.stringify(response.data))
+    }
     res.status(response.status).send(response.data)
   } catch (err) {
     handleMobileApiDefaultError(res, err, 'error')
   }
+}
+
+mobileAppApi.post('/create/homepageconfig', async (req, res) => {
+  /* tslint:disable-next-line */
+  logInfo('Inside home config route');
+  await proxyHomepageConfigRoute(req, res, 'POST', API_END_POINTS.formHomeConfig, true)
 })
 
 mobileAppApi.get('/read/homepageconfig', async (req, res) => {
-  try {
-    logInfo(
-      'Inside home config route /read/homepageconfig ',
-      JSON.stringify(req.params)
-    )
-    const response = await axios({
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'GET',
-      url: API_END_POINTS.formHomeConfig,
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleMobileApiDefaultError(res, err, 'error')
-  }
+  logInfo(
+    'Inside home config route /read/homepageconfig ',
+    JSON.stringify(req.params)
+  )
+  await proxyHomepageConfigRoute(req, res, 'GET', API_END_POINTS.formHomeConfig, false)
 })
 
 mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
-  try {
-    /* tslint:disable-next-line */
-    logInfo('Inside home config read by id', JSON.stringify(req.params));
-    const id = req.params[0]
-    const response = await axios({
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'GET',
-      url: API_END_POINTS.formHomeConfig + '/' + id,
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleMobileApiDefaultError(res, err, 'error')
-  }
+  /* tslint:disable-next-line */
+  logInfo('Inside home config read by id', JSON.stringify(req.params));
+  const id = req.params[0]
+  await proxyHomepageConfigRoute(req, res, 'GET', API_END_POINTS.formHomeConfig + '/' + id, false)
 })
 
 mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
-  try {
-    /* tslint:disable-next-line */
-    logInfo(
-      'Inside home config update',
-      JSON.stringify(req.params),
-      req.params[0]
-    )
-    const id = req.params[0]
-    logInfo(
-      'Inside CBP course recommendation route ',
-      API_END_POINTS.formHomeConfig + '/' + id
-    )
-    const searchRequestBody = req.body
-    const response = await axios({
-      data: searchRequestBody,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'PUT',
-      url: API_END_POINTS.formHomeConfig + '/' + id,
-    })
-    logInfo('Response from homepageconfig', JSON.stringify(response.data))
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleMobileApiDefaultError(res, err, 'error')
-  }
+  /* tslint:disable-next-line */
+  logInfo(
+    'Inside home config update',
+    JSON.stringify(req.params),
+    req.params[0]
+  )
+  const id = req.params[0]
+  logInfo(
+    'Inside CBP course recommendation route ',
+    API_END_POINTS.formHomeConfig + '/' + id
+  )
+  await proxyHomepageConfigRoute(req, res, 'PUT', API_END_POINTS.formHomeConfig + '/' + id, true, true)
 })
 
 mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
-  try {
-    /* tslint:disable-next-line */
-    logInfo('Request body', JSON.stringify(req.params), req.params[0]);
-    const id = req.params[0]
-    logInfo(
-      'Inside CBP course recommendation route ',
-      API_END_POINTS.formHomeConfig + '/' + id
-    )
-    const response = await axios({
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'DELETE',
-      url: API_END_POINTS.formHomeConfig + '/' + id,
-    })
-    logInfo('Response from homepageconfig', JSON.stringify(response.data))
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    handleMobileApiDefaultError(res, err, 'error')
-  }
+  /* tslint:disable-next-line */
+  logInfo('Request body', JSON.stringify(req.params), req.params[0]);
+  const id = req.params[0]
+  logInfo(
+    'Inside CBP course recommendation route ',
+    API_END_POINTS.formHomeConfig + '/' + id
+  )
+  await proxyHomepageConfigRoute(req, res, 'DELETE', API_END_POINTS.formHomeConfig + '/' + id, false, true)
 })
 
 mobileAppApi.post('/learnerPath', async (req, res) => {
@@ -1210,11 +1159,8 @@ mobileAppApi.post('/learnerPath', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: 'Something went wrong while updating or inserting learnerpath',
-      }
+    handleMobileApiDefaultError(
+      res, err, undefined, 'Something went wrong while updating or inserting learnerpath'
     )
   }
 })
@@ -1240,12 +1186,7 @@ mobileAppApi.get('/learnerPath', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: SERVER_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, SERVER_ERROR_MSG)
   }
 })
 mobileAppApi.get(
@@ -1740,12 +1681,7 @@ mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: SERVER_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, SERVER_ERROR_MSG)
   }
 })
 
@@ -1767,12 +1703,7 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: SERVER_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, SERVER_ERROR_MSG)
   }
 })
 
