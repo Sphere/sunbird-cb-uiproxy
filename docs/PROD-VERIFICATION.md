@@ -5506,6 +5506,93 @@ were not re-confirmed today, only the code-level checks were.
 
 ---
 
+## CHANGE 44 — CI config: SonarCloud workflow trigger narrowed to `master` only
+
+**File:** `.github/workflows/sonar.yml`. **No source code touched** —
+this is a CI-configuration-only change, explicitly requested and
+confirmed by the repo owner (not a duplication-reduction or refactor
+change, and separate from CHANGE 1–43).
+
+**What it was:** the `on:` block fired the SonarCloud scan job on push
+to 5 branches (`development`, `cbrelease-4.0.1`, `production`,
+`feat-sonarqube-integration`, `master`) and on `pull_request` targeting
+2 of those (`development`, `cbrelease-4.0.1`).
+
+**What was found during verification, before any edit:** the
+`feat-sonarqube-integration` entry (no `-v2` suffix) referenced a
+branch this campaign no longer works on — all of CHANGE 1–43 landed on
+`feat-sonarqube-integration-v2`, which was never in the trigger list at
+all. Practically, this meant the workflow would not have fired on a
+push to the actual working branch, on either its old or its new name in
+the list as it stood.
+
+**What changed, per explicit instruction:** the repo owner asked to
+"keep master branch, not add any feature branch," then, after being
+shown the leftover `feat-sonarqube-integration` entry, asked to remove
+it too, then clarified the final scope directly: **`push: master`
+only** — `development`, `cbrelease-4.0.1`, `production`, and the entire
+`pull_request` block were all explicitly removed at the owner's
+request, not inferred. The workflow now runs the SonarCloud scan only
+on a direct push to `master`.
+
+```yaml
+on:
+  push:
+    branches:
+      - master
+```
+
+**Backward compatibility — nothing else in the job changed.** All 3
+steps below the trigger block are untouched, byte-for-byte:
+`actions/checkout@v4` (`fetch-depth: 0`, for Sonar blame data),
+`actions/setup-node@v4` (`node-version: 20`), `npm install
+--ignore-scripts --legacy-peer-deps`, `npm run test:coverage`, and the
+`SonarSource/sonarqube-scan-action@v5` step reading `SONAR_TOKEN` from
+the `sonarcloud` environment and pointing at
+`https://sonarcloud.io`. `sonar-project.properties` (project key,
+organization, lcov paths, exclusions) is untouched — this change only
+narrows *when* the job runs, not *what* it does when it runs.
+
+**Verification performed, before committing:**
+- YAML re-parsed with `python3 -c "import yaml; yaml.safe_load(...)"`
+  after every edit — valid at each step, final `on:` block confirmed to
+  be exactly `{'push': {'branches': ['master']}}`.
+- `actions/checkout@v4`, `actions/setup-node@v4`,
+  `SonarSource/sonarqube-scan-action@v5` confirmed to be real, current,
+  correctly-pinned major versions (unchanged by this edit, but checked
+  as part of validating the file as a whole).
+- `npm install --ignore-scripts --legacy-peer-deps` — run in an
+  isolated directory (not the working tree) with the repo's
+  `package.json`/`package-lock.json`, matching the CI step exactly.
+  Succeeded (2,087 packages installed, exit 0); the vulnerability
+  warnings `npm audit` reports are pre-existing dependency findings,
+  unrelated to this change.
+- `npm run test:coverage` (the exact CI step, same command) — run from
+  a clean `coverage/` directory. 223 suites / 3,664 tests passing, exit
+  0, `coverage/lcov.info` produced (288 KB, 24,090 lines) at the exact
+  path `sonar-project.properties` expects
+  (`sonar.javascript.lcov.reportPaths=coverage/lcov.info`).
+- `tsc --noEmit` and `tslint -c tslint.json -p tsconfig.json` (full
+  repo) re-run after this change — both clean, confirming the
+  CI-config edit had no effect on the source tree (expected for a
+  single-YAML-file change, but verified rather than assumed).
+- Grepped the repo for any other file referencing this workflow's
+  trigger branches or the workflow file itself — none found, so no
+  other doc needed updating to stay in sync.
+
+**MUST VERIFY IN PROD:** nothing in application behavior — this change
+touches only when a GitHub Actions job runs, not any code path a
+request goes through. The one thing to be aware of operationally: pushes
+to `development`, `cbrelease-4.0.1`, `production`, or any feature
+branch (including `feat-sonarqube-integration-v2`) will **no longer**
+trigger an automatic SonarCloud scan or post a PR check — a scan on
+those branches now requires either a manual `workflow_dispatch`-style
+trigger (not currently configured) or a merge to `master`. If that
+turns out to be broader than intended, the fix is purely additive:
+re-add the desired branch names to the `push.branches` list.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

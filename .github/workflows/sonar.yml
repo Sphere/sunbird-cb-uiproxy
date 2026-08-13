@@ -22,15 +22,7 @@ name: SonarCloud
 on:
   push:
     branches:
-      - development
-      - cbrelease-4.0.1
-      - production
-      - feat-sonarqube-integration
       - master
-  pull_request:
-    branches:
-      - development
-      - cbrelease-4.0.1
 
 jobs:
   sonarcloud:
