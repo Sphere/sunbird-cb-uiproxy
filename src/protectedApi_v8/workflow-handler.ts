@@ -107,8 +107,9 @@ async function proxyWorkflowRoute(
         if (wid) {
             headers.wid = wid
         }
+        const body = sendBody ? req.body : undefined
         const response = method === 'POST'
-            ? await axios.post(url, sendBody ? req.body : undefined, { ...axiosRequestConfig, headers })
+            ? await axios.post(url, body, { ...axiosRequestConfig, headers })
             : await axios.get(url, { ...axiosRequestConfig, headers })
         res.status(response.status).send(response.data)
     } catch (err) {
