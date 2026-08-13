@@ -5884,6 +5884,127 @@ reachable again.
 
 ---
 
+## CHANGE 47 — duplication reduction: mobileAppApi.ts, 3 more clusters found on re-read
+
+**Context:** `mobileAppApi.ts`'s remaining ~96 duplicated lines had been
+researched and judged "generic boilerplate, too entangled to safely
+template further" earlier in this campaign. Same as CHANGE 46, a fresh,
+skeptical re-read (not a re-read of the prior summary) found real safe
+duplication the earlier pass had mischaracterized or missed entirely.
+
+### Cluster 1 — the 5 `/*/homepageconfig` routes
+
+**What:** `/create`, `/read`, `/getById`, `/updateById`,
+`/deleteById/homepageconfig` all share the identical
+`axios({...headers: {Authorization: CONSTANTS.SB_API_KEY,
+contentTypeHeader}, method, url}) -> res.status(response.status).send(response.data)`
+shape feeding into the already-extracted `handleMobileApiDefaultError(res,
+err, 'error')`. The earlier pass called this "mostly generic boilerplate" —
+on a fresh read it's the exact same axios-call-plus-headers pattern
+already proven safe to merge in `workflow-handler.ts`/`workallocation.ts`
+(CHANGE 46), not incidental repetition. Extracted to
+`proxyHomepageConfigRoute(req, res, method, url, sendBody, logResponse?)`.
+
+**Real difference preserved exactly, caught by re-reading twice:** the
+first attempt at this extraction dropped a real behavior — 2 of the 5
+routes (`updateById`, `deleteById`) log the upstream response body
+*after* a successful call (`logInfo('Response from homepageconfig',
+JSON.stringify(response.data))`), which the other 3 don't do. Caught
+this by re-reading the diff against the original before running any
+tests, not by a test failure — added it back via an explicit
+`logResponse` parameter, defaulting to `false` (the 3 routes that don't
+log) and passed `true` only at the 2 call sites that need it.
+
+Each route's own pre-call `logInfo` (wording and arguments vary
+per-route, including 2 that literally reuse the string `'Inside CBP
+course recommendation route '` — a pre-existing copy-paste artifact from
+an unrelated route, left as-is) stays at the call site, not folded into
+the shared helper.
+
+### Cluster 2 — 5 of 7 scattered `(err && err.response && err.response.status) || 500` catch blocks
+
+**What:** this second family of duplicated catch blocks — distinct from
+`handleMobileApiDefaultError`'s existing call sites — was not mentioned
+by the earlier pass at all. 7 occurrences
+(`/updateUserProfile` ×2, `/courseRemommendationv2`, `/learnerPath`
+POST/GET, `/getUnreadUserNotifications`, `/ext-forms/*`) used the same
+status/body-fallback logic as `handleMobileApiDefaultError`, just written
+in the older `&&`-chain style instead of optional chaining. 5 of the 7
+(`/courseRemommendationv2`, both `/learnerPath` routes,
+`/getUnreadUserNotifications`, `/ext-forms/*`) call `logInfo(JSON.stringify(err))`
+with no prefix — exactly matching `handleMobileApiDefaultError`'s
+no-prefix branch — and were rewired to call it directly, with an added
+optional `errorMessage` parameter (defaulting to the existing
+`DEFAULT_ERROR_MSG` so every pre-existing caller's behavior is
+unchanged) so each route's own distinct fallback message text is
+preserved.
+
+**Deliberately NOT touched — a real difference found and correctly left
+alone:** the other 2 occurrences, both inside `/updateUserProfile`
+(the inner Joi-validation catch and the outer route catch), call
+`logError(...)`, not `logInfo(...)` — a genuinely different log
+severity. Merging them into `handleMobileApiDefaultError` would have
+silently downgraded an error-level log to info-level, a real behavior
+change disguised as deduplication. Left as-is.
+
+### Cluster 3 — getEntityById / getAllEntity
+
+**What:** both routes share an identical `verifyToken` guard ->
+`axios` POST -> `res.status(response.data.responseCode).send(...)`
+shape and both use `logError` (matching each other, so safe to merge
+unlike cluster 2's exception). Extracted to `proxyEntityRoute(req, res,
+url, requestLogLabel, errorLogLabel, failMessage, applyPilotMockEntity)`.
+The one real behavioral difference — `getAllEntity` alone
+post-processes the response through the pilot-demo `appendPilotMockEntity`
+wrapper — threaded through as an explicit boolean, not force-merged.
+
+**Testing:** the existing suite (98 tests) already covered most of the
+touched routes' status codes, but per this campaign's deep-verification
+standard, 3 real gaps were found and closed with 8 new tests before
+trusting any of the 3 merges:
+- `getAllEntity` had no URL assertion — added one.
+- 4 of the 5 homepageconfig routes (`create`, `read`, `updateById`,
+  `deleteById`) had no method/URL assertion at all, and none of the 5
+  had a failure-path test — added exact method+URL+body assertions for
+  all 4, plus a 500-on-failure test for each of the 5 routes (4 new,
+  `create` already had one).
+- Both `/learnerPath` routes had **zero** failure-path test — only the
+  userId-mismatch 400 branch was covered. Added 4 new tests: an
+  upstream-error-with-response case and a transport-failure case for
+  each of POST and GET, confirming both the error-forwarding path and
+  the default-message fallback path.
+
+All 106 tests (98 existing + 8 new) pass.
+
+Full suite run 3 times, all clean (3681/3682 — 1 skipped, as always —
+every time, zero flakes this round). `tsc --noEmit` clean on both
+configs. `tslint` clean across the repo (5 findings surfaced during this
+change and fixed: a multi-line function signature broke a
+`tslint:disable-next-line: no-any` comment's scoping on 2 new helper
+functions — fixed by keeping signatures effectively single-statement
+with the disable comment directly above the `any`-typed parameters; a
+4-element `'POST' | 'GET' | 'PUT' | 'DELETE'` union was replaced with
+axios's own `Method` type; an optional `logResponse?: boolean` parameter
+was given an explicit `= false` default). `npm run build` clean, `dist/`
+has 272 `.js` files (unchanged — both new helpers stay within the
+existing file) and zero leaked `.test.js` files. Router
+(`mobileAppApi`) confirmed still mounted at `/mobileApp/` in
+`publicApiV8.ts`.
+
+**MUST VERIFY IN PROD:** nothing — every route's method, URL, body
+forwarding, response-logging behavior (including which 2 of 5
+homepageconfig routes log the response and which 3 don't), log
+severity (`logInfo` vs `logError`, preserved exactly per site), fallback
+error message text, and the `appendPilotMockEntity` pilot-only
+post-processing step are all unchanged.
+
+**Sonar result:** not measured — Sonar still unreachable. Based on line
+count (270 lines replaced with ~220, net ~50 source lines removed
+across 3 clusters, on top of the ~99 from CHANGE 46), expect further
+reduction from 6.1%; not yet confirmed by a live scan.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

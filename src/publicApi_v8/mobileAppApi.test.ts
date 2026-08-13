@@ -213,6 +213,9 @@ describe('POST /getAllEntity', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ responseCode: 200, items: ['patched'] })
     expect(mockAppendPilotMockEntity).toHaveBeenCalled()
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://entity.test/getAllEntity' })
+    )
   })
 
   it('returns 404 for an invalid token', async () => {
@@ -534,6 +537,13 @@ describe('homepageconfig endpoints', () => {
     const response = await agent().post('/create/homepageconfig').send({ name: 'home' })
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ id: 'h1' })
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { name: 'home' },
+        method: 'POST',
+        url: 'https://reco.test/homepageconfig',
+      })
+    )
   })
 
   it('POST /create/homepageconfig forwards an upstream error', async () => {
@@ -546,6 +556,17 @@ describe('homepageconfig endpoints', () => {
     mockAxios.mockResolvedValue(upstreamOk([{ id: 'h1' }]))
     const response = await agent().get('/read/homepageconfig')
     expect(response.status).toBe(200)
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'GET', url: 'https://reco.test/homepageconfig' })
+    )
+    const [config] = mockAxios.mock.calls[0]
+    expect(config).not.toHaveProperty('data')
+  })
+
+  it('GET /read/homepageconfig returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await agent().get('/read/homepageconfig')
+    expect(response.status).toBe(500)
   })
 
   it('GET /getById/homepageconfig/:id forwards a single config', async () => {
@@ -553,8 +574,14 @@ describe('homepageconfig endpoints', () => {
     const response = await agent().get('/getById/homepageconfig/h1')
     expect(response.status).toBe(200)
     expect(mockAxios).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://reco.test/homepageconfig/h1' })
+      expect.objectContaining({ method: 'GET', url: 'https://reco.test/homepageconfig/h1' })
     )
+  })
+
+  it('GET /getById/homepageconfig/:id returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await agent().get('/getById/homepageconfig/h1')
+    expect(response.status).toBe(500)
   })
 
   it('PUT /updateById/homepageconfig/:id forwards the update', async () => {
@@ -564,12 +591,36 @@ describe('homepageconfig endpoints', () => {
       .send({ name: 'new' })
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ id: 'h1', updated: true })
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { name: 'new' },
+        method: 'PUT',
+        url: 'https://reco.test/homepageconfig/h1',
+      })
+    )
+  })
+
+  it('PUT /updateById/homepageconfig/:id returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await agent().put('/updateById/homepageconfig/h1').send({})
+    expect(response.status).toBe(500)
   })
 
   it('DELETE /deleteById/homepageconfig/:id forwards the deletion', async () => {
     mockAxios.mockResolvedValue(upstreamOk({ deleted: true }))
     const response = await agent().delete('/deleteById/homepageconfig/h1')
     expect(response.status).toBe(200)
+    expect(mockAxios).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'DELETE', url: 'https://reco.test/homepageconfig/h1' })
+    )
+    const [config] = mockAxios.mock.calls[0]
+    expect(config).not.toHaveProperty('data')
+  })
+
+  it('DELETE /deleteById/homepageconfig/:id returns 500 on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    const response = await agent().delete('/deleteById/homepageconfig/h1')
+    expect(response.status).toBe(500)
   })
 })
 
@@ -615,6 +666,56 @@ describe('learnerPath endpoints', () => {
       .query({ userId: 'someone-else' })
 
     expect(response.status).toBe(400)
+  })
+
+  it('POST /learnerPath returns 500 with the upstream error on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(upstreamError(502, { error: 'bad gateway' }))
+
+    const response = await agent()
+      .post('/learnerPath')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send({ userid: 'u1' })
+
+    expect(response.status).toBe(502)
+    expect(response.body).toEqual({ error: 'bad gateway' })
+  })
+
+  it('POST /learnerPath returns 500 with the default message on a transport failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent()
+      .post('/learnerPath')
+      .set(AUTH_HEADER, validToken('u1'))
+      .send({ userid: 'u1' })
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({
+      error: 'Something went wrong while updating or inserting learnerpath',
+    })
+  })
+
+  it('GET /learnerPath returns 500 with the upstream error on an upstream failure', async () => {
+    mockAxios.mockRejectedValue(upstreamError(503, { error: 'unavailable' }))
+
+    const response = await agent()
+      .get('/learnerPath')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ userId: 'u1' })
+
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({ error: 'unavailable' })
+  })
+
+  it('GET /learnerPath returns 500 with the default message on a transport failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+
+    const response = await agent()
+      .get('/learnerPath')
+      .set(AUTH_HEADER, validToken('u1'))
+      .query({ userId: 'u1' })
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Something went wrong while fetching results' })
   })
 })
 
