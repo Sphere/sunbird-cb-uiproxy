@@ -6005,6 +6005,105 @@ reduction from 6.1%; not yet confirmed by a live scan.
 
 ---
 
+## CHANGE 48 — duplication reduction: forgotPassword.ts's email/phone OTP-send tail
+
+**File:** `src/publicApi_v8/forgotPassword.ts`.
+
+**Context:** an exploratory pass over the last handful of files still
+showing Sonar duplication after the campaign's 5% target was already hit.
+Confirmed via the Sonar duplications API which exact lines were flagged
+before touching anything, then re-checked the other 5 candidate files
+against this campaign's own prior decisions (see below).
+
+### What changed and why
+
+`/reset/proxy/password`'s email and phone branches, once a user is found,
+did the identical sequence: log the resolved `userUUId`, call
+`API_END_POINTS.generateOtp` with the same request shape, log the axios
+response, and send the same 200 body. Direct diff confirmed the two real
+differences are just text: the userId-log label (`'>>>>>>>> User Id : '`
+vs `'User Id : '`) and the send-confirmation log label (`'Sending
+Responses in email : '` vs `'...in phone part : '`). Extracted to
+`sendPasswordResetOtp(res, userUUId, sbUsername, userType,
+userIdLogLabel, sentLogLabel)`, with both labels threaded through as
+explicit parameters rather than homogenized. A stray, already-dead
+comment (`// res.status(200).send(userUUId)`, commented out and never
+executed) that sat only in the email branch was dropped along with it.
+
+The `else` branches (user not found, `res.status(302).send(count)` —
+including this file's own pre-existing `res.send(0)` bug, documented in
+this file's test header) and the outer `/verifyOtp` route were left
+completely untouched; they weren't part of the flagged duplication and
+carry their own separate pre-existing issues already documented in
+`forgotPassword.test.ts`.
+
+### Other 5 candidate files: re-checked, nothing further merged
+
+- **`mobileAppApi.ts`** — the one remaining flagged block (27 lines,
+  `/updateUserProfile`'s Joi-validate-then-patch tail) is a cross-file
+  match against `protectedApi_v8/user/profile-details.ts`'s
+  `/updateUser`, a file already confirmed unmergeable earlier in this
+  campaign. Direct diff confirmed the same reasoning still holds:
+  `mobileAppApi.ts` gates the whole body behind
+  `verifyToken`/`accesTokenResult.status == 200` and forwards the
+  caller's own token via `getHeaders(req)`; `profile-details.ts` has no
+  such gate and calls upstream with a static `Authorization:
+  CONSTANTS.SB_API_KEY` service key instead — a real auth-model
+  difference, not cosmetic. Left untouched.
+- **`signupWithAutoLoginV2.ts` / `signupWithAutoLogin.ts` /
+  `appSignUpWithAutoLogin.ts` / `signupWithAutoLoginOrgForm.ts`** — all 4
+  remaining flagged blocks are the family's post-Keycloak-token-exchange
+  tail (decode token, set session/kauth, call `getCurrentUserRoles`,
+  respond 200), the same block CHANGE 33's cluster E-3 already
+  investigated and deliberately left unmerged against the shared
+  `ssoKeycloakExchange.ts` helper. Re-diffing the 3-way match among the
+  family members themselves (not against the shared helper this time)
+  found the same category of real differences that motivated the
+  original rejection, now confirmed across 3 files instead of 1: the
+  token-exchange payload shape itself differs (v1 sends `client_id:
+  'portal'` with an actual `password` field; V2/OrgForm send `client_id:
+  'aastrika-sso-login'` with `client_secret` + `scope`, no password —
+  a real auth-flow difference, not text); the guard condition differs
+  (`authTokenResponse.data` vs `authTokenResponse.data?.access_token`);
+  every log line's text and/or level differs across all 3 files
+  (`logInfo` vs `logError`, `'VALIDATE_OTP:'`-prefixed vs not, `+ e` vs
+  `+ JSON.stringify(e)`). The smaller "outer shell" duplication (the
+  `verifyRegistrationOtp` result-handling wrapper around the
+  `session.save`/`regenerate` call, shared byte-for-byte between v1 and
+  V2 only) was also considered and rejected: its inner body is exactly
+  the block above, so extracting the shell alone would only relocate the
+  same rejected duplication into a callback parameter without reducing
+  it, fragmenting a linear handler for no real simplification. Left
+  untouched, consistent with and extending CHANGE 33's original
+  reasoning.
+
+### Verified
+
+- `forgotPassword.test.ts`'s existing 19 tests: all pass with zero test
+  changes required, proving both branches' external behavior
+  (status codes, response bodies, exact log call arguments via the
+  mocked logger) is unchanged.
+- Coverage on `forgotPassword.ts`: 100% statements/branches/functions/
+  lines, no new tests needed.
+- Full Jest suite: 223 suites, 3689 passed / 1 skipped (matches the
+  pre-existing baseline).
+- `npx tsc --noEmit -p tsconfig.json`: clean.
+- `npx tslint -c tslint.json -p tsconfig.json`: clean (one `no-any`
+  finding surfaced on the new helper's `res` parameter, fixed by moving
+  the `tslint:disable-next-line` directly above the parameter line,
+  matching this file's own multi-line-signature convention elsewhere in
+  the codebase).
+- `npm run build`: exits 0, clean `dist/`, zero leaked `.test.js` files.
+
+### MUST VERIFY IN PROD
+
+- [ ] None expected — the extracted function is a body-for-body move of
+      both branches' tail with the only two genuine differences (the two
+      log labels) threaded through as explicit parameters; every request
+      shape, header, URL, and response body is byte-identical to before.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
