@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfigLong } from '../configs/request.config'
+// sonar-cleanup: competency-level grouping/sort replaced with the shared import (CHANGE 42)
+import { hasCompetencySearchThreshold, sortCoursesByCompetencyLevel } from '../utils/competencyLevelSort'
 // sonar-cleanup: '/getCourses' query-branch replaced with the shared import (CHANGE 33)
 import { searchCoursesByQuery } from '../utils/courseQuerySearch'
 import { CONSTANTS } from '../utils/env'
@@ -79,38 +81,9 @@ publicSearch.post('/getCourses', async (request, response) => {
       } else {
         searchFilteredData = searchResponseES.data.result.content
       }
-      if (filters.hasOwnProperty('competencySearch') && Array.isArray(filters.competencySearch) && filters.competencySearch.length >= 5) {
-        interface Course {
-            lang: string
-            competencies_v1: string
-            lastUpdatedOn: string
-            // tslint:disable-next-line: no-any
-            [key: string]: any
-        }
-        function getLevel(course: Course) {
-            try {
-                const parsed = JSON.parse(course.competencies_v1)
-                return Number(parsed[0]?.level || 0)
-            } catch {
-                return 0
-            }
-        }
-        const grouped: Record<string, Course[]> = searchFilteredData.reduce((acc, course) => {
-            acc[course.lang] = acc[course.lang] || []
-            acc[course.lang].push(course)
-            return acc
-        }, {})
-
-        const sortedGrouped = Object.values(grouped).flatMap((group) => {
-            return group.slice().sort((a, b) => {
-                const levelDiff = getLevel(a) - getLevel(b)
-                if (levelDiff !== 0) return levelDiff
-                return new Date(b.lastUpdatedOn).getTime() - new Date(a.lastUpdatedOn).getTime()
-            })
-        })
-        searchFilteredData = sortedGrouped
-
-    }
+      if (hasCompetencySearchThreshold(filters)) {
+        searchFilteredData = sortCoursesByCompetencyLevel(searchFilteredData)
+      }
       return response.status(200).json({
         responseCode: 'OK',
         result: {

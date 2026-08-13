@@ -38,6 +38,25 @@ const API_ENDPOINTS = {
 
 export const userRegistrationApi = Router()
 
+// sonar-cleanup: extracted from this file's repeated per-route catch blocks — same
+// logError(label, err) + status(err.response.status || 500).send(err.response.data || {})
+// shape (CHANGE 38)
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or an empty object).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleUserRegistrationError(res: any, err: any, label: string) {
+  logError(label, err)
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {})
+}
+
 userRegistrationApi.get('/listUsers/:source', async (req, res) => {
   try {
     const rootOrg = req.header('rootOrg')
@@ -47,10 +66,7 @@ userRegistrationApi.get('/listUsers/:source', async (req, res) => {
     })
     res.json(response.data)
   } catch (err) {
-    logError('ERROR ON GET ALL REGISTERED USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON GET ALL REGISTERED USERS >')
   }
 })
 
@@ -65,10 +81,7 @@ userRegistrationApi.post('/deregisterUsers/:source', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('ERROR ON DEREGISTER USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON DEREGISTER USERS >')
   }
 })
 
@@ -87,10 +100,7 @@ userRegistrationApi.get('/getAllSources', async (req, res) => {
     )
     res.json(data || {})
   } catch (err) {
-    logError('ERROR ON GET ALL SOURCES >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON GET ALL SOURCES >')
   }
 })
 
@@ -107,10 +117,7 @@ userRegistrationApi.get('/getSourceDetail/:id', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON GET SOURCE DETAILS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON GET SOURCE DETAILS >')
   }
 })
 
@@ -130,10 +137,7 @@ userRegistrationApi.get(
       )
       res.json(response.data || {})
     } catch (err) {
-      logError('ERROR ON CHECK SOURCE REGISTRATION STATUS >', err)
-      res
-        .status((err && err.response && err.response.status) || 500)
-        .send((err && err.response && err.response.data) || {})
+      handleUserRegistrationError(res, err, 'ERROR ON CHECK SOURCE REGISTRATION STATUS >')
     }
   }
 )
@@ -154,10 +158,7 @@ userRegistrationApi.post('/register', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON REGISTRATIO USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON REGISTRATIO USERS >')
   }
 })
 
@@ -230,10 +231,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
       res.json({ data: 'User Created successfully!' })
     }
   } catch (err) {
-    logError('ERROR ON CREATE USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON CREATE USERS >')
   }
 })
 
@@ -255,10 +253,7 @@ userRegistrationApi.post('/user/access-path', async (req, res) => {
     })
     // })
   } catch (err) {
-    logError('/user/access-path:: ERROR ON access-path >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, '/user/access-path:: ERROR ON access-path >')
   }
 })
 
@@ -291,10 +286,7 @@ userRegistrationApi.post('/user/update-access-path', async (req, res) => {
     })
     // })
   } catch (err) {
-    logError('/user/update-access-path:: ERROR ON access-path >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, '/user/update-access-path:: ERROR ON access-path >')
   }
 })
 
@@ -420,10 +412,7 @@ userRegistrationApi.post('/bulkUpload', async (req, res) => {
     }
     await insertBulkUploadStatus(reqToUpdate)
   } catch (err) {
-    logError('ERROR ON BULK UPLOAD >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON BULK UPLOAD >')
   }
 })
 
@@ -560,10 +549,7 @@ userRegistrationApi.get('/bulkUploadData', async (req, res) => {
       }
     })
   } catch (err) {
-    logError('ERROR ON bulkUploadData >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON bulkUploadData >')
   }
 })
 
@@ -585,10 +571,7 @@ userRegistrationApi.get('/bulkUploadReport/:id', async (req, res) => {
       }
     })
   } catch (err) {
-    logError('ERROR ON /bulkUploadReport/:id >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON /bulkUploadReport/:id >')
   }
 })
 
@@ -610,10 +593,7 @@ userRegistrationApi.get('/user/department', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON /user/department >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON /user/department >')
   }
 })
 
@@ -636,9 +616,6 @@ userRegistrationApi.post('/user/department/update', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON /user/department >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON /user/department >')
   }
 })

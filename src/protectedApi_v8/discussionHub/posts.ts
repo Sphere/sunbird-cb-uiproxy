@@ -3,8 +3,9 @@ import { Router } from 'express'
 import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
-import { logError, logInfo } from '../../utils/logger'
+import { logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { handleWriteApiError } from './writeApi'
 
 const API_ENDPOINTS = {
     getPosts: (term: string) => `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/recent/posts/${term}`,
@@ -25,8 +26,6 @@ postsApi.get('/:term', async (req, res) => {
         )
         res.send(response.data)
     } catch (err) {
-        logError('ERROR ON GET postsApi /:term >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        handleWriteApiError(res, err, 'ERROR ON GET postsApi /:term >')
     }
 })

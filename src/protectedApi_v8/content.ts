@@ -7,8 +7,9 @@ import { IPaginatedApiResponse } from '../models/paginatedApi.model'
 import { getMinimalContent, processContent, sendAutoCompleteSearchResponse, sendSearchResponse } from '../utils/contentHelpers'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
-import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
+// sonar-cleanup: file-local requireOrgHeaders replaced with the shared import (CHANGE 43)
+import { requireOrgHeaders } from '../utils/requireOrgHeaders'
 import { getPlaylist } from './user/playlist'
 
 export const VALID_HIERARCHY_TYPES = new Set(['all', 'minimal', 'detail'])
@@ -65,25 +66,6 @@ const DETAIL_CONTENT_FIELDS = [
 ]
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
-
-// sonar-cleanup: extracted from content.ts's repeated org/rootOrg header-guard blocks across ~15 routes (CHANGE 13)
-/**
- * Reads the `org`/`rootOrg` headers most content routes require. Sends the
- * standard 400 and returns `null` if either is missing — callers should
- * return immediately when they get `null` back.
- *
- * @param req - the incoming request
- * @param res - the Express response to send the 400 on, if headers are missing
- */
-function requireOrgHeaders(req: Request, res: Response): { org: string; rootOrg: string } | null {
-  const org = req.header('org')
-  const rootOrg = req.header('rootOrg')
-  if (!org || !rootOrg) {
-    res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-    return null
-  }
-  return { org, rootOrg }
-}
 
 // sonar-cleanup: extracted from content.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8); getParentDetails's catch (returns instead of sending) was deliberately left untouched
 /**

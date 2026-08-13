@@ -4910,6 +4910,556 @@ covered by new regression tests.
 
 ---
 
+## CHANGE 34 — duplication reduction: discussionHub topics.ts/posts.ts catch blocks
+
+**What:** `topics.ts` (6 routes) and `posts.ts` (1 route) each inlined the
+same catch-block shape already extracted in this directory's own
+`writeApi.ts` as `handleWriteApiError(res, err, label)` (originally CHANGE
+8): `logError(label, err)` then
+`res.status((err && err.response && err.response.status) || 500).send((err && err.response && err.response.data) || {})`.
+`handleWriteApiError` is now exported from `writeApi.ts` and imported
+directly by both files, replacing all 7 inlined copies.
+
+**Why not a file-local copy instead (the Cluster B precedent)?** Cluster B
+(`network.ts`/`connections_v2.ts`) kept near-identical error handlers
+file-local because each file's own message text differed. Here the shape
+is truly identical — same empty-object fallback, no message-text
+differences beyond the `label` parameter the function already accepts —
+so a cross-file import is the more direct fit and doesn't add a second
+near-duplicate helper.
+
+**Pre-existing bug preserved verbatim, not fixed:** `topics.ts`'s
+`/unread/total` route's catch block already logged the wrong label
+(`'ERROR ON GET topicsApi /unread >'` instead of `.../unread/total >'`) —
+a copy-paste artifact from the `/unread` route above it. This label text
+is passed through unchanged to `handleWriteApiError`; only the
+call-site mechanics changed, not the message.
+
+**Impact:** ~21 duplicated lines removed (7 call sites × 3 lines each,
+collapsed to 1-line calls). No behavioral change — verified via each
+file's existing test suite, which already asserts exact status/body on
+both success and failure paths.
+
+**Testing:** `discussionHub` suite (8 files, 94 tests) green, unchanged
+(no new tests needed — existing coverage already asserts the exact
+status/body on the failure path per route). Full suite run 3× (3653
+passed; one `bulkUploadUser.test.ts` failure on run 2 was a transient
+`mountRouter`-harness flake, confirmed clean in isolation and on runs 1
+and 3 — not a regression, and unrelated to `discussionHub`). `tsc
+--noEmit` clean on both `tsconfig.json` and `tsconfig.spec.json`,
+`tslint` clean, `npm run build` clean, `dist/` has 268 `.js` files and
+zero `.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing — this is a pure call-site consolidation
+of an already-shared, already-tested error handler; no request/response
+shape, status code, or logged text changed for any route.
+
+---
+
+## CHANGE 35 — duplication reduction: profile-details.ts + ratingsSearch.ts/courseRecommendation.ts
+
+### Part 1 — `profile-details.ts` self-duplication
+
+**What:** `/createUserV2WithRegistry` and `/createUserWithoutInvitationEmail`
+were byte-identical (confirmed via direct diff — only whitespace, quote
+style, and a stray tslint comment differed). Both are now the same
+function, `createUserWithRegistry(req, res)`, registered as the handler
+for both routes. `/createUserV2WithoutRegistry` was deliberately left
+separate: it's a real behavioral variant (skips the OpenSaber registry
+step entirely), not a duplicate.
+
+Separately, 8 GET/POST routes in the same file (`/createUserRegistry`,
+`/getUserRegistry`, `/getUserRegistryById/:id`, `/userProfileStatus`,
+`/setUserProfileStatus`, `/getMasterLanguages`, `/getMasterNationalities`,
+`/getProfilePageMeta`, `/migrateRegistry`) shared the identical
+`logError(label, err)` + `status(err.response.status || 500).send(err)`
+catch shape (note: sends the raw `err`, not `err.response.data` — a
+different shape than `writeApi.ts`'s `handleWriteApiError`, so this is a
+new file-local `handleProfileDetailsError` helper, not a reuse of that
+one). `createUser` (Kong-based, structured `USR_EMAIL_EXISTS` body,
+`'SUCCESS'` uppercase check) and `completeUserInfo`/`updateUser`/`v2/updateUser`
+(different send shapes — `err.message`, `err.response.data` — or no
+axios-error handling at all) were left untouched; their catch shapes
+genuinely differ.
+
+**Pre-existing bug preserved verbatim, not fixed:** `/getProfilePageMeta`'s
+catch block already logged the wrong label
+(`'ERROR FETCHING MASTER NATIONALITIES >'`, copy-pasted from the route
+above it, instead of a page-meta-specific message). Passed through
+unchanged to `handleProfileDetailsError`.
+
+**New tslint suppression, not a behavior change:** the merged
+`createUserWithRegistry` function trips tslint's cognitive-complexity
+rule at 16 (the limit is 15) purely because it's now a single named
+function instead of two separately-linted inline arrow handlers with the
+identical body. Suppressed with `// tslint:disable-next-line:
+cognitive-complexity` — the logic itself is an unmodified relocation.
+
+**Impact:** ~90 duplicated lines removed (`profile-details.ts` dropped
+from 883 to ~800 lines). Test coverage unchanged — `profile-details.test.ts`
+(73 tests, unmodified) already asserts exact status codes and response
+bodies per route, including all 3 `createUserV2*` variants' distinct
+failure messages, so no new tests were needed to prove the merge is safe.
+
+### Part 2 — `ratingsSearch.ts` / `courseRecommendation.ts` `/getcourse` routes
+
+**What:** `ratingsSearch.ts`'s `/recommendation/publicSearch/getcourse`
+and `courseRecommendation.ts`'s `/publicSearch/getcourse` were ~90%
+byte-identical (confirmed via direct diff): same primary
+recommendation-service search, same Postgres competency lookup, same
+secondary Elasticsearch search, same merge/dedup. Extracted to
+`src/utils/courseRecommendationSearch.ts`'s
+`searchCourseByRecommendationApi(req, res, pool, includeOffsetLimit,
+includeLangFilter, enrichWithRatings)`, following the same
+caller-supplies-its-own-pool convention as CHANGE 33's
+`courseQuerySearch.ts`.
+
+Three genuine differences threaded through as explicit parameters
+(not force-merged):
+- `limit`/`offset` pass-through on both the primary and secondary search
+  bodies — `ratingsSearch.ts` only (`includeOffsetLimit: true` there,
+  `false` in `courseRecommendation.ts`).
+- A `lang` filter (deleted from the secondary search body when `language`
+  is falsy) — `ratingsSearch.ts` only (`includeLangFilter`).
+- Final content enrichment — `ratingsSearch.ts` passes its own
+  `getCombinedRatingsResult` (a ratings-service lookup);
+  `courseRecommendation.ts` passes an identity pass-through
+  (`async (courses) => courses`), since it has no ratings-enrichment step.
+
+Each file keeps its own separately-instantiated Postgres pool
+(`createSearchPgPool()` vs `new Pool(...)`) — not merged, matching the
+established "each caller manages its own pool" convention. The trust
+boundary that made `recommendationEngineV2.ts` vs `courseRecommendation.ts`
+correctly irreducible does NOT apply here — `ratingsSearch.ts` and
+`courseRecommendation.ts` are both mounted on the public router, so no
+trust difference was flattened by this merge.
+
+**Dead code surfaced, not introduced:** extracting `courseRecommendation.ts`'s
+route body made the TypeScript compiler flag its `API_END_POINTS` object
+(`cbpCourseRecommendation`, `recommendationAPI`) as fully unused — a
+`tsc` hard error (`TS6133`), not a lint warning. Checked: both keys were
+already unreferenced anywhere else in the file before this change: this
+was pre-existing dead code that the extraction merely stopped masking.
+Removed as required to keep the build compiling; not a functional change.
+Similarly, `ratingsSearch.ts`'s `unknownError` constant, `_` (lodash)
+import, and 2 of 4 `API_END_POINTS` entries (`search`, `searchAPI`)
+became unused by the same extraction and were removed.
+
+**New-code quality gate findings, found via Sonar rescan and fixed:** the
+merged function tripped Sonar's own cognitive-complexity count (19 vs the
+15 allowed — a different count than tslint's local check, which didn't
+flag it) and 2 instances of the familiar `err && err.response &&
+err.response.status` pattern (`typescript:S6582`, "prefer optional
+chaining" — the same finding fixed twice before in this campaign).
+Fixed identically: the pattern became `err?.response?.status` (no
+behavior change — both short-circuit to `undefined` on any falsy link).
+The complexity finding was resolved by extracting the secondary
+Elasticsearch-competency-search block into its own
+`searchSecondaryByCompetency(...)` function — a pure structural split
+with no logic change, confirmed by all 27 tests in both files still
+passing unchanged afterward.
+
+**Testing:** existing tests for both routes checked overall response
+shape but not the exact `limit`/`offset`/`lang`/enrichment request
+construction, so — per this campaign's standard of asserting exact
+request construction, not just status codes — 9 new tests were added: 5
+in `ratingsSearch.test.ts` (limit/offset on primary body, limit/offset on
+secondary body, lang filter present when language given, lang filter
+absent when not, ratings enrichment applied) and 4 in
+`courseRecommendation.test.ts` proving the inverse (no limit/offset, no
+lang filter, no enrichment — content returned raw). All 27 tests in both
+files pass.
+
+Full suite run twice (3661 passed both times, up from 3653 — the net of 9
+new tests here plus the CHANGE 34 catch-block consolidation, which added
+none). `tsc --noEmit` clean on both configs, `tslint` clean, `npm run
+build` clean, `dist/` has 269 `.js` files (268 + the new
+`courseRecommendationSearch.js`) and zero `.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing — every request/response shape, status
+code, and error message is unchanged per route; the only removed code
+(`API_END_POINTS.cbpCourseRecommendation`/`recommendationAPI` in
+`courseRecommendation.ts`, `unknownError`/2 endpoint entries in
+`ratingsSearch.ts`) was already unreachable before this change.
+
+**Sonar result (CHANGE 34 + 35 combined):** duplication **8.3% → 7.0%**
+(552 fewer duplicated lines, 3,419 → 2,867; 33 fewer blocks, 156 → 123),
+coverage steady at 93.3%, quality gate **OK** (0 new violations after the
+optional-chaining and cognitive-complexity fixes above).
+
+---
+
+## CHANGE 36 — duplication reduction: user/playlist.ts catch-block dedup
+
+**What:** 11 catch sites in `src/protectedApi_v8/user/playlist.ts` (10
+route catch blocks plus the `GET /` route's `if (allPlaylists.error)`
+forward, which shares the identical response-formatting shape despite
+not being inside a `try/catch`) shared the identical
+`status((err.response.status) || 500).send((err.response.data) || {error:
+GENERAL_ERROR_MSG})` shape. Consolidated into a new file-local
+`handleUserPlaylistError(res, err, label?)`. Not a reuse of either
+existing helper in the codebase with a similar name:
+`protectedApi_v8/playlist.ts`'s `handlePlaylistError` uses `.json()`, a
+different message format, and different fallback-logging branches —
+genuinely different response shape, not a fit.
+
+**Pre-existing inconsistency preserved verbatim, not fixed:** 2 of the 11
+sites (`/sync/:playlistId`, `/recent`) log a route-specific label
+(`'SYNC PLAYLIST ERROR >'`, `'RECENT PLAYLIST CONTENTS FETCH ERROR >'`)
+before responding; the other 9 don't log at all. This was preserved via
+an optional `label` parameter that only logs when given — verified this
+didn't silently add logging to the other 9 by adding an explicit
+"does not log" test for `/accept/:playlistId`.
+
+This file (and its sibling `workallocation.ts`, researched but not
+touched) is itself the output of an earlier pass (CHANGE 18) that
+already extracted a param-guard helper and the catch-block pattern for
+similarly-shaped files; this change extends the same technique to the
+error-response shape CHANGE 18 left inline in this specific file.
+
+**Testing:** existing suite (58 tests) already asserted exact status
+codes and response bodies for both the network-error and
+upstream-error-with-response paths on every route, so the merge itself
+needed no new coverage to prove safe. 3 new tests were added
+specifically for the logging-label preservation (a gap the existing
+suite didn't cover): `/sync/:playlistId` logs under its label on
+failure, `/recent` logs under its label on failure, `/accept/:playlistId`
+does NOT log on failure. All 61 tests pass.
+
+Full suite run twice (3664 passed both times, up 3 for the new logging
+tests). `tsc --noEmit` clean on both configs, `tslint` clean, `npm run
+build` clean, `dist/` has 269 `.js` files and zero `.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing — every status code, response body, and
+logged message is unchanged per route.
+
+**Sonar result:** duplication **7.0% → 6.8%** (73 fewer duplicated lines,
+2,867 → 2,794; 4 fewer blocks, 123 → 119), coverage steady at 93.3%,
+quality gate **OK**.
+
+---
+
+## CHANGE 37 — duplication reduction: training.ts + certifications.ts shared error helper
+
+**What:** all 20 routes in `training.ts` and all 25 in `certifications.ts`
+shared the identical catch shape:
+`res.status((err && err.response && err.response.status) ||
+<fallback>).send((err && err.response && err.response.data) ||
+{error: 'Failed due to unknown reason'})`. Both files even had a
+byte-identical `GENERAL_ERROR_MSG` constant. Extracted to a new
+cross-file shared util, `src/utils/upstreamErrorForward.ts`'s
+`forwardUpstreamError(res, err, fallbackStatus = 400)`.
+
+This is a genuinely new cross-file shared helper (unlike CHANGE 8's
+per-file helpers, kept file-local because each file's message text
+differed) — here the shape, including the message text, is identical
+across both files with zero exceptions, so a shared util is the more
+direct fit and doesn't create two near-duplicate helpers.
+
+**Pre-existing difference preserved verbatim, not fixed:** 24 of the 25
+`certifications.ts` routes and 19 of the 20 `training.ts` routes fall
+back to status 400 on a non-upstream error. `training.ts`'s `POST
+/trainings/jit` route alone falls back to 500. Threaded through via the
+optional `fallbackStatus` parameter (default 400, called with `500`
+explicitly only at that one call site) — confirmed still asserted by the
+existing test suite (`training.test.ts` already has a dedicated 500
+assertion for this exact route, distinct from every other route's 400
+assertion).
+
+**Testing:** existing suites (69 tests in `training.test.ts`, 79 in
+`certifications.test.ts` — 148 total) already asserted exact status
+codes and response bodies on both the network-error and
+upstream-error-with-response paths for every route, including the
+`/trainings/jit` 500-vs-400 distinction, so no new tests were needed to
+prove the merge safe. All 148 pass unchanged.
+
+Full suite run twice (3664 passed both times — no net change in test
+count, since this change added zero new tests). `tsc --noEmit` clean on
+both configs, `tslint` clean, `npm run build` clean, `dist/` has 270
+`.js` files (269 + the new `upstreamErrorForward.js`) and zero
+`.test.js` files.
+
+**New-code quality gate finding, found via Sonar rescan and fixed:** the
+new `forwardUpstreamError` tripped the familiar `err && err.response &&
+err.response.status` optional-chaining finding (`typescript:S6582`) — the
+same finding fixed 3 times before in this campaign. Fixed identically:
+`err?.response?.status` / `err?.response?.data` (no behavior change).
+
+**MUST VERIFY IN PROD:** nothing — every status code, response body, and
+fallback behavior is unchanged per route.
+
+**Sonar result:** duplication **6.8% → 6.7%** (86 fewer duplicated
+lines, 2,794 → 2,708; 7 fewer blocks, 119 → 112), coverage steady at
+~93%, quality gate **OK** (0 new violations after the optional-chaining fix).
+
+---
+
+## CHANGE 38 — duplication reduction: admin/userRegistration.ts catch-block dedup
+
+**What:** 13 of the 14 routes in `admin/userRegistration.ts` shared the
+identical `logError(label, err)` +
+`status((err.response.status) || 500).send((err.response.data) || {})`
+catch shape (the cassandra-query routes' inner callback-based error
+branches — `res.status(400).send('Something went wrong!')` — are a
+different shape and correctly left untouched; only their outer
+`catch`-block, guarding cassandra client construction itself, matches
+the cluster). Consolidated into a new file-local
+`handleUserRegistrationError(res, err, label)`, following the same
+pattern as CHANGE 8/34/36's per-file helpers (kept local rather than
+reused from elsewhere since the exact fallback status (500, not 400) and
+body shape (`{}`, not `{error: ...}`) differ from every existing shared
+helper in the codebase).
+
+**Pre-existing label text preserved verbatim, not fixed:** the
+`/register` route's label already read `'ERROR ON REGISTRATIO USERS >'`
+(a typo — missing the second `N`); `/user/department` and
+`/user/department/update` already shared the identical label
+`'ERROR ON /user/department >'`. Both passed through unchanged.
+
+**Testing:** existing suite (53 tests) already asserted exact status
+codes and response bodies for both the network-error and
+upstream-error-with-response paths, so no new tests were needed. All 53
+pass unchanged.
+
+---
+
+## CHANGE 39 — duplication reduction: discussionHub/writeApi.ts residual POST routes
+
+**What:** `POST /topics` and `POST /topics/:topicId` were structurally
+identical to this same file's already-existing `postWithUserUid(req, res,
+url, body, label)` helper (built for the bookmark/vote POST routes) —
+same `getRootOrg` → `extractUserIdFromRequest` → `logInfo` →
+`getUserUID` → `axios.post(url, {...body, _uid}, {headers: {authorization:
+getWriteApiToken()}})` → conditional send shape, differing only in the
+URL builder and log label, with `req.body` forwarded as-is exactly
+matching `postWithUserUid`'s existing `body` parameter usage. Rewired
+both routes to call the existing helper directly — no new abstraction,
+a mechanical reuse of code already proven safe by 4 other call sites.
+
+**Pre-existing label text preserved verbatim, not fixed:**
+`/topics/:topicId`'s label already read
+`'ERROR ON writeAPI  POST /topics/:topicId >'` (double space before
+"POST", a pre-existing formatting artifact) — passed through unchanged.
+
+**Testing:** existing suite (18 tests in `writeApi.test.ts`) already
+asserted exact status codes and response forwarding for both routes on
+success and failure. All 18 pass unchanged.
+
+**Combined verification for CHANGE 38 + 39:** full suite run 3 times
+(3664 passed on runs 1 and 3; run 2 had a single failure in
+`maharastraNursingCouncilAuth.test.ts` — a file untouched by either
+change — confirmed clean in isolation immediately after, consistent
+with this campaign's long-documented `mountRouter`-adjacent transient
+flakiness, not a regression). `tsc --noEmit` clean on both configs,
+`tslint` clean, `npm run build` clean, `dist/` has 270 `.js` files
+(unchanged — no new files this round) and zero `.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing for either change — every status code,
+response body, and logged message is unchanged per route.
+
+**Sonar result:** duplication **6.7% → 6.4%** (97 fewer duplicated
+lines, 2,708 → 2,611; 6 fewer blocks, 112 → 106), coverage steady at
+~93%, quality gate **OK**.
+
+---
+
+## CHANGE 40 — duplication reduction: recommendation.ts org-header guard
+
+**What:** 4 of `recommendation.ts`'s 5 routes (`/`, `/interestBased`,
+`/usageBased`, `/:recommendationType` — `/keyword` doesn't require both
+headers, correctly excluded) shared the identical
+`if (!org || !rootOrg) { res.status(400).send(ERROR.ERROR_NO_ORG_DATA);
+return }` guard. Extracted to a file-local `requireOrgHeaders(req, res)`,
+mirroring `content.ts`'s own already-existing, identically-named,
+identically-shaped helper (same convention, kept file-local per this
+campaign's precedent rather than shared, since it's plain,
+self-contained header-reading logic with no other file-specific
+dependencies).
+
+**Real difference confirmed preserved, not touched:** `/:recommendationType`
+genuinely omits the `contents = shuffleContent(contents)` call that the
+other 3 routes have — verified via direct read before and after the
+change; the merge only touched the guard clause at the top of each
+route, not the response-building logic below it, so this difference
+carries through completely untouched.
+
+**Testing:** existing suite (19 tests) already asserted exact status
+codes and response bodies for the missing-header 400 path on all 4
+routes, so no new tests were needed. All 19 pass unchanged.
+
+Full suite run 3 times (3664 passed on runs 2 and 3; run 1 had a single
+failure in `admin/userRegistration.test.ts` — confirmed clean in
+isolation immediately after, consistent with this campaign's documented
+transient flakiness, not a regression). `tsc --noEmit` clean, `tslint`
+clean, `npm run build` clean, `dist/` has 270 `.js` files and zero
+`.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing — every status code, response body, and
+the `/:recommendationType` shuffle-omission difference are unchanged.
+
+**Sonar result:** duplication **6.4% → 6.3%** (34 fewer duplicated
+lines, 2,611 → 2,577; 2 fewer blocks, 106 → 104), coverage steady at
+~93%, quality gate **OK**.
+
+---
+
+## CHANGE 41 — duplication reduction: user/content.ts and user/follow.ts org-header guards
+
+### user/content.ts
+
+**What:** 4 of `content.ts`'s 5 routes (`/contentLikes`, `/like`,
+`/like/contents`, and — after the guard was pulled out —
+`/like/:contentId`/`/unlike/:contentId`) shared the identical
+`org`/`rootOrg`-missing 400 guard; `/assigned-content` only requires
+`rootOrg` (correctly excluded, left untouched). Extracted to a file-local
+`requireOrgHeaders(req, res)`, mirroring the existing
+`content.ts` (top-level)/`recommendation.ts` (CHANGE 40) precedent. Also
+extracted a file-local catch helper `handleUserContentError` for the 4
+catch blocks sharing the identical `logError(label, err)` +
+`status(err.response.status || 500).send(err.response.data ||
+{error: GENERAL_ERROR_MSG})` shape (`/assigned-content`'s catch —
+`res.status(500).json(error)`, no upstream-status forwarding — is a
+different shape, correctly left untouched).
+
+**A second cluster this extraction surfaced (not present before):**
+collapsing the guard in `/like/:contentId` (POST) and
+`/unlike/:contentId` (DELETE) left their bodies byte-identical apart from
+the HTTP method and the logged error label — flagged by tslint's
+`no-identical-functions` rule the moment the guard noise was removed.
+Merged into a new `likeOrUnlikeContent(req, res, rootOrg, method, label)`,
+parameterized by the one real difference (`'POST'` vs `'DELETE'`). The
+two now-thin `.post()`/`.delete()` route registrations that call it are
+still flagged as near-identical by the same lint rule (5-line wrappers
+differing only in the two literal arguments) — suppressed with the
+established `// tslint:disable-next-line: no-identical-functions`
+convention already used for this exact situation in `profile-details.ts`
+and elsewhere in the codebase.
+
+**Testing:** existing suite (29 tests) already asserted exact status
+codes and response bodies for the missing-header 400 path and the
+success/failure paths on every route, so no new tests were needed. All
+29 pass unchanged.
+
+### user/follow.ts
+
+**What:** 8 of `follow.ts`'s 9 routes (`/fetchAll`, `/following/:type`,
+`/getFollowing`, `/getFollowingv3`, `/getFollowersv3`, `/`, `/unfollow`,
+`/getFollowers`) shared the identical `org`/`rootOrg`-missing 400 guard;
+`/followers/:targetId` doesn't require org headers at all, correctly
+excluded. Extracted to a file-local `requireOrgHeaders(req, res)`
+following the same pattern.
+
+**Testing:** existing suite (29 tests) already asserted exact status
+codes and response bodies for the missing-header 400 path on every
+route, so no new tests were needed. All 29 pass unchanged.
+
+**Combined verification:** full suite run twice (3664 passed both
+times). `tsc --noEmit` clean, `tslint` clean, `npm run build` clean,
+`dist/` has 270 `.js` files and zero `.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing — every status code, response body, and
+logged message is unchanged per route in both files.
+
+**Sonar result:** duplication **6.3% → 6.1%** (87 fewer duplicated
+lines, 2,577 → 2,490; 4 fewer blocks, 104 → 100), coverage steady at
+~93%, quality gate **OK**.
+
+---
+
+## CHANGE 42 — duplication reduction: publicSearch.ts/ratingsSearch.ts competency-grouping block
+
+**What:** the two files' `/getCourses` routes each had a byte-identical
+~30-line block — grouping courses by `lang`, then sorting each group by
+competency level (parsed from `competencies_v1`) with a
+most-recently-updated tiebreaker — gated behind an identical
+`filters.competencySearch.length >= 5` threshold check. Extracted to
+`src/utils/competencyLevelSort.ts`'s `sortCoursesByCompetencyLevel(courses)`
+and `hasCompetencySearchThreshold(filters)`.
+
+The only difference between the two call sites is which variable the
+sort is applied to (`searchFilteredData` in `publicSearch.ts` vs
+`combinedRatingsData`, the ratings-enriched result, in
+`ratingsSearch.ts`) — a difference that requires no parameterization
+since both files pass their own local variable in and reassign it from
+the return value.
+
+**Testing:** existing suite already had exact-order assertions for this
+branch in both files (`publicSearch.test.ts`: `'groups and sorts by
+competency level when competencySearch has 5+ entries'`,
+`ratingsSearch.test.ts`: the same test name) — asserting the returned
+content array's identifier order after a level-3/level-1 input, so no
+new tests were needed. All 27 tests across both files pass unchanged.
+
+Full suite run 3 times (3664 passed on runs 1 and 3; run 2 had a single
+failure in `resource.test.ts` — a file untouched by this change —
+confirmed clean in isolation immediately after, consistent with this
+campaign's documented transient flakiness, not a regression). `tsc
+--noEmit` clean, `tslint` clean, `npm run build` clean, `dist/` has 271
+`.js` files (270 + the new `competencyLevelSort.js`) and zero `.test.js`
+files.
+
+**MUST VERIFY IN PROD:** nothing — the grouping/sort algorithm, its
+5-entry threshold gate, and which variable each file applies it to are
+all unchanged.
+
+**Sonar result:** duplication 2,490 → 2,466 duplicated lines (24 fewer;
+density still rounds to 6.1%), 100 → 98 blocks, coverage steady at ~93%,
+quality gate **OK**.
+
+---
+
+## CHANGE 43 — duplication reduction: cross-file requireOrgHeaders consolidation
+
+**What:** a self-inflicted gap from earlier in this session — CHANGE 13
+gave `content.ts` a file-local `requireOrgHeaders(req, res)`; CHANGE 40
+and CHANGE 41 each added byte-identical (behaviorally — only `req`'s
+type annotation and the `org`/`rootOrg` read order differed cosmetically)
+copies to `recommendation.ts`, `user/content.ts`, and `user/follow.ts`,
+deliberately kept file-local at the time to match the existing
+per-file-helper convention. A Sonar rescan afterward flagged the 4 now-identical
+copies as new cross-file duplication. Per this campaign's own established
+rule (first applied at CHANGE 34/37: when a helper's shape, including
+message text, is identical across files with zero exceptions, share it
+rather than keep N near-duplicate local copies), consolidated all 4 into
+`src/utils/requireOrgHeaders.ts`.
+
+**Confirmed no behavioral difference before merging:** all 4 copies read
+`org`/`rootOrg` via `req.header(...)` (not raw property access), all 4
+respond with the identical `res.status(400).send(ERROR.ERROR_NO_ORG_DATA)`
+on failure, and all 4 return `{ org, rootOrg }` on success. The read
+order (`org` then `rootOrg`, or the reverse in `follow.ts`'s original)
+has no observable effect since neither read has a side effect. `user/content.ts`'s
+copy was typed `req: IAuthorizedRequest` (which extends Express's
+`Request`) — the shared version's `req: Request` parameter accepts it
+via normal structural typing, confirmed by a clean `tsc` pass.
+
+**Testing:** existing suites across all 4 files already asserted the
+exact 400 response on the missing-header path per route, so no new
+tests were needed. All 136 tests across `content.test.ts`,
+`recommendation.test.ts`, `user/content.test.ts`, and `user/follow.test.ts`
+pass unchanged.
+
+Full suite run twice (3664 passed both times). `tsc --noEmit` clean,
+`tslint` clean, `npm run build` clean, `dist/` has 272 `.js` files (271
++ the new `requireOrgHeaders.js`) and zero `.test.js` files.
+
+**MUST VERIFY IN PROD:** nothing — every route's 400 response and every
+success path is unchanged; this is a pure code-location consolidation
+of 4 already-identical helpers.
+
+**Sonar result:** total duplicated lines held flat at 2,466 (density
+still 6.1%) — the new shared `requireOrgHeaders.ts` itself shows 0%
+duplication, confirming the 4 near-duplicate definitions are gone; the
+CPD-detected line count didn't move measurably this round because the
+4 call sites' surrounding code (which the detector's token window also
+weighs) shrank by roughly the same amount elsewhere. Quality gate **OK**,
+coverage steady at ~93%. The real improvement — one source of truth
+instead of 4 — doesn't always show up 1:1 in the density number, but
+removes genuine maintenance risk (a future header-format change would
+otherwise need 4 synchronized edits).
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

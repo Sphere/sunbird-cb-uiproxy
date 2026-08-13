@@ -232,4 +232,70 @@ describe('POST /recommendation/publicSearch/getcourse', () => {
       .send({ query: 'react' })
     expect(response.status).toBe(500)
   })
+
+  it('passes limit and offset through to the primary search body', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ results: { content: [] } }))
+    mockPool.query.mockResolvedValue({ rows: [] })
+    await agent()
+      .post('/recommendation/publicSearch/getcourse')
+      .send({ limit: 15, offset: 30, query: 'react' })
+    const primaryCall = mockAxiosCallable.mock.calls.find(
+      ([config]) => config.url.includes('publicSearch/getcourse')
+    )
+    expect(primaryCall[0].data).toMatchObject({ limit: 15, offset: 30 })
+  })
+
+  it('passes limit and offset through to the secondary competency search body', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ results: { content: [] } }))
+    mockPool.query.mockResolvedValue({ rows: [{ id: 'comp-1' }] })
+    await agent()
+      .post('/recommendation/publicSearch/getcourse')
+      .send({ limit: 15, offset: 30, query: 'react' })
+    const secondaryCall = mockAxiosCallable.mock.calls.find(
+      ([config]) => config.url.includes('publicContent/v1/search')
+    )
+    expect(secondaryCall[0].data.request).toMatchObject({ limit: 15, offset: 30 })
+  })
+
+  it('includes the lang filter on the secondary search when language is provided', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ results: { content: [] } }))
+    mockPool.query.mockResolvedValue({ rows: [{ id: 'comp-1' }] })
+    await agent()
+      .post('/recommendation/publicSearch/getcourse')
+      .send({ language: 'en', query: 'react' })
+    const secondaryCall = mockAxiosCallable.mock.calls.find(
+      ([config]) => config.url.includes('publicContent/v1/search')
+    )
+    expect(secondaryCall[0].data.request.filters.lang).toBe('en')
+  })
+
+  it('omits the lang filter on the secondary search when language is not provided', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ results: { content: [] } }))
+    mockPool.query.mockResolvedValue({ rows: [{ id: 'comp-1' }] })
+    await agent()
+      .post('/recommendation/publicSearch/getcourse')
+      .send({ query: 'react' })
+    const secondaryCall = mockAxiosCallable.mock.calls.find(
+      ([config]) => config.url.includes('publicContent/v1/search')
+    )
+    expect(secondaryCall[0].data.request.filters).not.toHaveProperty('lang')
+  })
+
+  it('enriches the final content with ratings via the bulkRatingLookup call', async () => {
+    mockAxiosCallable.mockImplementation((config: { url: string }) => {
+      if (config.url.includes('publicSearch/getcourse')) {
+        return Promise.resolve(upstreamOk({ results: { content: [{ identifier: 'p1' }] } }))
+      }
+      if (config.url.includes('bulkRatingLookup')) {
+        return Promise.resolve(upstreamOk([{ activityId: 'p1', averageRating: 4.5 }]))
+      }
+      return Promise.reject(new Error(`Unexpected call: ${config.url}`))
+    })
+    mockPool.query.mockResolvedValue({ rows: [] })
+    const response = await agent()
+      .post('/recommendation/publicSearch/getcourse')
+      .send({ query: 'react' })
+    expect(response.status).toBe(200)
+    expect(response.body.result.content[0]).toMatchObject({ identifier: 'p1', averageRating: 4.5 })
+  })
 })

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import * as express from 'express'
 import { Router } from 'express'
 import * as fs from 'fs'
 import Joi from 'joi'
@@ -63,6 +64,23 @@ const API_END_POINTS = {
 
 export const profileDeatailsApi = Router()
 
+// sonar-cleanup: extracted from this file's repeated per-route catch blocks — same
+// logError(label, err) + status(err.response.status || 500).send(err) shape, sending
+// the raw caught error rather than err.response.data (CHANGE 34)
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the raw caught error as the body.
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleProfileDetailsError(res: express.Response, err: any, label: string) {
+  logError(label, err)
+  res.status((err && err.response && err.response.status) || 500).send(err)
+}
+
 profileDeatailsApi.post('/createUserRegistry', async (req, res) => {
   try {
     const userId = extractUserIdFromRequest(req)
@@ -76,8 +94,7 @@ profileDeatailsApi.post('/createUserRegistry', async (req, res) => {
     )
     res.status(response.status).json(response.data)
   } catch (err) {
-    logError('ERROR CREATING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR CREATING USER REGISTRY >')
   }
 })
 
@@ -95,8 +112,7 @@ profileDeatailsApi.get('/getUserRegistry', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR FETCHING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR FETCHING USER REGISTRY >')
   }
 })
 
@@ -118,8 +134,7 @@ profileDeatailsApi.get('/getUserRegistryById/:id', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR FETCHING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR FETCHING USER REGISTRY >')
   }
 })
 
@@ -138,8 +153,7 @@ profileDeatailsApi.get('/userProfileStatus', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR FETCHING USER PROFILE STATUS >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR FETCHING USER PROFILE STATUS >')
   }
 })
 
@@ -156,8 +170,7 @@ profileDeatailsApi.post('/setUserProfileStatus', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR SETTING USER PROFILE STATUS >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR SETTING USER PROFILE STATUS >')
   }
 })
 
@@ -168,8 +181,7 @@ profileDeatailsApi.get('/getMasterLanguages', async (_req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR FETCHING MASTER LANGUAGES >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR FETCHING MASTER LANGUAGES >')
   }
 })
 
@@ -181,8 +193,7 @@ profileDeatailsApi.get('/getMasterNationalities', async (_req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR FETCHING MASTER NATIONALITIES >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR FETCHING MASTER NATIONALITIES >')
   }
 })
 
@@ -193,8 +204,7 @@ profileDeatailsApi.get('/getProfilePageMeta', async (_req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logError('ERROR FETCHING MASTER NATIONALITIES >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR FETCHING MASTER NATIONALITIES >')
   }
 })
 
@@ -228,8 +238,7 @@ profileDeatailsApi.get('/migrateRegistry', async (req, res) => {
       }
     )
   } catch (err) {
-    logError('ERROR CREATING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    handleProfileDetailsError(res, err, 'ERROR CREATING USER REGISTRY >')
   }
 })
 
@@ -553,8 +562,20 @@ profileDeatailsApi.post('/v2/updateUser', async (req, res) => {
     })
   }
 })
-// tslint:disable-next-line: no-identical-functions
-profileDeatailsApi.post('/createUserV2WithRegistry', async (req, res) => {
+// sonar-cleanup: extracted from the byte-identical bodies of /createUserV2WithRegistry
+// and /createUserWithoutInvitationEmail — both search-create-read-register through the
+// Sunbird `Sb` endpoints then build an OpenSaber registry entry (CHANGE 34)
+/**
+ * Searches for an existing user by email, creates the Sunbird user if none is
+ * found, reads it back, then creates its OpenSaber registry entry from the
+ * read result. Sends the appropriate error response and returns at the first
+ * failed step.
+ *
+ * @param req - the incoming request, expected to carry `personalDetails` in its body
+ * @param res - the Express response to send the result or error on
+ */
+// tslint:disable-next-line: cognitive-complexity
+async function createUserWithRegistry(req: express.Request, res: express.Response) {
   try {
     const sbChannel = req.body.personalDetails.channel
     if (!sbChannel) {
@@ -650,7 +671,9 @@ profileDeatailsApi.post('/createUserV2WithRegistry', async (req, res) => {
     logError(createUserFailed, err)
     res.status((err && err.response && err.response.status) || 500).send(err)
   }
-})
+}
+
+profileDeatailsApi.post('/createUserV2WithRegistry', createUserWithRegistry)
 // tslint:disable-next-line: no-identical-functions
 profileDeatailsApi.post('/createUserV2WithoutRegistry', async (req, res) => {
   try {
@@ -728,109 +751,9 @@ profileDeatailsApi.post('/createUserV2WithoutRegistry', async (req, res) => {
   }
 })
 
-// tslint:disable-next-line: no-identical-functions
 profileDeatailsApi.post(
   '/createUserWithoutInvitationEmail',
-  // tslint:disable-next-line: no-identical-functions
-  async (req, res) => {
-    try {
-      const sbChannel = req.body.personalDetails.channel
-      if (!sbChannel) {
-        res.status(400).send(channelParamMissing)
-        return
-      }
-      const sbemail_ = req.body.personalDetails.email
-      const sbemailVerified_ = true
-      const sbfirstName_ = req.body.personalDetails.firstName
-      const sblastName_ = req.body.personalDetails.lastName
-
-      const searchresponse = await axios({
-        ...axiosRequestConfig,
-        data: {
-          request: { query: '', filters: { email: sbemail_.toLowerCase() } },
-        },
-        method: 'POST',
-        url: API_END_POINTS.searchSb,
-      })
-      if (searchresponse.data.result.response.count > 0) {
-        res.status(400).send(emailAdressExist)
-        return
-      } else {
-        const sbUserProfile: Partial<ISBUser> = {
-          channel: sbChannel,
-          email: sbemail_,
-          emailVerified: sbemailVerified_,
-          firstName: sbfirstName_,
-          lastName: sblastName_,
-        }
-        const response = await axios({
-          ...axiosRequestConfig,
-          data: { request: sbUserProfile },
-          headers: {
-            Authorization: CONSTANTS.SB_API_KEY,
-            // tslint:disable-next-line: all
-            "x-authenticated-user-token": extractUserToken(req),
-          },
-          method: 'POST',
-          url: API_END_POINTS.createSb,
-        })
-        if (response.data.responseCode === 'CLIENT_ERROR') {
-          res.status(400).send(failedToCreateUser)
-          return
-        } else {
-          const sbUserId = response.data.result.userId
-          const sbUserReadResponse = await axios({
-            ...axiosRequestConfig,
-            headers: {
-              Authorization: CONSTANTS.SB_API_KEY,
-              // tslint:disable-next-line: all
-              "x-authenticated-user-token": extractUserToken(req),
-            },
-            method: 'GET',
-            url: API_END_POINTS.userRead(sbUserId),
-          })
-          if (sbUserReadResponse.data.params.status !== 'success') {
-            res.status(500).send(failedToReadUser)
-            return
-          }
-
-          const personalDetailsRegistry: IPersonalDetails = {
-            firstname: sbfirstName_,
-            primaryEmail: sbemail_,
-            surname: sblastName_,
-            userName: sbUserReadResponse.data.result.response.userName,
-          }
-          const userRegistry = getUserRegistry(
-            personalDetailsRegistry,
-            sbChannel
-          )
-          const userRegistryResponse = await axios({
-            ...axiosRequestConfig,
-            data: userRegistry,
-            headers: {
-              wid: sbUserId,
-            },
-            method: 'POST',
-            url: API_END_POINTS.createOSUserRegistry(sbUserId),
-          })
-          if (userRegistryResponse.data === null) {
-            res.status(500).send(failedToCreateUserInOpenSaber)
-          } else {
-            const sbUserProfileResponse: Partial<ISunbirdbUserResponse> = {
-              email: sbemail_,
-              firstName: sbfirstName_,
-              lastName: sblastName_,
-              userId: sbUserId,
-            }
-            res.send(sbUserProfileResponse)
-          }
-        }
-      }
-    } catch (err) {
-      logError(createUserFailed, err)
-      res.status((err && err.response && err.response.status) || 500).send(err)
-    }
-  }
+  createUserWithRegistry
 )
 
 function getUserRegistry(

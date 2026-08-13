@@ -36,16 +36,19 @@ jest.mock('../../utils/env', () => ({
 import axios from 'axios'
 import { networkError, upstreamError, upstreamOk } from '../../test-support/mockAxios'
 import { mountRouter } from '../../test-support/mountRouter'
+import { logError } from '../../utils/logger'
 import { getPlaylist, playlistApi } from './playlist'
 
 const mockAxios = axios as unknown as jest.Mock
 const mockAxiosGet = (axios as jest.Mocked<typeof axios>).get
+const mockLogError = logError as jest.MockedFunction<typeof logError>
 const agent = () => mountRouter(playlistApi)
 const withRootOrg = (req: ReturnType<typeof agent>) => req.set('rootOrg', 'r1')
 
 beforeEach(() => {
   mockAxios.mockReset()
   mockAxiosGet.mockReset()
+  mockLogError.mockReset()
 })
 
 describe('getPlaylist (exported helper)', () => {
@@ -84,6 +87,12 @@ describe('GET /sync/:playlistId', () => {
     expect(response.status).toBe(502)
     expect(response.body).toEqual({ error: 'sync failed upstream' })
   })
+
+  it('logs under the SYNC PLAYLIST label on failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    await withRootOrg(agent().get('/sync/pl-1'))
+    expect(mockLogError).toHaveBeenCalledWith('SYNC PLAYLIST ERROR >', expect.anything())
+  })
 })
 
 describe('GET /recent', () => {
@@ -110,6 +119,12 @@ describe('GET /recent', () => {
     const response = await withRootOrg(agent().get('/recent')).set('org', 'o1')
     expect(response.status).toBe(503)
     expect(response.body).toEqual({ error: 'recent contents unavailable' })
+  })
+
+  it('logs under the RECENT PLAYLIST CONTENTS FETCH label on failure', async () => {
+    mockAxios.mockRejectedValue(networkError())
+    await withRootOrg(agent().get('/recent')).set('org', 'o1')
+    expect(mockLogError).toHaveBeenCalledWith('RECENT PLAYLIST CONTENTS FETCH ERROR >', expect.anything())
   })
 })
 
@@ -139,6 +154,13 @@ describe('POST /accept/:playlistId', () => {
     mockAxios.mockRejectedValue(networkError())
     const response = await withRootOrg(agent().post('/accept/pl-1')).send({})
     expect(response.status).toBe(500)
+  })
+
+  it('does not log on failure, unlike /sync and /recent', async () => {
+    mockAxiosGet.mockResolvedValue(upstreamOk([{ id: 'pl-1', name: 'x' }]))
+    mockAxios.mockRejectedValue(networkError())
+    await withRootOrg(agent().post('/accept/pl-1')).send({})
+    expect(mockLogError).not.toHaveBeenCalled()
   })
 
   it('forwards the upstream error status and body when the accept call fails with a response', async () => {

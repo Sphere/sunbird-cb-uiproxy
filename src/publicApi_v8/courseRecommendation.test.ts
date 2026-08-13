@@ -98,4 +98,35 @@ describe('POST /publicSearch/getcourse', () => {
     const response = await agent().post('/publicSearch/getcourse').send({ query: 'react' })
     expect(response.status).toBe(500)
   })
+
+  it('does not include limit/offset in the primary search body, unlike ratingsSearch.ts', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ results: { content: [] } }))
+    mockPool.query.mockResolvedValue({ rows: [] })
+    await agent().post('/publicSearch/getcourse').send({ limit: 15, offset: 30, query: 'react' })
+    const primaryCall = mockAxiosCallable.mock.calls.find(
+      ([config]) => config.url.includes('publicSearch/getcourse')
+    )
+    expect(primaryCall[0].data).not.toHaveProperty('limit')
+    expect(primaryCall[0].data).not.toHaveProperty('offset')
+  })
+
+  it('does not include a lang filter or limit/offset on the secondary search, unlike ratingsSearch.ts', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ results: { content: [] } }))
+    mockPool.query.mockResolvedValue({ rows: [{ id: 'comp-1' }] })
+    await agent().post('/publicSearch/getcourse').send({ language: 'en', limit: 15, offset: 30, query: 'react' })
+    const secondaryCall = mockAxiosCallable.mock.calls.find(
+      ([config]) => config.url.includes('publicContent/v1/search')
+    )
+    expect(secondaryCall[0].data.request).not.toHaveProperty('limit')
+    expect(secondaryCall[0].data.request).not.toHaveProperty('offset')
+    expect(secondaryCall[0].data.request.filters).not.toHaveProperty('lang')
+  })
+
+  it('does not enrich content with ratings, unlike ratingsSearch.ts', async () => {
+    mockAxiosCallable.mockResolvedValue(upstreamOk({ results: { content: [{ identifier: 'p1' }] } }))
+    mockPool.query.mockResolvedValue({ rows: [] })
+    const response = await agent().post('/publicSearch/getcourse').send({ query: 'react' })
+    expect(response.status).toBe(200)
+    expect(response.body.result.content).toEqual([{ identifier: 'p1' }])
+  })
 })

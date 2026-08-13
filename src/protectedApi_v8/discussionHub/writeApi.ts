@@ -30,7 +30,7 @@ const API_ENDPOINTS = {
 
 export const writeApi = Router()
 
-// sonar-cleanup: extracted from writeApi.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8); catches inside createDiscussionHubUser/getUserByEmail/getUserByUsername sit inside a documented never-invoked-closure bug and were left untouched
+// sonar-cleanup: extracted from writeApi.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8); catches inside createDiscussionHubUser/getUserByEmail/getUserByUsername sit inside a documented never-invoked-closure bug and were left untouched; also reused by topics.ts and posts.ts, whose catch blocks had the identical shape (CHANGE 34)
 /**
  * Logs the error under `label`, then responds with the upstream status code
  * (or 500) and the upstream error body (or an empty object).
@@ -40,7 +40,7 @@ export const writeApi = Router()
  * @param label - text prefixed to the logged error message
  */
 // tslint:disable-next-line: no-any
-function handleWriteApiError(res: Response, err: any, label: string) {
+export function handleWriteApiError(res: Response, err: any, label: string) {
   logError(label, err)
   res
     .status((err && err.response && err.response.status) || 500)
@@ -145,50 +145,23 @@ export async function createDiscussionHubUser(user: any): Promise<any> {
 }
 
 writeApi.post('/topics', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const url = API_ENDPOINTS.createTopic
-    const userUid = await getUserUID(userId)
-    const response = await axios.post(
-      url,
-      {
-        ...req.body,
-        _uid: userUid,
-      },
-      { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
-    )
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    handleWriteApiError(res, err, 'ERROR ON POST writeApi /topics >')
-  }
+  await postWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.createTopic,
+    req.body,
+    'ERROR ON POST writeApi /topics >'
+  )
 })
 
 writeApi.post('/topics/:topicId', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const topicId = req.params.topicId
-    const url = API_ENDPOINTS.replyToTopic(topicId)
-    const userUid = await getUserUID(userId)
-    const response = await axios.post(
-      url,
-      {
-        ...req.body,
-        _uid: userUid,
-      },
-      { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
-    )
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    handleWriteApiError(res, err, 'ERROR ON writeAPI  POST /topics/:topicId >')
-  }
+  await postWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.replyToTopic(req.params.topicId),
+    req.body,
+    'ERROR ON writeAPI  POST /topics/:topicId >'
+  )
 })
 
 writeApi.post('/users', async (req, res) => {
