@@ -650,7 +650,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
               client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
               grant_type: 'password',
               scope: 'offline_access',
-              username: mobileNumber ? mobileNumber : email,
+              username: mobileNumber || email,
             })
             logInfo('Entered into authorization part.' + transformedData)
             const authTokenResponse = await axios({

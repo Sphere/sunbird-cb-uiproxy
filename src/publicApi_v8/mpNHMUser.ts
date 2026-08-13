@@ -6,8 +6,7 @@ import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
 import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { CONSTANTS } from '../utils/env'
-import { logError } from '../utils/logger'
-import { logInfo } from '../utils/logger'
+import { logError, logInfo } from '../utils/logger'
 import { getDetailsAsPerRole, validRootOrgs } from '../utils/mpUtils'
 import {
   API_END_POINTS,

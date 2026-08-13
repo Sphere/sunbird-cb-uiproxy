@@ -5,8 +5,7 @@ import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
 import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { CONSTANTS } from '../utils/env'
-import { logError } from '../utils/logger'
-import { logInfo } from '../utils/logger'
+import { logError, logInfo } from '../utils/logger'
 import {
   API_END_POINTS,
   REGISTRATION_SOURCE as registrationSource,
@@ -753,6 +752,32 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         return false
     }
 }
+// sonar-cleanup: extracted from the identical facilityName/nin nested-ternary
+// stringification below (each 3 levels deep in the pgParams array literal).
+// The object-shaped branch is unreachable from the live /createUser route
+// today — serviceSchemaJoi validates both fields as Joi.string() before
+// userFormDetails ever reaches here, and userJourneyStatus never sets
+// either field — but it's preserved exactly as the original code had it.
+/**
+ * Stringifies a possibly-object field for the SQL params array: an object
+ * with a truthy `subField` becomes `String(value[subField])`, an object
+ * without one becomes `JSON.stringify(value)`, a non-object truthy value
+ * becomes `String(value)`, and a falsy value becomes `''`.
+ *
+ * @param value - the raw field value, which may be a string or an object
+ * @param subField - the property name to prefer when `value` is an object (e.g. 'name', 'nin')
+ */
+// tslint:disable-next-line: no-any
+function stringifyPossiblyNestedField(value: any, subField: string): string {
+    if (!value) {
+        return ''
+    }
+    if (typeof value === 'object') {
+        return value[subField] ? String(value[subField]) : JSON.stringify(value)
+    }
+    return String(value)
+}
+
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
         block: userDetails.block || '',
@@ -809,13 +834,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userFinalStatus.designation,
             userFinalStatus.district,
             userFinalStatus.email,
-            userFinalStatus.facilityName
-                ? (typeof userFinalStatus.facilityName === 'object'
-                    ? (userFinalStatus.facilityName.name
-                        ? String(userFinalStatus.facilityName.name)
-                        : JSON.stringify(userFinalStatus.facilityName))
-                    : String(userFinalStatus.facilityName))
-                : '',
+            stringifyPossiblyNestedField(userFinalStatus.facilityName, 'name'),
             userFinalStatus.facultyType,
             userFinalStatus.firstName,
             userFinalStatus.hrmsId,
@@ -823,13 +842,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userFinalStatus.instituteType,
             String(Boolean(userFinalStatus.isUserMigrated)),
             userFinalStatus.lastName,
-            userFinalStatus.nin
-                ? (typeof userFinalStatus.nin === 'object'
-                    ? (userFinalStatus.nin.nin
-                        ? String(userFinalStatus.nin.nin)
-                        : JSON.stringify(userFinalStatus.nin))
-                    : String(userFinalStatus.nin))
-                : '',
+            stringifyPossiblyNestedField(userFinalStatus.nin, 'nin'),
             userFinalStatus.organisationId,
             userFinalStatus.organisationName,
             String(userFinalStatus.phone || ''),

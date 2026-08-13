@@ -1,9 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
-import _ from 'lodash'
 import { CONSTANTS } from '../utils/env'
-import { logInfo } from '../utils/logger'
-import { logError } from '../utils/logger'
+import { logError, logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
 import { requestValidator } from '../utils/requestValidator'
 

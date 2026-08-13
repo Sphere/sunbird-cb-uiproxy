@@ -1,6 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
-import { Request, Response } from 'express'
+import { Request, Response, Router } from 'express'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import qs from 'querystring'
@@ -90,7 +89,7 @@ emailOrMobileLogin.post('/signup', async (req, res) => {
         const userUUId = newUserDetails.result.userId
         const response = await getOTP(userUUId, email, 'email')
         // tslint:disable-next-line: no-console
-        console.log('response form getOTP : ' + response)
+        console.log('response form getOTP : ' + JSON.stringify(response))
         if (response.data.result.response === 'SUCCESS') {
           await updateRoles(userUUId)
           res.status(200).json({
@@ -254,12 +253,12 @@ emailOrMobileLogin.post(
         }
         const verifyOtpResponse = await validateOTP(
           userUUId,
-          mobileNumber ? mobileNumber : email,
+          mobileNumber || email,
           email ? 'email' : 'phone',
           validOtp
         )
         res.status(200).send({ message: VALIDATION_SUCCESS, status: 200 })
-        logInfo('Sending Responses in phone part : ' + verifyOtpResponse)
+        logInfo('Sending Responses in phone part : ' + JSON.stringify(verifyOtpResponse))
       } else {
         res.status(400).json({
           msg: EMAIL_OR_MOBILE_ERROR_MSG,
@@ -318,7 +317,7 @@ emailOrMobileLogin.post('/registerUserWithMobile', async (req, res) => {
         await updateRoles(userUUId)
         const response = await getOTP(userUUId, phone, 'phone')
         // tslint:disable-next-line: no-console
-        console.log('response form getOTP : ' + response)
+        console.log('response form getOTP : ' + JSON.stringify(response))
         if (response.data.result.response === 'SUCCESS') {
           res.status(200).json({
             msg: 'user created successfully',
@@ -503,7 +502,7 @@ emailOrMobileLogin.post('/auth', async (req: any, res, next) => {
               uppercase: true,
             })
           }
-          const username = mobileNumber ? mobileNumber : email
+          const username = mobileNumber || email
           const isEmailUserExist = await fetchUserBymobileorEmail(
             email,
             'email'

@@ -254,13 +254,13 @@ ssoLogin.post('/login', async (req: any, res) => {
                             client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
                             grant_type: 'password',
                             scope: 'offline_access',
-                            username: userPhone ? userPhone : userEmail,
+                            username: userPhone || userEmail,
                         },
                         password: {
                             client_id: 'portal',
                             grant_type: 'password',
                             password: userPassword,
-                            username: userEmail ? userEmail : userPhone,
+                            username: userEmail || userPhone,
                         },
                     }
                     const transformedData = qs.stringify(typeOfLogin == 'otp' ? keycloakLoginData.otp : keycloakLoginData.password)
