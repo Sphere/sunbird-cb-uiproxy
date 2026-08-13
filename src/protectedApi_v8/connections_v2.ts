@@ -6,8 +6,7 @@ import { fetchConnectionsList } from '../utils/connectionsListFetch'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
-import { extractUserId, extractUserIdFromRequest } from '../utils/requestExtract'
-import { extractUserToken } from '../utils/requestExtract'
+import { extractUserId, extractUserIdFromRequest, extractUserToken } from '../utils/requestExtract'
 
 const _                 = require('lodash')
 
