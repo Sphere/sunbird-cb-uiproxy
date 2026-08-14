@@ -36,8 +36,8 @@ export const ssoLogin = Router()
 ssoLogin.post('/otp/sendOtp', async (req, res) => {
     try {
         logInfo('Entered into SSO Login with SSO >>>>>')
-        const userPhone = req.body.userPhone || ''
-        let userEmail = req.body.userEmail || ''
+        const userPhone = req.body.userPhone ?? ''
+        let userEmail = req.body.userEmail ?? ''
         userEmail = userEmail.toLowerCase()
         logInfo('User request body send otp', JSON.stringify(req.body))
         if (!userEmail && !userPhone) {
@@ -114,8 +114,8 @@ ssoLogin.post('/otp/sendOtp', async (req, res) => {
 })
 ssoLogin.post('/otp/resendOtp', async (req, res) => {
     try {
-        const userPhone = req.body.userPhone || ''
-        let userEmail = req.body.userEmail || ''
+        const userPhone = req.body.userPhone ?? ''
+        let userEmail = req.body.userEmail ?? ''
         userEmail = userEmail.toLowerCase()
         logInfo('SSO login resend OTP route request body', req.body)
         if (!userPhone && !userEmail) {
@@ -189,7 +189,7 @@ ssoLogin.post('/login', async (req: any, res) => {
     try {
         logInfo('SSO login endpoint request body', JSON.stringify(req.body))
         const { userPhone = '', otp = '', userPassword = '', typeOfLogin = '' } = req.body
-        let userEmail = req.body.userEmail || ''
+        let userEmail = req.body.userEmail ?? ''
         userEmail = userEmail.toLowerCase()
         if ((!userPhone && !userEmail) || !typeOfLogin) {
             return res.status(400).send({ message: 'Mandatory parameters typeOfLogin and email/phone', status: 'error' })

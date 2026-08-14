@@ -101,7 +101,7 @@ const createAccount = async (profileData: ProfileData) => {
       ...axiosRequestConfig,
       data: {
         request: {
-          channel: profileData.channelName || 'aastrika',
+          channel: profileData.channelName ?? 'aastrika',
           firstName: profileData.firstName,
           lastName: profileData.lastName,
           password: profileData.password,
@@ -125,7 +125,7 @@ const createAccount = async (profileData: ProfileData) => {
 // ✅ FIXED: Assign Roles with proper response checking
 // tslint:disable-next-line: no-any
 const updateRoles = async (userUUId: string, organisationId?: string) => {
-  const orgId = organisationId || '0132317968766894088'
+  const orgId = organisationId ?? '0132317968766894088'
   try {
     logInfo(`Updating roles for user: ${userUUId} in org: ${orgId}`)
 
@@ -195,7 +195,7 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
             profileReq: {
               academics: [
                 {
-                  nameOfInstitute: profileData.instituteName || '',
+                  nameOfInstitute: profileData.instituteName ?? '',
                   nameOfQualification: '',
                   type: 'GRADUATE',
                   yearOfPassing: '',
@@ -214,8 +214,8 @@ const profileUpdate = async (profileData: ProfileData, userId: string): Promise<
               },
               professionalDetails: [
                 {
-                  designation: profileData.role || '',
-                  name: profileData.channelName || '',
+                  designation: profileData.role ?? '',
+                  name: profileData.channelName ?? '',
                   orgType: 'Public/Government Sector',
                   profession: 'Healthcare Worker',
                 },
@@ -278,28 +278,28 @@ const updateUserStatusInDatabase = async (
   try {
     const uniqueId = uuidv4()
     const record = {
-      create_account: userJourneyStatus.createAccount || '',
+      create_account: userJourneyStatus.createAccount ?? '',
       created_on: new Date(),
-      district: userDetails.district || '',
-      email: userDetails.email || '',
-      first_name: userDetails.firstName || '',
-      institute_name: userDetails.instituteName || '',
+      district: userDetails.district ?? '',
+      email: userDetails.email ?? '',
+      first_name: userDetails.firstName ?? '',
+      institute_name: userDetails.instituteName ?? '',
       is_user_migrated: Boolean(userJourneyStatus.isUserMigrated),
-      last_name: userDetails.lastName || '',
-      organisation_id: userDetails.organisationId || '',
-      organisation_name: userDetails.channelName || '',
-      phone: String(userDetails.phone || ''),
-      profile_update: userJourneyStatus.profileUpdate || '',
-      registration_success_message: userJourneyStatus.registrationSuccessMessage || '',
-      role: userDetails.role || '',
-      role_assign: userJourneyStatus.roleAssign || '',
-      state: userDetails.state || '',
+      last_name: userDetails.lastName ?? '',
+      organisation_id: userDetails.organisationId ?? '',
+      organisation_name: userDetails.channelName ?? '',
+      phone: String(userDetails.phone ?? ''),
+      profile_update: userJourneyStatus.profileUpdate ?? '',
+      registration_success_message: userJourneyStatus.registrationSuccessMessage ?? '',
+      role: userDetails.role ?? '',
+      role_assign: userJourneyStatus.roleAssign ?? '',
+      state: userDetails.state ?? '',
       unique_id: uniqueId,
       user_already_exists: Boolean(userJourneyStatus.userAlreadyExists),
-      user_existing_organisation: userJourneyStatus.userExistingOrganisation || '',
-      user_id: userDetails.userId || '',
-      validation_status: userJourneyStatus.validationStatus || 'success',
-      validation_status_failed_reason: userJourneyStatus.validationStatusFailedReason || '',
+      user_existing_organisation: userJourneyStatus.userExistingOrganisation ?? '',
+      user_id: userDetails.userId ?? '',
+      validation_status: userJourneyStatus.validationStatus ?? 'success',
+      validation_status_failed_reason: userJourneyStatus.validationStatusFailedReason ?? '',
     }
 
     // Insert into PostgreSQL
@@ -573,8 +573,8 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
     }
 
     logInfo('VALIDATE_OTP:Entered into /validateOtp ', JSON.stringify(req.body))
-    const mobileNumber = req.body.phone || ''
-    const email = req.body.email || ''
+    const mobileNumber = req.body.phone ?? ''
+    const email = req.body.email ?? ''
     const validOtp = req.body.otp
     const userUUId = req.body.userId
     const { organisationId } = req.body

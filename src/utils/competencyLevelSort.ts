@@ -30,7 +30,7 @@ export function sortCoursesByCompetencyLevel(
   courses: ICourseForCompetencySort[]
 ): ICourseForCompetencySort[] {
   const grouped: Record<string, ICourseForCompetencySort[]> = courses.reduce((acc, course) => {
-    acc[course.lang] = acc[course.lang] || []
+    acc[course.lang] = acc[course.lang] ?? []
     acc[course.lang].push(course)
     return acc
   }, {})

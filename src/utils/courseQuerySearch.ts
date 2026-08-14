@@ -117,7 +117,7 @@ export async function searchCoursesByQuery(
           url: searchv1Url,
         })
         courseDataSecondary =
-          elasticSearchResponseSecond.data.result.content || []
+          elasticSearchResponseSecond.data.result.content ?? []
       } catch (error) {
         logInfo(JSON.stringify(error))
         return response.status(500).json({
