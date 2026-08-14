@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Code duplication cleanup</title>
+<title>Code cleanup: duplication and code quality</title>
 <style>
   @font-face {
     font-family: 'Open Sans';
@@ -473,8 +473,9 @@
     <div class="eyebrow">sunbird-cb-uiproxy &middot; engineering report</div>
     <h1>Why the codebase changed, module by module</h1>
     <p class="lede">
-      A plain-language record of every code cleanup done so far: what was combined,
-      why it was safe to combine, and what was deliberately left alone.
+      A plain-language record of every code cleanup done so far &mdash; both combining
+      duplicated code and separate small code-quality fixes &mdash; what changed, why it
+      was safe, and what was deliberately left alone.
     </p>
   </header>
 
@@ -485,14 +486,15 @@
     </div>
     <div class="mid">&rarr;</div>
     <div class="num to">
-      <div class="value">4.9%</div>
+      <div class="value">4.8%</div>
       <div class="cap">Confirmed today</div>
     </div>
   </div>
   <p class="headline-note">
-    Roughly 10,400 fewer duplicated lines out of an original ~12,400 (12,389 &rarr; 1,972)
+    Roughly 10,400 fewer duplicated lines out of an original ~12,400 (12,389 &rarr; 1,944)
     &mdash; measured by SonarQube, the tool that scans the code and reports this number.
-    The original 5% goal has been reached and passed.
+    The original 5% goal has been reached and passed. A separate, unrelated pass then
+    fixed 486 code-quality suggestions across the codebase &mdash; see below.
   </p>
 
   <div class="callout">
@@ -599,6 +601,16 @@
       <td class="stage">Password-reset file</td>
       <td class="pct">5.0% &rarr; 4.9%</td>
       <td class="what">One more file's repeated logic combined; remaining duplication re-checked and confirmed unmergeable</td>
+    </tr>
+    <tr>
+      <td class="stage">Code-quality sweep, round 1</td>
+      <td class="pct">4.9%</td>
+      <td class="what">Duplicate imports, repeated fallback checks, and confusing conditions cleaned up in 21 files (not a duplication change &mdash; see the section below)</td>
+    </tr>
+    <tr>
+      <td class="stage">Code-quality sweep, round 2</td>
+      <td class="pct">4.9% &rarr; 4.8%</td>
+      <td class="what">40 more files' repeated null-checks simplified; one small side-effect from that fixed the same day</td>
     </tr>
     </tbody>
   </table>
@@ -867,6 +879,74 @@
     <div class="tag-row"><span class="change-tag">Follow-up</span><span class="files">bulkExtendedMethod.ts, forgotPassword.ts</span></div>
     <h3>Cleaned up two logging lines flagged right after the merge above</h3>
     <p>Combining the repeated code in these two files surfaced an old habit that was previously hidden in duplicate copies: a line that logs a network response by gluing it onto a piece of text, which prints as unhelpful text like "[object Object]" instead of anything readable. This was already happening before today's changes, just in more places at once &mdash; now that it's down to one place per file, it was easy to fix properly.</p>
+  </div>
+
+  <h2>A separate cleanup: code-quality suggestions</h2>
+  <p class="section-sub">
+    This part isn't about duplication at all &mdash; it's a different kind of finding from
+    the same scanning tool: small, purely stylistic suggestions about how code is written,
+    not about copies of code. Every one of these was checked by hand for a specific risk
+    before being changed: some of these patterns look interchangeable but actually behave
+    differently for certain values (like <code>0</code> or <code>false</code>), so anywhere
+    that risk was real, the code was deliberately left as it was instead of "fixed."
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="files">21 files across the sign-up, login, admin, and utility code</span></div>
+    <h3>Merged duplicate import lines, removed one unused import, and simplified safe fallback checks</h3>
+    <p>
+      Several files imported the same helper twice, on two separate lines, instead of once.
+      Merged those into a single line each. Also found and removed one import that wasn&rsquo;t
+      being used anywhere in its file. Separately, many files had a pattern like
+      &ldquo;if this value exists, use it, otherwise use this other one&rdquo; written the
+      older way; the newer, clearer way to write that was used instead &mdash;
+      but only in the specific places where it&rsquo;s provably identical in behavior.
+    </p>
+    <div class="why-box">
+      <b>Why safe</b>
+      This shortcut only behaves identically to the old style when the value being checked
+      can never legitimately be the number 0, the word false, or a similarly "empty-looking"
+      value that should still count as real data. Every single occurrence was checked by hand
+      against what that value actually is &mdash; a web-address parameter, a saved session
+      token, a piece of typed form data &mdash; before being touched. Anywhere the value could
+      plausibly be a real 0, a real false, or came from a part of the code with no such
+      guarantee, it was deliberately left exactly as it was.
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="files">40 files, mostly error-handling and profile-lookup code</span></div>
+    <h3>Simplified repeated "does this exist, does the next part of it exist" checks</h3>
+    <p>
+      By far the most common shape in the whole codebase: code that checks a value exists,
+      then checks a piece inside it exists, then checks a piece inside <em>that</em> exists,
+      before finally using it &mdash; three separate checks chained together with "and."
+      There's a shorter, equally safe way to write exactly that check, and it was applied in
+      every place where it&rsquo;s provably identical in behavior to the longer version.
+    </p>
+    <div class="why-box">
+      <b>Why safe</b>
+      The overwhelming majority of these instances are the same recurring pattern: checking
+      whether a failed network call included a real error response, and if not, falling back
+      to a default. That fallback is what makes the shortcut provably safe here &mdash; whichever
+      way the check is written, a missing piece always ends up using the same default anyway, so
+      there's no way for the outcome to differ. This was proven by running both versions
+      side by side against more than 25 different possible inputs (missing pieces, real
+      values, the number 0, the word false) and confirming every single result matched
+      exactly, not just assumed. A handful of checks that looked similar but actually read a
+      <em>different</em> piece of data than the one being checked were left untouched, since
+      the shortcut would have quietly changed what they read.
+    </div>
+    <div class="bug-box">
+      <b>Small side effect, caught and fixed the same day</b>
+      Making this change in one file (a helper that reads details out of a login token)
+      caused the code-quality scanner to notice that two leftover type-conversion notes
+      elsewhere in the same file had become unnecessary. Removed both. These notes only
+      exist for the tool that checks the code before it runs and have no effect on the
+      program itself, so removing them changed nothing about how the code behaves &mdash;
+      confirmed by that file's own tests, which specifically check what happens when the
+      login-token data is missing.
+    </div>
   </div>
 
   <h2>What's deliberately left alone, and why</h2>

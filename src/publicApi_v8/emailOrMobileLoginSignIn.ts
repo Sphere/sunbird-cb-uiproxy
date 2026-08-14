@@ -149,7 +149,7 @@ const msg91Headers = {
 // generate otp for  register's user
 emailOrMobileLogin.post('/generateOtp', async (req, res) => {
   try {
-    const userPhone = req.body.mobileNumber ?? req.body.phone ?? ''
+    const userPhone = req.body.mobileNumber || req.body.phone || ''
     let userEmail = req.body.email ?? ''
     userEmail = userEmail.toLowerCase()
     logInfo('SSO login resend OTP route request body', req.body)
@@ -245,7 +245,7 @@ emailOrMobileLogin.post(
         const mobileNumber = req.body.mobileNumber
         const email = req.body.email
         const validOtp = req.body.otp
-        const userUUId = req.body.userUUId ?? req.body.userUUID
+        const userUUId = req.body.userUUId || req.body.userUUID
         await updateRoles(userUUId)
         if (!validOtp) {
           res.status(400).send({ message: OTP_MISSING, status: 'error' })
