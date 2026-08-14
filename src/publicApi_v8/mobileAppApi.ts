@@ -115,7 +115,7 @@ function handleMobileApiDefaultError(res: any, err: any, logErrorPrefix?: string
 }
 
 // Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
-const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
+const publicKeyPath = process.env.PUBLIC_KEY_PATH ?? '/keys/access_key'
 const publicKeyValue = fs.readFileSync(publicKeyPath, 'utf8')
 const beginKey = '-----BEGIN PUBLIC KEY-----\n'
 const endKey = '\n-----END PUBLIC KEY-----'
@@ -787,15 +787,15 @@ mobileAppApi.patch('/updateUserProfile', async (req, res) => {
 mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    let appId = req.query.appId || '';
+    let appId = req.query.appId ?? '';
     if (appId == 'app.aastrika.ekhamata') {
       const filteredCourses = await getCoursesForIhat()
       return res.status(200).send(filteredCourses)
     }
     logInfo('Appid', appId)
     const responseObject = {
-      background: req.query.background || '',
-      profession: req.query.profession || '',
+      background: req.query.background ?? '',
+      profession: req.query.profession ?? '',
     }
     if (!req.query.background) {
       delete responseObject.background
@@ -1029,7 +1029,7 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
         JSON.stringify(req.session?.grant)
       )
     }
-    const token = req.session?.grant?.access_token?.token || ''
+    const token = req.session?.grant?.access_token?.token ?? ''
     searchRequestBody.authToken = token
     logInfo(
       'Inside CBP course recommendation route request body',

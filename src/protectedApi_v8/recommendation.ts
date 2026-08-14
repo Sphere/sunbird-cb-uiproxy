@@ -37,8 +37,8 @@ export const recommendationApi = Router()
 // tslint:disable-next-line: no-any
 function handleRecommendationError(res: Response, err: any, label: string) {
   logError(label, err)
-  res.status((err && err.response && err.response.status) || 500)
-    .send((err && err.response && err.response.data) || {
+  res.status(err?.response?.status || 500)
+    .send(err?.response?.data || {
       error: ERROR.GENERAL_ERR_MSG,
     })
 }
@@ -62,9 +62,7 @@ function sendShuffledRecommendations(res: Response, response: any) {
   let contents: IContent[] = []
   if (
     Array.isArray(
-      response.data.result &&
-      response.data.result.response &&
-      response.data.result.response.result
+      response.data.result?.response?.result
     )
   ) {
     contents = response.data.result.response.result.map((content: IContent) =>
@@ -222,7 +220,7 @@ recommendationApi.get('/usageBased', async (req, res) => {
       url,
     })
     let contents: IContent[] = []
-    if (Array.isArray(response.data.result && response.data.result.response)) {
+    if (Array.isArray(response.data.result?.response)) {
       contents = response.data.result.response.map((content: IContent) => processContent(content))
     }
     contents = shuffleContent(contents)
@@ -288,7 +286,7 @@ recommendationApi.get('/:recommendationType', async (req, res) => {
       params,
     })
     let contents: IContent[] = []
-    if (Array.isArray(response.data.result && response.data.result.response)) {
+    if (Array.isArray(response.data.result?.response)) {
       contents = response.data.result.response.map((content: IContent) => processContent(content))
     }
     const result: IPaginatedApiResponse = {

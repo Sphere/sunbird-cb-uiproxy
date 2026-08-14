@@ -33,8 +33,8 @@ appSignUpWithAutoLogin.post('/register', async (req, res) => {
     const userData = req.body
     const firstName = userData.firstName
     const lastName = userData.lastName
-    const userEmail = userData.email || ''
-    const userPhone = userData.phone || ''
+    const userEmail = userData.email ?? ''
+    const userPhone = userData.phone ?? ''
     const password = userData.password || encryptData(userEmail || userPhone)
     const resultEmail = await fetchUserBymobileorEmail(userEmail, 'email')
     logInfo(resultEmail, 'resultemail')
@@ -80,10 +80,10 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       })
     }
     logInfo('Entered into /validateOtp ', req.body)
-    const mobileNumber = req.body.mobileNumber || ''
-    const email = req.body.email || ''
+    const mobileNumber = req.body.mobileNumber ?? ''
+    const email = req.body.email ?? ''
     const validOtp = req.body.otp
-    const userUUId = req.body.userId || req.body.userUUID
+    const userUUId = req.body.userId ?? req.body.userUUID
 
     let userOtpVerified = false
     if (mobileNumber) {

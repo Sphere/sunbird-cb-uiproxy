@@ -83,8 +83,8 @@ function handleContentError(res: Response, err: any, label?: string) {
     logError(label, err)
   }
   res
-    .status((err && err.response && err.response.status) || 500)
-    .send((err && err.response && err.response.data) || {
+    .status(err?.response?.status || 500)
+    .send(err?.response?.data || {
       error: GENERAL_ERROR_MSG,
     })
 }

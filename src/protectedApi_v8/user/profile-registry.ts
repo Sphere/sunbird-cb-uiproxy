@@ -63,12 +63,7 @@ async function createOrUpdateUserRegistry(req: Request, res: Response, userId: s
         ...axiosRequestConfig,
       }
     )
-    if (
-      getUserIdExistresponse.data &&
-      getUserIdExistresponse.data.result &&
-      getUserIdExistresponse.data.result.UserProfile &&
-      getUserIdExistresponse.data.result.UserProfile.length
-    ) {
+    if (getUserIdExistresponse.data?.result?.UserProfile?.length) {
       const response = await axios.post(
         API_END_POINTS.updateUserRegistry(userId),
         { ...req.body, userId },
@@ -89,7 +84,7 @@ async function createOrUpdateUserRegistry(req: Request, res: Response, userId: s
     }
   } catch (err) {
     logError(ERROR_MESSAGE_CREATE_REGISTRY, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 }
 
@@ -111,7 +106,7 @@ profileRegistryApi.post('/updateUserRegistry', async (req, res) => {
     res.status(response.status).json(response.data)
   } catch (err) {
     logError(ERROR_MESSAGE_CREATE_REGISTRY, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -129,7 +124,7 @@ profileRegistryApi.post('/updateUserWorkflowRegistry', async (req, res) => {
     res.status(response.status).json(response.data)
   } catch (err) {
     logError('ERROR UPDATING USER REGISTRY WORKFLOW>', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -148,7 +143,7 @@ profileRegistryApi.get('/getUserRegistry/:osid', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -168,7 +163,7 @@ profileRegistryApi.get('/getUserRegistryById', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY by id >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -187,7 +182,7 @@ profileRegistryApi.post('/searchUserRegistry', async (req, res) => {
     res.status(response.status).json(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY by id >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -208,7 +203,7 @@ profileRegistryApi.get('/getUserRegistryByUser/:id', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -225,7 +220,7 @@ profileRegistryApi.get('/getMasterNationalities', async (_req, res) => {
       }
     )
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -245,7 +240,7 @@ profileRegistryApi.get('/getMasterLanguages', async (_req, res) => {
       }
     )
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -274,7 +269,7 @@ profileRegistryApi.get('/getProfilePageMeta', async (_req, res) => {
       states,
     })
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 

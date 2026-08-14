@@ -44,8 +44,8 @@ sashakt.get('/login', async (req: any, res) => {
       url: API_END_POINTS.sashaktUserDetailsUrl,
     })
     const sashaktData = userDetailResponseFromShashakt.data.userDetails[0]
-    const sashaktEmail = sashaktData.email || ''
-    const sashaktPhone = sashaktData.phone || ''
+    const sashaktEmail = sashaktData.email ?? ''
+    const sashaktPhone = sashaktData.phone ?? ''
     const typeOfLogin = sashaktData.phone ? 'phone' : 'email'
 
     logInfo('User details from shashakt', sashaktData)

@@ -47,8 +47,8 @@ homePage.get('/latestCourses', async (req, res) => {
     res.json(response)
   } catch (err) {
     logError('SEARCH API ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -68,8 +68,8 @@ homePage.post('/searchV6', async (req, res) => {
     sendSearchResponse(res, response)
   } catch (err) {
     logError('SEARCH V6 API ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -94,8 +94,8 @@ homePage.get('/catalog', async (req, res) => {
 
     res.status(400).send({ error: ERROR.ERROR_NO_ORG_DATA })
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
 
         error: 'Failed due to unknown reason',
       }
@@ -128,8 +128,8 @@ homePage.post('/:contentId', async (req, res) => {
     res.json(response)
   } catch (err) {
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status((err?.response?.status) || 500)
+      .send((err?.response?.data) || {
         error: GENERAL_ERROR_MSG,
       })
   }
@@ -141,8 +141,8 @@ homePage.get('/searchAutoComplete', async (req, res) => {
   } catch (err) {
     logError('SEARCH AUTOCOMPLETE ERR -> ', err)
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status((err?.response?.status) || 500)
+      .send((err?.response?.data) || {
         error: GENERAL_ERROR_MSG,
       })
   }

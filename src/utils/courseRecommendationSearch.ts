@@ -70,7 +70,7 @@ async function searchSecondaryByCompetency(
     method: 'post',
     url: searchUrl,
   })
-  return elasticSearchResponseSecond.data.result.content || []
+  return elasticSearchResponseSecond.data.result.content ?? []
 }
 
 // sonar-cleanup: extracted from ratingsSearch.ts's and courseRecommendation.ts's

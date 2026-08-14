@@ -37,8 +37,8 @@ attendedContentApi.get('/attendedCourses', async (req, res) => {
     res.json(finalResponse)
   } catch (err) {
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || err)
   }
 })
 
@@ -58,8 +58,8 @@ attendedContentApi.get('/attendedUsers/:contentId', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || err)
   }
 })
 
@@ -80,7 +80,7 @@ attendedContentApi.get('/verifyAttendedUsers', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || err)
   }
 })

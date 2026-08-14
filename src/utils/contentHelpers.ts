@@ -126,15 +126,15 @@ export function processContent(content: IContent): IContent {
     children: Array.isArray(content.children) ? content.children.map((u) => processContent(u)) : [],
 
     displayContentType: processDisplayContentType(content.contentType, content.resourceType),
-    downloadUrl: processDownloadUrl(content.downloadUrl || ''),
+    downloadUrl: processDownloadUrl(content.downloadUrl ?? ''),
     introductoryVideo: processUrl(content.introductoryVideo),
     introductoryVideoIcon: processUrl(content.introductoryVideoIcon),
     isExternal: processIsExternal(content.isExternal),
-    playgroundResources: (content.playgroundResources || []).map((u) => ({
+    playgroundResources: (content.playgroundResources ?? []).map((u) => ({
       ...u,
       artifactUrl: processUrl(u.artifactUrl),
     })),
-    subTitles: (content.subTitles || []).map((u) => ({
+    subTitles: (content.subTitles ?? []).map((u) => ({
       ...u,
       url: processUrl(u.url),
     })),
@@ -165,7 +165,7 @@ export function getMinimalContent(content: IContent): IContentMinimal {
     artifactUrl: content.artifactUrl,
     complexityLevel: content.complexityLevel,
     contentType: content.contentType,
-    creatorDetails: content.creatorDetails || content.creatorContacts,
+    creatorDetails: content.creatorDetails ?? content.creatorContacts,
     description: content.description,
     displayContentType: processDisplayContentType(content.contentType, content.resourceType),
     duration: content.duration,
@@ -185,7 +185,7 @@ function processIsExternal(isExternal: string | boolean): boolean {
 }
 
 export function processUrl(url: string | null | undefined) {
-  return (url || '').replace(CONTENT_URL_PREFIX_SLICE_REGEX, '/apis/proxies/v8')
+  return (url ?? '').replace(CONTENT_URL_PREFIX_SLICE_REGEX, '/apis/proxies/v8')
 }
 export function appendUrl(url: string) {
   return '/apis/proxies/v8' + url
@@ -196,7 +196,7 @@ export function appendProxiesUrl(url: string) {
 }
 
 export function processDisplayContentType(contentType: TContentType, resourceType?: string) {
-  return resourceType || contentType
+  return resourceType ?? contentType
 }
 
 export function processDownloadUrl(url: string) {
