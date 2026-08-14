@@ -29,7 +29,7 @@ export const setRolesData = async (reqObj: any, body: any) => {
   const userId = userData.result.response.id
 
   if (reqObj.session) {
-    reqObj.session.userId = userId ?? userData.result.response.userId
+    reqObj.session.userId = userId || userData.result.response.userId
     reqObj.session.userName = userData.result.response.userName
     reqObj.session.userRoles = ROLE || []
     reqObj.session.orgs = userData.result.response.organisations

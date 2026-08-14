@@ -101,7 +101,7 @@ const createAccount = async (profileData: ProfileData) => {
       ...axiosRequestConfig,
       data: {
         request: {
-          channel: profileData.channelName ?? 'aastrika',
+          channel: profileData.channelName || 'aastrika',
           firstName: profileData.firstName,
           lastName: profileData.lastName,
           password: profileData.password,
@@ -125,7 +125,7 @@ const createAccount = async (profileData: ProfileData) => {
 // ✅ FIXED: Assign Roles with proper response checking
 // tslint:disable-next-line: no-any
 const updateRoles = async (userUUId: string, organisationId?: string) => {
-  const orgId = organisationId ?? '0132317968766894088'
+  const orgId = organisationId || '0132317968766894088'
   try {
     logInfo(`Updating roles for user: ${userUUId} in org: ${orgId}`)
 

@@ -83,7 +83,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
     const mobileNumber = req.body.mobileNumber ?? ''
     const email = req.body.email ?? ''
     const validOtp = req.body.otp
-    const userUUId = req.body.userId ?? req.body.userUUID
+    const userUUId = req.body.userId || req.body.userUUID
 
     let userOtpVerified = false
     if (mobileNumber) {

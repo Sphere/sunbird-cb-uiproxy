@@ -165,7 +165,7 @@ export function getMinimalContent(content: IContent): IContentMinimal {
     artifactUrl: content.artifactUrl,
     complexityLevel: content.complexityLevel,
     contentType: content.contentType,
-    creatorDetails: content.creatorDetails ?? content.creatorContacts,
+    creatorDetails: content.creatorDetails || content.creatorContacts,
     description: content.description,
     displayContentType: processDisplayContentType(content.contentType, content.resourceType),
     duration: content.duration,
@@ -196,7 +196,7 @@ export function appendProxiesUrl(url: string) {
 }
 
 export function processDisplayContentType(contentType: TContentType, resourceType?: string) {
-  return resourceType ?? contentType
+  return resourceType || contentType
 }
 
 export function processDownloadUrl(url: string) {
