@@ -53,8 +53,8 @@ export const userRegistrationApi = Router()
 function handleUserRegistrationError(res: any, err: any, label: string) {
   logError(label, err)
   res
-    .status((err && err.response && err.response.status) || 500)
-    .send((err && err.response && err.response.data) || {})
+    .status(err?.response?.status || 500)
+    .send(err?.response?.data || {})
 }
 
 userRegistrationApi.get('/listUsers/:source', async (req, res) => {
@@ -189,17 +189,13 @@ userRegistrationApi.post('/create-user', async (req, res) => {
       )
       getAuthToken(req.body.email)
         .then(async (kcaAuthToken) => {
-          if (kcaAuthToken && kcaAuthToken.access_token) {
+          if (kcaAuthToken?.access_token) {
             const wTokenResponse = await wTokenApiMock(
               req,
               kcaAuthToken.access_token
             )
             // tslint:disable-next-line: max-line-length
-            if (
-              wTokenResponse &&
-              wTokenResponse.user &&
-              wTokenResponse.user.length
-            ) {
+            if (wTokenResponse?.user?.length) {
               logInfo('New User keycloak auth successfull')
               logInfo(
                 `User: ${req.body.email} -- wid: ${wTokenResponse.user[0].wid}`
@@ -242,7 +238,7 @@ userRegistrationApi.post('/user/access-path', async (req, res) => {
     const query = `SELECT * FROM ${CONSTANTS.CASSANDRA_KEYSPACE}.user_access_paths
             WHERE user_id=${req.body.wid}`
     clientConnect.execute(query, (err, result) => {
-      if (!err && result && result.rows) {
+      if (!err && result?.rows) {
         const key = result.rows
         clientConnect.shutdown()
         res.json(key || {})
@@ -311,7 +307,7 @@ userRegistrationApi.post('/bulkUpload', async (req, res) => {
     )
     const workSheetsFromFile = xlsx.parse(filePath + `${uuid}.${ext}`)
     for (const sheet of workSheetsFromFile) {
-      if (sheet.data && sheet.data.length) {
+      if (sheet.data?.length) {
         // tslint:disable-next-line: no-any
         const [fnameHeader, lnameHeader, emailHeader, ...rolesHeaders] =
           // tslint:disable-next-line: no-any
@@ -331,7 +327,7 @@ userRegistrationApi.post('/bulkUpload', async (req, res) => {
             const validFname = await validateInputWithRegex(fname, nameRegex)
             const validLname = await validateInputWithRegex(lname, nameRegex)
             const validEmail = await validateInputWithRegex(email, emailRegex)
-            if (rolesHeaders && rolesHeaders.length && roles && roles.length) {
+            if (rolesHeaders?.length && roles?.length) {
               for (const [i, val] of rolesHeaders.entries()) {
                 if (
                   roles[i] &&
@@ -454,16 +450,16 @@ export async function performNewUserSteps(
     await getAuthToken(email)
       .then(async (kcaAuthToken) => {
         logInfo('access_token successfull: ', kcaAuthToken.access_token)
-        if (kcaAuthToken && kcaAuthToken.access_token) {
+        if (kcaAuthToken?.access_token) {
           const wTokenResponse = await wTokenApiMock(
             req,
             kcaAuthToken.access_token
           )
           // tslint:disable-next-line: max-line-length
-          if (wTokenResponse && wTokenResponse.user) {
+          if (wTokenResponse?.user) {
             logInfo('New User Wtoken auth successfull')
             logInfo(`User: ${email} -- wid: ${wTokenResponse.user.wid}`)
-            if (roles && roles.length) {
+            if (roles?.length) {
               const updateRolesReq = {
                 operation: 'add',
                 roles: [...roles],
@@ -539,7 +535,7 @@ userRegistrationApi.get('/bulkUploadData', async (req, res) => {
             WHERE user_id=${extractUserIdFromRequest(req)}  allow filtering`
     // tslint:disable-next-line: no-identical-functions
     clientConnect.execute(query, (err, result) => {
-      if (!err && result && result.rows) {
+      if (!err && result?.rows) {
         const key = result.rows
         clientConnect.shutdown()
         res.json(key || {})

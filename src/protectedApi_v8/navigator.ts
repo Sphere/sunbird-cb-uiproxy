@@ -38,8 +38,8 @@ navigatorApi.get('/roles', async (_req, res) => {
     res.json(processRolesData(response))
   } catch (err) {
     logError('ERR FETCHING NSODATA -> ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: 'Failed due to unknown reason',
       }
     )
@@ -85,7 +85,7 @@ navigatorApi.get('/lp', async (req, res) => {
     axiosRequestConfig
   )
   const lpData =
-    topics && topics.length
+    topics?.length
       ? filterOnTopics(lpDataResponse.data.lp_data, topics)
       : lpDataResponse.data.lp_data
   if (!lpData) {
@@ -244,7 +244,7 @@ function processRoles(role: IRole): IRole {
 
 function processVariant(variant: IVariant): IVariant {
   let count = 0
-  if (variant && variant.group) {
+  if (variant?.group) {
     variant.group.forEach((element: IGroup) => {
       const dataChange = processGroup(element)
       variant.group[count] = dataChange

@@ -57,18 +57,18 @@ function manipulateResult(
   defaultName: string,
   defaultEmail: string
 ) {
-  let empNumber = (detailsResponse && detailsResponse.empNumber) || 0
+  let empNumber = detailsResponse?.empNumber || 0
   try {
     // tslint:disable-next-line:ban
-    empNumber = parseInt((profileResponse && profileResponse.companyName) || '0', 10)
+    empNumber = parseInt(profileResponse?.companyName || '0', 10)
   } catch (err) {
     logError(err)
   }
 
   return {
     email:
-      (detailsResponse && detailsResponse.email) ||
-      (profileResponse && profileResponse.onPremisesUserPrincipalName) ||
+      detailsResponse?.email ||
+      profileResponse?.onPremisesUserPrincipalName ||
       defaultEmail,
     miscellaneous: {
       ...detailsResponse,
@@ -76,7 +76,7 @@ function manipulateResult(
       empNumber,
     },
     name:
-      (detailsResponse && detailsResponse.name) ||
+      detailsResponse?.name ||
       defaultName ||
       (profileResponse && `${profileResponse.givenName} ${profileResponse.surname}`),
   }
@@ -108,8 +108,8 @@ profileApi.get('/empDB', async (req, res) => {
     const response = await getUserDetailsFromApi(userId)
     res.json(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -121,8 +121,8 @@ profileApi.get('/graph', async (req, res) => {
     const response = await getUserDetailsFromGraph(userId)
     res.json(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -137,8 +137,8 @@ profileApi.get('/graph/photo/:userEmail', async (req, res) => {
     res.json(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER IMAGE:', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -151,8 +151,8 @@ profileApi.get('/', async (req, res) => {
     const response = await getUserProfile(userId, req)
     res.json(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -195,8 +195,8 @@ profileApi.patch('/', async (req, res) => {
     res.status(404).send('')
   } catch (err) {
     logError('err in new user acceptance >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

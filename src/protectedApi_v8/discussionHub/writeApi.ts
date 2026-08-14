@@ -43,8 +43,8 @@ export const writeApi = Router()
 export function handleWriteApiError(res: Response, err: any, label: string) {
   logError(label, err)
   res
-    .status((err && err.response && err.response.status) || 500)
-    .send((err && err.response && err.response.data) || {})
+    .status((err?.response?.status) || 500)
+    .send((err?.response?.data) || {})
 }
 
 /**
@@ -79,7 +79,7 @@ async function postWithUserUid(
       },
       { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
     )
-    if (response && response.data) {
+    if (response?.data) {
       res.send(response.data)
     }
   } catch (err) {
@@ -106,7 +106,7 @@ async function deleteWithUserUid(req: Request, res: Response, url: string, label
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
     })
-    if (response && response.data) {
+    if (response?.data) {
       res.send(response.data)
     }
   } catch (err) {
@@ -230,7 +230,7 @@ writeApi.put('/topics/:topicId/follow', async (req, res) => {
       },
       { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
     )
-    if (response && response.data) {
+    if (response?.data) {
       res.send(response.data)
     }
   } catch (err) {
@@ -252,7 +252,7 @@ writeApi.put('/topics/:topicId/tags', async (req, res) => {
       },
       { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
     )
-    if (response && response.data) {
+    if (response?.data) {
       res.send(response.data)
     }
   } catch (err) {

@@ -40,8 +40,8 @@ evaluateApi.post('/assessment/submit/v2', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERR_MSG,
       }
     )
@@ -67,8 +67,8 @@ evaluateApi.post('/assessment/submit/iap', async (req, res) => {
       res.status(response.status).send(response.data)
     })
     .catch((error) => {
-      res.status((error && error.response && error.response.status) || 500)
-        .send((error && error.response && error.response.data) || {
+      res.status(error?.response?.status || 500)
+        .send(error?.response?.data || {
           error: GENERAL_ERR_MSG,
         })
     })
@@ -98,8 +98,8 @@ evaluateApi.get('/post-assessment/:contentId', async (req, res) => {
     res.send(response.data)
   } catch (err) {
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || {
         error: GENERAL_ERR_MSG,
       })
   }

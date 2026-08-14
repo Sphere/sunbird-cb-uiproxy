@@ -78,7 +78,7 @@ export const profileDeatailsApi = Router()
 // tslint:disable-next-line: no-any
 function handleProfileDetailsError(res: express.Response, err: any, label: string) {
   logError(label, err)
-  res.status((err && err.response && err.response.status) || 500).send(err)
+  res.status(err?.response?.status || 500).send(err)
 }
 
 profileDeatailsApi.post('/createUserRegistry', async (req, res) => {
@@ -380,7 +380,7 @@ profileDeatailsApi.post('/createUser', async (req, res) => {
     }
   } catch (err) {
     logError(createUserFailed, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 profileDeatailsApi.post('/completeUserInfo', async (req, res) => {
@@ -407,7 +407,7 @@ profileDeatailsApi.post('/completeUserInfo', async (req, res) => {
   } catch (err) {
     logError(fetchUserMongodbFailed, err)
     res
-      .status((err && err.response && err.response.status) || 500)
+      .status(err?.response?.status || 500)
       .send(err.message || 'Something went wrong')
   }
 })
@@ -434,8 +434,8 @@ profileDeatailsApi.patch('/updateUser', async (req, res) => {
       }
     } catch (err) {
       logError(failedToUpdateUser + err)
-      return res.status((err && err.response && err.response.status) || 500).send(
-        (err && err.response && err.response.data) || {
+      return res.status(err?.response?.status || 500).send(
+        err?.response?.data || {
           error: unknownError,
         }
       )
@@ -472,8 +472,8 @@ profileDeatailsApi.patch('/updateUser', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToUpdateUser + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -669,7 +669,7 @@ async function createUserWithRegistry(req: express.Request, res: express.Respons
     }
   } catch (err) {
     logError(createUserFailed, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 }
 
@@ -747,7 +747,7 @@ profileDeatailsApi.post('/createUserV2WithoutRegistry', async (req, res) => {
     }
   } catch (err) {
     logError(createUserFailed, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 

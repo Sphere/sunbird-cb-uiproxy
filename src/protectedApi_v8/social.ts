@@ -52,8 +52,8 @@ function handleSocialError(res: Response, err: any, label?: string) {
   if (label) {
     logError(label, err)
   }
-  res.status((err && err.response && err.response.status) || 500).send(
-    (err && err.response && err.response.data) || {
+  res.status(err?.response?.status || 500).send(
+    err?.response?.data || {
       error: GENERAL_ERROR_MSG,
     }
   )
@@ -136,7 +136,7 @@ socialApi.post('/post/upload/:contentId', async (req, res) => {
       res.status(400).send(INVALID_ORG_MSG)
       return
     }
-    if (req.files && req.files.content) {
+    if (req.files?.content) {
       const url = `${rootOrg}/${org}/Public/${contentId}/artifacts`
       const file: UploadedFile = req.files.content as UploadedFile
       const formData = new FormData()
@@ -153,7 +153,7 @@ socialApi.post('/post/upload/:contentId', async (req, res) => {
             })
           } else {
             res.send(
-              (err && err.message) || {
+              err?.message || {
                 error: GENERAL_ERROR_MSG,
               }
             )

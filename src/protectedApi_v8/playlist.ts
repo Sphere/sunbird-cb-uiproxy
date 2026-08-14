@@ -45,7 +45,7 @@ export const playlistApi = Router()
  */
 // tslint:disable-next-line: no-any
 function handlePlaylistError(res: Response, error: any, label: string, logUnexpected = true) {
-    if (error && error.response) {
+    if (error?.response) {
         logError(`${label} API error response: Status ${error.response.status}`)
         logError(`${label} API error details: ${JSON.stringify(error.response.data)}`)
         return res.status(error.response.status).json(error.response.data)

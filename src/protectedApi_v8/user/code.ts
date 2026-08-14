@@ -146,8 +146,8 @@ codeApi.post('/execute', async (req, res) => {
     const response = await execute(req.body)
     res.json(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -167,8 +167,8 @@ codeApi.get('/viewLastSubmission/:contentId', async (req, res) => {
     const response = await viewLastSubmission(lexId, uuid, rootOrg)
     res.json(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -196,8 +196,8 @@ codeApi.post('/:group/:action/:contentId', async (req, res) => {
     const response = await verifySubmit(groupAction, lexId, uuid, req.body, rootOrg)
     res.json(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

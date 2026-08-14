@@ -39,8 +39,8 @@ accessControlApi.post('/', async (req, res) => {
     const response = await checkContentAccess(contentIds.join(','), uuid)
     res.json(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: 'Failed due to unknown reason',
       }
     )
@@ -64,8 +64,8 @@ accessControlApi.get('/', async (req, res) => {
       })
     }
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: 'Failed due to unknown reason',
       }
     )

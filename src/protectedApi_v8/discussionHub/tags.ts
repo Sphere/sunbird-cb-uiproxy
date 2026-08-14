@@ -26,8 +26,8 @@ tagsApi.get('/', async (req, res) => {
         res.send(response.data)
     } catch (err) {
         logError('ERROR ON GET topicsApi /recent >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        res.status(err?.response?.status || 500)
+            .send(err?.response?.data || {})
     }
 })
 tagsApi.get('/:tagName', async (req, res) => {
@@ -44,7 +44,7 @@ tagsApi.get('/:tagName', async (req, res) => {
         res.send(response.data)
     } catch (err) {
         logError('ERROR ON GET topicsApi /by tag >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        res.status(err?.response?.status || 500)
+            .send(err?.response?.data || {})
     }
 })

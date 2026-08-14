@@ -29,8 +29,8 @@ conceptGraphApi.get('/:ids', async (req: Request, res: Response) => {
 
     return res.send(conceptData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: 'Failed due to unknown reason',
       }
     )
@@ -51,8 +51,8 @@ conceptGraphApi.post('/autocomplete', async (req: Request, res: Response) => {
       .then((response) => response.data)
     return res.send(autoCompleteData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: 'Failed due to unknown reason',
       }
     )
