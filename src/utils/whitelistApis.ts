@@ -20,6 +20,7 @@ const ROLE = {
   IFU_MEMBER: 'IFU_MEMBER',
   MDO_ADMIN: 'MDO_ADMIN',
   MDO_LEADER: 'MDO_LEADER',
+  MNC_REPORT_VIEWER: 'MNC_REPORT_VIEWER',
   PUBLIC: 'PUBLIC',
   SPV_ADMIN: 'SPV_ADMIN',
   WAT_MEMBER: 'WAT_MEMBER',
@@ -1094,6 +1095,18 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    // Restricted report: gated on MNC_REPORT_VIEWER, not PUBLIC. The route re-checks the
+    // role itself, because this whitelist only runs when PORTAL_API_WHITELIST_CHECK is true.
+    '/protected/v8/report/mnc-attendance': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.MNC_REPORT_VIEWER],
+    },
+    '/protected/v8/report/mnc-attendance/meta': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.MNC_REPORT_VIEWER],
+    },
     '/protected/v8/frac/addDataNodeBulk': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1821,6 +1834,8 @@ export const API_LIST = {
     '/protected/v8/updateProgressv2/update',
     '/protected/v8/updateProgressv3/update',
     '/protected/v8/learnerPath',
+    '/protected/v8/report/mnc-attendance',
+    '/protected/v8/report/mnc-attendance/meta',
     '/protected/v8/frac/addDataNodeBulk',
     '/protected/v8/roleactivity/:txt',
     '/protected/v8/connections/update/connection',
