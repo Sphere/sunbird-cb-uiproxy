@@ -5,7 +5,7 @@ of the source: nothing here changes application behaviour, runtime dependencies,
 or build output.
 
 - **Local development** → a throwaway SonarQube in Docker
-- **CI** → SonarCloud (org `sphere`, project `Sphere_sunbird-cb-uiproxy`)
+- **CI** → SonarCloud (org `sphere`, project `Sphere_sunbird-cb-uiproxy`) 
 
 The same scripts work against both. They source a git-ignored `.env.sonar` only
 if it exists, otherwise they use whatever `SONAR_*` variables are already in the
@@ -189,7 +189,7 @@ docker compose -f docker-compose.sonar.yml down
 
 ## CI
 
-### GitHub Actions — `.github/workflows/sonar.yml`
+### GitHub Actions — `.github/workflows/build.yml`
 
 Runs on pushes to `development`, `cbrelease-4.0.1`, `production` and on PRs into
 the first two. Checks out with `fetch-depth: 0` (Sonar needs blame data to
@@ -291,7 +291,7 @@ It leaves no trace in the running service. Delete:
 sonar-project.properties
 docker-compose.sonar.yml
 .env.sonar.example
-.github/workflows/sonar.yml
+.github/workflows/build.yml
 docs/sonarqube.md
 scripts/sonar-api.mjs
 scripts/sonar-gate.mjs
