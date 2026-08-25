@@ -5,7 +5,7 @@ of the source: nothing here changes application behaviour, runtime dependencies,
 or build output.
 
 - **Local development** → a throwaway SonarQube in Docker
-- **CI** → SonarCloud (org `sphere`, project `Sphere_sunbird-cb-uiproxy`)
+- **CI** → SonarCloud (org `sphere`, project `Sphere_sunbird-cb-uiproxy`) 
 
 The same scripts work against both. They source a git-ignored `.env.sonar` only
 if it exists, otherwise they use whatever `SONAR_*` variables are already in the
