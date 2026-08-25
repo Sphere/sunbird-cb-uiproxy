@@ -24,7 +24,7 @@
 # repository secrets instead. Everything else is read from
 # sonar-project.properties.
 
-name: SonarCloud
+name: Build
 
 on:
   push:
@@ -35,8 +35,8 @@ on:
       - master
 
 jobs:
-  sonarcloud:
-    name: SonarCloud analysis
+  sonarqube:
+    name: SonarQube
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +73,7 @@ jobs:
       - name: Test with coverage
         run: npm run test:coverage
 
-      - name: SonarCloud scan
+      - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
