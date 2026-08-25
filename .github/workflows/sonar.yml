@@ -14,8 +14,15 @@
 # opt-in via `npm run test:integration`. See "Quarantined tests" in
 # docs/sonarqube.md.
 #
-# Server-side setup required: the SONAR_TOKEN secret in the `sonarcloud`
-# environment. Everything else is read from sonar-project.properties.
+# Server-side setup required: the SONAR_TOKEN repository secret (Settings ->
+# Secrets and variables -> Actions -> Repository secrets). Previously this
+# job was gated behind a GitHub Environment named `sonarcloud`; every run
+# since at least 2026-08-07, including plain push-to-master runs, failed at
+# the SonarCloud scan step with "Failed to query JRE metadata ... HTTP 403
+# ... check sonar.token" -- the environment secret was never resolving.
+# Removed the environment gate so the job reads SONAR_TOKEN directly from
+# repository secrets instead. Everything else is read from
+# sonar-project.properties.
 
 name: SonarCloud
 
@@ -31,7 +38,6 @@ jobs:
   sonarcloud:
     name: SonarCloud analysis
     runs-on: ubuntu-latest
-    environment: sonarcloud
     steps:
       - uses: actions/checkout@v4
         with:
