@@ -180,15 +180,74 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
 })
 
 // Get All Events API (GET /events)
-sunbirdrRcCertificate.get('/events', async (req, res) => {
-    const query = 'SELECT * FROM sunbird.rc_events'
+/**
+ * Events for one user.
+ *
+ * Prefers an indexed lookup on createdby so the read cost tracks the caller's own events
+ * rather than the size of the whole table. That needs a secondary index:
+ *
+ *   CREATE INDEX IF NOT EXISTS rc_events_createdby_idx ON sunbird.rc_events (createdby);
+ *
+ * Until that index exists the query is rejected, so this falls back to the previous
+ * behaviour (scan the table, filter here) and logs it. That keeps the endpoint working
+ * either side of the migration instead of depending on deploy order.
+ */
+// tslint:disable-next-line: no-any
+const fetchEventsForUser = async (callerId: string): Promise<any[]> => {
     try {
-        const result = await client.execute(query)
-        // Return only the caller's own events. Previously the entire table was sent to every
-        // client and narrowed in the browser, which shipped other users' event metadata to
-        // anyone signed in and grew unbounded with the table.
-        // The narrowing is done here rather than in CQL because rc_events is partitioned by
-        // eventId, so a WHERE on createdBy would need ALLOW FILTERING or a secondary index.
+        const indexed = await client.execute(
+            'SELECT * FROM sunbird.rc_events WHERE createdby = ?',
+            [callerId],
+            { prepare: true }
+        )
+        return indexed.rows
+    } catch (indexErr) {
+        logError('[/events] indexed createdby lookup unavailable, falling back to a table scan. '
+            + 'Create rc_events_createdby_idx to avoid this. ' + JSON.stringify(indexErr))
+        const scan = await client.execute('SELECT * FROM sunbird.rc_events')
+        logInfo(`[/events] scanned ${scan.rowLength} rows to find events for ${callerId}`)
+        // tslint:disable-next-line: no-any
+        return scan.rows.filter((event: any) => event.createdby === callerId)
+    }
+}
+
+/**
+ * Participant counts for the given events only.
+ *
+ * Each count is a single-partition read, because rc_events_users is partitioned by eventid.
+ * This replaces a full scan of that table, which was the fastest-growing cost on the page:
+ * it grew with the total number of participants across every event, not with the caller's.
+ * Issued in small batches so a user with many events cannot open hundreds of concurrent
+ * queries.
+ */
+// tslint:disable-next-line: no-any
+const countParticipantsForEvents = async (events: any[]): Promise<Map<string, number>> => {
+    const counts = new Map<string, number>()
+    const ids = events.map((event) => String(event.eventid))
+    const BATCH = 10
+    for (let i = 0; i < ids.length; i += BATCH) {
+        const batch = ids.slice(i, i + BATCH)
+        await Promise.all(batch.map(async (id) => {
+            try {
+                const row = await client.execute(
+                    'SELECT COUNT(*) AS total FROM sunbird.rc_events_users WHERE eventid = ?',
+                    [id],
+                    { prepare: true }
+                )
+                // the driver returns COUNT as a Long
+                counts.set(id, Number(row.rows[0] && row.rows[0].total) || 0)
+            } catch (countErr) {
+                // Leave this event without a count rather than failing the whole list; the
+                // dashboard treats an absent count as "unknown" and skips that status step.
+                logError(`[/events] participant count failed for ${id}: ${JSON.stringify(countErr)}`)
+            }
+        }))
+    }
+    return counts
+}
+
+sunbirdrRcCertificate.get('/events', async (req, res) => {
+    try {
         // tslint:disable-next-line: no-any
         const callerId = (req as any).session && (req as any).session.userId
         if (!callerId) {
@@ -197,9 +256,10 @@ sunbirdrRcCertificate.get('/events', async (req, res) => {
             logError('[/events] No session userId on request; returning an empty list')
             return res.status(200).json([])
         }
-        // tslint:disable-next-line: no-any
-        const ownRows = result.rows.filter((event: any) => event.createdby === callerId)
-        logInfo(`[/events] ${ownRows.length} of ${result.rowLength} events belong to ${callerId}`)
+
+        const ownRows = await fetchEventsForUser(callerId)
+        const participantCounts = await countParticipantsForEvents(ownRows)
+
         // An empty result is a 200 with [], not a 404 — "you have no events yet" is a normal
         // state and should render an empty list rather than surface as a fetch error.
         const events = ownRows.map((event) => ({
@@ -211,6 +271,7 @@ sunbirdrRcCertificate.get('/events', async (req, res) => {
             eventName: event.eventname,
             eventPlace: event.eventplace,
             eventType: event.eventtype,
+            participantCount: participantCounts.get(String(event.eventid)),
             status: event.status,
             templateId: event.templateid,
             updatedAt: event.updatedat,
