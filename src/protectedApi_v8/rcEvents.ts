@@ -43,6 +43,7 @@ const maskSensitiveData = (data: Record<string, unknown>): Record<string, unknow
 const RC_S3_BUCKET_NAME = CONSTANTS.RC_S3_BUCKET_NAME
 const EVENT_TYPE_REGISTERED_WITH_SPHERE = 'registred with sphere'
 const EVENT_TYPE_REGISTERED_WITHOUT_SPHERE = 'registred without sphere'
+const VALID_EVENT_TYPES = [EVENT_TYPE_REGISTERED_WITH_SPHERE, EVENT_TYPE_REGISTERED_WITHOUT_SPHERE]
 const ERROR_EVENT_NOT_FOUND = 'Event not found'
 const STATUS_IN_PROGRESS = 'inProgress'
 const STATUS_FAILED_USER_CREATION = 'failed during user creation'
@@ -57,9 +58,32 @@ export const sunbirdrRcCertificate = Router()
 sunbirdrRcCertificate.post('/events', async (req, res) => {
     logInfo('Create event request body', req.body)
     // tslint:disable-next-line: max-line-length
-    const { eventName, eventDescription, eventDate, eventPlace, eventType, createdBy } = req.body
-    if (!eventName || !eventDescription || !eventDate || !eventPlace || !createdBy) {
-        return res.status(400).json({ error: 'Missing required fields' })
+    const { eventName, eventDescription, eventDate, eventPlace, eventType } = req.body
+    // createdBy is taken from the authenticated session, NOT the request body. The events
+    // dashboard lists only events whose createdBy equals the caller's userId, so a
+    // client-supplied value that does not match the session hides the event from its own
+    // creator, and would let a caller attribute an event to somebody else. The body value
+    // is retained only as a fallback for older clients.
+    // tslint:disable-next-line: no-any
+    const createdBy = ((req as any).session && (req as any).session.userId) || req.body.createdBy
+
+    const missingFields: string[] = []
+    if (!eventName) { missingFields.push('eventName') }
+    if (!eventDescription) { missingFields.push('eventDescription') }
+    if (!eventDate) { missingFields.push('eventDate') }
+    if (!eventPlace) { missingFields.push('eventPlace') }
+    if (!createdBy) { missingFields.push('createdBy') }
+    if (missingFields.length > 0) {
+        logError(`[/events] Missing required fields: ${missingFields.join(', ')}`)
+        return res.status(400).json({ error: 'Missing required fields', missingFields })
+    }
+
+    // An unrecognised eventType breaks the certificate flow silently: the template filter
+    // falls through to its else branch and offers both registered and non-registered
+    // templates, and the no-registration path never activates.
+    if (VALID_EVENT_TYPES.indexOf(eventType) === -1) {
+        logError(`[/events] Invalid eventType: ${eventType}`)
+        return res.status(400).json({ error: 'Invalid eventType', allowedValues: VALID_EVENT_TYPES })
     }
     const eventId = uuid.v4()
     // tslint:disable-next-line: max-line-length
@@ -156,14 +180,29 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
 })
 
 // Get All Events API (GET /events)
-sunbirdrRcCertificate.get('/events', async (_req, res) => {
+sunbirdrRcCertificate.get('/events', async (req, res) => {
     const query = 'SELECT * FROM sunbird.rc_events'
     try {
         const result = await client.execute(query)
-        if (result.rowLength === 0) {
-            return res.status(404).json({ error: 'No events found' })
+        // Return only the caller's own events. Previously the entire table was sent to every
+        // client and narrowed in the browser, which shipped other users' event metadata to
+        // anyone signed in and grew unbounded with the table.
+        // The narrowing is done here rather than in CQL because rc_events is partitioned by
+        // eventId, so a WHERE on createdBy would need ALLOW FILTERING or a secondary index.
+        // tslint:disable-next-line: no-any
+        const callerId = (req as any).session && (req as any).session.userId
+        if (!callerId) {
+            // Fail closed: without an identity we cannot tell which events belong to the
+            // caller, and returning everything would leak other users' events.
+            logError('[/events] No session userId on request; returning an empty list')
+            return res.status(200).json([])
         }
-        const events = result.rows.map((event) => ({
+        // tslint:disable-next-line: no-any
+        const ownRows = result.rows.filter((event: any) => event.createdby === callerId)
+        logInfo(`[/events] ${ownRows.length} of ${result.rowLength} events belong to ${callerId}`)
+        // An empty result is a 200 with [], not a 404 — "you have no events yet" is a normal
+        // state and should render an empty list rather than surface as a fetch error.
+        const events = ownRows.map((event) => ({
             createdAt: event.createdat,
             createdBy: event.createdby,
             eventDate: event.eventdate,
