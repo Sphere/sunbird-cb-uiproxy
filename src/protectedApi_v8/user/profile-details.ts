@@ -511,9 +511,13 @@ profileDeatailsApi.post('/v2/updateUser', async (req, res) => {
       ver: '3.0',
     }
 
-    await axios.post(API_END_POINTS.telemetryUpdate, telemetryUpdateRequestBody, {
+    // Telemetry is an analytics side-effect: fire-and-forget so a telemetry outage
+    // can never fail the user's profile update (the primary action above already succeeded).
+    axios.post(API_END_POINTS.telemetryUpdate, telemetryUpdateRequestBody, {
       ...axiosRequestConfig,
       headers: { Authorization: CONSTANTS.SB_API_KEY },
+    }).catch((telemetryError) => {
+      logError('Profile update telemetry failed (non-blocking): ' + JSON.stringify(telemetryError))
     })
 
     // Cassandra database insert
@@ -533,9 +537,9 @@ profileDeatailsApi.post('/v2/updateUser', async (req, res) => {
         requestUpdateLocation,
       ], { prepare: true })
     } catch (dbError) {
-      return res.status(500).json({
-        message: 'Error occurred while inserting user profile in Cassandra',
-      })
+      // The profile-journey insert is an audit-only side-effect: log it but do not fail
+      // the update, since the profile was already updated successfully above.
+      logError('Error occurred while inserting user profile journey in Cassandra (non-blocking): ' + JSON.stringify(dbError))
     }
 
     // Send response from profile update
