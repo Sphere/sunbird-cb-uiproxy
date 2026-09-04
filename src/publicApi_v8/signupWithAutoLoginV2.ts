@@ -158,6 +158,18 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
     }
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail.data.result.userId
+    // lern-service answers HTTP 200 with status SUCCESS even when it could not create the
+    // Keycloak credential, reporting the failure only in result.err_msg. Unchecked, the signup
+    // looks clean while the account can never log in with a password - which is how a broken
+    // Keycloak client secret went unnoticed on Spark until the realm held only 12 users.
+    const createErrMsg = _.get(newUserDetail, 'data.result.err_msg', '')
+    if (createErrMsg) {
+      logError(
+        'signupV2 register: user ' + userId + ' was created WITHOUT a usable credential. ' +
+        'lern-service reported: "' + createErrMsg + '". Password login will fail for this ' +
+        'account; OTP login is unaffected. Check sunbird_sso_* settings on lern-service.'
+      )
+    }
     await updateRoles(userId)
     const profileUpdateResponse = await profileUpdate(profileData, userId)
     if (_.get(profileUpdateResponse, 'data.result.response') !== 'SUCCESS') {
