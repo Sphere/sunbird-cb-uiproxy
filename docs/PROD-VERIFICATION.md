@@ -6104,6 +6104,108 @@ carry their own separate pre-existing issues already documented in
 
 ---
 
+## CHANGE 49 — Sonar reliability sweep: 9 ES2015-alias/regex issues across 5 files
+
+Closes the 9 open **Reliability** issues Sonar reported (42min estimated
+effort). Eight are ES2015 built-in aliases; the ninth is a regex Sonar
+flagged for super-linear backtracking. Every one of these is a same-behaviour
+substitution, and each was proven equivalent over its **entire reachable
+input domain** rather than spot-checked, because the whole point of this
+batch is zero functional impact.
+
+Files: `src/protectedApi_v8/navigator.ts` (L77, L132),
+`src/authoring/utils/decode.ts` (L6, L9),
+`src/protectedApi_v8/user/profile.ts` (L63),
+`src/utils/env.ts` (L184),
+`src/utils/assessmentSubmitHelper.ts` (L167).
+
+### 49a — `isNaN` → `Number.isNaN` (navigator.ts L77, L132 — 4 issues)
+
+The two differ only in that global `isNaN` coerces its argument first. Both
+call sites pass a value that is already a `number` (`Number(req.query.x) || N`),
+so no coercion can ever occur. Verified identical for `0, 10000, NaN, -1,
+1.5, Infinity, -0`.
+
+Worth recording: **this branch is dead either way.** `Number('abc') || 0`
+evaluates to `0`, not `NaN`, because `NaN` is falsy and `||` swallows it —
+so the "should be integers" 400 can never fire, before or after this change.
+That pre-existing bug is already documented in `navigator.test.ts` (note 2)
+and is deliberately **not** fixed here: making the 400 reachable would start
+rejecting requests that today silently fall back to defaults, which is a
+behavioural change that needs its own decision. This change keeps it dead.
+
+### 49b — `charCodeAt`/`fromCharCode` → `codePointAt`/`fromCodePoint` (decode.ts L6, L9 — 2 issues)
+
+These genuinely differ for astral characters (surrogate pairs), so this was
+the only pair with real risk. Both call sites are safe, exhaustively:
+
+- **L6** reads from a `'binary'` (latin1) Buffer string, where every code
+  unit is U+0000–U+00FF. Checked all **256** values: identical.
+- **L9** reads `Uint16Array` entries, i.e. UTF-16 code *units* in
+  0x0000–0xFFFF, including lone surrogates. Checked all **65,536** values:
+  identical. `String.fromCodePoint` only diverges above 0xFFFF, which a
+  `Uint16Array` cannot produce.
+
+The emoji round-trip test already in `decode.test.ts` ("should decode a
+string containing unicode characters", 😀 = a surrogate pair) passes, which
+is the case that would break if this substitution were wrong.
+
+Note `codePointAt` is typed `number | undefined` where `charCodeAt` is
+`number`. This does not surface here because the callback is untyped through
+`Array.prototype.forEach.call`; `tsc --noEmit` is clean.
+
+### 49c — `parseInt` → `Number.parseInt` (profile.ts L63, env.ts L184 — 2 issues)
+
+Not merely equivalent — `parseInt === Number.parseInt` is `true`, the same
+function object per spec. Zero risk.
+
+### 49d — regex backtracking (assessmentSubmitHelper.ts L167 — 1 issue)
+
+`/<\/?[^>]+(>|$)/g` → `/<\/?[^>]+>?/g`. This strips HTML tags from assessment
+question text before submission.
+
+**On Sonar's claim:** I tried to reproduce the super-linear blowup and
+**could not.** Six adversarial input shapes (`'<a'.repeat(n)`,
+`'<'.repeat(n)`, `'</'.repeat(n)`, long unterminated attributes, etc.) at
+n=4,000 and n=16,000 all ran in ~0ms with no quadratic growth — V8 handles
+this pattern well. So this is a **theoretical** finding, not a demonstrated
+production hang, and the fix is justified as closing the Sonar issue with a
+provably identical regex, **not** as a performance win. Recording this so
+nobody later credits it with a speedup it did not deliver.
+
+The rewrite removes the `(>|$)` alternation (the backtracking source) by
+making `>` optional instead — `$` never needed matching, it only marked
+"ran off the end". First attempt used `[^>]*` and was **wrong**: it stripped
+a bare `<`, which the original preserves. Corrected to `[^>]+`, then proven
+by **exhaustive comparison over all 335,922 strings of length ≤ 7** from the
+alphabet `< > / a &` and space — the characters that can affect matching.
+**Zero differences.**
+
+### Verification
+
+- `npx tsc --noEmit` — clean.
+- `npm run lint` — clean.
+- `npm run build` — succeeds; **compiled `dist/` output confirmed** to
+  contain all five changes (guards against a source edit that silently
+  fails to reach the artifact).
+- Full Jest suite — **224 suites / 3,693 tests pass**, 1 skipped.
+
+One process note: an in-place `perl` substitution silently ate the `\` in
+the regex, producing `/</?[^>]+>?/g` — which terminates the literal early.
+Caught by an `od -c` byte check of the edited line, not by eye. The file was
+restored from backup and re-edited with an exact-match script asserting
+exactly one occurrence. Byte-level confirmation of a regex edit is worth the
+extra step; the corrupted form would have broken the build.
+
+### Must be verified in production
+
+- [ ] None expected. Eight substitutions are provably identical over their
+      full reachable input domain, and the ninth is exhaustively verified
+      against the original. No API shape, request/response body, config,
+      schema or dependency changes.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural

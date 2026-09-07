@@ -74,7 +74,7 @@ navigatorApi.get('/lp', async (req, res) => {
     Number(req.query.pageSize) || 10000,
     req.query.topics ? req.query.topics.split(',') : [],
   ]
-  if (isNaN(pageNumber) || isNaN(pageSize)) {
+  if (Number.isNaN(pageNumber) || Number.isNaN(pageSize)) {
     res
       .status(400)
       .send({ error: 'Page number and Page size should be integers' })
@@ -129,7 +129,7 @@ navigatorApi.get('/fp', async (req, res) => {
     Number(req.query.pageNumber) || 0,
     Number(req.query.pageSize) || 10000,
   ]
-  if (isNaN(pageNumber) || isNaN(pageSize)) {
+  if (Number.isNaN(pageNumber) || Number.isNaN(pageSize)) {
     res
       .status(400)
       .send({ error: 'Page number and Page size should be integers' })

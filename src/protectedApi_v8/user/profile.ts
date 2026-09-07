@@ -60,7 +60,7 @@ function manipulateResult(
   let empNumber = detailsResponse?.empNumber || 0
   try {
     // tslint:disable-next-line:ban
-    empNumber = parseInt(profileResponse?.companyName || '0', 10)
+    empNumber = Number.parseInt(profileResponse?.companyName || '0', 10)
   } catch (err) {
     logError(err)
   }
