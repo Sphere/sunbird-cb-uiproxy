@@ -17,6 +17,11 @@ const localDefaults: Record<string, string> = existsSync(LOCAL_DEFAULTS_PATH)
 
 const HTTPS_HOST = env.HTTPS_HOST || 'https://aastrika-sb.idc.tarento.com'
 const DEFAULT_LOCALHOST_7001 = 'http://localhost:7001'
+// Internal-network address of the notification engine's socket server. Kept as a
+// real fallback rather than left undefined because ClientSocket(undefined) silently
+// connects to the process origin instead of failing, which would misroute traffic
+// rather than surface a clear error. This is a service hostname, not a credential.
+const NOTIFICATION_ENGINE_DEFAULT_SOCKET_URL = 'http://notification-engine:3013'
 export const CONSTANTS = {
   ACCESS_CONTROL_API_BASE: env.ACCESS_CONTROL_API_BASE || env.SBEXT_API_BASE,
   AES_ENCRYPTION_METHOD: env.AES_ENCRYPTION_METHOD || 'abc',
@@ -65,7 +70,7 @@ export const CONSTANTS = {
   ENTITY_API_BASE: env.ENTITY_API_BASE || localDefaults.ENTITY_API_BASE,
   ES_BASE: env.ES_BASE || 'http://localhost:9200',
   ES_IP: env.ES_IP || '10.1.1.131:9200',
-  ES_PASSWORD: env.ES_PASSWORD || 'iGOT@123+',
+  ES_PASSWORD: env.ES_PASSWORD || localDefaults.ES_PASSWORD || '',
   ES_USERNAME: env.ES_USERNAME || 'elastic',
   FEEDBACK_API_BASE: env.FEEDBACK_API_BASE || env.SB_EXT_API_BASE_2,
   GAMIFICATION_API_BASE:
@@ -145,16 +150,22 @@ export const CONSTANTS = {
   NOTIFICATIONS_API_BASE: env.NOTIFICATIONS_API_BASE || 'http://localhost:5805',
   NOTIFICATION_ENGINE_API_BASE: env.NOTIFICATION_ENGINE_API_BASE || 'http://localhost:3013',
   NOTIFICATION_ENGINE_SOCKET_URL:
-    env.NOTIFICATION_ENGINE_SOCKET_URL || 'http://notification-engine:3013',
+    env.NOTIFICATION_ENGINE_SOCKET_URL ||
+    localDefaults.NOTIFICATION_ENGINE_SOCKET_URL ||
+    NOTIFICATION_ENGINE_DEFAULT_SOCKET_URL,
   OTP_EXTRACTION_KEY: env.OTP_EXTRACTION_KEY || '',
   DISCUSSION_HUB_API_BASE:
     env.DISCUSSION_HUB_API_BASE || 'http://localhost:4567',
   DISCUSSION_HUB_MIDDLEWARE:
     env.DISCUSSION_HUB_MIDDLEWARE || 'http://localhost:3002',
   DISCUSSION_HUB_DEFAULT_PASSWORD:
-    env.DISCUSSION_HUB_DEFAULT_PASSWORD || 'nodebbUser123$',
+    env.DISCUSSION_HUB_DEFAULT_PASSWORD ||
+    localDefaults.DISCUSSION_HUB_DEFAULT_PASSWORD ||
+    '',
   DISCUSSION_HUB_WRITE_API_KEY:
-    env.DISCUSSION_HUB_WRITE_API_KEY || '5aaf0ac3-c7ad-4e06-bc1b-5311d462cef3',
+    env.DISCUSSION_HUB_WRITE_API_KEY ||
+    localDefaults.DISCUSSION_HUB_WRITE_API_KEY ||
+    '',
   DISCUSSION_HUB_WRITE_API_UID: env.DISCUSSION_HUB_WRITE_API_UID || 1,
   OPEN_SABER_USER_REGISTRY_BASE:
     env.OPEN_SABER_USER_REGISTRY_BASE || 'http://localhost:8005',
@@ -181,7 +192,7 @@ export const CONSTANTS = {
   PLAYLISTV1_API_BASE: env.PLAYLISTV1_API_BASE || env.SBEXT_API_BASE_2,
   PLAYLIST_API_BASE: env.PLAYLIST_API_BASE || env.SBEXT_API_BASE,
   // tslint:disable-next-line:ban
-  PORTAL_PORT: parseInt(env.PORTAL_PORT + '', 10) || 3003,
+  PORTAL_PORT: Number.parseInt(env.PORTAL_PORT + '', 10) || 3003,
   PREFERENCE_API_BASE: env.PREFERENCE_API_BASE || env.SB_EXT_API_BASE_4,
   PROGRESS_API_BASE: env.PROGRESS_API_BASE || env.SB_EXT_API_BASE_2,
   RATING_API_BASE:
@@ -228,7 +239,8 @@ export const CONSTANTS = {
   JUGALBANDI_API_BASE: env.JUGALBANDI_API_BASE || 'http://localhost:8086',
   DHURVA_BHASHINI_API_BASE: env.DHURVA_BHASHINI_API_BASE || 'https://dhruva-api.bhashini.gov.in',
   MEITY_AUTH_ULCACONTRIB: env.MEITY_AUTH_ULCACONTRIB || 'https://meity-auth.ulcacontrib.org',
-  USER_CREATE_PASSWORD: env.USER_CREATE_PASSWORD || 'C9Mg4@0q!J',
+  USER_CREATE_PASSWORD:
+    env.USER_CREATE_PASSWORD || localDefaults.USER_CREATE_PASSWORD || '',
   USER_CREATE_USERNAME: env.USER_CREATE_USERNAME || 'ui-client',
   USER_DETAILS_API_BASE: env.USER_DETAILS_API_BASE || env.SB_EXT_API_BASE_2,
   USER_PROFILE_API_BASE: env.USER_PROFILE_API_BASE || 'http://localhost:3004',

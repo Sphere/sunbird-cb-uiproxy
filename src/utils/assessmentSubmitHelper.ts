@@ -164,7 +164,7 @@ const getFormatedRequest = (data: any, requestBody: any) => {
           _.forEach(reqKey.options, (optKey) => {
             if (optKey.optionId === qoptKey.optionId) {
               reqKey.question = qkey.question
-                .replace(/<\/?[^>]+(>|$)/g, '')
+                .replace(/<\/?[^>]+>?/g, '')
                 .replace(/&nbsp;/g, '')
                 .replace(/\n/g, '')
               if (
