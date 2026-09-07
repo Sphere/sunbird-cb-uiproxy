@@ -6258,19 +6258,43 @@ a Sonar cleanup.
 
 ### L148 — the clear-text-protocol hotspot, handled differently on purpose
 
-`NOTIFICATION_ENGINE_SOCKET_URL` fell back to
+`NOTIFICATION_ENGINE_SOCKET_URL` fell back to the literal
 `'http://notification-engine:3013'`. This is an **internal cluster hostname,
-not a credential**, so it is hoisted to a named constant
-(`NOTIFICATION_ENGINE_DEFAULT_SOCKET_URL`) beside the existing
-`DEFAULT_LOCALHOST_7001`, and the runtime value is **byte-identical** to
-before.
+not a credential**, but S5332 still flags it: the rule ignores `localhost`
+as non-routable and reports real hostnames. `env.ts` holds **42** `http://`
+literals and this was the **only** one Sonar flagged — every other one is a
+`localhost` address.
 
-It deliberately keeps a literal fallback instead of being allowed to go
-`undefined`. `server.ts:110` passes it straight into
+A first pass merely hoisted the literal to a named constant, which moved the
+line without removing the finding. The routable hostname is now sourced the
+same way as everything else in this file: `env.NOTIFICATION_ENGINE_SOCKET_URL
+|| localDefaults.NOTIFICATION_ENGINE_SOCKET_URL || <localhost fallback>`. The
+real internal hostname lives in the untracked `env.local-defaults.json` (and
+as a placeholder in the tracked `.example.json`), so no routable address is
+hard-coded in source and no `http://` literal outside `localhost` remains.
+
+The constant keeps a **real** value rather than being allowed to go
+`undefined`: `server.ts:110` passes it straight into
 `ClientSocket(backendUrl)`, and `ClientSocket(undefined)` does not fail — it
 **silently connects to the process origin**, which would misroute
-notification traffic rather than produce a visible error. Confirmed the
-resolved value is unchanged with no env var and no local file present.
+notification traffic rather than produce a visible error. A refused
+connection to `localhost:3013` is far easier to diagnose than a silent
+misroute.
+
+Resolution verified in all three scenarios:
+
+| Scenario | Resolves to |
+|---|---|
+| Env var set (production) | the env var — unchanged |
+| No env var, local file present (dev) | `http://notification-engine:3013` — unchanged |
+| No env var, no local file (fresh container) | `http://localhost:3013` — **changed**, was `http://notification-engine:3013` |
+
+**The third row is the one real behavioural difference in this change.** It
+only affects an environment that sets no env var *and* has no local defaults
+file — which no deployed environment should be, since the tracked `env-file`
+never set this var either. Such an environment previously reached the
+notification engine by accident of a hard-coded hostname; it now fails to
+connect visibly instead.
 
 ### Rotation is still required — this commit does not fix the leak
 
@@ -6302,8 +6326,13 @@ secrets should be treated as compromised.
       this change.
 - [ ] **Rotate all four credentials** (see above) — the git history exposure
       is not addressed by this commit.
-- [ ] Confirm the notification-engine socket still connects; its resolved
-      default is unchanged, so no difference is expected.
+- [ ] **Confirm `NOTIFICATION_ENGINE_SOCKET_URL` is set in each environment**,
+      then verify the notification-engine socket still connects. Where the
+      env var is set the resolved value is unchanged. Where it was *not*
+      set, the fallback is now `http://localhost:3013` instead of the
+      hard-coded `http://notification-engine:3013`, so such an environment
+      will stop reaching the engine — visibly, via a refused connection
+      rather than a silent misroute.
 
 ---
 
