@@ -6206,6 +6206,107 @@ extra step; the corrupted form would have broken the build.
 
 ---
 
+## CHANGE 50 — Sonar security: remove 4 hard-coded credential defaults from env.ts
+
+Closes the 4 open **Security** issues (2h estimated effort): three
+"potentially hard-coded password" findings (L68, L155, L231) and one
+clear-text-protocol hotspot (L148). All four are in `src/utils/env.ts`.
+
+**These were real, live credentials**, not placeholders:
+
+| Line | Constant | Consumed by |
+|---|---|---|
+| L68 | `ES_PASSWORD` | `infyradio.ts`, `topic.ts`, `contentHelpers.ts`, `googleSignInRoutes.ts` |
+| L155 | `DISCUSSION_HUB_DEFAULT_PASSWORD` | `user/details.ts:159` |
+| L157 | `DISCUSSION_HUB_WRITE_API_KEY` | discussionHub write API |
+| L231 | `USER_CREATE_PASSWORD` | `user/admin-users.ts:23` |
+
+### Approach: reuse the pattern this repo already established
+
+`env.ts` already loads `src/utils/env.local-defaults.json` — a gitignored
+file (`.gitignore:13`) with a tracked `.example.json` template — introduced
+previously so Sonar's clear-text-protocol rule had no literal URLs to flag.
+The same mechanism applies cleanly to secrets, so this change extends it
+rather than inventing a second convention.
+
+Each default becomes `env.X || localDefaults.X || ''`. The tracked template
+gains **placeholder** entries (`"<local elasticsearch password>"`); the real
+values live only in the untracked local file, which is where a developer
+machine picks them up.
+
+### Why this is safe for production
+
+Verified rather than assumed, because "remove the fallback" is exactly the
+kind of change that breaks an environment silently relying on it:
+
+- **The tracked `env-file` does not set any of these four vars** — it
+  contains only `CASSANDRA_IP` and `X_CHANNEL_ID`. So nothing in this repo's
+  deployment inputs depended on the removed literals.
+- **Env vars still win.** Exercised with `ES_PASSWORD`/`USER_CREATE_PASSWORD`
+  set: the env value is returned, unchanged from before.
+- **Worst case degrades quietly, not explosively.** With no env vars *and*
+  no local file (a fresh container), the module loads without throwing and
+  the four credentials resolve to `''`. An empty credential surfaces as an
+  auth failure against ES/NodeBB — a clear, attributable error — instead of
+  silently authenticating with a password published on the internet.
+
+**Deliberately not added: fail-fast startup validation.** Throwing on a
+missing secret would convert today's degraded-auth path into a boot crash
+for any environment that happens not to set these. That is a deployment-wide
+behavioural change and belongs in its own reviewed commit, not bundled into
+a Sonar cleanup.
+
+### L148 — the clear-text-protocol hotspot, handled differently on purpose
+
+`NOTIFICATION_ENGINE_SOCKET_URL` fell back to
+`'http://notification-engine:3013'`. This is an **internal cluster hostname,
+not a credential**, so it is hoisted to a named constant
+(`NOTIFICATION_ENGINE_DEFAULT_SOCKET_URL`) beside the existing
+`DEFAULT_LOCALHOST_7001`, and the runtime value is **byte-identical** to
+before.
+
+It deliberately keeps a literal fallback instead of being allowed to go
+`undefined`. `server.ts:110` passes it straight into
+`ClientSocket(backendUrl)`, and `ClientSocket(undefined)` does not fail — it
+**silently connects to the process origin**, which would misroute
+notification traffic rather than produce a visible error. Confirmed the
+resolved value is unchanged with no env var and no local file present.
+
+### Rotation is still required — this commit does not fix the leak
+
+The credentials have been in git history since **`cf5127a` (2021-06-24)**.
+Deleting the lines stops future exposure and clears the Sonar findings, but
+**anyone with repo history still has the old values.** They must be rotated
+in Elasticsearch, NodeBB, and the user-create service. Until then the
+secrets should be treated as compromised.
+
+### Verification
+
+- `npx tsc --noEmit` — clean.
+- `npm run lint` — clean.
+- `npm run build` — succeeds.
+- Full Jest suite — **224 suites / 3,693 tests pass**, 1 skipped. No test
+  hard-codes the real secret values (all mock `CONSTANTS`), so none needed
+  updating.
+- **Leak check:** `git ls-files | xargs grep` across every tracked file finds
+  none of the four secrets. In the staged diff, every secret occurrence is a
+  `-` removal line; no `+` line reintroduces one.
+
+### Must be verified in production
+
+- [ ] **Confirm each environment sets `ES_PASSWORD`,
+      `DISCUSSION_HUB_DEFAULT_PASSWORD`, `DISCUSSION_HUB_WRITE_API_KEY` and
+      `USER_CREATE_PASSWORD` explicitly.** Any environment that was
+      implicitly riding on the removed literals will now authenticate with
+      an empty credential and fail. This is the one real deployment risk in
+      this change.
+- [ ] **Rotate all four credentials** (see above) — the git history exposure
+      is not addressed by this commit.
+- [ ] Confirm the notification-engine socket still connects; its resolved
+      default is unchanged, so no difference is expected.
+
+---
+
 ## Pre-existing issues NOT changed
 
 Found during review, deliberately left alone — each would be a behavioural
