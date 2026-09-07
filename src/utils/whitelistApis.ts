@@ -108,7 +108,6 @@ export const API_LIST = {
     '/authApi/content/v3/read/:do_id': PUBLIC_ROLE_RULE,
     '/authApi/content/v3/update/:do_id': PUBLIC_ROLE_RULE,
     '/authContent/:do_id': PUBLIC_ROLE_RULE,
-
     '/protected/v8/assessmentCompetency/v1/assessment/content/:id/artifact/:id': PUBLIC_ROLE_RULE,
     '/protected/v8/assessmentCompetency/v1/assessment/submit': PUBLIC_ROLE_RULE,
     '/protected/v8/autoCompletev2/getUserDetails': PUBLIC_ROLE_RULE,
@@ -118,7 +117,6 @@ export const API_LIST = {
     '/protected/v8/profileupdatev2/updateLanguage': PUBLIC_ROLE_RULE,
     '/protected/v8/profileupdatev2/updatePersonalDetails': PUBLIC_ROLE_RULE,
     '/protected/v8/profileupdatev2/updateProfessionalDetails': PUBLIC_ROLE_RULE,
-
     '/protected/v8/profileupdatev2/updateTnc': PUBLIC_ROLE_RULE,
     '/protected/v8/user/details': PUBLIC_ROLE_RULE,
     '/protected/v8/user/profileDetails/test': {
@@ -217,7 +215,6 @@ export const API_LIST = {
     '/proxies/v8/user/v1/migrate': PUBLIC_ROLE_RULE,
     '/proxies/v8/user/private/v1/migrate': PUBLIC_ROLE_RULE,
     '/proxies/v8/user/private/v1/assign/role/userrole': PUBLIC_ROLE_RULE,
-
     '/proxies/v8/discussion/v2/posts/:id/vote': PUBLIC_ROLE_RULE,
     '/proxies/v8/discussion/v2/posts/:id': PUBLIC_ROLE_RULE,
     '/proxies/v8/discussion/v2/posts/:id/bookmark': PUBLIC_ROLE_RULE,
@@ -376,7 +373,6 @@ export const API_LIST = {
     '/protected/v8/connections/v2/connections/established': PUBLIC_ROLE_RULE,
     '/protected/v8/connections/v2/connections/established/:id': PUBLIC_ROLE_RULE,
     '/protected/v8/connections/v2/connections/requested': PUBLIC_ROLE_RULE,
-
     '/protected/v8/connections/v2/add/connection': PUBLIC_ROLE_RULE,
     '/protected/v8/connections/v2/connections/suggests': PUBLIC_ROLE_RULE,
     '/protected/v8/connections/v2/update/connection': PUBLIC_ROLE_RULE,
@@ -385,7 +381,6 @@ export const API_LIST = {
     '/protected/v8/recommendationEngineV2/publicSearch/getcourse': PUBLIC_ROLE_RULE,
     '/protected/v8/sunbirdrRcCertificate/events': PUBLIC_ROLE_RULE,
     '/protected/v8/sunbirdrRcCertificate/events/:id': PUBLIC_ROLE_RULE,
-
     '/protected/v8/sunbirdrRcCertificate/events/:eventId/users': PUBLIC_ROLE_RULE,
     '/protected/v8/sunbirdrRcCertificate/downloadCertificates/:eventId': PUBLIC_ROLE_RULE,
     '/protected/v8/sunbirdrRcCertificate/events/generateCertificates': PUBLIC_ROLE_RULE,
