@@ -1,13 +1,10 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-const API_END_POINTS = {
-  changeEmail: (userId: string, metaType: string) =>
-    `${CONSTANTS.USER_PROFILE_API_BASE}/user/${userId}/${metaType}`,
-}
+import { API_END_POINTS } from '../apiConstants'
+
 export const changeEmailApi = Router()
 changeEmailApi.put('/:metaType', async (req, res) => {
   const userId = extractUserIdFromRequest(req)

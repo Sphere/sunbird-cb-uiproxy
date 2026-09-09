@@ -1,14 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-  conceptData: `${CONSTANTS.VIEWER_PLUGIN_RDBMS_API_BASE}/v1/db/conceptdata/resources`,
-  execute: `${CONSTANTS.VIEWER_PLUGIN_RDBMS_API_BASE}/v1/users`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERR_MSG = 'Failed due to unknown reason'
 
@@ -19,7 +14,7 @@ rdbmsApi.get('/initializeDb/:contentId', async (req, res) => {
     const uuid = extractUserIdFromRequest(req)
     const contentId = req.params.contentId
     const response = await axios.get(
-      `${API_ENDPOINTS.execute}/${uuid}/resources/${contentId}/initialize`,
+      `${API_END_POINTS.executeUser}/${uuid}/resources/${contentId}/initialize`,
       axiosRequestConfig
     )
     res.send(response.data)
@@ -36,7 +31,7 @@ rdbmsApi.get('/conceptData/:contentId', async (req, res) => {
   try {
     const contentId = req.params.contentId
     const response = await axios.get(
-      `${API_ENDPOINTS.conceptData}/${contentId}`,
+      `${API_END_POINTS.conceptData}/${contentId}`,
       axiosRequestConfig
     )
     res.json(response.data)
@@ -54,7 +49,7 @@ rdbmsApi.get('/expectedOutput/:contentId', async (req, res) => {
     const uuid = extractUserIdFromRequest(req)
     const contentId = req.params.contentId
     const response = await axios.get(
-      `${API_ENDPOINTS.execute}/${uuid}/resources/${contentId}`,
+      `${API_END_POINTS.executeUser}/${uuid}/resources/${contentId}`,
       axiosRequestConfig
     )
     res.json(response.data)
@@ -72,7 +67,7 @@ rdbmsApi.get('/dbstructure/:contentId', async (req, res) => {
     const uuid = extractUserIdFromRequest(req)
     const contentId = req.params.contentId
     const response = await axios.get(
-      `${API_ENDPOINTS.execute}/${uuid}/resources/${contentId}/tabledata`,
+      `${API_END_POINTS.executeUser}/${uuid}/resources/${contentId}/tabledata`,
       axiosRequestConfig
     )
     res.json(response.data)
@@ -90,7 +85,7 @@ rdbmsApi.get('/tableRefresh/:contentId', async (req, res) => {
     const uuid = extractUserIdFromRequest(req)
     const contentId = req.params.contentId
     const response = await axios.get(
-      `${API_ENDPOINTS.execute}/${uuid}/resources/${contentId}/tableinfo`,
+      `${API_END_POINTS.executeUser}/${uuid}/resources/${contentId}/tableinfo`,
       axiosRequestConfig
     )
     res.json(response.data)
@@ -107,7 +102,7 @@ rdbmsApi.post('/executeQuery', async (req, res) => {
   try {
     const uuid = extractUserIdFromRequest(req)
     const response = await axios.post(
-      `${API_ENDPOINTS.execute}/${uuid}/query/execute`,
+      `${API_END_POINTS.executeUser}/${uuid}/query/execute`,
       {
         ...req.body,
       },
@@ -127,7 +122,7 @@ rdbmsApi.post('/compareQuery', async (req, res) => {
   try {
     const uuid = extractUserIdFromRequest(req)
     const response = await axios.post(
-      `${API_ENDPOINTS.execute}/${uuid}/querycompareexecute`,
+      `${API_END_POINTS.executeUser}/${uuid}/querycompareexecute`,
       {
         ...req.body,
       },
@@ -147,7 +142,7 @@ rdbmsApi.post('/playground', async (req, res) => {
   try {
     const uuid = extractUserIdFromRequest(req)
     const response = await axios.post(
-      `${API_ENDPOINTS.execute}/${uuid}/query/playground`,
+      `${API_END_POINTS.executeUser}/${uuid}/query/playground`,
       {
         ...req.body,
       },
@@ -168,7 +163,7 @@ rdbmsApi.post('/compositeQuery/:type', async (req, res) => {
     const uuid = extractUserIdFromRequest(req)
     const type = req.params.type
     const response = await axios.post(
-      `${API_ENDPOINTS.execute}/${uuid}/query/composite?type=${type}`,
+      `${API_END_POINTS.executeUser}/${uuid}/query/composite?type=${type}`,
       {
         ...req.body,
       },
@@ -189,7 +184,7 @@ rdbmsApi.post('/verifyExercise/:contentId', async (req, res) => {
     const uuid = extractUserIdFromRequest(req)
     const contentId = req.params.contentId
     const response = await axios.post(
-      `${API_ENDPOINTS.execute}/${uuid}/resources/${contentId}?type=verify`,
+      `${API_END_POINTS.executeUser}/${uuid}/resources/${contentId}?type=verify`,
       {
         ...req.body,
       },
@@ -210,7 +205,7 @@ rdbmsApi.post('/submitExercise/:contentId', async (req, res) => {
     const uuid = extractUserIdFromRequest(req)
     const contentId = req.params.contentId
     const response = await axios.post(
-      `${API_ENDPOINTS.execute}/${uuid}/resources/${contentId}?type=submit`,
+      `${API_END_POINTS.executeUser}/${uuid}/resources/${contentId}?type=submit`,
       {
         ...req.body,
       },

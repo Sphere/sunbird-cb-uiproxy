@@ -13,21 +13,7 @@ import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
 
-const API_END_POINTS = {
-  createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-  generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
-  grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-  keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
-  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-  profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-  verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const indianCountryCode = '+91'
 
@@ -128,7 +114,11 @@ const profileUpdate = async (profileData: any, userId: any) => {
       url: API_END_POINTS.profileUpdate,
     })
   } catch (error) {
-    logInfo(JSON.stringify(error))
+    logError(
+      'signupV2 profileUpdate FAILED for user ' + userId + ' : ' +
+      JSON.stringify(_.get(error, 'response.data') || _.get(error, 'message') || error)
+    )
+    return undefined
   }
 }
 export const signupWithAutoLoginV2 = Router()
@@ -168,8 +158,26 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
     }
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail.data.result.userId
+    // lern-service answers HTTP 200 with status SUCCESS even when it could not create the
+    // Keycloak credential, reporting the failure only in result.err_msg. Unchecked, the signup
+    // looks clean while the account can never log in with a password - which is how a broken
+    // Keycloak client secret went unnoticed on Spark until the realm held only 12 users.
+    const createErrMsg = _.get(newUserDetail, 'data.result.err_msg', '')
+    if (createErrMsg) {
+      logError(
+        'signupV2 register: user ' + userId + ' was created WITHOUT a usable credential. ' +
+        'lern-service reported: "' + createErrMsg + '". Password login will fail for this ' +
+        'account; OTP login is unaffected. Check sunbird_sso_* settings on lern-service.'
+      )
+    }
     await updateRoles(userId)
-    await profileUpdate(profileData, userId)
+    const profileUpdateResponse = await profileUpdate(profileData, userId)
+    if (_.get(profileUpdateResponse, 'data.result.response') !== 'SUCCESS') {
+      logError(
+        'signupV2 register: profileDetails update did NOT succeed for user ' + userId +
+        '. profileDetails will be null and the portal profile/TnC step may break.'
+      )
+    }
     if (userPhone) {
       try {
         logInfo('Autologin send otp through phone', userPhone)
@@ -295,7 +303,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
           // A new session and cookie will be generated from here
           try {
             const transformedData = qs.stringify({
-              client_id: 'aastrika-sso-login',
+              client_id: CONSTANTS.APP_SSO_CLIENT_ID,
               client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
               grant_type: 'password',
               scope: 'offline_access',

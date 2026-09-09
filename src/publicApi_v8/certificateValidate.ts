@@ -4,10 +4,7 @@ import _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
-const API_END_POINTS = {
-    USER_SEARCH: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-    VALIDATE_CERTIFICATE:  `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/certreg/v1/certs/validate`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 // Fetches the user's masked email/phone via the Sunbird user-search API for a given userId.
 // Mirrors the search pattern used in maharastraNursingCouncilAuth.ts (getUserDetails).

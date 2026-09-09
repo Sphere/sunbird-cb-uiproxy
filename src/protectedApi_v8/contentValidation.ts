@@ -6,17 +6,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserToken } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-    checkPdfProfanity: `${CONSTANTS.CONTENT_VALIDATION_API_BASE}/contentValidation/v1/checkPdfProfanity`,
-    checkProfanity: (contentId: string, userId: string) =>
-        `${CONSTANTS.CONTENT_VALIDATION_API_BASE}/contentValidation/v1/checkProfanity/${contentId}/${userId}`,
-    checkTextProfanity: `${CONSTANTS.PROFANITY_SERVICE_API_BASE}/checkProfanity`,
-    getPdfProfanity: `${CONSTANTS.KONG_API_BASE}/contentValidation/v1/getPdfProfanity`,
-    getPdfProfanityForContent: (contentId: string) =>
-        `${CONSTANTS.KONG_API_BASE}/contentValidation/v1/getPdfProfanityForContent/${contentId}`,
-    startPdfProfanity: `${CONSTANTS.KONG_API_BASE}/contentValidation/v1/startPdfProfanity`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const contentValidationApi = Router()
 const unknownError = 'Failed due to unknown reason'

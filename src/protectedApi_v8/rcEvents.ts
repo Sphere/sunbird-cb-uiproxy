@@ -43,6 +43,7 @@ const maskSensitiveData = (data: Record<string, unknown>): Record<string, unknow
 const RC_S3_BUCKET_NAME = CONSTANTS.RC_S3_BUCKET_NAME
 const EVENT_TYPE_REGISTERED_WITH_SPHERE = 'registred with sphere'
 const EVENT_TYPE_REGISTERED_WITHOUT_SPHERE = 'registred without sphere'
+const VALID_EVENT_TYPES = [EVENT_TYPE_REGISTERED_WITH_SPHERE, EVENT_TYPE_REGISTERED_WITHOUT_SPHERE]
 const ERROR_EVENT_NOT_FOUND = 'Event not found'
 const STATUS_IN_PROGRESS = 'inProgress'
 const STATUS_FAILED_USER_CREATION = 'failed during user creation'
@@ -57,9 +58,32 @@ export const sunbirdrRcCertificate = Router()
 sunbirdrRcCertificate.post('/events', async (req, res) => {
     logInfo('Create event request body', req.body)
     // tslint:disable-next-line: max-line-length
-    const { eventName, eventDescription, eventDate, eventPlace, eventType, createdBy } = req.body
-    if (!eventName || !eventDescription || !eventDate || !eventPlace || !createdBy) {
-        return res.status(400).json({ error: 'Missing required fields' })
+    const { eventName, eventDescription, eventDate, eventPlace, eventType } = req.body
+    // createdBy is taken from the authenticated session, NOT the request body. The events
+    // dashboard lists only events whose createdBy equals the caller's userId, so a
+    // client-supplied value that does not match the session hides the event from its own
+    // creator, and would let a caller attribute an event to somebody else. The body value
+    // is retained only as a fallback for older clients.
+    // tslint:disable-next-line: no-any
+    const createdBy = ((req as any).session && (req as any).session.userId) || req.body.createdBy
+
+    const missingFields: string[] = []
+    if (!eventName) { missingFields.push('eventName') }
+    if (!eventDescription) { missingFields.push('eventDescription') }
+    if (!eventDate) { missingFields.push('eventDate') }
+    if (!eventPlace) { missingFields.push('eventPlace') }
+    if (!createdBy) { missingFields.push('createdBy') }
+    if (missingFields.length > 0) {
+        logError(`[/events] Missing required fields: ${missingFields.join(', ')}`)
+        return res.status(400).json({ error: 'Missing required fields', missingFields })
+    }
+
+    // An unrecognised eventType breaks the certificate flow silently: the template filter
+    // falls through to its else branch and offers both registered and non-registered
+    // templates, and the no-registration path never activates.
+    if (VALID_EVENT_TYPES.indexOf(eventType) === -1) {
+        logError(`[/events] Invalid eventType: ${eventType}`)
+        return res.status(400).json({ error: 'Invalid eventType', allowedValues: VALID_EVENT_TYPES })
     }
     const eventId = uuid.v4()
     // tslint:disable-next-line: max-line-length
@@ -156,14 +180,89 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
 })
 
 // Get All Events API (GET /events)
-sunbirdrRcCertificate.get('/events', async (_req, res) => {
-    const query = 'SELECT * FROM sunbird.rc_events'
+/**
+ * Events for one user.
+ *
+ * Prefers an indexed lookup on createdby so the read cost tracks the caller's own events
+ * rather than the size of the whole table. That needs a secondary index:
+ *
+ *   CREATE INDEX IF NOT EXISTS rc_events_createdby_idx ON sunbird.rc_events (createdby);
+ *
+ * Until that index exists the query is rejected, so this falls back to the previous
+ * behaviour (scan the table, filter here) and logs it. That keeps the endpoint working
+ * either side of the migration instead of depending on deploy order.
+ */
+// tslint:disable-next-line: no-any
+const fetchEventsForUser = async (callerId: string): Promise<any[]> => {
     try {
-        const result = await client.execute(query)
-        if (result.rowLength === 0) {
-            return res.status(404).json({ error: 'No events found' })
+        const indexed = await client.execute(
+            'SELECT * FROM sunbird.rc_events WHERE createdby = ?',
+            [callerId],
+            { prepare: true }
+        )
+        return indexed.rows
+    } catch (indexErr) {
+        logError('[/events] indexed createdby lookup unavailable, falling back to a table scan. '
+            + 'Create rc_events_createdby_idx to avoid this. ' + JSON.stringify(indexErr))
+        const scan = await client.execute('SELECT * FROM sunbird.rc_events')
+        logInfo(`[/events] scanned ${scan.rowLength} rows to find events for ${callerId}`)
+        // tslint:disable-next-line: no-any
+        return scan.rows.filter((event: any) => event.createdby === callerId)
+    }
+}
+
+/**
+ * Participant counts for the given events only.
+ *
+ * Each count is a single-partition read, because rc_events_users is partitioned by eventid.
+ * This replaces a full scan of that table, which was the fastest-growing cost on the page:
+ * it grew with the total number of participants across every event, not with the caller's.
+ * Issued in small batches so a user with many events cannot open hundreds of concurrent
+ * queries.
+ */
+// tslint:disable-next-line: no-any
+const countParticipantsForEvents = async (events: any[]): Promise<Map<string, number>> => {
+    const counts = new Map<string, number>()
+    const ids = events.map((event) => String(event.eventid))
+    const BATCH = 10
+    for (let i = 0; i < ids.length; i += BATCH) {
+        const batch = ids.slice(i, i + BATCH)
+        await Promise.all(batch.map(async (id) => {
+            try {
+                const row = await client.execute(
+                    'SELECT COUNT(*) AS total FROM sunbird.rc_events_users WHERE eventid = ?',
+                    [id],
+                    { prepare: true }
+                )
+                // the driver returns COUNT as a Long
+                counts.set(id, Number(row.rows[0] && row.rows[0].total) || 0)
+            } catch (countErr) {
+                // Leave this event without a count rather than failing the whole list; the
+                // dashboard treats an absent count as "unknown" and skips that status step.
+                logError(`[/events] participant count failed for ${id}: ${JSON.stringify(countErr)}`)
+            }
+        }))
+    }
+    return counts
+}
+
+sunbirdrRcCertificate.get('/events', async (req, res) => {
+    try {
+        // tslint:disable-next-line: no-any
+        const callerId = (req as any).session && (req as any).session.userId
+        if (!callerId) {
+            // Fail closed: without an identity we cannot tell which events belong to the
+            // caller, and returning everything would leak other users' events.
+            logError('[/events] No session userId on request; returning an empty list')
+            return res.status(200).json([])
         }
-        const events = result.rows.map((event) => ({
+
+        const ownRows = await fetchEventsForUser(callerId)
+        const participantCounts = await countParticipantsForEvents(ownRows)
+
+        // An empty result is a 200 with [], not a 404 — "you have no events yet" is a normal
+        // state and should render an empty list rather than surface as a fetch error.
+        const events = ownRows.map((event) => ({
             createdAt: event.createdat,
             createdBy: event.createdby,
             eventDate: event.eventdate,
@@ -172,6 +271,7 @@ sunbirdrRcCertificate.get('/events', async (_req, res) => {
             eventName: event.eventname,
             eventPlace: event.eventplace,
             eventType: event.eventtype,
+            participantCount: participantCounts.get(String(event.eventid)),
             status: event.status,
             templateId: event.templateid,
             updatedAt: event.updatedat,
@@ -737,7 +837,7 @@ const createUserIfNotExists = async (userData: any) => {
                     authorization: CONSTANTS.SB_API_KEY,
                 },
                 method: 'PATCH',
-                url: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+                url: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
             })
             logInfo(`[createUserIfNotExists] Profile updated successfully - Response: ${JSON.stringify(profileUpdateResponse.data)}`)
         } catch (errProfile) {

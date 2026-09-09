@@ -2,17 +2,12 @@ import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { IUserGroup } from '../../models/usergroup.model'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 export const userGroupApi = Router()
-
-const API_END_POINTS = {
-  searchV6: `${CONSTANTS.SB_EXT_API_BASE}/v6/search`,
-  userGroup: (userId: string) => `${CONSTANTS.USER_PROFILE_API_BASE}/user/${userId}/groups`,
-}
 
 userGroupApi.get('/groupContent', async (req, res) => {
   try {

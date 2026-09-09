@@ -6,19 +6,9 @@ import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
 import { extractUserToken } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 const unknown = 'Connections Apis:- Failed due to unknown reason'
-const apiEndpoints = {
-  detail: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/wid`,
-  getConnectionEstablishedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/established`,
-  getConnectionRequestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requested`,
-  getConnectionRequestsReceivedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requests/received`,
-  getConnectionSuggestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/find/suggests`,
-  getUserRegistryById: (userId: string) => `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/search/profile?userId=${userId}`,
-  postConnectionAddData: `${CONSTANTS.KONG_API_BASE}/connections/add`,
-  postConnectionRecommendationData: `${CONSTANTS.KONG_API_BASE}/connections/profile/find/recommended`,
-  postConnectionUpdateData: `${CONSTANTS.KONG_API_BASE}/connections/update`,
-}
 
 export const connectionsApi = Router()
 
@@ -35,7 +25,7 @@ connectionsApi.get('/connections/requested', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionRequestsData, {
+    const response = await axios.get(API_END_POINTS.getConnectionRequestsData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -70,7 +60,7 @@ connectionsApi.get('/connections/requests/received', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionRequestsReceivedData, {
+    const response = await axios.get(API_END_POINTS.getConnectionRequestsReceivedData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -105,7 +95,7 @@ connectionsApi.get('/connections/established', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionEstablishedData, {
+    const response = await axios.get(API_END_POINTS.getConnectionEstablishedData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -140,7 +130,7 @@ connectionsApi.get('/connections/established/:id', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionEstablishedData, {
+    const response = await axios.get(API_END_POINTS.getConnectionEstablishedData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -175,7 +165,7 @@ connectionsApi.get('/connections/suggests', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionSuggestsData, {
+    const response = await axios.get(API_END_POINTS.getConnectionSuggestsData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -227,7 +217,7 @@ connectionsApi.post('/add/connection', async (req, res) => {
 
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionAddData,
+      API_END_POINTS.postConnectionAddData,
       body,
       {
         ...axiosRequestConfig,
@@ -284,7 +274,7 @@ connectionsApi.post('/update/connection', async (req, res) => {
       userNameTo,
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionUpdateData,
+      API_END_POINTS.postConnectionUpdateData,
       body,
       {
         ...axiosRequestConfig,
@@ -324,7 +314,7 @@ connectionsApi.post('/connections/recommended', async (req, res) => {
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationData,
       body,
       {
         ...axiosRequestConfig,
@@ -355,7 +345,7 @@ connectionsApi.post('/connections/recommended/userDepartment', async (req, res) 
     let userDepartment = ''
     const rootOrg = req.header('rootorg')
     const userId = extractUserIdFromRequest(req)
-    const url = `${apiEndpoints.getUserRegistryById(userId)}`
+    const url = `${API_END_POINTS.getprofileRegistryById(userId)}`
     if (!rootOrg) {
       res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
@@ -391,7 +381,7 @@ connectionsApi.post('/connections/recommended/userDepartment', async (req, res) 
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationData,
       reqtoApi,
       {
         ...axiosRequestConfig,

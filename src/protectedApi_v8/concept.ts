@@ -3,13 +3,8 @@ import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
 import { IConceptResult } from '../models/conceptGraph.model'
 import { IGenericApiResponse } from '../models/generic.model'
-import { CONSTANTS } from '../utils/env'
 import { getStringifiedQueryParams } from '../utils/helpers'
-
-const apiEndpoints = {
-  autoComplete: `${CONSTANTS.NODE_API_BASE}/post/autocomplete`,
-  concept: `${CONSTANTS.SB_EXT_API_BASE}/concepts`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const conceptGraphApi = Router()
 
@@ -21,7 +16,7 @@ conceptGraphApi.get('/:ids', async (req: Request, res: Response) => {
       ids,
     })
     let url: string
-    url = `${apiEndpoints.concept}?${queryParams}`
+    url = `${API_END_POINTS.concepts}?${queryParams}`
 
     const conceptData: IConceptResult[] = await axios
       .get<IGenericApiResponse<IConceptResult[]>>(url, axiosRequestConfig)
@@ -41,7 +36,7 @@ conceptGraphApi.post('/autocomplete', async (req: Request, res: Response) => {
     const org = req.header('org')
     const rootOrg = req.header('rootOrg')
     const autoCompleteData: [] = await axios
-      .post<[]>(apiEndpoints.autoComplete, req.body, {
+      .post<[]>(API_END_POINTS.conceptAutoComplete, req.body, {
         ...axiosRequestConfig,
         headers: {
           org,

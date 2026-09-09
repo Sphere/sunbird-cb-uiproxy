@@ -6,19 +6,13 @@ import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 import { getUserByEmail } from '../discussionHub/users'
 import { createDiscussionHubUser } from '../discussionHub/writeApi'
 import { getRoles , getUserStatus} from '../portal-v3'
 import { getProfileStatus } from './profile-registry'
 
 export const detailsApi = Router()
-
-const API_END_POINTS = {
-  detail: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/wid`,
-  emailId: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/email`,
-  managerDetails: `${CONSTANTS.USER_PROFILE_API_BASE}/user`,
-  pidProfile: `${CONSTANTS.USER_PROFILE_API_BASE}/user/get-update`,
-}
 
 detailsApi.get('/', async (req, res) => {
   try {

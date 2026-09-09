@@ -4,13 +4,8 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { IBadgeRecent, IBadgeResponse } from '../../models/badge.model'
 import { IUserNotification, IUserNotifications } from '../../models/notification.model'
 import { appendUrl } from '../../utils/contentHelpers'
-import { CONSTANTS } from '../../utils/env'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-const API_END_POINTS = {
-  badge: `${CONSTANTS.SB_EXT_API_BASE_2}/v3/users`,
-  newBadges: (userId: string) => `${CONSTANTS.SB_EXT_API_BASE_2}/v1/users/${userId}/badges`,
-  updateBadge: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/User`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 

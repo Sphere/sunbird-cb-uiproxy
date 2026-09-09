@@ -1,15 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { CONSTANTS } from '../utils/env'
-
-const API_END_POINTS_REPORTS = {
-    certificateDownloads: `${CONSTANTS.USER_REPORTING_SERVICE}/user/certificate/downloads`,
-    courseCompletedUsers: `${CONSTANTS.USER_REPORTING_SERVICE}/user/course/completed_users`,
-    courseRecommendaion: `${CONSTANTS.USER_REPORTING_SERVICE}/role/course/recommendation`,
-    enrolledUserCount: `${CONSTANTS.USER_REPORTING_SERVICE}/user/enroll/user_count`,
-    regTotalCount: `${CONSTANTS.USER_REPORTING_SERVICE}/user/reg/total_count`,
-    trendingCourses: `${CONSTANTS.USER_REPORTING_SERVICE}/user/top/trendingcourses`,
-}
+import { API_END_POINTS } from './apiConstants'
 const accessKey = CONSTANTS.EKSHAMATA_SECURITY_KEY_MASTER
 const keyMissingMessage = {
     message: 'Access key invalid or not present',
@@ -30,7 +22,7 @@ userReporting.get('/user/top/trendingcourses', async (req, res) => {
         const response = await axios({
             headers: serviceHeaders,
             method: 'GET',
-            url: API_END_POINTS_REPORTS.trendingCourses,
+            url: API_END_POINTS.trendingCourses,
         })
         res.status(response.status).send(response.data)
     } catch (error) {
@@ -50,7 +42,7 @@ userReporting.get('/user/certificate/downloads', async (req, res) => {
         const response = await axios({
             headers: serviceHeaders,
             method: 'GET',
-            url: API_END_POINTS_REPORTS.certificateDownloads,
+            url: API_END_POINTS.certificateDownloads,
         })
         res.status(response.status).send(response.data)
     } catch (error) {
@@ -69,7 +61,7 @@ userReporting.get('/user/reg/total_count', async (req, res) => {
         const response = await axios({
             headers: serviceHeaders,
             method: 'GET',
-            url: API_END_POINTS_REPORTS.regTotalCount,
+            url: API_END_POINTS.regTotalCount,
         })
         res.status(response.status).send(response.data)
     } catch (error) {
@@ -88,7 +80,7 @@ userReporting.get('/user/enroll/user_count', async (req, res) => {
         const response = await axios({
             headers: serviceHeaders,
             method: 'GET',
-            url: API_END_POINTS_REPORTS.enrolledUserCount,
+            url: API_END_POINTS.enrolledUserCount,
         })
         res.status(response.status).send(response.data)
     } catch (error) {
@@ -107,7 +99,7 @@ userReporting.get('/user/course/completed_users', async (req, res) => {
         const response = await axios({
             headers: serviceHeaders,
             method: 'GET',
-            url: API_END_POINTS_REPORTS.courseCompletedUsers,
+            url: API_END_POINTS.courseCompletedUsers,
         })
         res.status(response.status).send(response.data)
     } catch (error) {
@@ -138,7 +130,7 @@ userReporting.get('/role/course/recommendation', async (req, res) => {
             headers: serviceHeaders,
             method: 'GET',
             params: responseObject,
-            url: API_END_POINTS_REPORTS.courseRecommendaion,
+            url: API_END_POINTS.courseRecommendaion,
         })
         res.status(response.status).send(response.data)
     } catch (error) {

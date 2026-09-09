@@ -1,12 +1,8 @@
 import axios from 'axios'
 import { Router } from 'express'
-import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
+import { API_END_POINTS } from './apiConstants'
 
-const API_END_POINTS = {
-  // tslint:disable-next-line: no-any
-  userCountInSource: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/source_name/users`,
-}
 const unknownError = 'Failed due to unknown reason'
 
 export const userEnrolledInSource = Router()

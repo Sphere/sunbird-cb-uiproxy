@@ -1,27 +1,15 @@
 import axios from 'axios'
 import { Router } from 'express'
+import * as _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserId, extractUserIdFromRequest } from '../utils/requestExtract'
 import { extractUserToken } from '../utils/requestExtract'
-
-const _                 = require('lodash')
+import { API_END_POINTS } from './apiConstants'
 
 const unknown = 'Connections Apis:- Failed due to unknown reason'
-const apiEndpoints = {
-  detail: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/wid`,
-  getConnectionEstablishedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/established`,
-  getConnectionRequestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requested`,
-  getConnectionRequestsReceivedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requests/received`,
-  getConnectionSuggestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/find/suggests`,
-  getUserOrgName: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
-  getUserRegistryById: (userId: string) => `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/search/profile?userId=${userId}`,
-  postConnectionAddData: `${CONSTANTS.KONG_API_BASE}/connections/add`,
-  postConnectionRecommendationData: `${CONSTANTS.KONG_API_BASE}/connections/profile/find/recommended`,
-  postConnectionUpdateData: `${CONSTANTS.KONG_API_BASE}/connections/update`,
-}
 
 export const connectionsV2Api = Router()
 
@@ -38,7 +26,7 @@ connectionsV2Api.get('/v2/connections/requested', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionRequestsData, {
+    const response = await axios.get(API_END_POINTS.getConnectionRequestsData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -73,7 +61,7 @@ connectionsV2Api.get('/v2/connections/requests/received', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionRequestsReceivedData, {
+    const response = await axios.get(API_END_POINTS.getConnectionRequestsReceivedData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -108,7 +96,7 @@ connectionsV2Api.get('/v2/connections/established', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionEstablishedData, {
+    const response = await axios.get(API_END_POINTS.getConnectionEstablishedData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -143,7 +131,7 @@ connectionsV2Api.get('/v2/connections/established/:id', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionEstablishedData, {
+    const response = await axios.get(API_END_POINTS.getConnectionEstablishedData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -178,7 +166,7 @@ connectionsV2Api.get('/v2/connections/suggests', async (req, res) => {
       res.status(400).send(ERROR.GENERAL_ERR_MSG)
       return
     }
-    const response = await axios.get(apiEndpoints.getConnectionSuggestsData, {
+    const response = await axios.get(API_END_POINTS.getConnectionSuggestsData, {
       ...axiosRequestConfig,
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
@@ -230,7 +218,7 @@ connectionsV2Api.post('/v2/add/connection', async (req, res) => {
 
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionAddData,
+      API_END_POINTS.postConnectionAddData,
       body,
       {
         ...axiosRequestConfig,
@@ -287,7 +275,7 @@ connectionsV2Api.post('/v2/update/connection', async (req, res) => {
       userNameTo,
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionUpdateData,
+      API_END_POINTS.postConnectionUpdateData,
       body,
       {
         ...axiosRequestConfig,
@@ -327,7 +315,7 @@ connectionsV2Api.post('/v2/connections/recommended', async (req, res) => {
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationData,
       body,
       {
         ...axiosRequestConfig,
@@ -383,7 +371,7 @@ connectionsV2Api.post('/v2/connections/recommended/userDepartment', async (req, 
             query: '',
         },
     }
-    const url = `${apiEndpoints.getUserOrgName}`
+    const url = `${API_END_POINTS.kongUserSearch}`
     const responseDetails = await axios.post(
         url,
         body,
@@ -433,7 +421,7 @@ connectionsV2Api.post('/v2/connections/recommended/userDepartment', async (req, 
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationData,
       reqtoApi,
       {
         ...axiosRequestConfig,

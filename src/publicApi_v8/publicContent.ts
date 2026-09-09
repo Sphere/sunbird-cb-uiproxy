@@ -5,10 +5,7 @@ import { IContent } from '../models/content.model'
 import { processContent } from '../utils/contentHelpers'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
-
-const API_END_POINTS = {
-  searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-}
+import { API_END_POINTS } from './apiConstants'
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 export const publicContentApi = Router()
 publicContentApi.post('/v1/search', async (req, res) => {

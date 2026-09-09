@@ -528,11 +528,6 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
-    '/proxies/v8/user/private/v1/migrate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
     '/proxies/v8/user/private/v1/assign/role/userrole': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1096,11 +1091,6 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/protected/v8/learnerPath': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/learnerPathV2': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1723,7 +1713,6 @@ export const API_LIST = {
     '/proxies/v8/userData/v1/bulkupload/:id',
     '/proxies/v8/userData/v1/bulkupload',
     '/proxies/v8/user/v1/migrate',
-    '/proxies/v8/user/private/v1/migrate',
     '/proxies/v8/user/private/v1/assign/role/userrole',
     '/proxies/v8/learner/course/v1/enrol',
     '/proxies/v8/learnervm/private/content/v3/retire/',
@@ -1845,7 +1834,6 @@ export const API_LIST = {
     '/protected/v8/updateProgressv2/update',
     '/protected/v8/updateProgressv3/update',
     '/protected/v8/learnerPath',
-    '/protected/v8/learnerPathV2',
     '/protected/v8/report/mnc-attendance',
     '/protected/v8/report/mnc-attendance/meta',
     '/protected/v8/frac/addDataNodeBulk',

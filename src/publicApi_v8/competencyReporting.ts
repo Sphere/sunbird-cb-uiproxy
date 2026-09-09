@@ -2,11 +2,7 @@ import axios from 'axios'
 import { Router } from 'express'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-
-const API_END_POINTS_REPORTS = {
-  assessmentReports: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/competency/reports/assessment`,
-  passbookReports: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/competency/reports/passbook`,
-}
+import { API_END_POINTS } from './apiConstants'
 const accessKey = CONSTANTS.EKSHAMATA_SECURITY_KEY_MASTER
 
 export const competencyReporting = Router()
@@ -39,7 +35,7 @@ competencyReporting.get('/reports/assessment', async (req, res) => {
         end_date: endDate,
         start_date: startDate,
       },
-      url: API_END_POINTS_REPORTS.assessmentReports,
+      url: API_END_POINTS.assessmentReports,
     })
     res.status(response.status).send(response.data)
   } catch (error) {
@@ -74,7 +70,7 @@ competencyReporting.get('/reports/passbook', async (req, res) => {
         end_date: endDate,
         start_date: startDate,
       },
-      url: API_END_POINTS_REPORTS.passbookReports,
+      url: API_END_POINTS.passbookReports,
     })
     res.status(response.status).send(response.data)
   } catch (error) {

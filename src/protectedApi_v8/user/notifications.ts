@@ -1,18 +1,14 @@
 import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 export const notificationsApi: Router = Router()
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
-const apiEndpoints = {
-  notifications: `${CONSTANTS.NOTIFICATIONS_API_BASE}/v1`,
-  settings: (userId: string) => `${CONSTANTS.NOTIFICATIONS_API_BASE}/v1/users/${userId}/events`,
-}
 // Update notification settings
 notificationsApi.patch('/settings', async (req: Request, res: Response) => {
   try {
@@ -23,7 +19,7 @@ notificationsApi.patch('/settings', async (req: Request, res: Response) => {
       return
     }
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.patch(apiEndpoints.settings(userId), req.body, {
+    const response = await axios.patch(API_END_POINTS.settings(userId), req.body, {
       ...axiosRequestConfig,
       headers: { langCode, rootOrg },
     })
@@ -50,7 +46,7 @@ notificationsApi.get('/', async (req: Request, res: Response) => {
     const { classification, page, size } = req.query
 
     const notificationData = await axios
-      .get(`${apiEndpoints.notifications}/users/${userId}/notifications`, {
+      .get(`${API_END_POINTS.notifications}/users/${userId}/notifications`, {
         ...axiosRequestConfig,
         headers: { rootOrg },
         params: { classification, page, size },
@@ -80,7 +76,7 @@ notificationsApi.patch(
 
       const userId = extractUserIdFromRequest(req)
       const { notificationId } = req.params
-      let url = `${apiEndpoints.notifications}/users/${userId}/notifications`
+      let url = `${API_END_POINTS.notifications}/users/${userId}/notifications`
       if (notificationId) {
         url += `/${notificationId}`
       }
@@ -109,7 +105,7 @@ notificationsApi.get('/settings', async (req: Request, res: Response) => {
       return
     }
     const userId = extractUserIdFromRequest(req)
-    const response = await axios.get(apiEndpoints.settings(userId), {
+    const response = await axios.get(API_END_POINTS.settings(userId), {
       ...axiosRequestConfig,
       headers: { rootOrg, langCode },
     })

@@ -3,6 +3,7 @@ import { Request, Response, Router } from 'express'
 import { logInfo } from '../utils/logger'
 import { CONSTANTS } from './../utils/env'
 import { extractUserIdFromRequest, extractUserToken } from './../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 // ---- INTERFACES ----
 interface PersonalDetails {
@@ -32,10 +33,6 @@ interface UserProfile {
     tnc?: TncDetails
 }
 
-const API_END_POINTS = {
-    getUserProfile: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/v1/update`,
-}
 const invalidUser = 'Invalid userId'
 const internalServerError = 'Internal server error'
 export const profileupdatev2 = Router()
@@ -49,7 +46,7 @@ async function getUserProfile(userId: string): Promise<UserProfile> {
             },
         },
         method: 'POST',
-        url: `${API_END_POINTS.getUserProfile}`,
+        url: `${API_END_POINTS.searchSb}`,
 
     })
     return userSearch.data
@@ -61,7 +58,7 @@ async function saveUserProfile(userId: string, profile: UserProfile, req: Reques
             userId,
         },
     }
-    await axios.post(`${API_END_POINTS.profileUpdate}`,
+    await axios.post(`${API_END_POINTS.userProfileUpdate}`,
         payload,
         {
             headers: {

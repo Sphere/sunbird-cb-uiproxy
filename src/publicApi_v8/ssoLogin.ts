@@ -11,16 +11,7 @@ import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
 import { getCurrentUserRoles } from './rolePermission'
 
-const API_END_POINTS = {
-    generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
-    grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-    searchUser: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-    verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-
-}
+import { API_END_POINTS } from './apiConstants'
 const indianCountryCode = '+91'
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const AUTH_FAIL =
@@ -250,7 +241,7 @@ ssoLogin.post('/login', async (req: any, res) => {
                 try {
                     const keycloakLoginData = {
                         otp: {
-                            client_id: 'aastrika-sso-login',
+                            client_id: CONSTANTS.APP_SSO_CLIENT_ID,
                             client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
                             grant_type: 'password',
                             scope: 'offline_access',
@@ -301,7 +292,15 @@ ssoLogin.post('/login', async (req: any, res) => {
                         res.end()
                     }
                 } catch (e) {
-                    logInfo('Error throwing Cookie inside auth route : ' + e)
+                    // tslint:disable-next-line: no-any
+                    const err: any = e
+                    logError('Error throwing Cookie inside auth route : ' + err)
+                    logError(
+                        'SSO login token exchange failed. status: '
+                        + (err && err.response && err.response.status)
+                        + ' body: '
+                        + JSON.stringify(err && err.response && err.response.data)
+                    )
                     res.status(400).send({
                         error: AUTH_FAIL,
                         msg: AUTH_FAIL,

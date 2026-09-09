@@ -2,15 +2,8 @@ import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
-
-const API_END_POINTS = {
-  generateOtp: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/otp/v1/generate`,
-  recoverPassword: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/password/reset`,
-  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  verifyOtp: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/otp/v1/verify`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const forgotPassword = Router()
 
@@ -51,7 +44,7 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
           },
           headers: { Authorization: req.header('Authorization') },
           method: 'POST',
-          url: API_END_POINTS.generateOtp,
+          url: API_END_POINTS.dataMigrationGenerateOtp,
         })
         logInfo('Sending Responses in email : ' + sendResponse)
         // res.status(200).send(userUUId)
@@ -89,7 +82,7 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
           },
           headers: { Authorization: req.header('Authorization') },
           method: 'POST',
-          url: API_END_POINTS.generateOtp,
+          url: API_END_POINTS.dataMigrationGenerateOtp,
         })
         logInfo('Sending Responses in phone part : ' + sendResponse)
         res.status(200).send({ message: 'Success ! Please verify the OTP .' })

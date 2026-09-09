@@ -11,6 +11,7 @@ export const CONSTANTS = {
   APP_ANALYTICS: env.LA_HOST_PROXY || 'http://localhost:portNUmber',
   APP_CONFIGURATIONS: env.APP_CONFIGURATIONS || '/app-config',
   APP_LOGS: env.APP_LOGS || '/logs',
+  APP_SSO_CLIENT_ID: env.APP_SSO_CLIENT_ID || 'aastrika-sso-login',
   APP_SSO_KEYCLOAK_SECRET: env.APP_SSO_KEYCLOAK_SECRET,
   APP_VERSION_PATH: env.APP_VERSION_PATH || 'abc',
   ATTENDANCE_API_BASE: env.ATTENDANCE_API_BASE || env.SB_EXT_API_BASE_2,

@@ -5,11 +5,8 @@ import nodeHtmlToImage from 'node-html-to-image'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { API_END_POINTS } from './apiConstants'
 const cassandra = require('cassandra-driver')
-
-const API_END_POINTS = {
-  DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
-}
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const publicCertificateFlinkv2 = Router()

@@ -432,7 +432,7 @@ export function proxyCreatorUpload(
 }
 
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
 
 /**
@@ -584,7 +584,7 @@ export function proxyCreatorDownloadCertificate(
   route.all('/*', (req, res) => {
     const originalUrl = req.originalUrl
     const lastIndex = originalUrl.lastIndexOf('/')
-    const subStr = originalUrl.substr(lastIndex).substr(1)
+    const subStr = originalUrl.substring(lastIndex).substring(1)
     // tslint:disable-next-line: no-console
     console.log('REQ_URL_ORIGINAL proxyCreatorSunbirdSearch', req.originalUrl)
     // tslint:disable-next-line: no-console
