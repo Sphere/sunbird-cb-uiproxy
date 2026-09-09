@@ -217,7 +217,11 @@ mobileAppApi.use(async (req, res, next) => {
       // tslint:disable-next-line: no-any
     } catch (error) {
       logInfo('Error forwarding request:', JSON.stringify(error))
-      res.status(500).send(INTERNAL_SERVER_ERROR)
+      // Propagate the upstream status and body. A hardcoded 500 here masked real
+      // upstream answers - a 401 from the gateway read as an unexplained server error.
+      res.status((error && error.response && error.response.status) || 500).send(
+        (error && error.response && error.response.data) || INTERNAL_SERVER_ERROR
+      )
     }
   } else {
     // If "/kong" is not in the URL, pass to the next route
