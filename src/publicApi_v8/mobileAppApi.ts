@@ -20,6 +20,12 @@ import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { requestValidator } from '../utils/requestValidator'
+import {
+  adaptUserReadResponse,
+  adaptUserSearchResponse,
+  isUserReadRequest,
+  isUserSearchRequest,
+} from './adapters/userReadAdapter'
 import { API_END_POINTS } from './apiConstants'
 import { searchContent, searchContentV2 } from './contentSearchService'
 import { getFirebaseApp } from './firebase-manager'
@@ -212,8 +218,17 @@ mobileAppApi.use(async (req, res, next) => {
         axiosOptions.data = req.body
       }
       const response = await axios(axiosOptions)
-      // No CDN replacement for other kong endpoints
-      res.status(response.status).send(response.data)
+      // No CDN replacement for other kong endpoints. USER_READ and user/v1/search are
+      // adapted back to the OLD mobile-compatible contract while Spark migration is in
+      // progress - see adapters/userReadAdapter.ts. Every other /kong endpoint is sent
+      // through as-is.
+      let responseData = response.data
+      if (isUserReadRequest(req)) {
+        responseData = adaptUserReadResponse(responseData)
+      } else if (isUserSearchRequest(req)) {
+        responseData = adaptUserSearchResponse(responseData)
+      }
+      res.status(response.status).send(responseData)
       // tslint:disable-next-line: no-any
     } catch (error) {
       logInfo('Error forwarding request:', JSON.stringify(error))
