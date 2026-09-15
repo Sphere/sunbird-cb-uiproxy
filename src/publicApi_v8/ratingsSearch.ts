@@ -54,7 +54,7 @@ const getCombinedRatingsResult = async (sourceCourses) => {
                 'Content-Type': 'application/json',
             },
             method: 'POST',
-            url: API_END_POINTS.ratingsSearch,
+            url: API_END_POINTS.ratingSearchCommonService,
         })
         return sourceCourses.map((course) => {
             const matchingRating = getRatingsFromRatingService.data.find((rating) => rating.activityId === course.identifier)
