@@ -48,6 +48,7 @@ export const API_END_POINTS = {
     recommendationAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
     search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
     searchAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/getcourse`,
+
     // From customSignup.ts (ES base used for Keycloak user creation)
     esCreateUser: `${CONSTANTS.ES_BASE}`,
     resendOTP: `${CONSTANTS.MSG91BASE}/api/v5/otp/retry`,
