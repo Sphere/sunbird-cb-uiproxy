@@ -114,7 +114,7 @@ export const API_END_POINTS = {
 
     // From ratingsSearch.ts
     ratingsSearch: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/bulkRatingLookup`,
-
+    ratingSearchCommonService: `${CONSTANTS.COMMON_SERVICE_API_BASE}/bulkRatingLookup`,
     // From sashaktAuth.ts
     sashaktUserDetailsUrl: `${CONSTANTS.SASHAKT_USER_DETAILS_URL}`,
 
