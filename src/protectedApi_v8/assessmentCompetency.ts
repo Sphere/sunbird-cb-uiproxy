@@ -17,10 +17,12 @@ assessmentCompetency.get('/v1/assessment/*', async (req, res) => {
       '/protected/v8/assessmentCompetency/v1/assessment/',
       req.originalUrl
     )
-    jumbler(path).then((response) => {
-      return res.send(response)
-    })
     logInfo('New getAssessments competency >>>>>>>>>>> ', path)
+    // Awaited so the catch below can actually see a rejection. As a floating
+    // .then() with no .catch(), an S3 NoSuchKey left the request hanging with no
+    // response at all rather than returning a status.
+    const response = await jumbler(path)
+    return res.send(response)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
       (err && err.response && err.response.data) || {

@@ -402,21 +402,27 @@ mobileAppApi.post('/submitAssessment', async (req, res) => {
   }
 })
 mobileAppApi.get('/v1/assessment/*', async (req, res) => {
+  const contentPath = removePrefix(
+    '/public/v8/mobileApp/v1/assessment/',
+    req.originalUrl
+  )
+  logInfo('New getAssessments competency mobile APP >>>>>>>>>>> ', contentPath)
   try {
-    const contentPath = removePrefix(
-      '/public/v8/mobileApp/v1/assessment/',
-      req.originalUrl
-    )
-    jumbler(contentPath).then((response) => {
-      return res.send(response)
-    })
-    logInfo(
-      'New getAssessments competency mobile APP >>>>>>>>>>> ',
-      contentPath
-    )
+    // Awaited, not a floating .then(). Previously jumbler() was called without
+    // await and without .catch(), so the surrounding try/catch could never see
+    // its rejection - when S3 answered NoSuchKey the response was never sent at
+    // all and the browser hung until it gave up. A missing artifact must fail
+    // fast with a status the caller can act on.
+    const response = await jumbler(contentPath)
+    return res.send(response)
   } catch (err) {
-    res.status(404).json({
-      message: 'Error occured while get assessment',
+    logError('Error while getting assessment for ' + contentPath + ' :: ' + err)
+    const status = _.get(err, 'response.status') === 404 ? 404 : 502
+    return res.status(status).json({
+      message:
+        status === 404
+          ? 'Assessment content not found'
+          : 'Error occured while get assessment',
     })
   }
 })
