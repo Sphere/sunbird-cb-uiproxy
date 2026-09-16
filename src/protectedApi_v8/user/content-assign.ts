@@ -32,8 +32,8 @@ contentAssignApi.post('/searchUsers', async (req, res) => {
         res.status(response.status).send(response.data)
     } catch (err) {
         res
-            .status((err && err.response && err.response.status) || 500)
-            .send((err && err.response && err.response.data) || {
+            .status(err?.response?.status || 500)
+            .send(err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       })
     }
@@ -55,8 +55,8 @@ contentAssignApi.post('/assignContent', async (req, res) => {
         res.status(response.status).send(response.data)
     } catch (err) {
         res
-            .status((err && err.response && err.response.status) || 500)
-            .send((err && err.response && err.response.data) || {
+            .status(err?.response?.status || 500)
+            .send(err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       })
     }
@@ -78,8 +78,8 @@ contentAssignApi.get('/getAdminLevel', async (req, res) => {
         res.status(response.status).send(response.data)
     } catch (err) {
         res
-            .status((err && err.response && err.response.status) || 500)
-            .send((err && err.response && err.response.data) || {
+            .status(err?.response?.status || 500)
+            .send(err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       })
     }
@@ -102,8 +102,8 @@ contentAssignApi.get('/getAssignments', async (req, res) => {
         res.status(response.status).send(response.data)
     } catch (err) {
         res
-            .status((err && err.response && err.response.status) || 500)
-            .send((err && err.response && err.response.data) || {
+            .status(err?.response?.status || 500)
+            .send(err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       })
     }

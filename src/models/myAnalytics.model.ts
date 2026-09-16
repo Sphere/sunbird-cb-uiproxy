@@ -236,11 +236,6 @@ export interface IExistingSkills {
   skill_name: string
 }
 
-export interface ICreateObj {
-  roleId: string
-  type: string
-}
-
 export interface ITimeSpentResponse {
   JL_wise: IGraphData[]
   badges_details: IBadgeDetails[]
@@ -382,144 +377,8 @@ export interface IMonthWiseData {
   timespent_in_mins: number
   track: string
 }
-export interface IUserProgressResponse {
-  goal_progress: IGoalProgress[]
-  goal_shared_by_me: IGoalsShared[]
-  goal_shared_to_me: IGoalsShared[]
-  learning_history: ILearningHistory[]
-  learning_history_progress_range: ILearningHistoryProgress[]
-  playlist_progress: IPlaylistProgress[]
-  playlist_shared_by_me: IPlaylistShared[]
-  playlist_shared_to_me: IPlaylistShared[]
-  top_content_jl: ITopContentByJl[]
-  top_content_unit: ITopContentByJl[]
-}
-export interface IGoalProgress {
-  created_on: string
-  email_id: string
-  goal_content_id: string
-  goal_duration: string
-  goal_end_date: string
-  goal_id: string
-  goal_start_date: string
-  goal_title: string
-  goal_type: string
-  last_updated_on: string
-  progress: number
-}
-export interface IGoalsShared {
-  created_on: string
-  email_id: string
-  goal_end_date: null
-  goal_id: string
-  goal_start_date: null
-  goal_title: string
-  goal_type: string
-  last_updated_on: string
-  progress: number
-  shared_by: string
-  shared_on: string
-  status: string
-}
-export interface ILearningHistory {
-  content_name: string
-  last_progress_date: string
-  lex_id: string
-  progress: number
-}
-export interface ILearningHistoryProgress {
-  key: number
-  doc_count: number
-}
-export interface IPlaylistShared {
-  created_on: string
-  email_id: string
-  play_list_id: string
-  play_list_title: string
-  progress: number
-  resource_id: string
-  shared_by: string
-  type?: string
-}
-export interface ITopContentByJl {
-  content_name: string
-  count: number
-  lex_id: string
-}
-export interface IPlaylistProgress {
-  created_on: string
-  email_id: string
-  last_updated_on: string
-  play_list_id: string
-  play_list_title: string
-  progress: number
-  shared_by: string
-  visibility: string
-}
-export interface INsoResponse {
-  artifacts_shared: IArtificatsShared[]
-  content_created: IContentCreated[]
-  experts_contacted: IExpertsContacted[]
-  feature_usage_stats: IFeatureUsageStatistics
-  likes_detail: IArtificatsShared[]
-  nso_content_progress: INsoContentProgress
-  nso_roles: INsoRoles[]
-  playground_details: IPlayGroundDetails[]
-  total_nso_program_taken: number
-}
-export interface IArtificatsShared {
-  content_id: string
-  content_name: string
-  date_of_use: string
-  email_id: string
-  type: string
-}
-export interface IExpertsContacted {
-  contact_medium: string
-  contacted: string
-  content_id: string
-  content_name: string
-  date_of_use: string
-  email_id: string
-  type: string
-}
-export interface IFeatureUsageStatistics {
-  feedback_count: number
-  from_leaders_count: number
-  live_count: number
-  marketing_count: number
-  navigator_count: number
-  onboarding_count: number
-  radio_count: number
-  search_count: number
-  tour_count: number
-  tv_count: number
-}
 export interface INsoContentProgress {
   role_name: string
-}
-export interface INsoRoles {
-  lex_id: string
-  role_id: string
-  role_name: string
-}
-export interface IPlayGroundDetails {
-  activity: string
-  contest_Name: string
-  date_of_use: string
-  email_id: string
-  marks_Obtained: string
-  sub_activity: string
-  type: string
-  video_Proctoring: boolean
-}
-export interface IContentCreated {
-  app_icon: string
-  content_name: string
-  content_type: string
-  email_id: string
-  last_updated_on: string
-  lex_id: string
 }
 
 export interface ICompassRolesResponse {

@@ -34,8 +34,8 @@ knowledgeHubApi.get('/fetchRelatedResources/:contentId/:contentType', async (req
       .then((resp) => resp.data.result.response)
     return res.status(response.status).send(response)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -56,8 +56,8 @@ knowledgeHubApi.get('/home/', async (req: Request, res: Response) => {
       .then((response) => response.data)
     return res.send(searchData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -87,8 +87,8 @@ knowledgeHubApi.get('/search/:query/:from/:size/:category', async (req: Request,
       })
     return res.send(searchResultData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -107,8 +107,8 @@ knowledgeHubApi.get('/item/:id', async (req: Request, res: Response) => {
       .then((response) => response.data)
     return res.send(searchResultData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -133,8 +133,8 @@ knowledgeHubApi.get('/moreLike/:category/:itemId/:source', async (req: Request, 
       .then((response) => response.data)
     return res.send(searchResultData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -151,8 +151,8 @@ knowledgeHubApi.post('/topic', async (req: Request, res: Response) => {
       .then((response) => response.data)
     return res.send(searchResultData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

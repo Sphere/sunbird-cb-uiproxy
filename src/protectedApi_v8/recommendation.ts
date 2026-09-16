@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
 import { EContentTypes, IContent } from '../models/content.model'
 import { IPaginatedApiResponse } from '../models/paginatedApi.model'
@@ -9,6 +9,8 @@ import { getStringifiedQueryParams } from '../utils/helpers'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserEmailFromRequest, extractUserIdFromRequest } from '../utils/requestExtract'
+// sonar-cleanup: file-local requireOrgHeaders replaced with the shared import (CHANGE 43)
+import { requireOrgHeaders } from '../utils/requireOrgHeaders'
 
 const API_END_POINTS = {
   interest: (userId: string) => `${CONSTANTS.RECOMMENDATION_API_BASE}/${userId}/recommendations/interest`,
@@ -23,15 +25,66 @@ const API_END_POINTS = {
 
 export const recommendationApi = Router()
 
+// sonar-cleanup: extracted from recommendation.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8)
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleRecommendationError(res: Response, err: any, label: string) {
+  logError(label, err)
+  res.status(err?.response?.status || 500)
+    .send(err?.response?.data || {
+      error: ERROR.GENERAL_ERR_MSG,
+    })
+}
+
+// sonar-cleanup: extracted from the identical result-shaping tail shared by
+// '/' and '/interestBased' below — both dig the same
+// result.response.result array out of the upstream payload, map it through
+// processContent, shuffle it, and send it wrapped in an
+// IPaginatedApiResponse with hasMore always false. Both callers await their
+// own (differently-built) axios response before reaching this.
+/**
+ * Extracts the recommendation content array from an upstream response
+ * (falling back to an empty array if the expected `result.response.result`
+ * path isn't an array), shuffles it, and sends it as a paginated response.
+ *
+ * @param res - the Express response to send the result on
+ * @param response - the already-awaited upstream axios response
+ */
+// tslint:disable-next-line: no-any
+function sendShuffledRecommendations(res: Response, response: any) {
+  let contents: IContent[] = []
+  if (
+    Array.isArray(
+      response.data.result?.response?.result
+    )
+  ) {
+    contents = response.data.result.response.result.map((content: IContent) =>
+      processContent(content)
+    )
+  }
+  contents = shuffleContent(contents)
+  const result: IPaginatedApiResponse = {
+    contents,
+    hasMore: false,
+  }
+  res.json(result)
+}
+
 recommendationApi.get('/', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('locale')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('locale')
     const filters = req.query.filters
     let decodedFilters = {
       recommendationCategory: 'org',
@@ -54,42 +107,20 @@ recommendationApi.get('/', async (req, res) => {
       method: 'GET',
       url,
     })
-    let contents: IContent[] = []
-    if (
-      Array.isArray(
-        response.data.result &&
-        response.data.result.response &&
-        response.data.result.response.result
-      )
-    ) {
-      contents = response.data.result.response.result.map((content: IContent) =>
-        processContent(content)
-      )
-    }
-    contents = shuffleContent(contents)
-    const result: IPaginatedApiResponse = {
-      contents,
-      hasMore: false,
-    }
-    res.json(result)
+    sendShuffledRecommendations(res, response)
   } catch (err) {
-    logError('RECOMMENDATIONS FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'RECOMMENDATIONS FETCH ERROR >')
   }
 })
 
 recommendationApi.get('/interestBased', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('langCode') || 'en'
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('langCode') || 'en'
     const pageNo = req.query.pageNo || 0
     const pageSize = req.query.pageSize || 20
     const queryParams = getStringifiedQueryParams({
@@ -106,31 +137,9 @@ recommendationApi.get('/interestBased', async (req, res) => {
         rootOrg,
       },
     })
-    let contents: IContent[] = []
-    if (
-      Array.isArray(
-        response.data.result &&
-        response.data.result.response &&
-        response.data.result.response.result
-      )
-    ) {
-      contents = response.data.result.response.result.map((content: IContent) =>
-        processContent(content)
-      )
-    }
-    contents = shuffleContent(contents)
-
-    const result: IPaginatedApiResponse = {
-      contents,
-      hasMore: false,
-    }
-    res.json(result)
+    sendShuffledRecommendations(res, response)
   } catch (err) {
-    logError('INTEREST BASED RECOMMENDATIONS FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'INTEREST BASED RECOMMENDATIONS FETCH ERROR >')
   }
 })
 
@@ -180,23 +189,18 @@ recommendationApi.get('/keyword', async (req, res) => {
       res.json(result)
     }
   } catch (err) {
-    logError('RECOMMENDATIONS TYPE FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'RECOMMENDATIONS TYPE FETCH ERROR >')
   }
 })
 
 recommendationApi.get('/usageBased', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('locale')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('locale')
     const pageNo = req.query.pageNo || 0
     const pageSize = req.query.pageSize || 20
     const queryParams = getStringifiedQueryParams({
@@ -216,7 +220,7 @@ recommendationApi.get('/usageBased', async (req, res) => {
       url,
     })
     let contents: IContent[] = []
-    if (Array.isArray(response.data.result && response.data.result.response)) {
+    if (Array.isArray(response.data.result?.response)) {
       contents = response.data.result.response.map((content: IContent) => processContent(content))
     }
     contents = shuffleContent(contents)
@@ -226,23 +230,18 @@ recommendationApi.get('/usageBased', async (req, res) => {
     }
     res.json(result)
   } catch (err) {
-    logError('USAGE BASED RECOMMENDATIONS FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'USAGE BASED RECOMMENDATIONS FETCH ERROR >')
   }
 })
 
 recommendationApi.get('/:recommendationType', async (req, res) => {
   try {
-    const org = req.header('org')
-    const rootOrg = req.header('rootOrg')
-    const langCode = req.header('locale')
-    if (!org || !rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
+    const langCode = req.header('locale')
     const filters = req.query.filters
     let decodedFilters = {
       recommendationCategory: 'org',
@@ -287,7 +286,7 @@ recommendationApi.get('/:recommendationType', async (req, res) => {
       params,
     })
     let contents: IContent[] = []
-    if (Array.isArray(response.data.result && response.data.result.response)) {
+    if (Array.isArray(response.data.result?.response)) {
       contents = response.data.result.response.map((content: IContent) => processContent(content))
     }
     const result: IPaginatedApiResponse = {
@@ -296,10 +295,6 @@ recommendationApi.get('/:recommendationType', async (req, res) => {
     }
     res.json(result)
   } catch (err) {
-    logError('RECOMMENDATIONS TYPE FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: ERROR.GENERAL_ERR_MSG,
-      })
+    handleRecommendationError(res, err, 'RECOMMENDATIONS TYPE FETCH ERROR >')
   }
 })

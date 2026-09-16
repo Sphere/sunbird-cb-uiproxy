@@ -46,13 +46,13 @@ realTimeProgressApi.post("/update/:contentId", async (req, res) => {
     logInfoHeading("LMS Type :" + lmsStatus);
     if (lmsStatus) {
       // check statsus of course
-      var data = {
+      const data = {
         root_org: rootOrg,
         content_id: contentId,
         user_id: userId,
       };
 
-      var config = {
+      const config = {
         method: "post",
         url: "",
         headers: {

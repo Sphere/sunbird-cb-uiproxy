@@ -33,8 +33,8 @@ dashboardApi.post('/course/details', async (req: Request, res: Response) => {
 
     return res.send(learningHistoryItems)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -77,8 +77,8 @@ dashboardApi.get('/course', async (req: Request, res: Response) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -109,8 +109,8 @@ dashboardApi.get('/userOrgTime', async (req: Request, res) => {
 
     return res.send(response.data)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

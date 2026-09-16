@@ -17,8 +17,8 @@ deptApi.get('/getAllDept', async (_req, res) => {
         const response = await axios.get(API_END_POINTS.getAllDepartment, axiosRequestConfig)
         res.status(response.status).send(response.data)
     } catch (err) {
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
+        res.status(err?.response?.status || 500).send(
+            err?.response?.data || {
                 error: unknownError,
             }
         )
@@ -31,8 +31,8 @@ deptApi.get('/searchDept', async (req, res) => {
         const response = await axios.get(API_END_POINTS.searchDepartment(friendlyNameValue), axiosRequestConfig)
         res.status(response.status).send(response.data)
     } catch (err) {
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
+        res.status(err?.response?.status || 500).send(
+            err?.response?.data || {
                 error: unknownError,
             }
         )

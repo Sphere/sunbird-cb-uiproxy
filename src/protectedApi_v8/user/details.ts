@@ -143,7 +143,7 @@ export function wTokenApiMock(req: any, token: any): Promise<any> {
 
       request.post(url, options, async (error, _res, body) => {
         if (error) {
-          reject(error)
+          reject(error instanceof Error ? error : new Error(String(error)))
         }
         if (body.user) {
           const user = body.user
@@ -176,7 +176,7 @@ export function wTokenApiMock(req: any, token: any): Promise<any> {
     } catch (err) {
       // tslint:disable-next-line: no-console
       console.log('------------------W TOKEN ERROR---------\n', err)
-      reject()
+      reject(err instanceof Error ? err : new Error(String(err)))
     }
   })
 }

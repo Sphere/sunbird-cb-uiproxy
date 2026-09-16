@@ -34,8 +34,8 @@ userRolesApi.get('/getRolesDescription/:lang', async (req, res) => {
     res.send(response.data)
   } catch (err) {
     logError('GET ROLES DESCRIPTION V2 ERR -> ', err)
-    res.status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500)
+      .send(err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       })
   }
@@ -56,8 +56,8 @@ userRolesApi.get('/allRoles', async (req, res) => {
     res.json(response.data || {})
   } catch (err) {
     logError('ERROR ON GET USER ROLES >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -79,8 +79,8 @@ userRolesApi.get('/:id', async (req, res) => {
     res.json(response.data || {})
   } catch (err) {
     logError('ERROR ON GET USER ROLES >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -102,8 +102,8 @@ userRolesApi.patch('/', async (req, res) => {
     res.json(response.data || {})
   } catch (err) {
     logError('ERROR ON UPDATE USER ROLES >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

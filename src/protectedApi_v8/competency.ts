@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
@@ -14,6 +14,23 @@ const API_END_POINTS = {
 
 export const competencyApi = Router()
 const unknownError = 'Failed due to unknown reason'
+
+// sonar-cleanup: extracted from competency.ts's repeated per-route catch blocks — same status/body shape (Sonar duplication follow-up)
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleCompetencyError(res: Response, err: any) {
+  res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: unknownError,
+    }
+  )
+}
 
 competencyApi.get('/getCompetency', async (req, res) => {
   try {
@@ -31,11 +48,7 @@ competencyApi.get('/getCompetency', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleCompetencyError(res, err)
   }
 })
 
@@ -50,11 +63,7 @@ competencyApi.post('/addCompetency', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleCompetencyError(res, err)
   }
 })
 
@@ -73,10 +82,6 @@ competencyApi.post('/searchCompetency', async (req, res) => {
     )
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleCompetencyError(res, err)
   }
 })

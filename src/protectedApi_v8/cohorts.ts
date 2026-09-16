@@ -62,8 +62,8 @@ cohortsApi.get('/:cohortType/:contentId', async (req, res) => {
       res.status(response.status).send(response.data)
     }
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: unknownError,
       }
     )
@@ -82,8 +82,8 @@ cohortsApi.get('/:groupId', async (req, res) => {
     const response = await axios.get(API_END_POINTS.groupCohorts(groupId))
     res.status(response.status).send(response.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: unknownError,
       }
     )
@@ -101,8 +101,7 @@ export async function getAuthorsDetails(host: string, auth: string, contentId: s
       },
   })
     const ids: string[] = []
-    if (hierarchyResponse.data && hierarchyResponse.data.result &&
-      hierarchyResponse.data.result.content) {
+    if (hierarchyResponse.data?.result?.content) {
         const creatorDetails: string = hierarchyResponse.data.result.content.creatorDetails
         const authors = creatorDetails.substring(1, creatorDetails.length - 1).split(', ')
         authors.forEach((value) => {
@@ -153,8 +152,8 @@ cohortsApi.get('/user/autoenrollment/:courseId', async (req, res) => {
       res.status(response.status).send(response.data)
   } catch (err) {
       logError(err)
-      res.status((err && err.response && err.response.status) || 500).send(
-          (err && err.response && err.response.data) || {
+      res.status((err?.response?.status) || 500).send(
+          (err?.response?.data) || {
               error: unknownError,
           }
       )

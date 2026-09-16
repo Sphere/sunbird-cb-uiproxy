@@ -3,10 +3,10 @@ export function decoder(data: string): {} {
   const aBinaryView = new Uint8Array(sBinaryString.length)
   Array.prototype.forEach.call(
     aBinaryView,
-    (_el, idx, arr) => (arr[idx] = sBinaryString.charCodeAt(idx))
+    (_el, idx, arr) => (arr[idx] = sBinaryString.codePointAt(idx))
   )
   data = JSON.parse(
-    new Uint16Array(aBinaryView.buffer).reduce((str, byte) => str + String.fromCharCode(byte), '')
+    new Uint16Array(aBinaryView.buffer).reduce((str, byte) => str + String.fromCodePoint(byte), '')
   )
   return data
 }

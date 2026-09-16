@@ -31,7 +31,7 @@ export const setRolesData = async (reqObj: any, body: any) => {
   if (reqObj.session) {
     reqObj.session.userId = userId || userData.result.response.userId
     reqObj.session.userName = userData.result.response.userName
-    reqObj.session.userRoles = ROLE ? ROLE : []
+    reqObj.session.userRoles = ROLE || []
     reqObj.session.orgs = userData.result.response.organisations
     reqObj.session.rootOrgId = userData.result.response.rootOrgId
     if (!_.includes(reqObj.session.userRoles, 'PUBLIC')) {

@@ -7,7 +7,7 @@ export function getKeycloakConfig(url?: string, realm?: string) {
     'ssl-required': 'external',
     // tslint:disable-next-line: object-literal-sort-keys
     'public-client': true,
-    realm: realm ? realm : CONSTANTS.KEYCLOAK_REALM,
+    realm: realm || CONSTANTS.KEYCLOAK_REALM,
     resource: 'portal',
     'auth-server-url': url ? `${url}` : `${CONSTANTS.HTTPS_HOST}/auth`,
   }

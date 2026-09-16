@@ -38,8 +38,8 @@ exerciseApi.get('/getSubmissions', async (req, res) => {
     res.json(response.data)
   } catch (err) {
     logError(err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERR_MSG,
       }
     )
@@ -59,8 +59,8 @@ exerciseApi.post('/postsubmission/:contentId', async (req, res) => {
   } catch (err) {
     logError('ERROR CREATE CONTENT DIRECTORY ->', err)
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || {
         error: GENERAL_ERR_MSG,
       })
   }
@@ -78,8 +78,8 @@ exerciseApi.post('/createContentDirectory/:contentId', async (req, res) => {
   } catch (err) {
     logError('ERROR CREATE CONTENT DIRECTORY ->', err)
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || {
         error: GENERAL_ERR_MSG,
       })
   }
@@ -87,7 +87,7 @@ exerciseApi.post('/createContentDirectory/:contentId', async (req, res) => {
 
 exerciseApi.post('/uploadFileToContentDirectory/:contentId', async (req, res) => {
   try {
-    if (req.files && req.files.file) {
+    if (req.files?.file) {
       const file: UploadedFile = req.files.file as UploadedFile
       const formData = new FormData()
       formData.append('content', Buffer.from(file.data), {
@@ -102,7 +102,7 @@ exerciseApi.post('/uploadFileToContentDirectory/:contentId', async (req, res) =>
           })
         } else {
           res.send(
-            (err && err.message) || {
+            err?.message || {
               error: GENERAL_ERR_MSG,
             }
           )
@@ -114,8 +114,8 @@ exerciseApi.post('/uploadFileToContentDirectory/:contentId', async (req, res) =>
   } catch (err) {
     logError('ERROR UPLOAD FILE TO CONTENT DIRECTORY ->', err)
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || {
         error: GENERAL_ERR_MSG,
       })
   }

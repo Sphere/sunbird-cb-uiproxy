@@ -33,8 +33,8 @@ progressApi.get('/:contentId', async (req, res) => {
     res.json(response.data)
   } catch (err) {
     logError('FETCH MARK AS COMPLETE META => ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -64,8 +64,8 @@ progressApi.get('/', async (req, res) => {
   } catch (err) {
     logErrorHeading('PROGRESS HASH ERROR')
     logError(err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -96,8 +96,8 @@ progressApi.post('/', async (req, res) => {
   } catch (err) {
     logErrorHeading('PROGRESS HASH ERROR POST')
     logError(err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

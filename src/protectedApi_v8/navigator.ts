@@ -38,8 +38,8 @@ navigatorApi.get('/roles', async (_req, res) => {
     res.json(processRolesData(response))
   } catch (err) {
     logError('ERR FETCHING NSODATA -> ', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: 'Failed due to unknown reason',
       }
     )
@@ -74,33 +74,33 @@ navigatorApi.get('/lp', async (req, res) => {
     Number(req.query.pageSize) || 10000,
     req.query.topics ? req.query.topics.split(',') : [],
   ]
-  if (isNaN(pageNumber) || isNaN(pageSize)) {
+  if (Number.isNaN(pageNumber) || Number.isNaN(pageSize)) {
     res
       .status(400)
       .send({ error: 'Page number and Page size should be integers' })
-  } else {
-    const lpDataResponse = await axios.get(
-      API_END_POINTS.learningPathData,
-      axiosRequestConfig
-    )
-    const lpData =
-      topics && topics.length
-        ? filterOnTopics(lpDataResponse.data.lp_data, topics)
-        : lpDataResponse.data.lp_data
-    if (!lpData) {
-      res
-        .status(lpDataResponse.status)
-        .send({ error: ERROR.fetchErrorLearningPaths })
-    } else {
-      const size = lpData.length
-      const [start, end] = [pageSize * pageNumber, pageSize * (pageNumber + 1)]
-      if (start >= size) {
-        res.status(400).send({ error: 'Out of Range Error.' })
-      } else {
-        res.send(processAllLpData(lpData.slice(start, end)))
-      }
-    }
+    return
   }
+  const lpDataResponse = await axios.get(
+    API_END_POINTS.learningPathData,
+    axiosRequestConfig
+  )
+  const lpData =
+    topics?.length
+      ? filterOnTopics(lpDataResponse.data.lp_data, topics)
+      : lpDataResponse.data.lp_data
+  if (!lpData) {
+    res
+      .status(lpDataResponse.status)
+      .send({ error: ERROR.fetchErrorLearningPaths })
+    return
+  }
+  const size = lpData.length
+  const [start, end] = [pageSize * pageNumber, pageSize * (pageNumber + 1)]
+  if (start >= size) {
+    res.status(400).send({ error: 'Out of Range Error.' })
+    return
+  }
+  res.send(processAllLpData(lpData.slice(start, end)))
 })
 
 navigatorApi.get('/lp/:lpId', async (req, res) => {
@@ -129,7 +129,7 @@ navigatorApi.get('/fp', async (req, res) => {
     Number(req.query.pageNumber) || 0,
     Number(req.query.pageSize) || 10000,
   ]
-  if (isNaN(pageNumber) || isNaN(pageSize)) {
+  if (Number.isNaN(pageNumber) || Number.isNaN(pageSize)) {
     res
       .status(400)
       .send({ error: 'Page number and Page size should be integers' })
@@ -244,7 +244,7 @@ function processRoles(role: IRole): IRole {
 
 function processVariant(variant: IVariant): IVariant {
   let count = 0
-  if (variant && variant.group) {
+  if (variant?.group) {
     variant.group.forEach((element: IGroup) => {
       const dataChange = processGroup(element)
       variant.group[count] = dataChange

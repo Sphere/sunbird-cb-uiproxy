@@ -1,5 +1,4 @@
 import { Request } from 'express'
-import uuid from 'uuid'
 export interface IAuthorizedRequest extends Request {
   kauth?: {
     grant: {
@@ -33,54 +32,32 @@ export const extractUserId = (req: IAuthorizedRequest): string => {
     return wid
   }
   /* tslint:disable-next-line */
-  const userId = (req.kauth &&
-    req.kauth.grant.access_token.content.sub) as string
+  const userId = req.kauth?.grant.access_token.content.sub as string
   return userId.split(':')[2]
 }
 
 export const extractUserNameFromRequest = (req: IAuthorizedRequest) =>
   /* tslint:disable-next-line */
-  (req.kauth && req.kauth.grant.access_token.content.name) as string
+  req.kauth?.grant.access_token.content.name
 
 export const extractUserEmailFromRequest = (req: IAuthorizedRequest) =>
   /* tslint:disable-next-line */
-  ((req.kauth && req.kauth.grant.access_token.content.email) ||
-    (req.kauth &&
+  req.kauth?.grant.access_token.content.email ||
   /* tslint:disable-next-line */
-      req.kauth.grant.access_token.content.preferred_username)) as string
-
-export const extractUserSessionState = (req: IAuthorizedRequest) =>
-  /* tslint:disable-next-line */
-  (req.kauth && req.kauth.grant.access_token.content.session_state) as string
+    req.kauth?.grant.access_token.content.preferred_username
 
 export const extractUserTokenContent = (req: IAuthorizedRequest) => {
-  return req.kauth && req.kauth.grant.access_token.content
+  return req.kauth?.grant.access_token.content
 }
 
 export const extractUserToken = (req: IAuthorizedRequest) => {
-  return req.kauth && req.kauth.grant.access_token.token
+  return req.kauth?.grant.access_token.token
 }
 
 export const extractAuthorizationFromRequest = (
   req: IAuthorizedRequest
 ): string => {
-  const token = req.kauth && req.kauth.grant.access_token.token
+  const token = req.kauth?.grant.access_token.token
   // Bearer is added as other areas are using split function to get the token
   return 'Bearer ' + token
 }
-export const extractUserTokenFromRequest = (
-  req: IAuthorizedRequest
-  /* tslint:disable-next-line */
-): string => {
-  const xAuthorization = req.header('X-Authenticated-User-Token')
-  /* tslint:disable-next-line */
-  return xAuthorization as string
-}
-
-export const extractRootOrgFromRequest = (req: IAuthorizedRequest): string => {
-  const rootOrg = req.header('rootorg')
-  /* tslint:disable-next-line */
-  return rootOrg as string
-}
-
-export const getUUID = () => uuid.v1()

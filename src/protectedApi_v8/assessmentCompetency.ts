@@ -22,8 +22,8 @@ assessmentCompetency.get('/v1/assessment/*', async (req, res) => {
     })
     logInfo('New getAssessments competency >>>>>>>>>>> ', path)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: unknownError,
       }
     )
@@ -42,8 +42,8 @@ assessmentCompetency.post('/v1/assessment/submit', async (req, res) => {
     )
     res.status(assessmentSubmitStatus.status).json(assessmentSubmitStatus.data)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: unknownError,
       }
     )

@@ -82,7 +82,7 @@ badgeApi.post('/newUser', async (req, res) => {
     res.json(response.data)
   } catch (err) {
     res.status(500).send(
-      (err && err.response && err.response.data) || {
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -106,7 +106,7 @@ badgeApi.post('/update', async (req, res) => {
     res.json(response.data)
   } catch (err) {
     res.status(500).send(
-      (err && err.response && err.response.data) || {
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -129,13 +129,13 @@ badgeApi.get('/notification', async (req, res) => {
       recent_badge: null,
       totalPoints: [],
     }
-    if (response.data && response.data.result) {
+    if (response.data?.result) {
       result = processRecentBadges(response.data.result.response)
     }
     res.send(result)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

@@ -1,30 +1,17 @@
 import axios from 'axios'
 import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
-import _ from 'lodash'
 import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
+import { API_END_POINTS } from '../utils/autoLoginSignupConstants'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
+import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
 import { logError, logInfo } from '../utils/logger'
-import { getOTP, validateOTP } from './otp'
+import { createAccount, profileUpdate } from '../utils/signupAccountHelpers'
 import { getCurrentUserRoles } from './rolePermission'
-
-const API_END_POINTS = {
-  createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-  generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
-  grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-  keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
-  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-  profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-  verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-}
+// sonar-cleanup: OTP-dispatch/verify tails replaced with the shared import (CHANGE 33)
+import { sendRegistrationOtp, verifyRegistrationOtp } from './signupOtpDispatch'
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
@@ -33,50 +20,6 @@ const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'
 
-// function decryptData(encryptedData) {
-//   const buff = Buffer.from(encryptedData, "base64");
-//   const decipher = crypto.createDecipheriv(
-//     aesData.ecnryption_method,
-//     key,
-//     encryptionIV
-//   );
-//   return (
-//     decipher.update(buff.toString("utf8"), "hex", "utf8") +
-//     decipher.final("utf8")
-//   ); // Decrypts data and converts to utf8
-// }
-// tslint:disable-next-line: no-any
-const indianCountryCode = '+91'
-
-const msg91Headers = {
-  accept: 'application/json',
-  authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-  'content-type': 'application/json',
-}
-// tslint:disable-next-line: no-any
-const createAccount = async (profileData: any) => {
-  try {
-    const typeOfAccount = profileData.email ? 'email' : 'phone'
-    return await axios({
-      ...axiosRequestConfig,
-      data: {
-        request: {
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          password: profileData.password,
-          [typeOfAccount]: profileData[typeOfAccount],
-        },
-      },
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'POST',
-      url: API_END_POINTS.createUserWithMobileNo,
-    })
-  } catch (error) {
-    logInfo(JSON.stringify(error))
-  }
-}
 const updateRoles = async (userUUId: string) => {
   try {
     return await axios({
@@ -95,37 +38,6 @@ const updateRoles = async (userUUId: string) => {
   } catch (err) {
     logError('update roles failed ' + err)
     return 'false'
-  }
-}
-// tslint:disable-next-line: no-any
-const profileUpdate = async (profileData: any, userId: any) => {
-  try {
-    return await axios({
-      ...axiosRequestConfig,
-      data: {
-        request: {
-          profileDetails: {
-            preferences: {
-              language: 'en',
-            },
-            profileReq: {
-              id: userId,
-              personalDetails: {
-                firstname: profileData.firstName,
-                surname: profileData.lastName,
-              },
-              userId,
-            },
-          },
-          userId,
-        },
-      },
-      headers: { Authorization: CONSTANTS.SB_API_KEY },
-      method: 'PATCH',
-      url: API_END_POINTS.profileUpdate,
-    })
-  } catch (error) {
-    logInfo(JSON.stringify(error))
   }
 }
 export const signupWithAutoLogin = Router()
@@ -166,56 +78,7 @@ signupWithAutoLogin.post('/register', async (req, res) => {
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail.data.result.userId
     await profileUpdate(profileData, userId)
-    if (userPhone) {
-      try {
-        logInfo('Autologin send otp through phone', userPhone)
-        await axios({
-          headers: msg91Headers,
-          params: {
-            mobile: `${indianCountryCode}${userPhone}`,
-            template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
-          },
-
-          method: 'POST',
-          url: API_END_POINTS.msg91SendOtp,
-        })
-        return res.status(200).json({
-          data: `OTP successfully sent on email ${userPhone}`,
-          message: 'User successfully created',
-          status: 200,
-          userId,
-        })
-      } catch (error) {
-        logError('Error while sending mobile OTP', JSON.stringify(error))
-        return res.status(500).send({
-          message: `OTP generation fail for phone ${userPhone}`,
-          status: 'failed',
-        })
-      }
-
-    }
-    if (userEmail) {
-      try {
-        logInfo('Autologin send otp through email', userEmail)
-        await getOTP(
-          userId,
-          userEmail,
-          'email'
-        )
-        res.status(200).json({
-          data: `OTP successfully sent on email ${userEmail}`,
-          message: 'User successfully created',
-          status: 200,
-          userId,
-        })
-      } catch (error) {
-        logError('Error while sending email OTP', JSON.stringify(error))
-        res.status(500).send({
-          message: `OTP generation fail for email ${userEmail}`,
-          status: 'failed',
-        })
-      }
-    }
+    await sendRegistrationOtp(res, userPhone, userEmail, userId)
   } catch (error) {
     logInfo('Error in user creation >>>>>>' + error)
     res.status(500).send({
@@ -246,42 +109,8 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
         res.status(400).send({ message: OTP_MISSING, status: 'error' })
         return
       }
-      let userOtpVerified = false
-      if (mobileNumber) {
-        logInfo('VALIDATE_OTP: for phone', mobileNumber, validOtp)
-        const verifyOtpResponse = await axios({
-          headers: msg91Headers,
-          method: 'GET',
-          params: {
-            mobile: `${indianCountryCode}${mobileNumber}`,
-            otp: validOtp,
-          },
-          url: API_END_POINTS.msg91VerifyOtp,
-        })
-        logInfo('VALIDATE_OTP: response phone', JSON.stringify(verifyOtpResponse.data))
-        if (verifyOtpResponse.data.type !== 'success') {
-          return res.status(400).json({
-            message: 'Phone OTP validation failed try again',
-          })
-        }
-        userOtpVerified = true
-      }
-      if (email) {
-        logInfo('VALIDATE_OTP: for email')
-        const verifyOtpResponse = await validateOTP(
-          userUUId,
-          email,
-          'email',
-          validOtp
-        )
-        logInfo('VALIDATE_OTP: response email', JSON.stringify(verifyOtpResponse.data))
-        if (verifyOtpResponse.data.result.response !== 'SUCCESS') {
-          return res.status(400).json({
-            message: 'Email OTP validation failed try again',
-          })
-        }
-        userOtpVerified = true
-      }
+      const userOtpVerified = await verifyRegistrationOtp(res, mobileNumber, email, userUUId, validOtp)
+      if (userOtpVerified === undefined) return
       if (userOtpVerified) {
         logInfo('VALIDATE_OTP: Otp is verified. Now autologin started.')
         await updateRoles(userUUId)
@@ -296,7 +125,7 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
                 client_id: 'portal',
                 grant_type: 'password',
                 password,
-                username: mobileNumber ? mobileNumber : email,
+                username: mobileNumber || email,
               })
               logInfo('VALIDATE_OTP:Entered into authorization part.' + transformedData)
               const authTokenResponse = await axios({
@@ -355,37 +184,3 @@ signupWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
     })
   }
 })
-
-const fetchUserBymobileorEmail = async (
-  searchValue: string,
-  searchType: string
-) => {
-  logInfo(
-    'Checking Fetch Mobile no : ',
-    API_END_POINTS.fetchUserByMobileNo + searchValue
-  )
-  try {
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'GET',
-      url:
-        searchType === 'email'
-          ? API_END_POINTS.fetchUserByEmail + searchValue
-          : API_END_POINTS.fetchUserByMobileNo + searchValue,
-    })
-    logInfo('Response Data in JSON :', JSON.stringify(response.data))
-    logInfo('Response Data in Success :', response.data.responseCode)
-    if (response.data.responseCode === 'OK') {
-      logInfo(
-        'Response result.exists :',
-        _.get(response, 'data.result.exists')
-      )
-      return _.get(response, 'data.result.exists')
-    }
-  } catch (err) {
-    logError('fetchUserByMobile  failed')
-  }
-}

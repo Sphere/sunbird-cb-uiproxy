@@ -1,8 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { IContent } from '../models/content.model'
-import { processContent } from '../utils/contentHelpers'
+import { sendSearchResponse } from '../utils/contentHelpers'
 import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 
@@ -25,19 +24,7 @@ publicContentApi.post('/v1/search', async (req, res) => {
       method: 'POST',
       url: API_END_POINTS.searchv1,
     })
-    const contents: IContent[] = response.data.result
-    if (Array.isArray(contents)) {
-      response.data.result = contents.map((content) => processContent(content))
-    }
-    res.json(
-      response.data || {
-        filters: [],
-        filtersUsed: [],
-        notVisibleFilters: [],
-        result: [],
-        totalHits: 0,
-      }
-    )
+    sendSearchResponse(res, response)
   } catch (err) {
     logError('SEARCH V6 API ERROR >', err)
     res.status((err && err.response && err.response.status) || 500).send(

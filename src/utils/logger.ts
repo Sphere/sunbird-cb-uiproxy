@@ -30,9 +30,6 @@ export function logInfo(...msgs: string[]) {
 export function logWarnHeading(msg: string) {
   log(chalk.bgYellow(msg))
 }
-export function logWarn(...msgs: string[]) {
-  log(chalk.yellow(...msgs))
-}
 
 export function logErrorHeading(msg: string) {
   log(chalk.bgRed(msg))
@@ -41,9 +38,6 @@ export function logError(...msgs: string[]) {
   log(chalk.red(...msgs))
 }
 
-export function logSuccessHeading(msg: string) {
-  log(chalk.bgGreen(msg))
-}
 export function logSuccess(...msgs: string[]) {
   log(chalk.green(...msgs))
 }

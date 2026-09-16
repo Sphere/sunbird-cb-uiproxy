@@ -1,10 +1,4 @@
-import { EMimeTypes, IContent, TContentType } from './content.model'
-
-export enum EPlaylistTypes {
-  ME = 'user',
-  SHARED = 'share',
-  PENDING = 'pending',
-}
+import { IContent } from './content.model'
 
 export enum EPlaylistUpsertTypes {
   add = 'add',
@@ -42,20 +36,6 @@ export interface IPlaylistSbExtBase {
   status?: string
 }
 
-export interface IPlaylistSbExt extends IPlaylistSbExtBase {
-  resource: IResourceSbExt[]
-}
-
-export interface IResourceSbExt {
-  appIcon: string
-  resource_id: string
-  time_duration: number
-  mimeType: EMimeTypes
-  resource_name: string
-  contentType: TContentType
-  resourceType: string
-}
-
 export interface IPlaylistSbExtResponse {
   result: {
     response: IPlaylistSbExtBase[]
@@ -75,12 +55,6 @@ export interface IPlaylistSbDeleteRequest {
   content: string[]
 }
 
-export interface IPlaylistSbUpdateRequest {
-  playlist_title: string
-  content_ids?: string[]
-  visibility?: string
-}
-
 export interface IPlaylistUpsertRequest {
   contentIds: string[]
 }
@@ -92,21 +66,6 @@ export interface IPlaylistCreateRequest {
   shareWith?: string[]
   shareMsg?: string
   visibility: string
-}
-
-export interface IPlaylistUpdateTitleRequest {
-  playlist_title: string
-  content_ids: IPlaylistResource[]
-  visibility?: string
-}
-
-export interface IPlayListContentResource {
-  identifier: string
-}
-
-export interface IPlayListUpdateRequest {
-  playlist_title: string
-  contentIds: IPlayListContentResource[]
 }
 
 export interface IPlaylist {
@@ -123,33 +82,6 @@ export interface IPlaylist {
   sharedOn?: string
   visibility: string
   status?: string
-}
-
-export interface IPlaylistResource {
-  appIcon: string
-  identifier: string
-  duration: number
-  mimeType: EMimeTypes
-  displayContentType?: string
-  name: string
-  contentType: TContentType
-  resourceType?: string
-  hasAccess?: boolean
-  description?: string
-}
-
-export interface IPlaylistShareRequestSbExt {
-  request: {
-    playlist_id: string
-    playlist_title: string
-    resource_ids: string[]
-    shared_with: string[]
-  }
-}
-
-export interface IPlaylistShareRequest {
-  users: string[]
-  message?: string
 }
 
 export interface IPlaylistSbExtSyncRequest {

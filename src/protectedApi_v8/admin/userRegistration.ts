@@ -38,6 +38,25 @@ const API_ENDPOINTS = {
 
 export const userRegistrationApi = Router()
 
+// sonar-cleanup: extracted from this file's repeated per-route catch blocks — same
+// logError(label, err) + status(err.response.status || 500).send(err.response.data || {})
+// shape (CHANGE 38)
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or an empty object).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+function handleUserRegistrationError(res: any, err: any, label: string) {
+  logError(label, err)
+  res
+    .status(err?.response?.status || 500)
+    .send(err?.response?.data || {})
+}
+
 userRegistrationApi.get('/listUsers/:source', async (req, res) => {
   try {
     const rootOrg = req.header('rootOrg')
@@ -47,10 +66,7 @@ userRegistrationApi.get('/listUsers/:source', async (req, res) => {
     })
     res.json(response.data)
   } catch (err) {
-    logError('ERROR ON GET ALL REGISTERED USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON GET ALL REGISTERED USERS >')
   }
 })
 
@@ -65,10 +81,7 @@ userRegistrationApi.post('/deregisterUsers/:source', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    logError('ERROR ON DEREGISTER USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON DEREGISTER USERS >')
   }
 })
 
@@ -87,10 +100,7 @@ userRegistrationApi.get('/getAllSources', async (req, res) => {
     )
     res.json(data || {})
   } catch (err) {
-    logError('ERROR ON GET ALL SOURCES >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON GET ALL SOURCES >')
   }
 })
 
@@ -107,10 +117,7 @@ userRegistrationApi.get('/getSourceDetail/:id', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON GET SOURCE DETAILS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON GET SOURCE DETAILS >')
   }
 })
 
@@ -130,10 +137,7 @@ userRegistrationApi.get(
       )
       res.json(response.data || {})
     } catch (err) {
-      logError('ERROR ON CHECK SOURCE REGISTRATION STATUS >', err)
-      res
-        .status((err && err.response && err.response.status) || 500)
-        .send((err && err.response && err.response.data) || {})
+      handleUserRegistrationError(res, err, 'ERROR ON CHECK SOURCE REGISTRATION STATUS >')
     }
   }
 )
@@ -154,10 +158,7 @@ userRegistrationApi.post('/register', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON REGISTRATIO USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON REGISTRATIO USERS >')
   }
 })
 
@@ -172,7 +173,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
       } else {
         res
           .status(400)
-          .send('1003: User could not be created in Keycloack !!' || {})
+          .send('1003: User could not be created in Keycloack !!')
       }
     })
     if (createKeycloak && createKeycloak.id) {
@@ -183,22 +184,18 @@ userRegistrationApi.post('/create-user', async (req, res) => {
           logError('/create-user ERROR ON UpdateKeycloakUserPassword', error)
           res
             .status(400)
-            .send('1003: User default password could not be set !!' || {})
+            .send('1003: User default password could not be set !!')
         }
       )
       getAuthToken(req.body.email)
         .then(async (kcaAuthToken) => {
-          if (kcaAuthToken && kcaAuthToken.access_token) {
+          if (kcaAuthToken?.access_token) {
             const wTokenResponse = await wTokenApiMock(
               req,
               kcaAuthToken.access_token
             )
             // tslint:disable-next-line: max-line-length
-            if (
-              wTokenResponse &&
-              wTokenResponse.user &&
-              wTokenResponse.user.length
-            ) {
+            if (wTokenResponse?.user?.length) {
               logInfo('New User keycloak auth successfull')
               logInfo(
                 `User: ${req.body.email} -- wid: ${wTokenResponse.user[0].wid}`
@@ -208,7 +205,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
         })
         .catch((error) => {
           logError('ERROR ON getAuthToken', error)
-          res.status(400).send('1004: User getAuthToken failed !!' || {})
+          res.status(400).send('1004: User getAuthToken failed !!')
         })
       await UpdateKeycloakUserPassword(createKeycloak.id, true).catch(
         // tslint:disable-next-line: no-any
@@ -219,7 +216,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
           )
           res
             .status(400)
-            .send('1003: User default password could not be set !!' || {})
+            .send('1003: User default password could not be set !!')
         }
       )
       await sendActionsEmail(createKeycloak.id).catch((error) => {
@@ -230,10 +227,7 @@ userRegistrationApi.post('/create-user', async (req, res) => {
       res.json({ data: 'User Created successfully!' })
     }
   } catch (err) {
-    logError('ERROR ON CREATE USERS >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON CREATE USERS >')
   }
 })
 
@@ -244,7 +238,7 @@ userRegistrationApi.post('/user/access-path', async (req, res) => {
     const query = `SELECT * FROM ${CONSTANTS.CASSANDRA_KEYSPACE}.user_access_paths
             WHERE user_id=${req.body.wid}`
     clientConnect.execute(query, (err, result) => {
-      if (!err && result && result.rows) {
+      if (!err && result?.rows) {
         const key = result.rows
         clientConnect.shutdown()
         res.json(key || {})
@@ -255,10 +249,7 @@ userRegistrationApi.post('/user/access-path', async (req, res) => {
     })
     // })
   } catch (err) {
-    logError('/user/access-path:: ERROR ON access-path >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, '/user/access-path:: ERROR ON access-path >')
   }
 })
 
@@ -291,10 +282,7 @@ userRegistrationApi.post('/user/update-access-path', async (req, res) => {
     })
     // })
   } catch (err) {
-    logError('/user/update-access-path:: ERROR ON access-path >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, '/user/update-access-path:: ERROR ON access-path >')
   }
 })
 
@@ -319,7 +307,7 @@ userRegistrationApi.post('/bulkUpload', async (req, res) => {
     )
     const workSheetsFromFile = xlsx.parse(filePath + `${uuid}.${ext}`)
     for (const sheet of workSheetsFromFile) {
-      if (sheet.data && sheet.data.length) {
+      if (sheet.data?.length) {
         // tslint:disable-next-line: no-any
         const [fnameHeader, lnameHeader, emailHeader, ...rolesHeaders] =
           // tslint:disable-next-line: no-any
@@ -339,7 +327,7 @@ userRegistrationApi.post('/bulkUpload', async (req, res) => {
             const validFname = await validateInputWithRegex(fname, nameRegex)
             const validLname = await validateInputWithRegex(lname, nameRegex)
             const validEmail = await validateInputWithRegex(email, emailRegex)
-            if (rolesHeaders && rolesHeaders.length && roles && roles.length) {
+            if (rolesHeaders?.length && roles?.length) {
               for (const [i, val] of rolesHeaders.entries()) {
                 if (
                   roles[i] &&
@@ -420,10 +408,7 @@ userRegistrationApi.post('/bulkUpload', async (req, res) => {
     }
     await insertBulkUploadStatus(reqToUpdate)
   } catch (err) {
-    logError('ERROR ON BULK UPLOAD >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON BULK UPLOAD >')
   }
 })
 
@@ -465,16 +450,16 @@ export async function performNewUserSteps(
     await getAuthToken(email)
       .then(async (kcaAuthToken) => {
         logInfo('access_token successfull: ', kcaAuthToken.access_token)
-        if (kcaAuthToken && kcaAuthToken.access_token) {
+        if (kcaAuthToken?.access_token) {
           const wTokenResponse = await wTokenApiMock(
             req,
             kcaAuthToken.access_token
           )
           // tslint:disable-next-line: max-line-length
-          if (wTokenResponse && wTokenResponse.user) {
+          if (wTokenResponse?.user) {
             logInfo('New User Wtoken auth successfull')
             logInfo(`User: ${email} -- wid: ${wTokenResponse.user.wid}`)
-            if (roles && roles.length) {
+            if (roles?.length) {
               const updateRolesReq = {
                 operation: 'add',
                 roles: [...roles],
@@ -550,7 +535,7 @@ userRegistrationApi.get('/bulkUploadData', async (req, res) => {
             WHERE user_id=${extractUserIdFromRequest(req)}  allow filtering`
     // tslint:disable-next-line: no-identical-functions
     clientConnect.execute(query, (err, result) => {
-      if (!err && result && result.rows) {
+      if (!err && result?.rows) {
         const key = result.rows
         clientConnect.shutdown()
         res.json(key || {})
@@ -560,10 +545,7 @@ userRegistrationApi.get('/bulkUploadData', async (req, res) => {
       }
     })
   } catch (err) {
-    logError('ERROR ON bulkUploadData >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON bulkUploadData >')
   }
 })
 
@@ -585,10 +567,7 @@ userRegistrationApi.get('/bulkUploadReport/:id', async (req, res) => {
       }
     })
   } catch (err) {
-    logError('ERROR ON /bulkUploadReport/:id >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON /bulkUploadReport/:id >')
   }
 })
 
@@ -610,10 +589,7 @@ userRegistrationApi.get('/user/department', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON /user/department >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON /user/department >')
   }
 })
 
@@ -636,9 +612,6 @@ userRegistrationApi.post('/user/department/update', async (req, res) => {
     )
     res.json(response.data || {})
   } catch (err) {
-    logError('ERROR ON /user/department >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleUserRegistrationError(res, err, 'ERROR ON /user/department >')
   }
 })

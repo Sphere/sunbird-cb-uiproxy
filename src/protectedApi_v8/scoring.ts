@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
@@ -25,6 +25,24 @@ const scoringServiceheaders = {
     Authorization: CONSTANTS.SB_API_KEY,
     'Content-Type': 'application/json',
 }
+
+// sonar-cleanup: extracted from scoring.ts's repeated per-route catch blocks — same logError(failedToProcess + err) + status/body shape (CHANGE 8)
+/**
+ * Logs the error, then responds with the upstream status code (or 500) and
+ * the upstream error body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleScoringError(res: Response, err: any) {
+    logError(failedToProcess + err)
+    res.status((err && err.response && err.response.status) || 500).send(
+        (err && err.response && err.response.data) || {
+            error: unknownError,
+        }
+    )
+}
 scoringApi.post('/comments/create', async (req, res) => {
     try {
         logInfo('Inside comments creation API')
@@ -36,12 +54,7 @@ scoringApi.post('/comments/create', async (req, res) => {
         })
         res.status(commentsCreateResponse.status).send(commentsCreateResponse.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: unknownError,
-            }
-        )
+        handleScoringError(res, err)
     }
 })
 scoringApi.get('/comments/course', async (req, res) => {
@@ -57,12 +70,7 @@ scoringApi.get('/comments/course', async (req, res) => {
         })
         res.status(getCommentsByCourseResponse.status).send(getCommentsByCourseResponse.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: unknownError,
-            }
-        )
+        handleScoringError(res, err)
     }
 })
 scoringApi.put('/comments/update', async (req, res) => {
@@ -79,12 +87,7 @@ scoringApi.put('/comments/update', async (req, res) => {
         })
         res.status(updateCommentsResponse.status).send(updateCommentsResponse.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: unknownError,
-            }
-        )
+        handleScoringError(res, err)
     }
 })
 scoringApi.get('/comments/getAllComments', async (req, res) => {
@@ -101,12 +104,7 @@ scoringApi.get('/comments/getAllComments', async (req, res) => {
         })
         res.status(getAllCommentsResponse.status).send(getAllCommentsResponse.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: unknownError,
-            }
-        )
+        handleScoringError(res, err)
     }
 })
 scoringApi.post('/calculate', async (req, res) => {
@@ -133,12 +131,7 @@ scoringApi.post('/calculate', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: unknownError,
-            }
-        )
+        handleScoringError(res, err)
     }
 })
 
@@ -166,12 +159,7 @@ scoringApi.post('/fetch', async (req, res) => {
         )
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: unknownError,
-            }
-        )
+        handleScoringError(res, err)
     }
 })
 
@@ -196,11 +184,6 @@ scoringApi.get('/getTemplate/:templateId', async (req, res) => {
         })
         res.status(response.status).send(response.data)
     } catch (err) {
-        logError(failedToProcess + err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: unknownError,
-            }
-        )
+        handleScoringError(res, err)
     }
 })

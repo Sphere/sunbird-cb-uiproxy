@@ -102,8 +102,8 @@ protectedTnc.get('/status', async (req, res) => {
     const response = await getTncStatus(userId, rootOrg, org, locale)
     res.send(response)
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -130,8 +130,8 @@ protectedTnc.get('/', async (req, res) => {
   } catch (err) {
     logError('TNC SEND ERROR', err)
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       })
   }
@@ -170,8 +170,8 @@ protectedTnc.post('/accept', async (req, res) => {
     res.status(500).send(response.data)
   } catch (err) {
     logError('ERROR WHILE ACCEPTING TNC', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -201,8 +201,8 @@ protectedTnc.patch('/postprocessing', async (req, res) => {
     res.status(response.data ? 200 : 204).send(response.data)
   } catch (err) {
     logError('ERROR WHILE POSTPROCESSING', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -224,8 +224,8 @@ protectedTnc.get('/system/settings/:configName', async (req, res) => {
   } catch (err) {
     logError('Getting error while searching the system config', err)
     res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
+      .status(err?.response?.status || 500)
+      .send(err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       })
   }
@@ -247,8 +247,8 @@ protectedTnc.post('/sbacceptTnc', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
       logError(err)
-      res.status((err && err.response && err.response.status) || 500).send(
-          (err && err.response && err.response.data) || {
+      res.status(err?.response?.status || 500).send(
+          err?.response?.data || {
               error: GENERAL_ERROR_MSG,
           }
       )

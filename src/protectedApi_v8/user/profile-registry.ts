@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Request, Response, Router } from 'express'
 import {
   axiosRequestConfig,
   axiosRequestConfigLong,
@@ -43,9 +43,19 @@ const ERROR_MESSAGE_CREATE_REGISTRY = 'ERROR CREATING USER REGISTRY >'
 
 export const profileRegistryApi = Router()
 
-profileRegistryApi.post('/createUserRegistry', async (req, res) => {
+// sonar-cleanup: extracted from /createUserRegistry and /createUserRegistryV2/:userId, otherwise identical (CHANGE 25) — userId resolution stays at each call site, not inside this function
+/**
+ * Creates a new registry for userId, or updates the existing one if a
+ * profile is already found — shared by /createUserRegistry (resolves
+ * userId from the authenticated request) and /createUserRegistryV2/:userId
+ * (resolves it from the URL param), which are otherwise identical.
+ *
+ * @param req - the incoming request; its body is forwarded to the upstream call
+ * @param res - the Express response to send the upstream result (or an error) on
+ * @param userId - the user id to create or update the registry for
+ */
+async function createOrUpdateUserRegistry(req: Request, res: Response, userId: string) {
   try {
-    const userId = extractUserIdFromRequest(req)
     logInfo('Create user registry for', userId)
     const getUserIdExistresponse = await axios.get(
       API_END_POINTS.getUserRegistryById(userId),
@@ -53,12 +63,7 @@ profileRegistryApi.post('/createUserRegistry', async (req, res) => {
         ...axiosRequestConfig,
       }
     )
-    if (
-      getUserIdExistresponse.data &&
-      getUserIdExistresponse.data.result &&
-      getUserIdExistresponse.data.result.UserProfile &&
-      getUserIdExistresponse.data.result.UserProfile.length
-    ) {
+    if (getUserIdExistresponse.data?.result?.UserProfile?.length) {
       const response = await axios.post(
         API_END_POINTS.updateUserRegistry(userId),
         { ...req.body, userId },
@@ -68,8 +73,6 @@ profileRegistryApi.post('/createUserRegistry', async (req, res) => {
       )
       res.status(response.status).json(response.data)
     } else {
-      // const data = req.body;
-      // const deptName = req.body.
       const response = await axios.post(
         API_END_POINTS.createUserRegistry(userId),
         { ...req.body, userId },
@@ -81,8 +84,12 @@ profileRegistryApi.post('/createUserRegistry', async (req, res) => {
     }
   } catch (err) {
     logError(ERROR_MESSAGE_CREATE_REGISTRY, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
+}
+
+profileRegistryApi.post('/createUserRegistry', async (req, res) => {
+  await createOrUpdateUserRegistry(req, res, extractUserIdFromRequest(req))
 })
 
 profileRegistryApi.post('/updateUserRegistry', async (req, res) => {
@@ -99,7 +106,7 @@ profileRegistryApi.post('/updateUserRegistry', async (req, res) => {
     res.status(response.status).json(response.data)
   } catch (err) {
     logError(ERROR_MESSAGE_CREATE_REGISTRY, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -117,7 +124,7 @@ profileRegistryApi.post('/updateUserWorkflowRegistry', async (req, res) => {
     res.status(response.status).json(response.data)
   } catch (err) {
     logError('ERROR UPDATING USER REGISTRY WORKFLOW>', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -136,7 +143,7 @@ profileRegistryApi.get('/getUserRegistry/:osid', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -156,7 +163,7 @@ profileRegistryApi.get('/getUserRegistryById', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY by id >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -175,7 +182,7 @@ profileRegistryApi.post('/searchUserRegistry', async (req, res) => {
     res.status(response.status).json(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY by id >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -196,7 +203,7 @@ profileRegistryApi.get('/getUserRegistryByUser/:id', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('ERROR FETCHING USER REGISTRY >', err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -213,7 +220,7 @@ profileRegistryApi.get('/getMasterNationalities', async (_req, res) => {
       }
     )
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -233,7 +240,7 @@ profileRegistryApi.get('/getMasterLanguages', async (_req, res) => {
       }
     )
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -262,7 +269,7 @@ profileRegistryApi.get('/getProfilePageMeta', async (_req, res) => {
       states,
     })
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(err)
+    res.status(err?.response?.status || 500).send(err)
   }
 })
 
@@ -400,45 +407,7 @@ export async function designationMeta() {
 }
 
 profileRegistryApi.post('/createUserRegistryV2/:userId', async (req, res) => {
-  try {
-    const userId = req.params.userId
-    logInfo('Create user registry for', userId)
-    const getUserIdExistresponse = await axios.get(
-      API_END_POINTS.getUserRegistryById(userId),
-      {
-        ...axiosRequestConfig,
-      }
-    )
-    if (
-      getUserIdExistresponse.data &&
-      getUserIdExistresponse.data.result &&
-      getUserIdExistresponse.data.result.UserProfile &&
-      getUserIdExistresponse.data.result.UserProfile.length
-    ) {
-      const response = await axios.post(
-        API_END_POINTS.updateUserRegistry(userId),
-        { ...req.body, userId },
-        {
-          ...axiosRequestConfigLong,
-        }
-      )
-      res.status(response.status).json(response.data)
-    } else {
-      // const data = req.body;
-      // const deptName = req.body.
-      const response = await axios.post(
-        API_END_POINTS.createUserRegistry(userId),
-        { ...req.body, userId },
-        {
-          ...axiosRequestConfigLong,
-        }
-      )
-      res.status(response.status).json(response.data)
-    }
-  } catch (err) {
-    logError(ERROR_MESSAGE_CREATE_REGISTRY, err)
-    res.status((err && err.response && err.response.status) || 500).send(err)
-  }
+  await createOrUpdateUserRegistry(req, res, req.params.userId)
 })
 
 export async function getProfileStatus(userId: string) {

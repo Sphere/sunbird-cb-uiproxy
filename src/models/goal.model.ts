@@ -1,27 +1,9 @@
 import { EMimeTypes, IContentMinimal, TContentType } from './content.model'
 
-export interface IGoalUpsertRequest {
-  id?: string
-  type: string
-  contentIds?: string[]
-  name?: string
-  description?: string
-  duration?: number
-}
-
 export interface IGoalUserData {
   email?: string
   name?: string
   userId?: string
-}
-
-export interface IGoalUpsertSbExt {
-  goal_id?: string
-  goal_type: string
-  goal_content_id?: string[]
-  goal_title?: string
-  goal_desc?: string
-  goal_duration?: number
 }
 
 export interface IGoalSbExtV1 {
@@ -187,17 +169,6 @@ export interface ITrackAccepted {
   lastUpdatedOn: number
   startDate: number
   status: number
-}
-
-export interface IProgressResource {
-  contentType: TContentType
-  displayContentType: string
-  duration: number
-  id: string
-  mimeType: EMimeTypes
-  name: string
-  progress: number
-  timeLeft: number
 }
 
 export interface ITrackRejected {

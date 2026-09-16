@@ -68,8 +68,8 @@ portalApi.get('/listDeptNames', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + req.originalUrl + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -92,8 +92,8 @@ portalApi.get('/spv/mydepartment', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + req.originalUrl + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -114,8 +114,8 @@ portalApi.get(spvDeptPath, async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -144,8 +144,8 @@ portalApi.get(spvDeptPath + '/:deptId', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -177,8 +177,8 @@ portalApi.post(spvDeptPath, async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -207,8 +207,8 @@ portalApi.delete(spvDeleteDepartment + '/:deptId', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -282,8 +282,8 @@ portalApi.get(cbcDeptPath, async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -312,8 +312,8 @@ portalApi.get(cbcDeptPath + '/:deptId', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -346,8 +346,8 @@ portalApi.get('/deptRole', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -367,8 +367,8 @@ portalApi.get('/deptRole/:deptTypeName', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -393,8 +393,8 @@ export async function getMyDepartment(portalName: string, req: any, res: any) {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + req.originalUrl + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -420,8 +420,8 @@ export async function updateDepartment(portalName: string, req: any, res: any) {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -442,8 +442,8 @@ export async function addUserRole(portalName: string, req: any, res: any) {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -464,8 +464,8 @@ export async function updateUserRole(portalName: string, req: any, res: any) {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -478,8 +478,8 @@ portalApi.get(departmentType, async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + req.originalUrl + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -493,8 +493,8 @@ portalApi.get(departmentType + '/:deptType', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + req.originalUrl + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )
@@ -508,8 +508,8 @@ portalApi.get('/userrole/:userId', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + req.originalUrl + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: unknownError,
       }
     )

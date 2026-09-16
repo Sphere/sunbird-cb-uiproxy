@@ -28,8 +28,8 @@ catalogApi.get('/', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + err)
-    res.status((err && err.response && err.response.status) || 500).send(
-        (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+        (err?.response?.data) || {
             error: ERROR.GENERAL_ERR_MSG,
         }
     )
@@ -57,25 +57,10 @@ catalogApi.post('/tags', async (req, res) => {
       res.status(400).send({ error: ERROR.ERROR_NO_ORG_DATA })
     }
   } catch (err) {
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: 'Failed due to unknown reason',
       }
     )
   }
 })
-
-export interface ITerms {
-  identifier: string,
-  code: string,
-  name: string,
-  description: string,
-  index: number,
-  status: string,
-  children: this[],
-  noOfHoursConsumed: number
-}
-
-export interface ICatalogResponse {
-  terms: ITerms[]
-}

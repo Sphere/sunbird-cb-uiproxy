@@ -209,12 +209,6 @@ export interface IContentTopic {
 }
 // API Based
 
-export interface IContact {
-  id: string
-  name: string
-  email: string
-}
-
 export interface IPrice {
   currency: string
   value: number
@@ -228,41 +222,6 @@ export interface IContinueLearningResponse {
 
 export interface IContinueLearningData extends IContent {
   continueData: string
-}
-
-export interface IRecommendationResponse {
-  course: IContent
-  reasonsForRecommendation: string[]
-  score: number
-}
-
-export enum EDisplayContentType {
-  ASSESSMENT = 'ASSESSMENT',
-  AUDIO = 'AUDIO',
-  CERTIFICATION = 'CERTIFICATION',
-  CHANNEL = 'Channel',
-  CLASS_DIAGRAM = 'CLASS_DIAGRAM',
-  COURSE = 'COURSE',
-  DEFAULT = 'DEFAULT',
-  DRAG_DROP = 'DRAG_DROP',
-  EXTERNAL_CERTIFICATION = 'EXTERNAL_CERTIFICATION',
-  EXTERNAL_COURSE = 'EXTERNAL_COURSE',
-  HANDS_ON = 'HANDS_ON',
-  IAP = 'IAP',
-  INSTRUCTOR_LED = 'INSTRUCTOR_LED',
-  INTERACTIVE_VIDEO = 'INTERACTIVE_VIDEO',
-  KNOWLEDGE_ARTIFACT = 'KNOWLEDGE_ARTIFACT',
-  KNOWLEDGE_BOARD = 'Knowledge Board',
-  LEARNING_JOURNEY = 'Learning Journeys',
-  MODULE = 'MODULE',
-  PDF = 'PDF',
-  PROGRAM = 'PROGRAM',
-  QUIZ = 'QUIZ',
-  RESOURCE = 'RESOURCE',
-  VIDEO = 'VIDEO',
-  WEB_MODULE = 'WEB_MODULE',
-  WEB_PAGE = 'WEB_PAGE',
-  YOUTUBE = 'YOUTUBE',
 }
 
 export interface IContentMinimal {

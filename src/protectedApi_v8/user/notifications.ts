@@ -29,8 +29,8 @@ notificationsApi.patch('/settings', async (req: Request, res: Response) => {
     })
     return res.status(response.status).send(response.data)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -59,8 +59,8 @@ notificationsApi.get('/', async (req: Request, res: Response) => {
 
     return res.send(notificationData)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -90,8 +90,8 @@ notificationsApi.patch(
 
       return res.send(response)
     } catch (err) {
-      return res.status((err && err.response && err.response.status) || 500).send(
-        (err && err.response && err.response.data) || {
+      return res.status(err?.response?.status || 500).send(
+        err?.response?.data || {
           error: GENERAL_ERROR_MSG,
         }
       )
@@ -115,8 +115,8 @@ notificationsApi.get('/settings', async (req: Request, res: Response) => {
     })
     return res.status(response.status).send(response.data)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    return res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

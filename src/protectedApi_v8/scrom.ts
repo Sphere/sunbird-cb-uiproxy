@@ -48,8 +48,8 @@ scromApi.get('/get/:id', async (req, res) => {
     // tslint:disable-next-line: no-any
   } catch (err) {
     logError(err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: unknown,
       }
     )
@@ -114,8 +114,8 @@ scromApi.post('/add/:id', async (req, res) => {
     // tslint:disable-next-line: no-any
   } catch (err) {
     logError(err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: unknown,
       }
     )
@@ -157,8 +157,8 @@ scromApi.delete('/remove/:id', async (req, res) => {
     // tslint:disable-next-line: no-any
   } catch (err) {
     logError(err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status((err?.response?.status) || 500).send(
+      (err?.response?.data) || {
         error: unknown,
       }
     )

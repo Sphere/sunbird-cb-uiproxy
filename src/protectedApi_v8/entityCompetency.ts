@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import _ from 'lodash'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
@@ -28,6 +28,25 @@ const headers = (req: any) => {
     'x-authenticated-user-token': extractUserToken(req),
   }
 }
+// sonar-cleanup: extracted from entityCompetency.ts's repeated per-route catch blocks — same 500 + {message, status:'failed'} shape (Sonar duplication follow-up)
+/**
+ * Logs the error under `label`, then responds 500 with a failed-status body
+ * carrying `message`.
+ *
+ * @param res - the Express response to send the error on
+ * @param error - the caught error, logged verbatim
+ * @param label - text prefixed to the logged error message
+ * @param message - the route-specific failure message sent in the response body
+ */
+// tslint:disable-next-line: no-any
+function handleEntityCompetencyError(res: Response, error: any, label: string, message: string) {
+  logError(`Error in ${label}  >>>>>>` + error)
+  res.status(500).send({
+    message,
+    status: 'failed',
+  })
+}
+
 entityCompetencyApi.post('/addUpdateEntity', async (req, res) => {
   try {
     const response = await axios({
@@ -39,11 +58,7 @@ entityCompetencyApi.post('/addUpdateEntity', async (req, res) => {
     logInfo('Check re body of addUpdateEntity>> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
   } catch (error) {
-    logError('Error in ADD_UPDATE_ENTITY  >>>>>>' + error)
-    res.status(500).send({
-      message: ENTITY_UPDATE_FAIL,
-      status: 'failed',
-    })
+    handleEntityCompetencyError(res, error, 'ADD_UPDATE_ENTITY', ENTITY_UPDATE_FAIL)
   }
 })
 
@@ -58,11 +73,7 @@ entityCompetencyApi.post('/addEntityRelation', async (req, res) => {
     logInfo('Check req body of addEntityRelation>> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
   } catch (error) {
-    logError('Error in ADD_ENTITY_RELATION  >>>>>>' + error)
-    res.status(500).send({
-      message: ENTITY_UPDATE_FAIL,
-      status: 'failed',
-    })
+    handleEntityCompetencyError(res, error, 'ADD_ENTITY_RELATION', ENTITY_UPDATE_FAIL)
   }
 })
 entityCompetencyApi.post('/getEntityById/:id', async (req, res) => {
@@ -76,11 +87,7 @@ entityCompetencyApi.post('/getEntityById/:id', async (req, res) => {
     logInfo('Check req body of getEntityByID >> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
   } catch (error) {
-    logError('Error in getEntityById  >>>>>>' + error)
-    res.status(500).send({
-      message: GET_ENTITY_BY_ID_FAIL,
-      status: 'failed',
-    })
+    handleEntityCompetencyError(res, error, 'getEntityById', GET_ENTITY_BY_ID_FAIL)
   }
 })
 entityCompetencyApi.post('/getAllEntity', async (req, res) => {
@@ -97,11 +104,7 @@ entityCompetencyApi.post('/getAllEntity', async (req, res) => {
     const payload = await appendPilotMockEntity(response.data, req.body)
     res.status(response.data.responseCode).send(payload)
   } catch (error) {
-    logError('Error in GET_ALL_ENTITY  >>>>>>' + error)
-    res.status(500).send({
-      message: GET_ALL_ENTITY_FAIL,
-      status: 'failed',
-    })
+    handleEntityCompetencyError(res, error, 'GET_ALL_ENTITY', GET_ALL_ENTITY_FAIL)
   }
 })
 entityCompetencyApi.post('/addEntities', async (req, res) => {
@@ -115,11 +118,7 @@ entityCompetencyApi.post('/addEntities', async (req, res) => {
     logInfo('Check req body of ADD ENTITY >> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
   } catch (error) {
-    logError('Error in add_ENTITY  >>>>>>' + error)
-    res.status(500).send({
-      message: ADD_ENTITY_FAIL,
-      status: 'failed',
-    })
+    handleEntityCompetencyError(res, error, 'add_ENTITY', ADD_ENTITY_FAIL)
   }
 })
 entityCompetencyApi.post('/reviewEntity', async (req, res) => {
@@ -133,11 +132,6 @@ entityCompetencyApi.post('/reviewEntity', async (req, res) => {
     logInfo('Check req body of EVIEW ENTITY >> ' + req.body)
     res.status(response.data.responseCode).send(response.data)
   } catch (error) {
-    // tslint:disable-next-line: no-any
-    logError('Error in REVIEW_ENTITY  >>>>>>' + error)
-    res.status(500).send({
-      message: REVIEW_ENTITY_FAIL,
-      status: 'failed',
-    })
+    handleEntityCompetencyError(res, error, 'REVIEW_ENTITY', REVIEW_ENTITY_FAIL)
   }
 })

@@ -271,7 +271,13 @@ maharastraNursingCouncilAuth.post('/login', async (req: any, res: Response) => {
             // Force session persist before responding — without this the redirect arrives
             // before the session store is updated and the read API still sees the previous user's session
             await new Promise<void>((resolve, reject) => {
-                req.session.save((err: any) => err ? reject(err) : resolve())
+                req.session.save((err: any) => {
+                    if (err) {
+                        reject(err instanceof Error ? err : new Error(String(err)))
+                    } else {
+                        resolve()
+                    }
+                })
             })
         } else {
             logError('[MNC] /login: Keycloak token response empty | email:', email)

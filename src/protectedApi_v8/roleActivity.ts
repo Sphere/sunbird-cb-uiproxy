@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Response, Router } from 'express'
 
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
@@ -14,6 +14,23 @@ const API_END_POINTS = {
     searchNodes: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/searchNodes`,
 }
 
+// sonar-cleanup: extracted from roleActivity.ts's matching per-route catch blocks — same status/body shape (CHANGE 8); getAllRoles() itself was left as-is, it's static seed data, not duplicated logic (L1-21)
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body (or a generic error message).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleRoleActivityError(res: Response, err: any) {
+    res.status((err && err.response && err.response.status) || 500).send(
+        (err && err.response && err.response.data) || {
+            error: ERROR.GENERAL_ERR_MSG,
+        }
+    )
+}
+
 roleActivityApi.get('/', async (req, res) => {
     try {
         const rootOrg = req.header('rootOrg')
@@ -23,11 +40,7 @@ roleActivityApi.get('/', async (req, res) => {
         }
         res.status(200).send(getAllRoles())
     } catch (err) {
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleRoleActivityError(res, err)
     }
 })
 
@@ -75,11 +88,7 @@ roleActivityApi.get('/:roleKey', async (req, res) => {
         res.status(200).send(returnRoleList)
     } catch (err) {
         logError('ERROR --> ', err)
-        res.status((err && err.response && err.response.status) || 500).send(
-            (err && err.response && err.response.data) || {
-                error: ERROR.GENERAL_ERR_MSG,
-            }
-        )
+        handleRoleActivityError(res, err)
     }
 })
 

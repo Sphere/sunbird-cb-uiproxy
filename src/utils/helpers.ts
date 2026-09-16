@@ -1,11 +1,4 @@
 import { format as formatDate } from 'date-fns'
-import { CONSTANTS } from './env'
-
-export function* range(end: number, step = 1) {
-  for (let i = 0; i < end; i += step) {
-    yield i
-  }
-}
 
 export function getStringifiedQueryParams(obj: {
   [key: string]: string | number | undefined;
@@ -16,12 +9,6 @@ export function getStringifiedQueryParams(obj: {
       return u[0] + '=' + u[1]
     })
     .join('&')
-}
-
-export function esBasicAuth() {
-  return Buffer.from(
-    CONSTANTS.ES_USERNAME + ':' + CONSTANTS.ES_PASSWORD
-  ).toString('base64')
 }
 
 export function getEmailLocalPart(emailId: string) {

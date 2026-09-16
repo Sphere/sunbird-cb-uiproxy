@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import _ from 'lodash'
 import { Pool } from 'pg'
 import { CONSTANTS } from '../utils/env'
@@ -45,6 +45,25 @@ const pool = new Pool({
   user: postgresConnectionDetails.user,
 })
 
+// sonar-cleanup: extracted from 3 identical catch blocks across this file's routes (CHANGE 25)
+/**
+ * Logs and responds to a failed upstream call the same way across all
+ * three routes in this file — forwards the upstream status/body when
+ * present, falls back to 500 with a generic error otherwise.
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, possibly carrying an axios response
+ */
+// tslint:disable-next-line: no-any
+function handleRecommendationEngineError(res: Response, err: any) {
+  logInfo(JSON.stringify(err))
+  res.status((err && err.response && err.response.status) || 500).send(
+    (err && err.response && err.response.data) || {
+      error: unknownError,
+    }
+  )
+}
+
 export const recommendationEngineV2 = Router()
 recommendationEngineV2.get('/', async (req, res) => {
   try {
@@ -66,12 +85,7 @@ recommendationEngineV2.get('/', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleRecommendationEngineError(res, err)
   }
 })
 recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
@@ -167,12 +181,7 @@ recommendationEngineV2.post('/publicSearch/getcourse', async (req, res) => {
       status: 200,
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleRecommendationEngineError(res, err)
   }
 })
 recommendationEngineV2.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
@@ -190,11 +199,6 @@ recommendationEngineV2.post('/publicSearch/courseRecommendationCbp', async (req,
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: unknownError,
-      }
-    )
+    handleRecommendationEngineError(res, err)
   }
 })

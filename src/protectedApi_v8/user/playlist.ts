@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { IPaginatedApiResponse } from '../../models/paginatedApi.model'
 import {
@@ -23,6 +23,7 @@ import {
   transformToSbExtSyncRequest,
   // transformToSbExtUpsertRequest
 } from '../../service/playlist'
+import { patchContentViaHierarchyUpdate } from '../../utils/contentPatchHelpers'
 import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { logError } from '../../utils/logger'
@@ -36,6 +37,31 @@ const API_END_POINTS = {
 }
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
+
+// sonar-cleanup: extracted from this file's repeated per-route catch blocks — same
+// status(err.response.status || 500).send(err.response.data || {error}) shape
+// (CHANGE 36). Two routes (/sync/:playlistId, /recent) additionally log a
+// route-specific label before responding; the other 9 don't log at all —
+// preserved verbatim via the optional `label` parameter, which only logs when given.
+/**
+ * Forwards the upstream error status/body when present, or responds 500
+ * with the generic failure message. Logs under `label` first when given.
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to a logged error line; when omitted, nothing is logged (matching most routes' original behavior)
+ */
+// tslint:disable-next-line: no-any
+function handleUserPlaylistError(res: Response, err: any, label?: string) {
+  if (label) {
+    logError(label, err)
+  }
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || {
+      error: GENERAL_ERROR_MSG,
+    })
+}
 
 async function sharePlaylist(
   _userId: string,
@@ -180,12 +206,7 @@ playlistApi.get('/sync/:playlistId', async (req, res) => {
     res.send(result.content)
     return
   } catch (err) {
-    logError('SYNC PLAYLIST ERROR >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err, 'SYNC PLAYLIST ERROR >')
   }
 })
 
@@ -223,12 +244,7 @@ playlistApi.get('/recent', async (req, res) => {
     }
     res.send(result)
   } catch (err) {
-    logError('RECENT PLAYLIST CONTENTS FETCH ERROR >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err, 'RECENT PLAYLIST CONTENTS FETCH ERROR >')
   }
 })
 
@@ -262,11 +278,7 @@ playlistApi.post('/accept/:playlistId', async (req, res) => {
 
     res.status(404).send()
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })
 
@@ -293,11 +305,7 @@ playlistApi.post('/reject/:playlistId', async (req, res) => {
     res.status(response.status).send()
     return
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })
 
@@ -316,11 +324,7 @@ playlistApi.post('/share/:playlistId', async (req, res) => {
     const response = await sharePlaylist(userId, playlistId, request, auth)
     res.status(response.status).send()
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })
 
@@ -347,11 +351,7 @@ playlistApi.get('/:type/:playlistId', async (req, res) => {
     })
     res.status(response.status).send(transformToPlaylistV3(response.data, playlistId))
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })
 
@@ -376,11 +376,7 @@ playlistApi.delete('/:playlistId', async (req, res) => {
     })
     res.status(response.status).send(true)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })
 
@@ -396,12 +392,7 @@ playlistApi.get('/', async (req, res) => {
   const allPlaylists = await getPlaylistsAllTypes(userId, rootOrg, params)
 
   if (allPlaylists.error) {
-    const err = allPlaylists.error
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, allPlaylists.error)
     return
   }
   res.send(allPlaylists.data)
@@ -409,50 +400,13 @@ playlistApi.get('/', async (req, res) => {
 
 playlistApi.patch('/:playlistId', async (req, res) => {
   /* Patch request to update the title of a playlist */
-  try {
-    const request = req.body
-    const rootOrg = req.header('rootOrg')
-    const auth = req.header('Authorization')
-    if (!rootOrg) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
-    const playlistId = req.params.playlistId
-    const url = `https://igot-dev.in/apis/proxies/v8/action/content/v3/update/${playlistId}`
-    const response = await axios({
-      ...axiosRequestConfig,
-      data: formPlaylistupdateObj(request),
-      headers: {
-        Authorization: auth,
-        org: 'dopt',
-        rootOrg: 'igot',
-      },
-      method: 'PATCH',
-      url,
-    })
-
-    const urll = `https://igot-dev.in/apis/proxies/v8/action/content/v3/hierarchy/update`
-
-    const response1 = await axios({
-      ...axiosRequestConfig,
-      data: transformToSbExtPatchRequest(request, playlistId),
-      headers: {
-        Authorization: auth,
-        org: 'dopt',
-        rootOrg: 'igot',
-      },
-      method: 'PATCH',
-      url: urll,
-    })
-    res.status(response.status || response1.status).send()
-  } catch (err) {
-    logError(err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
-  }
+  await patchContentViaHierarchyUpdate(
+    req,
+    res,
+    req.params.playlistId,
+    formPlaylistupdateObj,
+    transformToSbExtPatchRequest
+  )
 })
 
 playlistApi.post('/create', async (req, res) => {
@@ -497,11 +451,7 @@ playlistApi.post('/create', async (req, res) => {
 
     res.status(response1.status).send()
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })
 
@@ -589,11 +539,7 @@ playlistApi.post('/:playlistId/:type', async (req, res) => {
     // }
     // res.status(500).send()
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })
 
@@ -609,10 +555,6 @@ playlistApi.get('/:type', async (req, res) => {
     const playlists = await getPlaylists(userId, rootOrg)
     res.send(playlists)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      })
+    handleUserPlaylistError(res, err)
   }
 })

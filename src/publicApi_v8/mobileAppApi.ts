@@ -1,20 +1,22 @@
-import axios from 'axios'
+import axios, { Method } from 'axios'
 import fs from 'fs'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 
-import { Router } from 'express'
-import express from 'express'
+import express, { Router } from 'express'
 import * as admin from 'firebase-admin'
 import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
-import nodeHtmlToImage from 'node-html-to-image'
 import request from 'request'
 import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { axiosRequestConfig } from '../configs/request.config'
 import { assessmentCreator } from '../utils/assessmentSubmitHelper'
+// sonar-cleanup: certificate-fetch+render tail replaced with the shared import (CHANGE 33);
+// widened to resolveAndRenderCertificateFromCassandra to also share the
+// Cassandra-lookup middle section with publicCertifcateFlinkv2.ts (CHANGE 48)
+import { resolveAndRenderCertificateFromCassandra } from '../utils/certificateRenderer'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
@@ -31,12 +33,10 @@ const cassandra = require('cassandra-driver')
 const INTERNAL_SERVER_ERROR = 'Internal Server Error'
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
-export const publicCertificateFlinkv2 = Router()
 const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
 const API_END_POINTS = {
   CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
   CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-  DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
   FORM_API: `${CONSTANTS.FORM_API_BASE}`,
   GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
   GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
@@ -81,6 +81,38 @@ const getHeaders = (req: any) => {
 }
 const DEFAULT_ERROR_STATUS = 500
 const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
+
+// sonar-cleanup: extracted from 7 identical catch blocks across
+// /publicSearch/courseRecommendationCbp, /create/homepageconfig,
+// /read/homepageconfig, /getById/homepageconfig/*,
+// /updateById/homepageconfig/*, /deleteById/homepageconfig/*, and
+// /user/enrollment/list/adhocCertificates (CHANGE 33). logErrorPrefix
+// carries the one real difference — 5 of the 7 originals call
+// `logInfo('error', JSON.stringify(err))`, the other 2 call
+// `logInfo(JSON.stringify(err))` with no prefix argument; omit the
+// parameter to get the no-prefix form.
+/**
+ * Logs the error (optionally prefixed with `logErrorPrefix`), then
+ * responds with the upstream status code (or 500) and the upstream error
+ * body (or `errorMessage`, defaulting to the shared default error message).
+ * @param res the Express response to send the error on
+ * @param err the caught error, expected to optionally carry an axios-style `response`
+ * @param logErrorPrefix optional text logged before the stringified error
+ * @param errorMessage the fallback error message when there's no upstream body, defaulting to DEFAULT_ERROR_MSG
+ */
+// tslint:disable-next-line: no-any
+function handleMobileApiDefaultError(res: any, err: any, logErrorPrefix?: string, errorMessage = DEFAULT_ERROR_MSG) {
+  if (logErrorPrefix) {
+    logInfo(logErrorPrefix, JSON.stringify(err))
+  } else {
+    logInfo(JSON.stringify(err))
+  }
+  res.status(err?.response?.status || DEFAULT_ERROR_STATUS).send(
+    err?.response?.data || {
+      error: errorMessage,
+    }
+  )
+}
 
 // Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
 const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
@@ -134,88 +166,93 @@ const cassandraClient = new cassandra.Client({
   keyspace: 'sunbird_courses',
   localDataCenter: 'datacenter1',
 })
+// sonar-cleanup: extracted from this file's '/kong/course/v2/hierarchy/*'
+// and '/kong/content/v1/read/*' handlers, which were byte-identical aside
+// from the upstream path segment, the log-message prefix, and the
+// error-fallback message (CHANGE 33). The `backendUrl` variable (computed
+// with the query string re-appended, then only logged, never actually
+// used in the axios call — the real request relies on axios's own
+// `params: req.query` to append the query string) is preserved verbatim
+// from both originals rather than "cleaned up", since it's existing
+// debug-logging behavior, not a bug.
+/**
+ * Fetches the given Kong upstream path segment for the id in the request
+ * URL, applies CDN URL replacement to the response, and forwards it —
+ * falling back to the original response data if replacement itself throws.
+ * @param req the Express request; its trailing path segment and query string are read
+ * @param res the Express response to send the result or error to
+ * @param upstreamPathSegment the Kong path segment for this endpoint (e.g. 'course/v1/hierarchy')
+ * @param logPrefix text prefixed to every log line for this endpoint (e.g. '[Hierarchy Mobile API]')
+ * @param resourceLabel short word naming the resource in the fetch-error log line (e.g. 'hierarchy')
+ * @param fetchErrorFallback the error message used when the fetch itself fails
+ */
+async function fetchAndReplaceCdnUrls(
+  // tslint:disable-next-line: no-any
+  req: any,
+  // tslint:disable-next-line: no-any
+  res: any,
+  upstreamPathSegment: string,
+  logPrefix: string,
+  resourceLabel: string,
+  fetchErrorFallback: string
+) {
+  try {
+    const id = req.originalUrl.split('/').pop()?.split('?')[0]
+    logInfo(`${logPrefix} Intercepting ${upstreamPathSegment} for ID:`, id)
+
+    const backendUrl = `${CONSTANTS.KONG_API_BASE}/${upstreamPathSegment}/${id}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`
+    logInfo(`${logPrefix} Backend URL:`, backendUrl)
+
+    const response = await axios({
+      ...axiosRequestConfig,
+      headers: {
+        Authorization: CONSTANTS.SB_API_KEY,
+      },
+      method: 'GET',
+      params: req.query,
+      url: `${CONSTANTS.KONG_API_BASE}/${upstreamPathSegment}/${id}`,
+    })
+
+    // Apply CDN URL replacement to response data
+    let responseData = response.data
+    try {
+      logInfo(`${logPrefix} Applying CDN URL replacement`)
+      responseData = replaceCdnUrls(response.data)
+      logInfo(`${logPrefix} CDN replacement completed successfully`)
+    } catch (replacementError) {
+      logInfo(`${logPrefix} Error during CDN replacement:`, JSON.stringify(replacementError))
+      // Continue with original response data if replacement fails
+      responseData = response.data
+    }
+
+    res.status(response.status).send(responseData)
+  } catch (error) {
+    logInfo(`${logPrefix} Error fetching ${resourceLabel}:`, JSON.stringify(error))
+    res.status(error?.response?.status || 500).send(
+      error?.response?.data || { error: fetchErrorFallback }
+    )
+  }
+}
+
 // CDN URL replacement handler for course/v1/hierarchy endpoint
 // tslint:disable-next-line: no-any
 // This route is defined to replace CDN URLs in the response of course hierarchy API
 // going forward v1/hierarchy API will be deprecated and v2/hierarchy will be used
 mobileAppApi.get('/kong/course/v2/hierarchy/*', async (req, res) => {
-  try {
-    const hierarchyId = req.originalUrl.split('/').pop()?.split('?')[0]
-    logInfo('[Hierarchy Mobile API] Intercepting course/v1/hierarchy for ID:', hierarchyId)
-
-    const backendUrl = `${CONSTANTS.KONG_API_BASE}/course/v1/hierarchy/${hierarchyId}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`
-    logInfo('[Hierarchy Mobile API] Backend URL:', backendUrl)
-
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'GET',
-      params: req.query,
-      url: `${CONSTANTS.KONG_API_BASE}/course/v1/hierarchy/${hierarchyId}`,
-    })
-
-    // Apply CDN URL replacement to response data
-    let responseData = response.data
-    try {
-      logInfo('[Hierarchy Mobile API] Applying CDN URL replacement')
-      responseData = replaceCdnUrls(response.data)
-      logInfo('[Hierarchy Mobile API] CDN replacement completed successfully')
-    } catch (replacementError) {
-      logInfo('[Hierarchy Mobile API] Error during CDN replacement:', JSON.stringify(replacementError))
-      // Continue with original response data if replacement fails
-      responseData = response.data
-    }
-
-    res.status(response.status).send(responseData)
-  } catch (error) {
-    logInfo('[Hierarchy Mobile API] Error fetching hierarchy:', JSON.stringify(error))
-    res.status((error && error.response && error.response.status) || 500).send(
-      (error && error.response && error.response.data) || { error: 'Failed to fetch hierarchy' }
-    )
-  }
+  await fetchAndReplaceCdnUrls(
+    req,
+    res,
+    'course/v1/hierarchy',
+    '[Hierarchy Mobile API]',
+    'hierarchy',
+    'Failed to fetch hierarchy'
+  )
 })
 
 // CDN URL replacement handler for content/v1/read endpoint
 // tslint:disable-next-line: no-any
 mobileAppApi.get('/kong/content/v1/read/*', async (req, res) => {
-  try {
-    const contentId = req.originalUrl.split('/').pop()?.split('?')[0]
-    logInfo('[Content Mobile API] Intercepting content/v1/read for ID:', contentId)
-
-    const backendUrl = `${CONSTANTS.KONG_API_BASE}/content/v1/read/${contentId}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`
-    logInfo('[Content Mobile API] Backend URL:', backendUrl)
-
-    const response = await axios({
-      ...axiosRequestConfig,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-      },
-      method: 'GET',
-      params: req.query,
-      url: `${CONSTANTS.KONG_API_BASE}/content/v1/read/${contentId}`,
-    })
-
-    // Apply CDN URL replacement to response data
-    let responseData = response.data
-    try {
-      logInfo('[Content Mobile API] Applying CDN URL replacement')
-      responseData = replaceCdnUrls(response.data)
-      logInfo('[Content Mobile API] CDN replacement completed successfully')
-    } catch (replacementError) {
-      logInfo('[Content Mobile API] Error during CDN replacement:', JSON.stringify(replacementError))
-      // Continue with original response data if replacement fails
-      responseData = response.data
-    }
-
-    res.status(response.status).send(responseData)
-  } catch (error) {
-    logInfo('[Content Mobile API] Error fetching content:', JSON.stringify(error))
-    res.status((error && error.response && error.response.status) || 500).send(
-      (error && error.response && error.response.data) || { error: 'Failed to fetch content' }
-    )
-  }
+  await fetchAndReplaceCdnUrls(req, res, 'content/v1/read', '[Content Mobile API]', 'content', 'Failed to fetch content')
 })
 
 // Generic kong proxy for other endpoints (without CDN replacement)
@@ -473,7 +510,27 @@ mobileAppApi.get('/webviewLogin', async (req: any, res) => {
     })
   }
 })
-mobileAppApi.post('/getEntityById/:id', async (req, res) => {
+// sonar-cleanup: extracted from /getEntityById/:id and /getAllEntity's
+// identical verifyToken -> axios POST -> forward responseCode/data shape
+// (CHANGE 47). Real differences threaded through: the URL, the logged
+// request-body message, the failure message, and whether the response goes
+// through the appendPilotMockEntity post-processing step (getAllEntity only).
+/**
+ * Proxies an entity-lookup request to the upstream Entity API and forwards
+ * the result, or a fixed 500 failure body, back to the caller.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result or error on
+ * @param url - the resolved upstream endpoint
+ * @param requestLogLabel - text logged with the request body before the call
+ * @param errorLogLabel - text logged (with the caught error appended) on failure
+ * @param failMessage - the `message` field sent on a 500 failure
+ * @param applyPilotMockEntity - whether to post-process the response through appendPilotMockEntity (getAllEntity only)
+ */
+async function proxyEntityRoute(
+  // tslint:disable-next-line: no-any
+  req: any, res: any, url: string, requestLogLabel: string, errorLogLabel: string, failMessage: string, applyPilotMockEntity: boolean
+) {
   try {
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.status == 200) {
@@ -484,45 +541,36 @@ mobileAppApi.post('/getEntityById/:id', async (req, res) => {
           contentTypeHeader,
         },
         method: 'POST',
-        url: `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
+        url,
       })
-      logInfo('Check req body of getEntityByID >> ' + req.body)
-      res.status(response.data.responseCode).send(response.data)
-    }
-  } catch (error) {
-    logError('Error in getEntityById  >>>>>>' + error)
-    res.status(500).send({
-      message: GET_ENTITY_BY_ID_FAIL,
-      status: 'failed',
-    })
-  }
-})
-mobileAppApi.post('/getAllEntity', async (req, res) => {
-  try {
-    const accesTokenResult = verifyToken(req, res)
-    if (accesTokenResult.status == 200) {
-      const response = await axios({
-        data: req.body,
-        headers: {
-          authenticatedToken: req.headers[authenticatedToken],
-          contentTypeHeader,
-        },
-        method: 'POST',
-        url: API_END_POINTS.GET_ALL_ENTITY,
-      })
-      logInfo('Check req body of getAllEntity >> ' + req.body)
-      // PILOT DEMO ADD-ON: returns response.data untouched unless the pilot
-      // flag is on. Remove this wrapper + its import to drop the add-on.
-      const payload = await appendPilotMockEntity(response.data, req.body)
+      logInfo(requestLogLabel + req.body)
+      const payload = applyPilotMockEntity
+        // PILOT DEMO ADD-ON: returns response.data untouched unless the pilot
+        // flag is on. Remove this wrapper + its import to drop the add-on.
+        ? await appendPilotMockEntity(response.data, req.body)
+        : response.data
       res.status(response.data.responseCode).send(payload)
     }
   } catch (error) {
-    logError('Error in GET_ALL_ENTITY  >>>>>>' + error)
+    logError(errorLogLabel + error)
     res.status(500).send({
-      message: GET_ALL_ENTITY_FAIL,
+      message: failMessage,
       status: 'failed',
     })
   }
+}
+
+mobileAppApi.post('/getEntityById/:id', async (req, res) => {
+  await proxyEntityRoute(
+    req, res, `${API_END_POINTS.GET_ENTITY_BY_ID}+${req.params.id}`,
+    'Check req body of getEntityByID >> ', 'Error in getEntityById  >>>>>>', GET_ENTITY_BY_ID_FAIL, false
+  )
+})
+mobileAppApi.post('/getAllEntity', async (req, res) => {
+  await proxyEntityRoute(
+    req, res, API_END_POINTS.GET_ALL_ENTITY,
+    'Check req body of getAllEntity >> ', 'Error in GET_ALL_ENTITY  >>>>>>', GET_ALL_ENTITY_FAIL, true
+  )
 })
 function removePrefix(prefix: string, s: string) {
   return s.substr(prefix.length)
@@ -539,6 +587,38 @@ mobileAppApi.post('/cmi5/getAuthorization', async (req, res) => {
     })
   }
 })
+// sonar-cleanup: extracted from '/cmi5/updateProgress', '/cmi5/readProgress',
+// and '/v2/updateProgress', which all built the same stateReadBody, called
+// READ_PROGRESS, and sent the 200 response identically (CHANGE 33). The
+// surrounding `if (accesTokenResult.status == 200) { ... }` wrapper (with
+// no else branch — a pre-existing bug where a non-200 token silently sends
+// no response) stays in each of the two updateProgress routes, untouched.
+/**
+ * Builds a progress-read request from the already-validated request body,
+ * fetches it, and sends the result as the 200 response.
+ * @param req the Express request; its body.request.{contents,userId} are read
+ * @param res the Express response to send the fetched progress data to
+ */
+// tslint:disable-next-line: no-any
+async function fetchAndSendProgressRead(req: any, res: any) {
+  const stateReadBody = {
+    request: {
+      batchId: req.body.request.contents[0].batchId,
+      contentIds: [],
+      courseId: req.body.request.contents[0].courseId,
+      fields: ['progressdetails'],
+      userId: req.body.request.userId,
+    },
+  }
+  const responseProgressRead = await axios({
+    data: stateReadBody,
+    headers: getHeaders(req),
+    method: 'POST',
+    url: API_END_POINTS.READ_PROGRESS,
+  })
+  res.status(200).json(responseProgressRead.data)
+}
+
 mobileAppApi.post('/cmi5/updateProgress', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
@@ -552,22 +632,7 @@ mobileAppApi.post('/cmi5/updateProgress', async (req, res) => {
         method: 'PATCH',
         url: API_END_POINTS.UPDATE_PROGRESS,
       })
-      const stateReadBody = {
-        request: {
-          batchId: req.body.request.contents[0].batchId,
-          contentIds: [],
-          courseId: req.body.request.contents[0].courseId,
-          fields: ['progressdetails'],
-          userId: req.body.request.userId,
-        },
-      }
-      const responseProgressRead = await axios({
-        data: stateReadBody,
-        headers: getHeaders(req),
-        method: 'POST',
-        url: API_END_POINTS.READ_PROGRESS,
-      })
-      res.status(200).json(responseProgressRead.data)
+      await fetchAndSendProgressRead(req, res)
     }
   } catch (error) {
     logError('Error in update cmi5 progress  >>>>>>' + error)
@@ -579,22 +644,7 @@ mobileAppApi.post('/cmi5/updateProgress', async (req, res) => {
 })
 mobileAppApi.post('/cmi5/readProgress', async (req, res) => {
   try {
-    const stateReadBody = {
-      request: {
-        batchId: req.body.request.contents[0].batchId,
-        contentIds: [],
-        courseId: req.body.request.contents[0].courseId,
-        fields: ['progressdetails'],
-        userId: req.body.request.userId,
-      },
-    }
-    const responseProgressRead = await axios({
-      data: stateReadBody,
-      headers: getHeaders(req),
-      method: 'POST',
-      url: API_END_POINTS.READ_PROGRESS,
-    })
-    res.status(200).json(responseProgressRead.data)
+    await fetchAndSendProgressRead(req, res)
   } catch (error) {
     logError('Error in reading cmi5  >>>>>>' + error)
     res.status(500).send({
@@ -624,23 +674,8 @@ mobileAppApi.post('/v2/updateProgress', async (req, res) => {
         method: 'PATCH',
         url: API_END_POINTS.UPDATE_PROGRESS,
       })
-      const stateReadBody = {
-        request: {
-          batchId: req.body.request.contents[0].batchId,
-          contentIds: [],
-          courseId: req.body.request.contents[0].courseId,
-          fields: ['progressdetails'],
-          userId: req.body.request.userId,
-        },
-      }
-      const responseProgressRead = await axios({
-        data: stateReadBody,
-        headers: getHeaders(req),
-        method: 'POST',
-        url: API_END_POINTS.READ_PROGRESS,
-      })
       logInfo('Check req body of update progress v2 >> ' + req.body)
-      res.status(200).json(responseProgressRead.data)
+      await fetchAndSendProgressRead(req, res)
     }
   } catch (error) {
     logError('Error in update progress v2  >>>>>>' + error)
@@ -752,15 +787,15 @@ mobileAppApi.patch('/updateUserProfile', async (req, res) => {
 mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
   try {
     /* tslint:disable-next-line */
-    let appId = req.query.appId || '';
+    let appId = req.query.appId ?? '';
     if (appId == 'app.aastrika.ekhamata') {
       const filteredCourses = await getCoursesForIhat()
       return res.status(200).send(filteredCourses)
     }
     logInfo('Appid', appId)
     const responseObject = {
-      background: req.query.background || '',
-      profession: req.query.profession || '',
+      background: req.query.background ?? '',
+      profession: req.query.profession ?? '',
     }
     if (!req.query.background) {
       delete responseObject.background
@@ -776,132 +811,20 @@ mobileAppApi.get('/courseRemommendationv2', async (req, res) => {
 
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: 'Exception occured in recommendation service',
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, 'Exception occured in recommendation service')
   }
 })
+// sonar-cleanup: the userid/courseid/secretKey-through-Cassandra-lookup
+// middle section (previously duplicated from publicCertifcateFlinkv2.ts's
+// '/download') replaced with the shared
+// resolveAndRenderCertificateFromCassandra helper (CHANGE 48). This route's
+// own token-gate wrapper stays as-is, including the pre-existing quirk
+// where a non-200 token silently sends no response at all (no else branch).
 mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
   try {
     const accesTokenResult = verifyToken(req, res)
     if (accesTokenResult.status == 200) {
-      const userid = req.query.userid
-      const courseid = req.query.courseid
-      const secretKey = req.query.secretKey
-
-      if (!(userid || courseid || secretKey)) {
-        res.status(400).json({
-          msg: 'UserID, courseID or secretKey can not be empty',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY
-      if (certificateKey !== secretKey) {
-        res.status(400).json({
-          msg: 'Invalid certificate download key',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      const client = new cassandra.Client({
-        contactPoints: [CONSTANTS.CASSANDRA_IP],
-        keyspace: 'sunbird_courses',
-        localDataCenter: 'datacenter1',
-      })
-      // tslint:disable-next-line: max-line-length
-      const query = `SELECT userid, courseid, batchid, issued_certificates FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`
-      const certificateData = await client.execute(query)
-      if (!certificateData) {
-        res.status(400).json({
-          msg: 'Certificate ID cannot be fetched',
-          status: 'error',
-          status_code: 400,
-        })
-      }
-      client.shutdown()
-      const certificateId =
-        certificateData.rows[0].issued_certificates[0].identifier
-      const certificateName =
-        certificateData.rows[0].issued_certificates[0].name
-      const response = await axios({
-        ...axiosRequestConfig,
-        headers: {
-          Authorization: CONSTANTS.SB_API_KEY,
-        },
-        method: 'GET',
-        url: `${API_END_POINTS.DOWNLOAD_CERTIFICATE}${certificateId}`,
-      })
-      logInfo(
-        'Certificate download in progress of certificate ID',
-        certificateId
-      )
-      function getPosition(stringValue, subStringValue, index) {
-        return stringValue.split(subStringValue, index).join(subStringValue)
-          .length
-      }
-      let imageData = response.data.result.printUri
-      imageData = decodeURIComponent(imageData)
-      imageData = imageData.substring(imageData.indexOf(','))
-      let width = imageData.substring(
-        imageData.indexOf("<svg width='") + 12,
-        getPosition(imageData, "'", 2)
-      )
-      let height = imageData.substring(
-        imageData.indexOf("height='") + 8,
-        getPosition(imageData, "'", 4)
-      )
-      if (!imageData.includes("<svg width='")) {
-        width = '1400'
-        height = '950'
-      }
-      const puppeteer = {
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--headless',
-          '--no-zygote',
-          '--disable-gpu',
-        ],
-        headless: true,
-        ignoreHTTPSErrors: true,
-      }
-
-      let image = await nodeHtmlToImage({
-        html: `<html>
-    <head>
-      <style>
-        body {
-          width:${width}px;
-          height: ${height}px;
-        }
-      </style>
-    </head>
-    <body>${imageData}</body>
-  </html>`,
-        puppeteerArgs: puppeteer,
-      })
-      if (response.data.responseCode === 'OK') {
-        logInfo('Certificate printURI received :')
-        res.writeHead(200, {
-          'Content-Disposition':
-            'attachment;filename=' + `${certificateName}.png`,
-          'Content-Type': 'image/png',
-        })
-        res.end(image, 'binary')
-        image = ''
-      } else {
-        throw new Error(
-          _.get(response.data, 'params.errmsg') ||
-          _.get(response.data, 'params.err')
-        )
-      }
+      await resolveAndRenderCertificateFromCassandra(req, res)
     }
   } catch (error) {
     logError('Error in downloading certificate  >>>>>>' + error)
@@ -938,59 +861,65 @@ mobileAppApi.get('/certificateDownload', async (req, res) => {
     })
   }
 })
-mobileAppApi.post('/ratings/upsert', async (req, res) => {
+// sonar-cleanup: extracted from '/ratings/upsert', '/ratings/v2/read', and
+// '/ratings/ratingLookUp', which shared the identical POST-with-body shape
+// (CHANGE 33). '/ratings/summary' is a GET with upfront courseId
+// validation and no body — a genuinely different shape — and stays
+// untouched.
+/**
+ * Posts the request body to the given ratings endpoint and forwards the
+ * response, or a fixed 400 with `errorMessage` on failure.
+ * @param req the Express request whose body is forwarded as-is
+ * @param res the Express response to send the result or error to
+ * @param url the upstream ratings endpoint to POST to
+ * @param logLabel text logged on entry to this route
+ * @param errorMessage the fixed message sent on failure
+ */
+// tslint:disable-next-line: no-any
+async function proxyRatingsPostRoute(req: any, res: any, url: string, logLabel: string, errorMessage: string) {
   try {
-    logInfo('Inside ratings upsert API')
-    const upsertData = req.body
+    logInfo(logLabel)
     const response = await axios({
-      data: upsertData,
+      data: req.body,
       headers: contentTypeHeader,
       method: 'post',
-      url: API_END_POINTS.ratingUpsert,
+      url,
     })
     res.status(200).json(response.data)
   } catch (error) {
     logInfo(JSON.stringify(error))
     res.status(400).json({
-      message: 'Something went wrong while ratings upsert',
+      message: errorMessage,
     })
   }
+}
+
+mobileAppApi.post('/ratings/upsert', async (req, res) => {
+  await proxyRatingsPostRoute(
+    req,
+    res,
+    API_END_POINTS.ratingUpsert,
+    'Inside ratings upsert API',
+    'Something went wrong while ratings upsert'
+  )
 })
 mobileAppApi.post('/ratings/v2/read', async (req, res) => {
-  try {
-    logInfo('Inside ratings read API')
-    const readRatingsData = req.body
-    const response = await axios({
-      data: readRatingsData,
-      headers: contentTypeHeader,
-      method: 'post',
-      url: API_END_POINTS.ratingRead,
-    })
-    res.status(200).json(response.data)
-  } catch (error) {
-    logInfo(JSON.stringify(error))
-    res.status(400).json({
-      message: 'Something went wrong while reading ratings',
-    })
-  }
+  await proxyRatingsPostRoute(
+    req,
+    res,
+    API_END_POINTS.ratingRead,
+    'Inside ratings read API',
+    'Something went wrong while reading ratings'
+  )
 })
 mobileAppApi.post('/ratings/ratingLookUp', async (req, res) => {
-  try {
-    logInfo('Inside ratings lookup API')
-    const upsertData = req.body
-    const response = await axios({
-      data: upsertData,
-      headers: contentTypeHeader,
-      method: 'post',
-      url: API_END_POINTS.ratingLookUp,
-    })
-    res.status(200).json(response.data)
-  } catch (error) {
-    logInfo(JSON.stringify(error))
-    res.status(400).json({
-      message: 'Something went wrong while rating lookup',
-    })
-  }
+  await proxyRatingsPostRoute(
+    req,
+    res,
+    API_END_POINTS.ratingLookUp,
+    'Inside ratings lookup API',
+    'Something went wrong while rating lookup'
+  )
 })
 mobileAppApi.get('/ratings/summary', async (req, res) => {
   try {
@@ -1100,7 +1029,7 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
         JSON.stringify(req.session?.grant)
       )
     }
-    const token = req.session?.grant?.access_token?.token || ''
+    const token = req.session?.grant?.access_token?.token ?? ''
     searchRequestBody.authToken = token
     logInfo(
       'Inside CBP course recommendation route request body',
@@ -1114,149 +1043,97 @@ mobileAppApi.post('/publicSearch/courseRecommendationCbp', async (req, res) => {
     })
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: DEFAULT_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err)
   }
 })
 
-mobileAppApi.post('/create/homepageconfig', async (req, res) => {
+// sonar-cleanup: extracted from the 5 /*/homepageconfig routes' repeated
+// axios({...}) -> forward status/data -> handleMobileApiDefaultError(res, err,
+// 'error') shape (CHANGE 47). Each route's own logInfo call(s) before the
+// upstream call — which vary in wording and arguments — stay at the call
+// site rather than folded into this helper. The 2 routes (update/delete)
+// that also log the response after a successful call are preserved via the
+// optional `logResponse` flag, matching their original behavior exactly.
+/**
+ * Proxies a homepageconfig request: makes the upstream axios call and
+ * forwards the upstream status/body, or the caught error, back to the
+ * caller.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result or error on
+ * @param method - the HTTP method to use upstream
+ * @param url - the resolved upstream endpoint
+ * @param sendBody - whether to forward `req.body` as the request data
+ * @param logResponse - whether to log the upstream response body before sending it (update/delete routes only)
+ */
+async function proxyHomepageConfigRoute(
+  // tslint:disable-next-line: no-any
+  req: any, res: any, method: Method, url: string, sendBody: boolean, logResponse = false
+) {
   try {
-    /* tslint:disable-next-line */
-    logInfo('Inside home config route');
-    const searchRequestBody = req.body
     const response = await axios({
-      data: searchRequestBody,
+      ...(sendBody ? { data: req.body } : {}),
       headers: {
         Authorization: CONSTANTS.SB_API_KEY,
         contentTypeHeader,
       },
-      method: 'POST',
-      url: API_END_POINTS.formHomeConfig,
+      method,
+      url,
     })
+    if (logResponse) {
+      logInfo('Response from homepageconfig', JSON.stringify(response.data))
+    }
     res.status(response.status).send(response.data)
   } catch (err) {
-    logInfo('error', JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: DEFAULT_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err, 'error')
   }
+}
+
+mobileAppApi.post('/create/homepageconfig', async (req, res) => {
+  /* tslint:disable-next-line */
+  logInfo('Inside home config route');
+  await proxyHomepageConfigRoute(req, res, 'POST', API_END_POINTS.formHomeConfig, true)
 })
 
 mobileAppApi.get('/read/homepageconfig', async (req, res) => {
-  try {
-    logInfo(
-      'Inside home config route /read/homepageconfig ',
-      JSON.stringify(req.params)
-    )
-    const response = await axios({
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'GET',
-      url: API_END_POINTS.formHomeConfig,
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    logInfo('error', JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: DEFAULT_ERROR_MSG,
-      }
-    )
-  }
+  logInfo(
+    'Inside home config route /read/homepageconfig ',
+    JSON.stringify(req.params)
+  )
+  await proxyHomepageConfigRoute(req, res, 'GET', API_END_POINTS.formHomeConfig, false)
 })
 
 mobileAppApi.get('/getById/homepageconfig/*', async (req, res) => {
-  try {
-    /* tslint:disable-next-line */
-    logInfo('Inside home config read by id', JSON.stringify(req.params));
-    const id = req.params[0]
-    const response = await axios({
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'GET',
-      url: API_END_POINTS.formHomeConfig + '/' + id,
-    })
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    logInfo('error', JSON.stringify(err))
-    res
-      .status(err?.response?.status || DEFAULT_ERROR_STATUS)
-      .send(err?.response?.data || { error: DEFAULT_ERROR_MSG })
-  }
+  /* tslint:disable-next-line */
+  logInfo('Inside home config read by id', JSON.stringify(req.params));
+  const id = req.params[0]
+  await proxyHomepageConfigRoute(req, res, 'GET', API_END_POINTS.formHomeConfig + '/' + id, false)
 })
 
 mobileAppApi.put('/updateById/homepageconfig/*', async (req, res) => {
-  try {
-    /* tslint:disable-next-line */
-    logInfo(
-      'Inside home config update',
-      JSON.stringify(req.params),
-      req.params[0]
-    )
-    const id = req.params[0]
-    logInfo(
-      'Inside CBP course recommendation route ',
-      API_END_POINTS.formHomeConfig + '/' + id
-    )
-    const searchRequestBody = req.body
-    const response = await axios({
-      data: searchRequestBody,
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'PUT',
-      url: API_END_POINTS.formHomeConfig + '/' + id,
-    })
-    logInfo('Response from homepageconfig', JSON.stringify(response.data))
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    logInfo('error', JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: DEFAULT_ERROR_MSG,
-      }
-    )
-  }
+  /* tslint:disable-next-line */
+  logInfo(
+    'Inside home config update',
+    JSON.stringify(req.params),
+    req.params[0]
+  )
+  const id = req.params[0]
+  logInfo(
+    'Inside CBP course recommendation route ',
+    API_END_POINTS.formHomeConfig + '/' + id
+  )
+  await proxyHomepageConfigRoute(req, res, 'PUT', API_END_POINTS.formHomeConfig + '/' + id, true, true)
 })
 
 mobileAppApi.delete('/deleteById/homepageconfig/*', async (req, res) => {
-  try {
-    /* tslint:disable-next-line */
-    logInfo('Request body', JSON.stringify(req.params), req.params[0]);
-    const id = req.params[0]
-    logInfo(
-      'Inside CBP course recommendation route ',
-      API_END_POINTS.formHomeConfig + '/' + id
-    )
-    const response = await axios({
-      headers: {
-        Authorization: CONSTANTS.SB_API_KEY,
-        contentTypeHeader,
-      },
-      method: 'DELETE',
-      url: API_END_POINTS.formHomeConfig + '/' + id,
-    })
-    logInfo('Response from homepageconfig', JSON.stringify(response.data))
-    res.status(response.status).send(response.data)
-  } catch (err) {
-    logInfo('error', JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: DEFAULT_ERROR_MSG,
-      }
-    )
-  }
+  /* tslint:disable-next-line */
+  logInfo('Request body', JSON.stringify(req.params), req.params[0]);
+  const id = req.params[0]
+  logInfo(
+    'Inside CBP course recommendation route ',
+    API_END_POINTS.formHomeConfig + '/' + id
+  )
+  await proxyHomepageConfigRoute(req, res, 'DELETE', API_END_POINTS.formHomeConfig + '/' + id, false, true)
 })
 
 mobileAppApi.post('/learnerPath', async (req, res) => {
@@ -1281,11 +1158,8 @@ mobileAppApi.post('/learnerPath', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: 'Something went wrong while updating or inserting learnerpath',
-      }
+    handleMobileApiDefaultError(
+      res, err, undefined, 'Something went wrong while updating or inserting learnerpath'
     )
   }
 })
@@ -1311,12 +1185,7 @@ mobileAppApi.get('/learnerPath', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: SERVER_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, SERVER_ERROR_MSG)
   }
 })
 mobileAppApi.get(
@@ -1367,12 +1236,7 @@ mobileAppApi.get(
       }
       res.status(200).send(combinedCertificatesData)
     } catch (err) {
-      logInfo(JSON.stringify(err))
-      res.status((err && err.response && err.response.status) || 500).send(
-        (err && err.response && err.response.data) || {
-          error: DEFAULT_ERROR_MSG,
-        }
-      )
+      handleMobileApiDefaultError(res, err)
     }
   }
 )
@@ -1816,12 +1680,7 @@ mobileAppApi.get('/getUnreadUserNotifications', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: SERVER_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, SERVER_ERROR_MSG)
   }
 })
 
@@ -1843,12 +1702,7 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
       status: 'SUCCESS',
     })
   } catch (err) {
-    logInfo(JSON.stringify(err))
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
-        error: SERVER_ERROR_MSG,
-      }
-    )
+    handleMobileApiDefaultError(res, err, undefined, SERVER_ERROR_MSG)
   }
 })
 

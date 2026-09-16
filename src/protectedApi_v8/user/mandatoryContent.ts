@@ -4,11 +4,7 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
-import { extractUserToken } from '../../utils/requestExtract'
-
-import {
-    extractAuthorizationFromRequest
-} from '../../utils/requestExtract'
+import { extractAuthorizationFromRequest, extractUserToken } from '../../utils/requestExtract'
 
 const API_END_POINTS = {
     mandatoryContentStatus: `${CONSTANTS.KONG_API_BASE}/v1/check/mandatoryContentStatus`,

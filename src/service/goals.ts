@@ -5,16 +5,13 @@ import {
   IGoalSbExtV1,
   IGoalSbExtV2,
   IGoalsGroup,
-  IGoalUpsertRequest,
   IGoalUpsertResponse,
   IGoalUpsertResponseSbExt,
-  IGoalUpsertSbExt,
-  IProgressResource as IResourceProgress,
-  IResourceProgressSbExt,
   ITrackStatusSbExt,
   IUserGoals,
   IUserGoalSbExt
 } from '../models/goal.model'
+import { buildContentCreateRequest } from '../utils/contentCreateHelpers'
 import { processDisplayContentType } from '../utils/contentHelpers'
 
 export function transformToGoalForOthers(goalForOthersSbExt: IGoalSbExtV1): IGoal {
@@ -76,17 +73,6 @@ export function transformToUserGoals(userGoalSbExt: IUserGoalSbExt): IUserGoals 
   }
 }
 
-export function transformGoalUpsertRequest(goal: IGoalUpsertRequest): IGoalUpsertSbExt {
-  return {
-    goal_content_id: goal.contentIds,
-    goal_desc: goal.description,
-    goal_duration: goal.duration,
-    goal_id: goal.id,
-    goal_title: goal.name,
-    goal_type: goal.type,
-  }
-}
-
 export function transformGoalUpsertResponse(
   response: IGoalUpsertResponseSbExt
 ): IGoalUpsertResponse {
@@ -95,24 +81,6 @@ export function transformGoalUpsertResponse(
     return { error: ERROR_CODE_HASH[error[0].code] || error[0].code }
   }
   return {}
-}
-
-export function transformResourceProgress(
-  resourceProgressSbExt: IResourceProgressSbExt
-): IResourceProgress {
-  return {
-    contentType: resourceProgressSbExt.content_type,
-    displayContentType: processDisplayContentType(
-      resourceProgressSbExt.content_type,
-      resourceProgressSbExt.resourceType
-    ),
-    duration: resourceProgressSbExt.resource_duration,
-    id: resourceProgressSbExt.resource_id,
-    mimeType: resourceProgressSbExt.mime_type,
-    name: resourceProgressSbExt.resource_name,
-    progress: resourceProgressSbExt.resource_progress,
-    timeLeft: resourceProgressSbExt.time_left,
-  }
 }
 
 export function transformToTrackStatus(trackStatusSbExt: ITrackStatusSbExt) {
@@ -174,22 +142,13 @@ export function transformToSbExtPatchRequest(req: { contentIds: string[] }, goal
 }
 
 export function formGoalRequestObj(request: { createdBy: string; name: string; description: string }, userId: string) {
-  /* for Patch request to change playlist title */
-  return {
-    request: {
-      content: {
-        code: 'org.ekstep0.29884945860157064123',
-        contentType: 'Collection',
-        createdBy: userId,
-        creator: request.createdBy,
-        description: request.description,
-        license: 'CC BY 4.0',
-        mimeType: 'application/vnd.ekstep.content-collection',
-        name: request.name,
-        primaryCategory: 'Goals',
-      },
-    },
-  }
+  return buildContentCreateRequest(
+    request.createdBy,
+    userId,
+    request.name,
+    'Goals',
+    request.description
+  )
 }
 
 export function formContentRequestObj(req: { contentIds: string[] }, res: { result: { identifier: string } }, _userId: string) {

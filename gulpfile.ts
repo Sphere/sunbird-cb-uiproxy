@@ -1,7 +1,6 @@
 import del from 'del'
 import gulp from 'gulp'
 import gulpTypeScript from 'gulp-typescript'
-import sonarqubeScanner from 'sonarqube-scanner'
 
 import { Gulpclass, SequenceTask, Task } from 'gulpclass'
 
@@ -10,17 +9,9 @@ const dist = './dist'
 
 @Gulpclass()
 export class Gulpfile {
-  @Task('scan')
-  scan(cb: Function) {
-    sonarqubeScanner(
-      {
-        options: {},
-        serverUrl: 'http://10.177.157.45:3000/',
-        token: '8cfe2cd380b8a8d908f0dc4a179469e27920eae1',
-      },
-      cb
-    )
-  }
+  // The Sonar scan task used to live here with a hardcoded server URL and
+  // analysis token. It has moved to scripts/sonar-scan.sh (npm run sonar:local),
+  // which reads credentials from the environment instead of the repository.
   @Task('del-dist')
   clean() {
     return del('./dist/**')
@@ -28,7 +19,21 @@ export class Gulpfile {
 
   @Task('compile-project')
   compileProject() {
-    const tsResult = gulp.src('src/**/*.ts').pipe(project())
+    // Unit tests are co-located next to their source (foo.ts + foo.test.ts).
+    // They must never reach dist/, so they are negated here as well as in
+    // tsconfig "exclude". Verify with:
+    //   npm run build && find dist -name '*.test.js'   -> must be empty
+    const tsResult = gulp
+      .src([
+        'src/**/*.ts',
+        '!src/**/*.test.ts',
+        '!src/**/*.spec.ts',
+        // Test-only helpers. They live under src/ so tests can import them
+        // relatively, but they import supertest (a devDependency) and must
+        // never be shipped.
+        '!src/test-support/**',
+      ])
+      .pipe(project())
     return tsResult.js.pipe(gulp.dest(dist))
   }
 

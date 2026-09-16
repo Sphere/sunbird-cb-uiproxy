@@ -1,9 +1,10 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
-import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+// sonar-cleanup: file-local requireOrgHeaders replaced with the shared import (CHANGE 43)
+import { requireOrgHeaders } from '../../utils/requireOrgHeaders'
 
 const API_END_POINTS = {
   follow: `${CONSTANTS.NODE_API_BASE}/follow`,
@@ -19,15 +20,29 @@ const API_END_POINTS = {
 
 export const followApi = Router()
 
+// sonar-cleanup: extracted from follow.ts's repeated per-route catch blocks — same status/body shape, falling back to the raw err if there's no upstream body (CHANGE 8)
+/**
+ * Responds with the upstream status code (or 500) and the upstream error
+ * body, or the raw caught error if there's no upstream body.
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ */
+// tslint:disable-next-line: no-any
+function handleFollowError(res: Response, err: any) {
+  res
+    .status((err && err.response && err.response.status) || 500)
+    .send((err && err.response && err.response.data) || err)
+}
+
 followApi.post('/fetchAll', async (req, res) => {
   try {
     const userid = extractUserIdFromRequest(req)
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,
@@ -38,9 +53,7 @@ followApi.post('/fetchAll', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getAll, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -53,9 +66,7 @@ followApi.get('/followers/:targetId', async (req, res) => {
     const response = await axios.get(`${API_END_POINTS.followers}/${targetId}`, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -64,12 +75,11 @@ followApi.get('/following/:type', async (req, res) => {
     const type = req.params.type
     const userId = extractUserIdFromRequest(req)
 
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       org,
@@ -81,9 +91,7 @@ followApi.get('/following/:type', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getFollowing, requestBody, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
@@ -92,12 +100,11 @@ followApi.get('/getFollowing', async (req, res) => {
     const { type } = req.query
     const userId = req.query.wid || extractUserIdFromRequest(req)
 
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       org,
@@ -109,24 +116,20 @@ followApi.get('/getFollowing', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getFollowing, requestBody, axiosRequestConfig)
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
 followApi.post('/getFollowingv3', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
+      return
+    }
+    const { org, rootOrg } = orgHeaders
 
     const isIntranet = req.query.isIntranet
     const isStandAlone = req.query.isStandAlone
-
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
-      return
-    }
 
     const requestBody = {
       org,
@@ -141,20 +144,17 @@ followApi.post('/getFollowingv3', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
 followApi.post('/getFollowersv3', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,
@@ -169,20 +169,17 @@ followApi.post('/getFollowersv3', async (req, res) => {
     )
     res.json(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
 followApi.post('/', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,
@@ -193,20 +190,17 @@ followApi.post('/', async (req, res) => {
     const response = await axios.post(API_END_POINTS.follow, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
 followApi.post('/unfollow', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
     const requestBody = {
       ...req.body,
       org,
@@ -216,20 +210,17 @@ followApi.post('/unfollow', async (req, res) => {
     const response = await axios.post(API_END_POINTS.unFollow, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })
 
 followApi.post('/getFollowers', async (req, res) => {
   try {
-    const rootOrg = req.header('rootOrg')
-    const org = req.header('org')
-    if (!rootOrg || !org) {
-      res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
+    const orgHeaders = requireOrgHeaders(req, res)
+    if (!orgHeaders) {
       return
     }
+    const { org, rootOrg } = orgHeaders
 
     const requestBody = {
       ...req.body,
@@ -240,8 +231,6 @@ followApi.post('/getFollowers', async (req, res) => {
     const response = await axios.post(API_END_POINTS.getFollowers, requestBody, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || err)
+    handleFollowError(res, err)
   }
 })

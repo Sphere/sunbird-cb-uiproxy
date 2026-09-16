@@ -15,7 +15,7 @@ const API_END_POINTS = {
 export const aiServiceAPI = Router()
 aiServiceAPI.post('/uploadFileAndGetUUID', async (req, res) => {
     try {
-        if (!req.files || !req.files.file) {
+        if (!req.files?.file) {
             res.status(400).json({
                 error: 'File not received in the request',
             })
@@ -66,7 +66,7 @@ aiServiceAPI.post('/getQuestions', async (req, res) => {
                     uuid_number: req.body.uuid,
                 },
             })
-            if (response && response.data) {
+            if (response?.data) {
                 logInfo('Entered into getQuestions :' + response.data)
                 logInfo('Entered into getQuestions :' + response.data.answer)
                 const answerObject = JSON.parse(response.data.answer)
@@ -86,7 +86,7 @@ aiServiceAPI.post('/getQuestions', async (req, res) => {
     }
 })
 const handleErrorResponse = (error, res) => {
-    if (error.response && error.response.data && error.response.data.detail) {
+    if (error.response?.data?.detail) {
         const errorDetail = error.response.data.detail
         const errorMessage = errorDetail.map((detail) => `${detail.loc.join('.')} ${detail.msg}`).join('; ')
         logError('Error:', errorMessage)
@@ -98,7 +98,7 @@ const handleErrorResponse = (error, res) => {
 }
 
 const handleAxiosError = (error) => {
-    if (error.response && error.response.data) {
+    if (error.response?.data) {
         const errorMessage = error.response.data.message || 'An error occurred while processing your request'
         logError('Error:', errorMessage)
         throw new Error(errorMessage)
@@ -117,7 +117,7 @@ const translateRequestHandler = async (reqestbody, pipelineRequestData, requestH
             { headers: requestHeaders }
         )
 
-        if (modelPipelineResponse && modelPipelineResponse.data) {
+        if (modelPipelineResponse?.data) {
             const { serviceId, authorizationToken } = extractDataFromResponse(modelPipelineResponse.data)
             const translateRequestData = buildTranslateRequestData(reqestbody.body, serviceId)
             const translateResponse = await axios.post(

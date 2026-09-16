@@ -36,8 +36,8 @@ categoriesApi.get('/', async (req, res) => {
         res.send(response.data)
     } catch (err) {
         logError('ERROR ON GET topicsApi /categories >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        res.status(err?.response?.status || 500)
+            .send(err?.response?.data || {})
     }
 })
 
@@ -59,7 +59,7 @@ categoriesApi.get('/:cid/:slug?/:tid?', async (req, res) => {
         res.send(response.data)
     } catch (err) {
         logError('ERROR ON GET topicsApi /:cid/:slug/:tid? >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        res.status(err?.response?.status || 500)
+            .send(err?.response?.data || {})
     }
 })

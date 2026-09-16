@@ -70,8 +70,8 @@ historyApi.get('/', async (req, res) => {
     res.json(result)
   } catch (err) {
     logError('CONTINUE LEARNING FETCH ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -120,8 +120,8 @@ historyApi.get('/:contentId', async (req, res) => {
     res.json(result)
   } catch (err) {
     logError('CONTINUE LEARNING FETCH FOR CONTENT ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )
@@ -152,8 +152,8 @@ historyApi.post('/continue', async (req, res) => {
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('CONTINUE LEARNING SET FOR CONTENT ERROR >', err)
-    res.status((err && err.response && err.response.status) || 500).send(
-      (err && err.response && err.response.data) || {
+    res.status(err?.response?.status || 500).send(
+      err?.response?.data || {
         error: GENERAL_ERROR_MSG,
       }
     )

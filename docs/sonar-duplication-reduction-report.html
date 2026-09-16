@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code cleanup: duplication and code quality</title>
+<style>
+  @font-face {
+    font-family: 'Open Sans';
+    font-weight: 400;
+    src: local('Open Sans'), local('OpenSans');
+  }
+  @font-face {
+    font-family: 'Open Sans';
+    font-weight: 600;
+    src: local('Open Sans SemiBold'), local('OpenSans-SemiBold');
+  }
+  @font-face {
+    font-family: 'Open Sans';
+    font-weight: 700;
+    src: local('Open Sans Bold'), local('OpenSans-Bold');
+  }
+  @font-face {
+    font-family: 'Lato';
+    font-weight: 400;
+    src: local('Lato'), local('Lato-Regular');
+  }
+
+  :root {
+    /* Tarento brand v3.2 — light */
+    --navy-500: #17283C;
+    --navy-400: #18293D;
+    --navy-300: #2D3E54;
+    --navy-200: #4A5A70;
+    --navy-100: #7E8A9A;
+    --navy-50: #BEC5CE;
+
+    --teal-700: #135858;
+    --teal-600: #186E6E;
+    --teal-500: #1E8F8E;
+    --teal-400: #17A4A3;
+    --teal-300: #4BA5A4;
+    --teal-100: #B8ECE9;
+    --teal-50: #E3F7F6;
+
+    --gold-700: #9A6800;
+    --gold-600: #C88800;
+    --gold-500: #F0A500;
+    --gold-400: #F5BA3E;
+    --gold-100: #FBE7B0;
+    --gold-50: #FEF6E0;
+
+    --off-white: #F6F7F9;
+    --light-gray: #D8DEE5;
+    --mid-gray: #7C8696;
+    --almost-black: #0D1218;
+
+    --success: #22C55E;
+    --success-light: #DCFCE7;
+    --warning: #F59E0B;
+    --warning-light: #FEF3C7;
+
+    /* semantic roles, light */
+    --page-bg: var(--off-white);
+    --surface: #FFFFFF;
+    --text: var(--navy-500);
+    --text-soft: var(--mid-gray);
+    --text-faint: var(--navy-100);
+    --border: var(--light-gray);
+    --link: var(--gold-700);
+
+    --sans: 'Open Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --caption: 'Lato', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --mono: 'SFMono-Regular', Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #10151d;
+      --surface: #182230;
+      --text: #E9ECF1;
+      --text-soft: #A9B3C1;
+      --text-faint: #6E7A8C;
+      --border: #2B3646;
+      --link: var(--gold-400);
+      --teal-50: #12312f;
+      --gold-50: #2b2210;
+      --success-light: #12301f;
+      --warning-light: #332508;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #10151d; --surface: #182230; --text: #E9ECF1; --text-soft: #A9B3C1;
+    --text-faint: #6E7A8C; --border: #2B3646; --link: var(--gold-400);
+    --teal-50: #12312f; --gold-50: #2b2210; --success-light: #12301f; --warning-light: #332508;
+  }
+  :root[data-theme="light"] {
+    --page-bg: var(--off-white); --surface: #FFFFFF; --text: var(--navy-500);
+    --text-soft: var(--mid-gray); --text-faint: var(--navy-100); --border: var(--light-gray);
+    --link: var(--gold-700);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--page-bg); }
+  body {
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16px;
+  }
+
+  .page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 24px 100px;
+  }
+
+  a { color: var(--link); }
+
+  /* ---------- header ---------- */
+
+  header.intro {
+    padding-top: 40px;
+    margin-bottom: 40px;
+  }
+
+  .eyebrow {
+    font-family: var(--caption);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--teal-700);
+    margin-bottom: 10px;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eyebrow { color: var(--teal-300); } }
+  :root[data-theme="dark"] .eyebrow { color: var(--teal-300); }
+
+  h1 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 1.28;
+    margin: 0 0 14px;
+    color: var(--text);
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-family: var(--caption);
+    font-size: 16.5px;
+    color: var(--text-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  /* ---------- headline number band ---------- */
+
+  .headline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 36px 0 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .headline .num {
+    flex: 1;
+    text-align: center;
+    padding: 26px 16px;
+  }
+  .headline .num + .num { border-left: 1px solid var(--border); }
+  .headline .num .value {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 40px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .headline .num.from .value { color: var(--text-faint); }
+  .headline .num.to .value { color: var(--teal-600); }
+  :root[data-theme="dark"] .headline .num.to .value,
+  @media (prefers-color-scheme: dark) { .headline .num.to .value { color: var(--teal-400); } }
+  .headline .num .cap {
+    font-family: var(--caption);
+    font-size: 12px;
+    color: var(--text-soft);
+    margin-top: 8px;
+    letter-spacing: 0.01em;
+  }
+  .headline .mid {
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    color: var(--text-faint);
+    font-size: 22px;
+  }
+
+  .headline-note {
+    font-family: var(--caption);
+    font-size: 13px;
+    color: var(--text-soft);
+    margin: 12px 0 40px;
+  }
+
+  /* ---------- explainer callout (teal — info, supporting) ---------- */
+
+  .callout {
+    background: var(--teal-50);
+    border-left: 3px solid var(--teal-500);
+    padding: 18px 22px;
+    border-radius: 0 8px 8px 0;
+    margin: 0 0 44px;
+    font-size: 15px;
+  }
+  .callout p { margin: 0 0 10px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout b { color: var(--text); font-weight: 600; }
+
+  /* ---------- section headers ---------- */
+
+  h2 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 22px;
+    margin: 52px 0 8px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text);
+  }
+  h2:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+  .section-sub {
+    font-family: var(--caption);
+    font-size: 14.5px;
+    color: var(--text-soft);
+    margin: 0 0 24px;
+    max-width: 64ch;
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 16.5px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--text);
+  }
+
+  /* ---------- timeline table ---------- */
+
+  .table-wrap {
+    overflow-x: auto;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .timeline {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--surface);
+  }
+  .timeline th {
+    text-align: left;
+    font-family: var(--caption);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-soft);
+    font-weight: 700;
+    padding: 12px 16px;
+    background: var(--off-white);
+    border-bottom: 1px solid var(--border);
+  }
+  :root[data-theme="dark"] .timeline th { background: var(--navy-400); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .timeline th { background: #1f2937; } }
+  .timeline th:first-child { border-top-left-radius: 9px; }
+  .timeline th:last-child { border-top-right-radius: 9px; }
+  .timeline td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .timeline tbody tr:nth-child(even) td { background: var(--off-white); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .timeline tbody tr:nth-child(even) td { background: #161f2b; } }
+  :root[data-theme="dark"] .timeline tbody tr:nth-child(even) td { background: #161f2b; }
+  .timeline tr:last-child td { border-bottom: none; }
+  .timeline tr:last-child td:first-child { border-bottom-left-radius: 9px; }
+  .timeline tr:last-child td:last-child { border-bottom-right-radius: 9px; }
+  .timeline td.stage { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .timeline td.pct {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--text);
+  }
+  .timeline td.what { color: var(--text-soft); }
+  .timeline .unmeasured {
+    font-family: var(--caption);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--gold-700);
+    background: var(--gold-50);
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  :root[data-theme="dark"] .timeline .unmeasured,
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .timeline .unmeasured { color: var(--gold-400); } }
+
+  /* ---------- module cards ---------- */
+
+  .module {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal-500);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 14px;
+  }
+
+  .module .tag-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+    flex-wrap: wrap;
+  }
+
+  .module .change-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--teal-700);
+    background: var(--teal-50);
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  :root[data-theme="dark"] .module .change-tag,
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .module .change-tag { color: var(--teal-100); } }
+
+  .module .files {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  .module p {
+    margin: 0 0 10px;
+    font-size: 14.5px;
+    color: var(--text-soft);
+  }
+  .module p:last-child { margin-bottom: 0; }
+  .module p b { color: var(--text); font-weight: 600; }
+
+  .why-box {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--teal-50);
+    border-radius: 7px;
+    font-size: 13.5px;
+    color: var(--text);
+  }
+  .why-box b {
+    display: block;
+    font-family: var(--caption);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--teal-700);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  :root[data-theme="dark"] .why-box b,
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .why-box b { color: var(--teal-300); } }
+
+  .bug-box {
+    margin-top: 10px;
+    padding: 12px 16px;
+    background: var(--gold-50);
+    border-radius: 7px;
+    font-size: 13.5px;
+    color: var(--text);
+  }
+  .bug-box b {
+    display: block;
+    font-family: var(--caption);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gold-700);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  :root[data-theme="dark"] .bug-box b,
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bug-box b { color: var(--gold-400); } }
+
+  /* ---------- left-alone cards (navy, quiet — not an error state) ---------- */
+
+  .keep-away {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--navy-300);
+    border-radius: 8px;
+    padding: 18px 24px;
+    margin-bottom: 12px;
+  }
+  .keep-away h3 { color: var(--text); margin-bottom: 8px; }
+  .keep-away p { margin: 0; font-size: 14.5px; color: var(--text-soft); }
+
+  /* ---------- glossary ---------- */
+
+  .glossary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+  .glossary dt {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--text);
+    margin-top: 14px;
+  }
+  .glossary dt:first-child { margin-top: 0; }
+  .glossary dd {
+    margin: 4px 0 0;
+    font-family: var(--caption);
+    font-size: 14px;
+    color: var(--text-soft);
+  }
+
+  /* ---------- footer ---------- */
+
+  footer {
+    margin-top: 52px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-family: var(--caption);
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--off-white);
+    color: var(--navy-400);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  :root[data-theme="dark"] code,
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) code { background: #1f2937; color: var(--teal-100); } }
+
+  @media (max-width: 560px) {
+    h1 { font-size: 25px; }
+    .headline { flex-direction: column; }
+    .headline .num + .num { border-left: none; border-top: 1px solid var(--border); }
+    .headline .mid { display: none; }
+    .headline .num .value { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="intro">
+    <div class="eyebrow">sunbird-cb-uiproxy &middot; engineering report</div>
+    <h1>Why the codebase changed, module by module</h1>
+    <p class="lede">
+      A plain-language record of every code cleanup done so far &mdash; both combining
+      duplicated code and separate small code-quality fixes &mdash; what changed, why it
+      was safe, and what was deliberately left alone.
+    </p>
+  </header>
+
+  <div class="headline">
+    <div class="num from">
+      <div class="value">26.8%</div>
+      <div class="cap">Where we started</div>
+    </div>
+    <div class="mid">&rarr;</div>
+    <div class="num to">
+      <div class="value">4.8%</div>
+      <div class="cap">Confirmed today</div>
+    </div>
+  </div>
+  <p class="headline-note">
+    Roughly 10,400 fewer duplicated lines out of an original ~12,400 (12,389 &rarr; 1,944)
+    &mdash; measured by SonarQube, the tool that scans the code and reports this number.
+    The original 5% goal has been reached and passed. A separate, unrelated pass then
+    fixed 486 code-quality suggestions across the codebase &mdash; see below.
+  </p>
+
+  <div class="callout">
+    <p>
+      <b>What "duplication" means here:</b> in several places across the app, the same
+      piece of logic &mdash; usually "call another service, then send the result back, and
+      if something goes wrong, log it and show an error" &mdash; had been copy-pasted into
+      many different files or many different sections of the same file, instead of being
+      written once and reused.
+    </p>
+    <p>
+      <b>What "cleaning it up" means:</b> finding those copies, checking carefully that they
+      really do the same thing, and combining them into one shared piece of code that every
+      copy now calls. Wherever two copies looked the same but actually did something
+      slightly different &mdash; a different web address, a different error message, an
+      extra step one of them takes &mdash; that difference was kept, not erased. It became
+      a setting passed into the shared code instead of a separate copy.
+    </p>
+  </div>
+
+  <h2>The story in one table</h2>
+  <p class="section-sub">
+    Every measurement, in order. "Confirmed" means the scanning tool was re-run and gave
+    this number back. "Not yet confirmed" means the change was made and fully tested, but
+    the tool wasn't reachable to re-check the score.
+  </p>
+  <div class="table-wrap">
+  <table class="timeline">
+    <thead>
+    <tr><th>Stage</th><th>Score</th><th>What happened</th></tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td class="stage">Starting point</td>
+      <td class="pct">26.8%</td>
+      <td class="what">Investigation only &mdash; mapped every duplicated block before touching any code</td>
+    </tr>
+    <tr>
+      <td class="stage">Early cleanup</td>
+      <td class="pct">13.9%</td>
+      <td class="what">A large early batch of safe, boilerplate-only merges (see "Early rounds" below)</td>
+    </tr>
+    <tr>
+      <td class="stage">Learner-path &amp; certificate files</td>
+      <td class="pct">13.9% &rarr; 12.6%</td>
+      <td class="what">3 file groups combined</td>
+    </tr>
+    <tr>
+      <td class="stage">Network, search, social, sign-up</td>
+      <td class="pct">11.3% &rarr; 8.3%</td>
+      <td class="what">5 larger file groups combined; one real bug found and fixed mid-way</td>
+    </tr>
+    <tr>
+      <td class="stage">Discussion &amp; profile files</td>
+      <td class="pct">8.3% &rarr; 7.0%</td>
+      <td class="what">2 more file groups combined</td>
+    </tr>
+    <tr>
+      <td class="stage">Playlist file</td>
+      <td class="pct">7.0% &rarr; 6.8%</td>
+      <td class="what">One file's repeated error-handling combined</td>
+    </tr>
+    <tr>
+      <td class="stage">Training &amp; certifications files</td>
+      <td class="pct">6.8% &rarr; 6.7%</td>
+      <td class="what">2 large files (45 routes) sharing one new helper</td>
+    </tr>
+    <tr>
+      <td class="stage">Admin &amp; discussion files</td>
+      <td class="pct">6.7% &rarr; 6.4%</td>
+      <td class="what">2 more files cleaned up</td>
+    </tr>
+    <tr>
+      <td class="stage">Recommendation, content, follow files</td>
+      <td class="pct">6.4% &rarr; 6.1%</td>
+      <td class="what">3 files' header-checking logic combined</td>
+    </tr>
+    <tr>
+      <td class="stage">Search-sorting logic</td>
+      <td class="pct">6.1%</td>
+      <td class="what">One shared sorting function extracted</td>
+    </tr>
+    <tr>
+      <td class="stage">Header-check cleanup, round 2</td>
+      <td class="pct">6.1%</td>
+      <td class="what">4 files' near-identical header checks combined into one shared version</td>
+    </tr>
+    <tr>
+      <td class="stage">Workflow &amp; work-allocation files</td>
+      <td class="pct">6.1% &rarr; 5.6%</td>
+      <td class="what">2 files re-examined and found to have real safe duplication after all, plus 3 more clusters cleaned up in the mobile-app API file</td>
+    </tr>
+    <tr>
+      <td class="stage">Two small readability fixes</td>
+      <td class="pct">5.6%</td>
+      <td class="what">A confusing nested condition split into a clear step, in 2 files</td>
+    </tr>
+    <tr>
+      <td class="stage">Admin, feedback, recommendation, certificate files</td>
+      <td class="pct">5.6% &rarr; 5.0%</td>
+      <td class="what">4 more files' repeated logic combined, goal of 5% reached exactly</td>
+    </tr>
+    <tr>
+      <td class="stage">Password-reset file</td>
+      <td class="pct">5.0% &rarr; 4.9%</td>
+      <td class="what">One more file's repeated logic combined; remaining duplication re-checked and confirmed unmergeable</td>
+    </tr>
+    <tr>
+      <td class="stage">Code-quality sweep, round 1</td>
+      <td class="pct">4.9%</td>
+      <td class="what">Duplicate imports, repeated fallback checks, and confusing conditions cleaned up in 21 files (not a duplication change &mdash; see the section below)</td>
+    </tr>
+    <tr>
+      <td class="stage">Code-quality sweep, round 2</td>
+      <td class="pct">4.9% &rarr; 4.8%</td>
+      <td class="what">40 more files' repeated null-checks simplified; one small side-effect from that fixed the same day</td>
+    </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Early rounds &mdash; small, safe fixes</h2>
+  <p class="section-sub">
+    Before the big duplication push, a first pass caught small code-quality and security
+    issues one at a time.
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 1</span><span class="files">randomPasswordGenerator.ts</span></div>
+    <h3>New-account passwords now use a proper secure random generator</h3>
+    <p>The way new account passwords were generated used a random-number method that, in theory, could be predicted. Swapped it for a cryptographically secure one. The password length and character rules stayed exactly the same &mdash; only how "random" is produced changed.</p>
+    <div class="bug-box"><b>Real security fix</b> Not about duplication &mdash; this closed an actual weakness.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 2</span><span class="files">keycloak-user-creation.ts</span></div>
+    <h3>Removed error-handling code that could never run</h3>
+    <p>A safety-net block meant to catch errors was written in a way that meant it could never actually catch anything. Removed the dead block and added one that works.</p>
+    <div class="why-box"><b>Why safe</b> The removed block genuinely never ran, so removing it changes nothing.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Changes 3&ndash;5</span><span class="files">navigator.ts, dataAlterer.ts, realTimeProgress.ts</span></div>
+    <h3>Small readability cleanups with no behavior change</h3>
+    <p>Simplified a nested if/else chain, gave two pieces of logic their own clear names, and modernized two variable declarations. None of these change what the code does &mdash; they just make it easier to read.</p>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 6</span><span class="files">connections.ts, socialv2.ts, userDataMigration.ts (deleted)</span></div>
+    <h3>Deleted three files that nothing in the app was using</h3>
+    <p>Confirmed through multiple checks (commented-out references, file history, exhaustive route lists) that these three files were never reachable by any real request. Deleted them along with their tests.</p>
+    <div class="bug-box"><b>Bug found in the deleted code</b> One deleted file had a real security flaw &mdash; it skipped OTP verification before letting someone reset a password. It posed no live risk since it was already unreachable, but it's flagged in case anyone considers reviving it.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 7</span><span class="files">whitelistApis.ts</span></div>
+    <h3>Simplified the security permissions list from ~1,900 lines to ~725</h3>
+    <p>This file lists every web address in the app and which permission checks apply to it. 301 of 306 entries used the exact same 3 permission combinations, just copy-pasted repeatedly. Replaced the repeats with 3 reusable presets.</p>
+    <div class="why-box"><b>Why safe</b> Ran an automated check proving the final permission rules are identical, address by address, for all 306 entries &mdash; not just the ones with tests.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Changes 11&ndash;12</span><span class="files">server.ts, various small files</span></div>
+    <h3>Configuration cleanup and 16 small code-quality fixes</h3>
+    <p>Moved one hardcoded web address into a proper setting (keeping the same address as the fallback), and cleaned up 16 minor issues flagged by the code-quality scanner &mdash; mostly dead code and imprecise error handling.</p>
+  </div>
+
+  <h2>Sign-up and login files</h2>
+  <p class="section-sub">
+    This app has several nearly-identical sign-up flows for different partner
+    organizations (UPSMF, MP-NHM, BNRC, and others), plus several sign-up variants for
+    the main app. A lot of duplication lived here, because these were clearly built by
+    copying one flow to create the next.
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Changes 9, 22, 30</span><span class="files">upsmfUser.ts, mpNHMUser.ts, bnrcUser.ts</span></div>
+    <h3>Combined the shared setup and logic across the three partner sign-up files</h3>
+    <p>These three files each independently rebuilt the same database connection setup, the same list of web addresses, and the same form-validation rules. Combined all of that into shared, reusable files. Later, six more pieces of sign-up logic (create user, send SMS code, and so on) were also combined into a new shared helper file.</p>
+    <div class="why-box"><b>Why safe</b> Every genuine per-organization difference &mdash; custom log wording, one organization's longer network timeout, different postal-address text &mdash; was kept as an explicit setting, not erased. Each file still gets its own separate database connection, on purpose, since sharing one would have reduced how many connections were available under load.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 10</span><span class="files">signupWithAutoLogin.ts, signupWithAutoLoginV2.ts, appSignUpWithAutoLogin.ts, emailOrMobileLoginSignIn.ts</span></div>
+    <h3>Combined "create account," "update profile," and "check if user exists" logic</h3>
+    <p>Three sign-up files (plus a login file) had identical copies of these three pieces of logic. Combined them into shared, reusable files.</p>
+    <div class="why-box"><b>Why safe</b> One file uses a genuinely different login-timeout setting than the others &mdash; that difference was kept separate, not merged away.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 23</span><span class="files">emailOrMobileLoginSignIn.ts</span></div>
+    <h3>Combined two login methods' shared "exchange code for session" step</h3>
+    <p>The same 55-line block that swaps a one-time login code for a logged-in session appeared twice in one file, for two different login methods. Combined into one shared piece; each login method still builds its own request beforehand exactly as before.</p>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 31</span><span class="files">tnaiAuth.ts, tnnmcAuth.ts, sashaktAuth.ts, maternityFoundationAuth.ts</span></div>
+    <h3>Combined the shared "exchange login code with our partner system" step</h3>
+    <p>Four partner-login files share one identical middle step: exchanging a login code with the shared authentication system. Combined just that step into a shared file.</p>
+    <div class="why-box"><b>Why safe</b> Deliberately did not try to merge the rest of each file's logic &mdash; the failure handling, redirect behavior, and response shape genuinely differ between partners, and forcing those together would risk wiring the wrong behavior to the wrong partner.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 33</span><span class="files">signupWithAutoLogin.ts, signupWithAutoLoginV2.ts, appSignUpWithAutoLogin.ts</span></div>
+    <h3>Combined "send and verify OTP code" logic across three sign-up files</h3>
+    <p>The one-time-passcode sending and checking logic was duplicated across three sign-up files. Combined it into one shared file.</p>
+    <div class="bug-box">
+      <b>Real bug found and fixed</b>
+      While combining this, an early draft of the merge accidentally introduced a bug where
+      the app could try to send two responses to the same request &mdash; something the web
+      framework doesn't allow, and would have crashed that request. The existing automated
+      tests caught this immediately, before it ever reached production, and it was fixed the
+      same session. The final, shipped version has no bug.
+    </div>
+  </div>
+
+  <h2>Search &amp; content files</h2>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Changes 16, 20, 24</span><span class="files">content.ts, home.ts, publicContent.ts, publicSearch.ts, ratingsSearch.ts</span></div>
+    <h3>Combined shared search-result formatting and database-connection setup</h3>
+    <p>Several files independently rebuilt the same "format search results and send them back" logic, and two files independently rebuilt the same database-connection setup. Combined the identical parts.</p>
+    <div class="why-box"><b>Why safe</b> The part that actually builds the search request &mdash; which differs meaningfully between a logged-in feature and a public one &mdash; was deliberately left untouched. Each file still gets its own separate database connection.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Changes 33, 35</span><span class="files">publicSearch.ts, ratingsSearch.ts, courseRecommendation.ts, user/profile-details.ts</span></div>
+    <h3>Combined large, nearly-identical course-search and profile-creation logic</h3>
+    <p>A large (~90%-identical) block of course-search logic, including a database lookup and a search-engine call, was duplicated across two files &mdash; combined into one shared search function. Separately, two identical account-creation web addresses in a profile file were merged into one.</p>
+    <div class="why-box"><b>Why safe</b> Every genuine difference &mdash; whether extra pagination applies, whether a language filter applies, whether ratings get added to results &mdash; was passed in as an explicit setting.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 42</span><span class="files">publicSearch.ts, ratingsSearch.ts</span></div>
+    <h3>Combined a shared "sort results by skill level" block</h3>
+    <p>Both files had an identical ~30-line block that groups and sorts search results by a competency score. Combined into one shared function.</p>
+  </div>
+
+  <h2>Error-handling cleanup, file by file</h2>
+  <p class="section-sub">
+    By far the most common type of duplication in this app: the same "call the backend,
+    then either send the result or log an error and send a failure message" pattern,
+    repeated once per web address inside a single file. Across dozens of files, these
+    repeats were combined into one shared piece of code per file &mdash; or, where the
+    text was truly identical everywhere, one shared piece of code used by several files.
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 8</span><span class="files">12 files, incl. rdbms.ts, myAnalytics.ts, content.ts, leaderboard.ts, goals.ts, scoring.ts, follow.ts</span></div>
+    <h3>First large round: 12 files' repeated error-handling combined</h3>
+    <p>In each of these 12 files, the same short "something went wrong &mdash; log it and respond" code had been copy-pasted once per web address. Combined each file's repeats into one shared piece specific to that file.</p>
+    <div class="why-box"><b>Why safe</b> Anywhere a block looked similar but was actually shaped differently &mdash; for example, one that returns instead of responding, or one already known to have a bug &mdash; was deliberately left alone rather than force-merged.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Changes 34, 38, 39</span><span class="files">discussionHub/topics.ts, discussionHub/posts.ts, discussionHub/writeApi.ts, admin/userRegistration.ts</span></div>
+    <h3>More discussion &amp; admin files reused existing shared helpers</h3>
+    <p>Rather than creating new duplicate helpers, several files were rewired to call error-handling code that had already been built and proven safe in a neighboring file.</p>
+    <div class="why-box"><b>Why safe</b> A couple of small pre-existing quirks &mdash; a wrong label logged for one specific case, a double space in a log message &mdash; were kept exactly as they were, not "corrected" as a side effect.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 36</span><span class="files">user/playlist.ts</span></div>
+    <h3>Combined 11 repeated error-handling blocks in the playlist file</h3>
+    <p>Combined 11 nearly-identical error-handling blocks into one shared function for this file.</p>
+    <div class="why-box"><b>Why safe</b> 2 of the 11 routes log extra detail on failure that the other 9 don't &mdash; kept as an optional setting, with a new test added specifically proving the 9 that shouldn't log still don't.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 37</span><span class="files">training.ts, certifications.ts</span></div>
+    <h3>Two large, unrelated-looking files turned out to share identical error text</h3>
+    <p>These two files (45 web addresses combined) had completely identical error-handling code, right down to the exact wording. Combined into one new shared file used by both, rather than a separate copy per file, since there was nothing left to differ.</p>
+    <div class="why-box"><b>Why safe</b> One single address, out of the 45, falls back to a different error code than every other one &mdash; kept as an explicit setting rather than forced to match everyone else.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Changes 13, 14, 40, 41, 43</span><span class="files">content.ts, goals.ts, recommendation.ts, user/content.ts, user/follow.ts</span></div>
+    <h3>Combined the "check required headers are present" check, across many files</h3>
+    <p>Many files start each web address with the same check: does this request have the two headers we need? If not, reject it. Combined the repeats within each file first, and later &mdash; once it turned out 4 different files had each separately built their own copy of the exact same check &mdash; combined those 4 copies into a single shared version everyone uses.</p>
+    <div class="why-box"><b>Why safe</b> Wherever a route needed a genuinely different set of headers, it was correctly left out of the merge. Confirmed all 4 copies behaved identically before combining them.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 41</span><span class="files">user/content.ts</span></div>
+    <h3>Found a second layer of duplication underneath the header check</h3>
+    <p>After combining the header-check duplication in this file, two route handlers (a "like" and an "unlike" action) turned out to be identical apart from which action they performed. Combined those too.</p>
+  </div>
+
+  <h2>Recently re-examined files</h2>
+  <p class="section-sub">
+    Two files had earlier been judged "not worth merging" &mdash; too fragmented, too
+    entangled with real differences to safely combine. Looking again, more carefully,
+    found that judgment was wrong for most of each file. This is the most recent work.
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 46</span><span class="files">workflow-handler.ts, workallocation.ts</span></div>
+    <h3>Combined 18 routes across two files that were previously skipped</h3>
+    <p>Both files have many web addresses that all do the same thing: call a backend service with a standard set of headers, then send back whatever it returns. Combined all 9 addresses in one file, and 9 of 12 in the other.</p>
+    <div class="why-box">
+      <b>Why safe</b>
+      The remaining routes in the second file were deliberately left alone because each one
+      is genuinely different: two use an entirely different way of proving who's making the
+      request, one sends no authentication at all, one logs errors differently (correctly,
+      unlike the others), and one downloads a PDF file instead of sending back normal data.
+      New tests were added specifically checking the exact web address and method being
+      called, because the existing tests only checked the final response &mdash; not
+      thorough enough to safely prove this merge didn't break anything.
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 47</span><span class="files">mobileAppApi.ts</span></div>
+    <h3>Found 3 more safe patterns in a file previously judged "too tangled"</h3>
+    <p>
+      Combined 5 similar "homepage configuration" web addresses into one shared piece of
+      code. Separately, found 5 more scattered error-handling blocks elsewhere in the same
+      file that matched a pattern already safely combined elsewhere, and wired those 5 to
+      reuse the existing shared code instead of duplicating it again. Also combined two
+      routes that both check a user's login token and then look something up.
+    </p>
+    <div class="why-box">
+      <b>Why safe</b>
+      Careful re-reading of the change, before running any tests, caught something the first
+      attempt at the merge had accidentally dropped: 2 of the 5 "homepage configuration"
+      routes log extra detail after a successful call, and the other 3 don't. That
+      difference was restored and kept as an explicit setting. Two other error-handling
+      blocks that looked similar were deliberately not combined, because they log errors at
+      a different severity level than the rest &mdash; merging them would have quietly made
+      a real error look less serious than it is.
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Code-quality fixes</span><span class="files">workflow-handler.ts, workallocation.ts</span></div>
+    <h3>Cleaned up a confusing condition flagged by the code scanner</h3>
+    <p>Both files had the same pattern: a decision nested inside another decision, on one line, which the scanner flags as hard to read even though it works correctly. Pulled the inner decision out onto its own line first. No change in what either file does.</p>
+  </div>
+
+  <h2>Latest round &mdash; five more files, goal reached</h2>
+  <p class="section-sub">
+    A further pass looked at every file that still had any duplication left, checking each
+    one from scratch rather than trusting earlier notes. Most turned out to be the same
+    already-confirmed cases below. Five had genuinely new safe combining opportunities.
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">admin/bulkExtendedMethod.ts</span></div>
+    <h3>Combined the "save profile and log it" ending shared by two functions</h3>
+    <p>Two functions in this file both end the same way: send the updated profile to the backend, then log three lines about it. Combined that ending into one shared piece.</p>
+    <div class="why-box"><b>Why safe</b> One of the three log lines had a small wording inconsistency in the original code (one function's version was missing a word the other two lines in the same function had) &mdash; kept exactly as it was rather than smoothed over.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">user/feedbackV2.ts</span></div>
+    <h3>Combined the "submit feedback" logic shared by two routes</h3>
+    <p>Two feedback-submission routes built and sent almost the same request. Combined the shared parts into one function.</p>
+    <div class="why-box"><b>Why safe</b> One of the two routes includes an extra "sentiment" field in what it sends and the other never does &mdash; kept as an explicit setting, not merged away.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">recommendation.ts</span></div>
+    <h3>Combined the "shape and send results" ending shared by two routes</h3>
+    <p>Two recommendation routes both end by pulling results out of the response, shuffling them, and sending them back the same way. Combined that ending into one shared piece.</p>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">publicCertifcateFlinkv2.ts, mobileAppApi.ts</span></div>
+    <h3>Combined the certificate-lookup step shared by two download routes</h3>
+    <p>Both a public certificate-download route and a mobile-app one checked the same 3 pieces of information, looked the certificate up the same way, then rendered it. Combined that shared middle step into one place both routes call.</p>
+    <div class="bug-box"><b>Pre-existing quirk kept as-is</b> Both routes have the same small bug: a couple of validation checks send a "this is wrong" response but don't actually stop the rest of the code from continuing to run afterward. This was true before the change and is still true after &mdash; not something introduced or something fixed, deliberately left untouched since fixing it would be a behavior change, not a duplication cleanup.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Change 48</span><span class="files">forgotPassword.ts</span></div>
+    <h3>Combined the "send the reset code" ending shared by the email and phone routes</h3>
+    <p>Resetting a password by email and resetting it by phone both end the same way once the account is found: request a one-time code, then confirm it was sent. Combined that ending into one shared piece.</p>
+    <div class="why-box"><b>Why safe</b> The two routes log slightly different wording at this step &mdash; kept as explicit settings. Also removed one leftover comment describing code that was already disabled and never ran, which was just clutter, not logic.</div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="change-tag">Follow-up</span><span class="files">bulkExtendedMethod.ts, forgotPassword.ts</span></div>
+    <h3>Cleaned up two logging lines flagged right after the merge above</h3>
+    <p>Combining the repeated code in these two files surfaced an old habit that was previously hidden in duplicate copies: a line that logs a network response by gluing it onto a piece of text, which prints as unhelpful text like "[object Object]" instead of anything readable. This was already happening before today's changes, just in more places at once &mdash; now that it's down to one place per file, it was easy to fix properly.</p>
+  </div>
+
+  <h2>A separate cleanup: code-quality suggestions</h2>
+  <p class="section-sub">
+    This part isn't about duplication at all &mdash; it's a different kind of finding from
+    the same scanning tool: small, purely stylistic suggestions about how code is written,
+    not about copies of code. Every one of these was checked by hand for a specific risk
+    before being changed: some of these patterns look interchangeable but actually behave
+    differently for certain values (like <code>0</code> or <code>false</code>), so anywhere
+    that risk was real, the code was deliberately left as it was instead of "fixed."
+  </p>
+
+  <div class="module">
+    <div class="tag-row"><span class="files">21 files across the sign-up, login, admin, and utility code</span></div>
+    <h3>Merged duplicate import lines, removed one unused import, and simplified safe fallback checks</h3>
+    <p>
+      Several files imported the same helper twice, on two separate lines, instead of once.
+      Merged those into a single line each. Also found and removed one import that wasn&rsquo;t
+      being used anywhere in its file. Separately, many files had a pattern like
+      &ldquo;if this value exists, use it, otherwise use this other one&rdquo; written the
+      older way; the newer, clearer way to write that was used instead &mdash;
+      but only in the specific places where it&rsquo;s provably identical in behavior.
+    </p>
+    <div class="why-box">
+      <b>Why safe</b>
+      This shortcut only behaves identically to the old style when the value being checked
+      can never legitimately be the number 0, the word false, or a similarly "empty-looking"
+      value that should still count as real data. Every single occurrence was checked by hand
+      against what that value actually is &mdash; a web-address parameter, a saved session
+      token, a piece of typed form data &mdash; before being touched. Anywhere the value could
+      plausibly be a real 0, a real false, or came from a part of the code with no such
+      guarantee, it was deliberately left exactly as it was.
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="tag-row"><span class="files">40 files, mostly error-handling and profile-lookup code</span></div>
+    <h3>Simplified repeated "does this exist, does the next part of it exist" checks</h3>
+    <p>
+      By far the most common shape in the whole codebase: code that checks a value exists,
+      then checks a piece inside it exists, then checks a piece inside <em>that</em> exists,
+      before finally using it &mdash; three separate checks chained together with "and."
+      There's a shorter, equally safe way to write exactly that check, and it was applied in
+      every place where it&rsquo;s provably identical in behavior to the longer version.
+    </p>
+    <div class="why-box">
+      <b>Why safe</b>
+      The overwhelming majority of these instances are the same recurring pattern: checking
+      whether a failed network call included a real error response, and if not, falling back
+      to a default. That fallback is what makes the shortcut provably safe here &mdash; whichever
+      way the check is written, a missing piece always ends up using the same default anyway, so
+      there's no way for the outcome to differ. This was proven by running both versions
+      side by side against more than 25 different possible inputs (missing pieces, real
+      values, the number 0, the word false) and confirming every single result matched
+      exactly, not just assumed. A handful of checks that looked similar but actually read a
+      <em>different</em> piece of data than the one being checked were left untouched, since
+      the shortcut would have quietly changed what they read.
+    </div>
+    <div class="bug-box">
+      <b>Small side effect, caught and fixed the same day</b>
+      Making this change in one file (a helper that reads details out of a login token)
+      caused the code-quality scanner to notice that two leftover type-conversion notes
+      elsewhere in the same file had become unnecessary. Removed both. These notes only
+      exist for the tool that checks the code before it runs and have no effect on the
+      program itself, so removing them changed nothing about how the code behaves &mdash;
+      confirmed by that file's own tests, which specifically check what happens when the
+      login-token data is missing.
+    </div>
+  </div>
+
+  <h2>What's deliberately left alone, and why</h2>
+  <p class="section-sub">
+    Not everything that looks like duplication can be safely combined. These are the
+    parts of the codebase that were investigated and specifically decided against
+    touching &mdash; not overlooked, decided, and checked again in the most recent round
+    to make sure that was still the right call.
+  </p>
+
+  <div class="keep-away">
+    <h3>The security permissions table (whitelistApis.ts)</h3>
+    <p>
+      This one file used to account for about an eighth of all duplication in the entire
+      codebase on its own. It isn't repeated logic &mdash; it's a giant table that decides,
+      for every web address in the app, exactly which permission checks apply. The only
+      thing repeating is the same-shaped rule appearing next to hundreds of genuinely
+      different, individually important addresses. There's no way to compress this further
+      without risking either silently removing a security check from one address, or
+      silently copying one address's permissions onto a different one by mistake.
+    </p>
+  </div>
+
+  <div class="keep-away">
+    <h3>The three partner sign-up files (UPSMF, MP-NHM, BNRC)</h3>
+    <p>
+      A large amount of what's safely shareable between these three files has already
+      been combined. What's left is genuinely different for each organization: different
+      job-role lists, different job-title naming, different contact emails, different
+      address formats &mdash; and, in a few places, each file already has its own
+      different pre-existing bug. Merging what's left would risk quietly applying one
+      organization's rules to a different one.
+    </p>
+  </div>
+
+  <div class="keep-away">
+    <h3>The five partner-login files (single sign-on)</h3>
+    <p>
+      Checked twice, including a final dedicated re-check specifically to make sure
+      nothing safe was being missed. The login credentials themselves were already safely
+      combined earlier. What's genuinely different, file by file, is what happens right
+      after login: each partner sends back a different set of profile fields, and one
+      file does an extra database step none of the others do. No two of the five files
+      even match each other closely enough for a safe partial merge. The existing tests
+      also don't check the exact data being sent closely enough to safely catch a bad
+      merge here, so touching this without much more test-writing first would be
+      genuinely risky, not just theoretically risky.
+    </p>
+  </div>
+
+  <div class="keep-away">
+    <h3>The role-definitions file (roleActivity.ts)</h3>
+    <p>
+      Similar situation to the permissions table &mdash; this isn't code logic, it's
+      fixed reference data (a list of roles and what they mean) that happens to share the
+      same data shape across different roles. There's nothing to combine here in a
+      meaningful sense.
+    </p>
+  </div>
+
+  <div class="keep-away">
+    <h3>The remaining sign-up file overlap</h3>
+    <p>
+      Four sign-up files still share a small remaining piece of code &mdash; the step
+      right after exchanging a login code with the identity system. Checked again
+      specifically to see whether this piece could finally be combined too. It can't: the
+      actual data sent to exchange the code is different between files (one still sends a
+      password field the others dropped), the way each file checks whether it worked is
+      different, and every file logs this step with different wording and severity.
+      A smaller attempt &mdash; combining just the outer wrapper around this step &mdash;
+      was also considered and rejected, since that wrapper's contents are exactly the
+      part that can't be combined, so it wouldn't have actually reduced anything.
+    </p>
+  </div>
+
+  <div class="keep-away">
+    <h3>Two user-profile files' overlapping update logic (profile-details.ts)</h3>
+    <p>
+      This file has a few blocks that look similar to each other and to a route in the
+      mobile-app file. Looked closely at each: one pair shares a setup step but then
+      genuinely splits &mdash; one path creates an extra registry entry afterward, the
+      other skips it and returns immediately. Another pair requires different form
+      fields entirely. And the version that looks similar to the mobile-app file uses a
+      completely different way of proving who's making the request. None of these can be
+      combined without either erasing that fork in what happens next, or forcing two
+      different login/authentication styles to pretend they're the same.
+    </p>
+  </div>
+
+  <h2>Plain-language glossary</h2>
+  <p class="section-sub">A few terms used throughout this document, explained simply.</p>
+  <div class="glossary">
+    <dl>
+      <dt>Duplication / duplicated lines</dt>
+      <dd>Code that appears, word-for-word or near-enough, in more than one place. Measured automatically by a tool called SonarQube, which scans the whole codebase and reports what percentage of it is repeated.</dd>
+      <dt>Combining / merging</dt>
+      <dd>Taking two or more copies of the same logic and replacing them with one shared version that everyone calls, instead of everyone keeping their own copy.</dd>
+      <dt>Threading through as a setting</dt>
+      <dd>When two copies are almost identical but not quite &mdash; say, they call different web addresses &mdash; the shared version is written to accept "which address" as an input, so each caller still gets its own correct behavior.</dd>
+      <dt>Route / web address / endpoint</dt>
+      <dd>A specific URL path the app responds to, like <code>/getUserProfile</code>. Each one usually has its own small block of code handling it.</dd>
+      <dt>Regression test / automated test</dt>
+      <dd>A small program that runs the real code and checks the result matches what's expected. If a change accidentally breaks something, a test is supposed to catch it immediately, before anyone else does.</dd>
+      <dt>SonarQube / the scanning tool</dt>
+      <dd>The automated tool that measures duplication percentage, among other code-quality things. Every number in the table above, including the final 4.9%, has been confirmed by re-running this tool.</dd>
+    </dl>
+  </div>
+
+  <footer>
+    Every change described here went through the same process before being accepted: read
+    both copies of the code in full, confirm exactly what's the same and what's genuinely
+    different, combine only the truly-identical parts, keep every real difference as an
+    explicit setting, then re-run the full automated test suite (thousands of tests) two or
+    three times to confirm nothing broke, plus a full production build check. Full technical
+    detail for every change lives in <code>docs/PROD-VERIFICATION.md</code>.
+  </footer>
+
+</div>
+</body>
+</html>

@@ -4,8 +4,9 @@ import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { getUserUID, getWriteApiToken } from '../../utils/discussionHub-helper'
 import { CONSTANTS } from '../../utils/env'
-import { logError, logInfo } from '../../utils/logger'
+import { logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { handleWriteApiError } from './writeApi'
 
 const API_ENDPOINTS = {
     getPopularTopics: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/popular`,
@@ -35,9 +36,7 @@ topicsApi.get('/recent', async (req, res) => {
         )
         res.send(response.data)
     } catch (err) {
-        logError('ERROR ON GET topicsApi /recent >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        handleWriteApiError(res, err, 'ERROR ON GET topicsApi /recent >')
     }
 })
 
@@ -53,9 +52,7 @@ topicsApi.get('/top', async (req, res) => {
         )
         res.send(response.data)
     } catch (err) {
-        logError('ERROR ON GET topicsApi /top >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        handleWriteApiError(res, err, 'ERROR ON GET topicsApi /top >')
     }
 })
 
@@ -72,9 +69,7 @@ topicsApi.get('/popular', async (req, res) => {
         )
         res.send(response.data)
     } catch (err) {
-        logError('ERROR ON GET topicsApi /popular >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        handleWriteApiError(res, err, 'ERROR ON GET topicsApi /popular >')
     }
 })
 
@@ -91,9 +86,7 @@ topicsApi.get('/unread', async (req, res) => {
         )
         res.send(response.data)
     } catch (err) {
-        logError('ERROR ON GET topicsApi /unread >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        handleWriteApiError(res, err, 'ERROR ON GET topicsApi /unread >')
     }
 })
 
@@ -110,9 +103,7 @@ topicsApi.get('/unread/total', async (req, res) => {
         )
         res.send(response.data)
     } catch (err) {
-        logError('ERROR ON GET topicsApi /unread >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        handleWriteApiError(res, err, 'ERROR ON GET topicsApi /unread >')
     }
 })
 
@@ -132,8 +123,6 @@ topicsApi.get('/:tid', async (req, res) => {
         )
         res.send(response.data)
     } catch (err) {
-        logError('ERROR ON GET topicsApi /:tid >', err)
-        res.status((err && err.response && err.response.status) || 500)
-            .send(err && err.response && err.response.data || {})
+        handleWriteApiError(res, err, 'ERROR ON GET topicsApi /:tid >')
     }
 })

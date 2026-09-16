@@ -3,34 +3,35 @@ import axios from 'axios'
 import express, { Request, Response } from 'express'
 import Joi from 'joi'
 import { v4 as uuidv4 } from 'uuid'
+import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { CONSTANTS } from '../utils/env'
-import { logError } from '../utils/logger'
-import { logInfo } from '../utils/logger'
+import { logError, logInfo } from '../utils/logger'
+import {
+  API_END_POINTS,
+  REGISTRATION_SOURCE as registrationSource,
+  STANDARD_DOB as standardDob,
+  USER_SUCCESS_REGISTRATION_MESSAGE as userSuccessRegistrationMessage,
+} from '../utils/orgSignupConstants'
+// sonar-cleanup: local getUserDetails/createUser/assignRoleToUser/OTP-axios-calls/migrateUserToBnrc replaced with shared imports (CHANGE 30)
+import {
+  assignOrgSignupUserRole,
+  createOrgSignupUser,
+  getUserDetails,
+  migrateOrgSignupUser,
+  resendMsg91Otp,
+  sendMsg91Otp,
+  verifyMsg91Otp,
+} from '../utils/orgSignupHelpers'
+import {
+  conditionalFieldValidator,
+  optionalEmailValidator,
+  requiredDistrictValidator,
+  requiredFirstNameValidator,
+  requiredLastNameValidator,
+  requiredPhoneValidator,
+} from '../utils/orgSignupValidators'
 
-const pgPool = new (require('pg')).Pool({
-    connectionTimeoutMillis: 10000,  // 10 seconds to establish connection
-    database: CONSTANTS.DATA_LAKE_POSTGRES_DATABASE,
-    host: CONSTANTS.DATA_LAKE_POSTGRES_HOST,
-    idleTimeoutMillis: 30000,        // 30 seconds idle before closing
-    max: 20,                          // Max 20 connections in pool
-    password: CONSTANTS.DATA_LAKE_POSTGRES_PASSWORD,
-    port: CONSTANTS.DATA_LAKE_POSTGRES_PORT,
-    statement_timeout: 30000,         // 30 seconds for query execution
-    user: CONSTANTS.DATA_LAKE_POSTGRES_USER,
-})
-
-// Add error handling for pool
-pgPool.on('error', (error) => {
-    logError('Unexpected error on idle client in pool', JSON.stringify(error))
-})
-
-pgPool.on('connect', () => {
-    logInfo('New PostgreSQL connection established')
-})
-
-pgPool.on('remove', () => {
-    logInfo('PostgreSQL connection removed from pool')
-})
+const pgPool = createDataLakePgPool()
 
 export const bnrcUserCreation = express.Router()
 
@@ -77,39 +78,14 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'Block is required',
         }),
     bnrcRegistrationNumber: Joi.string().allow('', null).optional(),
-    district: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'District is required',
-        }),
-    firstName: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'First name is required',
-        }),
+    district: requiredDistrictValidator,
+    firstName: requiredFirstNameValidator,
 
-    lastName: Joi.string()
-        .required()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Last name is required',
-        }),
+    lastName: requiredLastNameValidator,
 
-    phone: Joi.number() // Adjusted to validate as a number
-        .required()
-        .integer()
-        .positive()
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Phone number is required',
-            'number.base': 'Phone number must be a number',
-            'number.integer': 'Phone number must be an integer',
-            'number.positive': 'Phone number must be a positive integer',
-        }),
+    phone: requiredPhoneValidator,
 
-    email: Joi.string().allow('', null).email().optional(),
+    email: optionalEmailValidator,
     hrmsId: Joi.string().allow('', null).optional(),
     role: Joi.string()
         .valid('Student', 'Faculty', 'In Service')
@@ -120,49 +96,13 @@ const serviceSchemaJoi = Joi.object({
             'any.required': 'Role is required',
         }),
 
-    courseSelection: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            'any.required': 'Course selection is required for Student and Faculty roles',
-        }),
+    courseSelection: conditionalFieldValidator('Student', 'Course selection is required for Student and Faculty roles'),
 
-    instituteType: Joi.string()
-        .when('role', {
-            // tslint:disable-next-line: all
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute type is required for Student and Faculty roles',
-        }),
+    instituteType: conditionalFieldValidator(['Student', 'Faculty'], 'Institute type is required for Student and Faculty roles'),
 
-    instituteName: Joi.string()
-        .when('role', {
-            is: Joi.valid('Student', 'Faculty'),
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Institute name is required for Student and Faculty roles',
-        }),
+    instituteName: conditionalFieldValidator(['Student', 'Faculty'], 'Institute name is required for Student and Faculty roles'),
 
-    facultyType: Joi.string()
-        .when('role', {
-            is: 'Faculty',
-            otherwise: Joi.string().allow('', null).optional(),
-            then: Joi.string().required(),
-        })
-        .messages({
-            // tslint:disable-next-line: all
-            'any.required': 'Faculty type is required for Faculty role',
-        }),
+    facultyType: conditionalFieldValidator('Faculty', 'Faculty type is required for Faculty role'),
 
     roleForInService: Joi.string()
         .valid(shortHands.publicHealthFacility, shortHands.privateHealthFacility, shortHands.cho, shortHands.staffNurses)
@@ -208,17 +148,6 @@ const serviceSchemaJoi = Joi.object({
         }),
     serviceType: Joi.string().allow('', null).optional(),
 })
-const API_END_POINTS = {
-    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-    msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-    msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-    profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
-const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-Bihar',
@@ -285,18 +214,8 @@ const getDetailsAsPerRole = (userDetails: UserDetails) => {
         orgName,
     }
 }
-const indianCountryCode = '+91'
-const msg91Headers = {
-    // tslint:disable-next-line: all
-    accept: 'application/json',
-    authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-    'content-type': 'application/json',
-}
-const standardDob = '01/01/1970'
 const biharOrgName = 'Bihar Nursing Registration Council'
 const accessDeniedMessage = 'Access denied! Please contact admin at help.ekshamata@gmail.com for support.'
-// tslint:disable-next-line: all
-const userSuccessRegistrationMessage = `Registration Successful! Kindly download e-Kshamata app - <a class="blue" target="_blank" href="https://bit.ly/E-kshamataApp">https://bit.ly/E-kshamataApp</a> and login using your given mobile number using OTP.`;
 
 bnrcUserCreation.post('/createUser', async (req: Request, res: Response) => {
     const userJourneyStatus = {
@@ -454,16 +373,7 @@ bnrcUserCreation.post('/otp/sendOtp', async (req, res) => {
                 status: 'error',
             })
         }
-        await axios({
-            headers: msg91Headers,
-            params: {
-                mobile: `${indianCountryCode}${phone}`,
-                template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
-            },
-
-            method: 'POST',
-            url: API_END_POINTS.msg91SendOtp,
-        })
+        await sendMsg91Otp(phone)
         logInfo('SEND_OTP: OTP sent successfully for BNRC', JSON.stringify(req.body))
         return res.status(200).json({
             message: `OTP successfully sent on phone ${phone}`,
@@ -488,16 +398,7 @@ bnrcUserCreation.post('/otp/resendOtp', async (req, res) => {
             })
         }
         logInfo('RESEND_OTP: SSO Resend OTP through phone', phone)
-        await axios({
-            headers: msg91Headers,
-            params: {
-                mobile: `${indianCountryCode}${phone}`,
-                retrytype: 'text',
-            },
-
-            method: 'POST',
-            url: API_END_POINTS.msg91ResendOtp,
-        })
+        await resendMsg91Otp(phone)
 
         return res.status(200).json({
             message: `OTP successfully re-sent on phone ${phone}`,
@@ -521,16 +422,7 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
                 status: 'error',
             })
         }
-        const verifyOtpResponse = await axios({
-            headers: msg91Headers,
-            method: 'GET',
-            params: {
-                mobile: `${indianCountryCode}${phone}`,
-                otp,
-            },
-
-            url: API_END_POINTS.msg91VerifyOtp,
-        })
+        const verifyOtpResponse = await verifyMsg91Otp(phone, otp)
         logInfo('VALIDATE_OTP: Verify OTP response BNRC', JSON.stringify(verifyOtpResponse.data))
         if (verifyOtpResponse.data.type !== 'success') {
             return res.status(400).json({
@@ -579,94 +471,11 @@ bnrcUserCreation.post('/otp/validateOtp', async (req, res) => {
 //         return false
 //     }
 // }
-const getUserDetails = async (phone: number) => {
-    try {
-        const userDetails = await axios({
-            data: {
-                request: {
-                    filters: {
-                        phone: phone.toString(),
-                    },
-                },
-            },
-            headers: {
-                Authorization: CONSTANTS.SB_API_KEY,
-                'Content-Type': 'application/json',
-            },
-            method: 'POST',
-            url: API_END_POINTS.userSearch,
-        })
-        // tslint:disable-next-line: all
-        if (userDetails.data.result.response.content.length > 0) return { message: 'success', userDetails: userDetails.data.result.response.content[0] }
-        return { message: 'success', userDetails: '' }
-    } catch (error) {
-        logError('Error while user search', JSON.stringify(error))
-        return { message: 'failed' }
-    }
+const createUser = async (userDetails: UserDetails) =>
+    createOrgSignupUser(userDetails, 'bnrc', (details) => getDetailsAsPerRole(details).orgName)
 
-}
-
-const createUser = async (userDetails: UserDetails) => {
-    try {
-        logInfo('Create user bnrc body', JSON.stringify(userDetails))
-        const userChannel = getDetailsAsPerRole(userDetails).orgName
-        const userCreationData = {
-            request: {
-                channel: userChannel,
-                firstName: userDetails.firstName,
-                lastName: userDetails.lastName || userDetails.firstName,
-                password: CONSTANTS.BNRC_USER_DEFAULT_PASSWORD,
-                phone: JSON.stringify(userDetails.phone),
-            },
-        }
-        const userCreationResponse = await axios({
-            data: userCreationData,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-
-            method: 'POST',
-            url: API_END_POINTS.createUser,
-        })
-        if (userCreationResponse.data.result.userId) {
-            return {
-                message: 'success',
-                userId: userCreationResponse.data.result.userId,
-            }
-        }
-    } catch (error) {
-        logError('Error while user creation', JSON.stringify(error))
-        return {
-            message: 'failed',
-            userId: '',
-        }
-    }
-}
-const assignRoleToUser = async (userId: string, userDetails: UserDetails) => {
-    try {
-        const userRoleAssignData = {
-            request: {
-                organisationId: getDetailsAsPerRole(userDetails).orgId,
-                roles: ['PUBLIC'],
-                userId,
-            },
-        }
-        const roleAssignResponse = await axios({
-            data: userRoleAssignData,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'POST',
-            url: API_END_POINTS.assignRole,
-        })
-        if (roleAssignResponse.data.result.response == 'SUCCESS') {
-            return true
-        }
-    } catch (error) {
-        logError('Error while assigning user role', JSON.stringify(error))
-        return false
-    }
-}
+const assignRoleToUser = async (userId: string, userDetails: UserDetails) =>
+    assignOrgSignupUserRole(userId, userDetails, (details) => getDetailsAsPerRole(details).orgId)
 // tslint:disable-next-line: all
 const userProfileUpdate = async (user: UserDetails, userId: string) => {
     try {
@@ -943,6 +752,32 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         return false
     }
 }
+// sonar-cleanup: extracted from the identical facilityName/nin nested-ternary
+// stringification below (each 3 levels deep in the pgParams array literal).
+// The object-shaped branch is unreachable from the live /createUser route
+// today — serviceSchemaJoi validates both fields as Joi.string() before
+// userFormDetails ever reaches here, and userJourneyStatus never sets
+// either field — but it's preserved exactly as the original code had it.
+/**
+ * Stringifies a possibly-object field for the SQL params array: an object
+ * with a truthy `subField` becomes `String(value[subField])`, an object
+ * without one becomes `JSON.stringify(value)`, a non-object truthy value
+ * becomes `String(value)`, and a falsy value becomes `''`.
+ *
+ * @param value - the raw field value, which may be a string or an object
+ * @param subField - the property name to prefer when `value` is an object (e.g. 'name', 'nin')
+ */
+// tslint:disable-next-line: no-any
+function stringifyPossiblyNestedField(value: any, subField: string): string {
+    if (!value) {
+        return ''
+    }
+    if (typeof value === 'object') {
+        return value[subField] ? String(value[subField]) : JSON.stringify(value)
+    }
+    return String(value)
+}
+
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
         block: userDetails.block || '',
@@ -999,13 +834,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userFinalStatus.designation,
             userFinalStatus.district,
             userFinalStatus.email,
-            userFinalStatus.facilityName
-                ? (typeof userFinalStatus.facilityName === 'object'
-                    ? (userFinalStatus.facilityName.name
-                        ? String(userFinalStatus.facilityName.name)
-                        : JSON.stringify(userFinalStatus.facilityName))
-                    : String(userFinalStatus.facilityName))
-                : '',
+            stringifyPossiblyNestedField(userFinalStatus.facilityName, 'name'),
             userFinalStatus.facultyType,
             userFinalStatus.firstName,
             userFinalStatus.hrmsId,
@@ -1013,13 +842,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             userFinalStatus.instituteType,
             String(Boolean(userFinalStatus.isUserMigrated)),
             userFinalStatus.lastName,
-            userFinalStatus.nin
-                ? (typeof userFinalStatus.nin === 'object'
-                    ? (userFinalStatus.nin.nin
-                        ? String(userFinalStatus.nin.nin)
-                        : JSON.stringify(userFinalStatus.nin))
-                    : String(userFinalStatus.nin))
-                : '',
+            stringifyPossiblyNestedField(userFinalStatus.nin, 'nin'),
             userFinalStatus.organisationId,
             userFinalStatus.organisationName,
             String(userFinalStatus.phone || ''),
@@ -1076,49 +899,12 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
 }
 
 const migrateUserToBnrc = async (userDetails, userFormDetails) => {
-    try {
-        const migrateUserData = {
-            request: {
-                channel: getDetailsAsPerRole(userFormDetails).orgName,
-                forceMigration: true,
-                notifyMigration: false,
-                softDeleteOldOrg: true,
-                userId: userDetails.userId,
-            },
-        }
-        const migrateUserResponse = await axios({
-            data: migrateUserData,
-            headers: {
-                'X-Authenticated-User-Token': '',
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'PATCH',
-            url: API_END_POINTS.migrateUser,
-        })
-        const userProfileDetails = userDetails.profileDetails
-        const updatedProfessionalDetails = { ...userProfileDetails.profileReq.professionalDetails[0], ...userFormDetails }
-        userProfileDetails.profileReq.professionalDetails[0] = updatedProfessionalDetails
-        userProfileDetails.profileReq.personalDetails.postalAddress = `India, Bihar, ${userFormDetails.district}`
-        userProfileDetails.profileReq.professionalDetails[0].designation = getUserDesignationFromRole[userFormDetails.role]
-        const userProfileUpdateBody = {
-            request: {
-                profileDetails: userProfileDetails,
-                userId: userDetails.id,
-            },
-        }
-        await axios({
-            data: userProfileUpdateBody,
-            headers: {
-                authorization: CONSTANTS.SB_API_KEY,
-            },
-            method: 'PATCH',
-            url: API_END_POINTS.profileUpdate,
-        })
-        if (migrateUserResponse.data.result.response == 'success') {
-            return true
-        }
-    } catch (error) {
-        logError('Error while migrating user to BNRC org', JSON.stringify(error))
-        return false
-    }
+    return migrateOrgSignupUser(
+        userDetails,
+        userFormDetails,
+        (details) => getDetailsAsPerRole(details).orgName,
+        (role) => getUserDesignationFromRole[role],
+        'Bihar',
+        'BNRC'
+    )
 }

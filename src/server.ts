@@ -107,7 +107,7 @@ export class Server {
 
   }
   private setupBackendSocket() {
-    const backendUrl = 'http://notification-engine:3013' // Backend WebSocket server URL
+    const backendUrl = CONSTANTS.NOTIFICATION_ENGINE_SOCKET_URL // Backend WebSocket server URL
     this.backendSocket = ClientSocket(backendUrl)
 
     this.backendSocket.on('connect', () => {

@@ -8,8 +8,8 @@ import { IIGOTJLStatus } from '../models/training.model'
 import { CONSTANTS } from '../utils/env'
 import { getEmailLocalPart } from '../utils/helpers'
 import { extractUserEmailFromRequest } from '../utils/requestExtract'
-
-const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
+// sonar-cleanup: catch blocks replaced with the shared import (CHANGE 37)
+import { forwardUpstreamError } from '../utils/upstreamErrorForward'
 
 const apiEndpoints = {
   certifications: `${CONSTANTS.LEARNING_HUB_API_BASE}/lHub`,
@@ -33,11 +33,7 @@ certificationApi.get('/:certificationId/bookingInfo', async (req, res) => {
 
     return res.send(certification)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -54,11 +50,7 @@ certificationApi.get('/:certificationId/testCenters', async (req, res) => {
 
     return res.send(testCenters)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -78,11 +70,7 @@ certificationApi.get(
 
       return res.send(accSlots)
     } catch (err) {
-      return res.status((err && err.response && err.response.status) || 400).send(
-        (err && err.response && err.response.data) || {
-          error: GENERAL_ERROR_MSG,
-        }
-      )
+      return forwardUpstreamError(res, err)
     }
   }
 )
@@ -102,11 +90,7 @@ certificationApi.post('/:certificationId/booking/:slotNo', async (req, res) => {
 
     return res.send(accBookingResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -121,11 +105,7 @@ certificationApi.get('/countries', async (_req, res) => {
 
     return res.send(atDeskCountries)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -142,11 +122,7 @@ certificationApi.get('/countries/:countryCode/locations', async (req, res) => {
 
     return res.send(atDeskLocations)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -159,11 +135,7 @@ certificationApi.get('/slots', async (_req, res) => {
 
     return res.send(atDeskSlots)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -183,11 +155,7 @@ certificationApi.post('/:certificationId/atDeskBooking', async (req, res) => {
 
     return res.send(atDeskBookingResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -210,11 +178,7 @@ certificationApi.delete('/:certificationId/slots/:slotNo', async (req, res) => {
 
     return res.send(slotDeleteResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -229,11 +193,7 @@ certificationApi.get('/currencies', async (_req, res) => {
 
     return res.send(currencies)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -253,11 +213,7 @@ certificationApi.post('/:certificationId/budgetRequest', async (req, res) => {
 
     return res.send(budgetRequestSubmitResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -276,11 +232,7 @@ certificationApi.delete('/:certificationId/budgetRequest', async (req, res) => {
 
     return res.send(budgetRequestCancelResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -320,11 +272,7 @@ certificationApi.post('/:certificationId/result', async (req, res) => {
 
     return res.send(resultUploadResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -345,11 +293,7 @@ certificationApi.patch('/:certificationId/result', async (req, res) => {
 
     return res.send(resultSubmitResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -367,11 +311,7 @@ certificationApi.get('/submittedDocument', async (req, res) => {
 
     return res.send(document)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -391,11 +331,7 @@ certificationApi.delete('/:certificationId/document', async (req, res) => {
 
     return res.send(docDeleteResponse)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -414,11 +350,7 @@ certificationApi.get('/certificationApprovals', async (req, res) => {
 
     return res.send(approvalItems)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -435,11 +367,7 @@ certificationApi.post('/atDeskRequests/:icfdId', async (req, res) => {
 
     return res.send(resp)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -460,11 +388,7 @@ certificationApi.post('/:certificationId/budgetRequestApproval', async (req, res
 
     return res.send(resp)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -484,11 +408,7 @@ certificationApi.post('/:certificationId/resultVerificationRequests', async (req
 
     return res.send(resp)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -507,11 +427,7 @@ certificationApi.get('/', async (req, res) => {
 
     return res.send(certifications)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -533,11 +449,7 @@ certificationApi.get('/certificationRequests', async (req, res) => {
 
     return res.send(certificationRequests)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -556,11 +468,7 @@ certificationApi.get('/:certificationId/submissions', async (req, res) => {
 
     return res.send(submissions)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -573,11 +481,7 @@ certificationApi.get('/:emailId/privileges', async (req, res) => {
 
     return res.send(privileges)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 
@@ -592,11 +496,7 @@ certificationApi.get('/defaultProctor', async (req, res) => {
 
     return res.send(defaultProctor)
   } catch (err) {
-    return res.status((err && err.response && err.response.status) || 400).send(
-      (err && err.response && err.response.data) || {
-        error: GENERAL_ERROR_MSG,
-      }
-    )
+    return forwardUpstreamError(res, err)
   }
 })
 

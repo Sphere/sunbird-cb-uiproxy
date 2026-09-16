@@ -13,11 +13,3 @@ export interface ITopic {
   count: number
   id: string
 }
-
-export interface IInterestApiResponse {
-  rootOrg: string
-  org: string
-  language: string
-  interestId: string
-  interest: string
-}

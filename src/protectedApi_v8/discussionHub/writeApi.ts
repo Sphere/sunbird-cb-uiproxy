@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Router } from 'express'
+import { Request, Response, Router } from 'express'
 import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
 import {
@@ -29,6 +29,90 @@ const API_ENDPOINTS = {
 }
 
 export const writeApi = Router()
+
+// sonar-cleanup: extracted from writeApi.ts's repeated per-route catch blocks — same logError(label, err) + status/body shape (CHANGE 8); catches inside createDiscussionHubUser/getUserByEmail/getUserByUsername sit inside a documented never-invoked-closure bug and were left untouched; also reused by topics.ts and posts.ts, whose catch blocks had the identical shape (CHANGE 34)
+/**
+ * Logs the error under `label`, then responds with the upstream status code
+ * (or 500) and the upstream error body (or an empty object).
+ *
+ * @param res - the Express response to send the error on
+ * @param err - the caught error, expected to optionally carry an axios-style `response`
+ * @param label - text prefixed to the logged error message
+ */
+// tslint:disable-next-line: no-any
+export function handleWriteApiError(res: Response, err: any, label: string) {
+  logError(label, err)
+  res
+    .status((err?.response?.status) || 500)
+    .send((err?.response?.data) || {})
+}
+
+/**
+ * Shared body for the bookmark/vote POST routes — same request shape,
+ * only the target URL, whether the client body is forwarded, and the log
+ * label differ.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result on
+ * @param url - the resolved upstream endpoint to post to
+ * @param body - the request body to forward (empty object if this route discards it)
+ * @param label - text prefixed to the logged error message
+ */
+async function postWithUserUid(
+  req: Request,
+  res: Response,
+  url: string,
+  // tslint:disable-next-line: no-any
+  body: any,
+  label: string
+) {
+  try {
+    const rootOrg = getRootOrg(req)
+    const userId = extractUserIdFromRequest(req)
+    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
+    const userUid = await getUserUID(userId)
+    const response = await axios.post(
+      url,
+      {
+        ...body,
+        _uid: userUid,
+      },
+      { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
+    )
+    if (response?.data) {
+      res.send(response.data)
+    }
+  } catch (err) {
+    handleWriteApiError(res, err, label)
+  }
+}
+
+/**
+ * Shared body for the bookmark/vote DELETE routes — identical request
+ * shape, only the target URL and the log label differ.
+ *
+ * @param req - the incoming request
+ * @param res - the Express response to send the upstream result on
+ * @param url - the resolved upstream endpoint to delete against
+ * @param label - text prefixed to the logged error message
+ */
+async function deleteWithUserUid(req: Request, res: Response, url: string, label: string) {
+  try {
+    const rootOrg = getRootOrg(req)
+    const userId = extractUserIdFromRequest(req)
+    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
+    const userUid = await getUserUID(userId)
+    const response = await axios.delete(url + `?_uid=${userUid}`, {
+      ...axiosRequestConfig,
+      headers: { authorization: getWriteApiToken() },
+    })
+    if (response?.data) {
+      res.send(response.data)
+    }
+  } catch (err) {
+    handleWriteApiError(res, err, label)
+  }
+}
 
 // tslint:disable-next-line: no-any
 export async function createDiscussionHubUser(user: any): Promise<any> {
@@ -61,56 +145,23 @@ export async function createDiscussionHubUser(user: any): Promise<any> {
 }
 
 writeApi.post('/topics', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const url = API_ENDPOINTS.createTopic
-    const userUid = await getUserUID(userId)
-    const response = await axios.post(
-      url,
-      {
-        ...req.body,
-        _uid: userUid,
-      },
-      { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
-    )
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    logError('ERROR ON POST writeApi /topics >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
-  }
+  await postWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.createTopic,
+    req.body,
+    'ERROR ON POST writeApi /topics >'
+  )
 })
 
 writeApi.post('/topics/:topicId', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const topicId = req.params.topicId
-    const url = API_ENDPOINTS.replyToTopic(topicId)
-    const userUid = await getUserUID(userId)
-    const response = await axios.post(
-      url,
-      {
-        ...req.body,
-        _uid: userUid,
-      },
-      { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
-    )
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    logError('ERROR ON writeAPI  POST /topics/:topicId >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
-  }
+  await postWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.replyToTopic(req.params.topicId),
+    req.body,
+    'ERROR ON writeAPI  POST /topics/:topicId >'
+  )
 })
 
 writeApi.post('/users', async (req, res) => {
@@ -121,110 +172,46 @@ writeApi.post('/users', async (req, res) => {
     const response = await createDiscussionHubUser(req.body)
     res.send(response.data)
   } catch (err) {
-    logError('ERROR ON writeAPI POST /users >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI POST /users >')
   }
 })
 
 writeApi.post('/posts/:postId/bookmark', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const postId = req.params.postId
-    const url = API_ENDPOINTS.bookmarkPost(postId)
-    const userUid = await getUserUID(userId)
-    const response = await axios.post(
-      url,
-      {
-        _uid: userUid,
-      },
-      { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
-    )
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    logError('ERROR ON writeAPI POST /posts/:postId/bookmark >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
-  }
+  await postWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.bookmarkPost(req.params.postId),
+    {},
+    'ERROR ON writeAPI POST /posts/:postId/bookmark >'
+  )
 })
 
 writeApi.delete('/posts/:postId/bookmark', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const postId = req.params.postId
-    const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.bookmarkPost(postId) + `?_uid=${userUid}`
-    const response = await axios.delete(url, {
-      ...axiosRequestConfig,
-      headers: { authorization: getWriteApiToken() },
-    })
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    logError('ERROR ON writeAPI DELETE /posts/:postId/bookmark >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
-  }
+  await deleteWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.bookmarkPost(req.params.postId),
+    'ERROR ON writeAPI DELETE /posts/:postId/bookmark >'
+  )
 })
 
 writeApi.post('/posts/:postId/vote', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const postId = req.params.postId
-    const url = API_ENDPOINTS.votePost(postId)
-    const userUid = await getUserUID(userId)
-    const response = await axios.post(
-      url,
-      {
-        ...req.body,
-        _uid: userUid,
-      },
-      { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
-    )
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    logError('ERROR ON writeAPI POST /posts/:postId/vote >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
-  }
+  await postWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.votePost(req.params.postId),
+    req.body,
+    'ERROR ON writeAPI POST /posts/:postId/vote >'
+  )
 })
 
 writeApi.delete('/posts/:postId/vote', async (req, res) => {
-  try {
-    const rootOrg = getRootOrg(req)
-    const userId = extractUserIdFromRequest(req)
-    logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const postId = req.params.postId
-    const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.votePost(postId) + `?_uid=${userUid}`
-    const response = await axios.delete(url, {
-      ...axiosRequestConfig,
-      headers: { authorization: getWriteApiToken() },
-    })
-    if (response && response.data) {
-      res.send(response.data)
-    }
-  } catch (err) {
-    logError('ERROR ON writeAPI Delete /posts/:postId/vote >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
-  }
+  await deleteWithUserUid(
+    req,
+    res,
+    API_ENDPOINTS.votePost(req.params.postId),
+    'ERROR ON writeAPI Delete /posts/:postId/vote >'
+  )
 })
 
 writeApi.put('/topics/:topicId/follow', async (req, res) => {
@@ -243,14 +230,11 @@ writeApi.put('/topics/:topicId/follow', async (req, res) => {
       },
       { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
     )
-    if (response && response.data) {
+    if (response?.data) {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI  PUT /topics/:topicId/follow >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI  PUT /topics/:topicId/follow >')
   }
 })
 
@@ -268,13 +252,10 @@ writeApi.put('/topics/:topicId/tags', async (req, res) => {
       },
       { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }
     )
-    if (response && response.data) {
+    if (response?.data) {
       res.send(response.data)
     }
   } catch (err) {
-    logError('ERROR ON writeAPI  PUT /topics/:topicId/tags >', err)
-    res
-      .status((err && err.response && err.response.status) || 500)
-      .send((err && err.response && err.response.data) || {})
+    handleWriteApiError(res, err, 'ERROR ON writeAPI  PUT /topics/:topicId/tags >')
   }
 })
