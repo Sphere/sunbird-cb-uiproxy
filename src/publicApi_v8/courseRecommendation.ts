@@ -68,7 +68,7 @@ courseRecommendation.post('/publicSearch/getcourse', async (req, res) => {
                 'Content-Type': 'application/json',
             },
             method: 'POST',
-            url: API_END_POINTS.searchAPI,
+            url: API_END_POINTS.commonServiceSearch,
         })
         let finalConcatenatedData = []
         let courseDataPrimary = searchServiceResponse.data.results.content
