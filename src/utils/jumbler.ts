@@ -13,16 +13,41 @@ export async function jumbler(path: string) {
     const randomCount =
       response.data.randomCount || response.data.questions.length
     logInfo('Success IN Getting Assessment JSON >>>>>>>>>>>' + response)
-    const questionArray = _.sampleSize(
+    const sampledQuestions = _.sampleSize(
       response.data.questions,
       randomCount
-    ).map(falseCreator)
-    const questionObject = {
-      isAssessment: response?.data?.isAssessment,
-      passPercentage: response?.data?.passPercentage,
-      questions: questionArray,
-      randomCount,
-      timeLimit: response?.data?.timeLimit,
+    )
+    // Practice quizzes are scored on the client, so they need the real `isCorrect`
+    // flags. Only graded assessments hide the answers via falseCreator (server-side
+    // scoring). Applying falseCreator to a quiz strips every isCorrect, which breaks
+    // the client-side checkAnswer (filter(options,'isCorrect')[0] becomes undefined).
+    const questionArray = response?.data?.isAssessment
+      ? sampledQuestions.map(falseCreator)
+      : sampledQuestions
+    let questionObject = {}
+    if (response?.data?.passPercentage == null || response?.data?.passPercentage == undefined) {
+      questionObject = {
+        isAssessment: true,
+        questions: questionArray,
+        randomCount,
+        timeLimit: response?.data?.timeLimit,
+      } 
+    } else if (response?.data?.isAssessment) {
+      questionObject = {
+        isAssessment: true,
+        passPercentage: response?.data?.passPercentage,
+        questions: questionArray,
+        randomCount,
+        timeLimit: response?.data?.timeLimit,
+      } 
+    } else {
+      questionObject = {
+        isAssessment: true,
+        passPercentage: 0,
+        questions: questionArray,
+        randomCount,
+        timeLimit: response?.data?.timeLimit,
+      }
     }
     logInfo('Question format....' + questionObject)
     return questionObject
