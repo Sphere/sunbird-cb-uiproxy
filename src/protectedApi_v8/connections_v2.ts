@@ -29,7 +29,6 @@ function handleConnectionsError(res: Response, err: any, label: string) {
   )
 }
 
-
 export const connectionsV2Api = Router()
 
 connectionsV2Api.get('/v2/connections/requested', async (req, res) => {

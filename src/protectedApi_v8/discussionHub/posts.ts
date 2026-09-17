@@ -4,8 +4,8 @@ import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-import { handleWriteApiError } from './writeApi'
 import { API_END_POINTS } from '../apiConstants'
+import { handleWriteApiError } from './writeApi'
 
 export const postsApi = Router()
 

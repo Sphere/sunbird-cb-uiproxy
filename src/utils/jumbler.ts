@@ -31,7 +31,7 @@ export async function jumbler(path: string) {
         questions: questionArray,
         randomCount,
         timeLimit: response?.data?.timeLimit,
-      } 
+      }
     } else if (response?.data?.isAssessment) {
       questionObject = {
         isAssessment: true,
@@ -39,7 +39,7 @@ export async function jumbler(path: string) {
         questions: questionArray,
         randomCount,
         timeLimit: response?.data?.timeLimit,
-      } 
+      }
     } else {
       questionObject = {
         isAssessment: true,

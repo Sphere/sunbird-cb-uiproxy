@@ -6,8 +6,8 @@ import { getUserUID, getWriteApiToken } from '../../utils/discussionHub-helper'
 import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-import { handleWriteApiError } from './writeApi'
 import { API_END_POINTS } from '../apiConstants'
+import { handleWriteApiError } from './writeApi'
 
 export const topicsApi = Router()
 
