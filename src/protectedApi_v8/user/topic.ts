@@ -3,17 +3,14 @@ import { Request, Response, Router } from 'express'
 import { IGenericApiResponse } from '../../models/generic.model'
 import { ITopic, ITopicResponse, ITopicsApiResponse } from '../../models/topic.model'
 import { CONSTANTS } from '../../utils/env'
+import { API_END_POINTS } from '../apiConstants'
 
-const apiEndPoints = {
-  autocomplete: `${CONSTANTS.ES_BASE}/lex_topic/_search`,
-  recommend: `${CONSTANTS.SB_EXT_API_BASE}/v1/topics/recommended?q=new`,
-}
 export const topicApi = Router()
 
 topicApi.get('/recommend', async (_req: Request, res: Response) => {
   try {
     const topicResponse: ITopicsApiResponse = await axios
-      .get<IGenericApiResponse<ITopicsApiResponse>>(apiEndPoints.recommend)
+      .get<IGenericApiResponse<ITopicsApiResponse>>(API_END_POINTS.recommend)
       .then((response) => response.data.result.response)
 
     const topics: ITopic[] = topicResponse.topics.map((topicsResponse: ITopicResponse) => ({
@@ -50,7 +47,7 @@ topicApi.get('/autocomplete', async (req: Request, res: Response) => {
       },
       data: body,
       method: 'POST',
-      url: apiEndPoints.autocomplete,
+      url: API_END_POINTS.autocomplete,
     })
     res.json(response.data)
   } catch (err) {

@@ -11,13 +11,7 @@ import { exchangeSsoKeycloakToken } from './ssoKeycloakExchange'
 
 const AUTH_FAIL =
     'Authentication failed ! Please check credentials and try again.'
-const API_END_POINTS = {
-    createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-    profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-    tnaiUserDetailsUrl:
-        CONSTANTS.TNAI_USER_DETAILS_URL,
-    userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-}
+import { API_END_POINTS } from './apiConstants'
 interface UserDetails {
     firstname: string
     middlename: string | null

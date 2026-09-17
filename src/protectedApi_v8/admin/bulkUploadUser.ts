@@ -6,15 +6,9 @@ import { axiosRequestConfig, axiosRequestConfigLong } from '../../configs/reques
 import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
 import { extractUserToken } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 import { bulkExtendedMethod, saveExtendedData } from './bulkExtendedMethod'
 const cassandra = require('cassandra-driver')
-
-const API_ENDPOINTS = {
-    assignRoleforBulkUsers: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/v1/role/assign`,
-    createUserOfBulkUpload: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-    kongSendWelcomeEmail: `${CONSTANTS.KONG_API_BASE}/private/user/v1/notification/email`,
-    kongUserResetPassword: `${CONSTANTS.KONG_API_BASE}/private/user/v1/password/reset`,
-}
 
 const client = new cassandra.Client({
         contactPoints: [CONSTANTS.CASSANDRA_IP],
@@ -93,7 +87,7 @@ bulkUploadUserApi.post('/create-users', async (req: any, _res) => {
                                 Authorization: CONSTANTS.SB_API_KEY,
                             },
                             method: 'POST',
-                            url: API_ENDPOINTS.createUserOfBulkUpload,
+                            url: API_END_POINTS.createUserOfBulkUpload,
                         })
                         logInfo('UserId after creation >>>>>' + responseUserCreation.data.result.userId)
                         const newUserId = responseUserCreation.data.result.userId
@@ -138,7 +132,7 @@ bulkUploadUserApi.post('/create-users', async (req: any, _res) => {
                                             'x-authenticated-user-token': extractUserToken(req)
                                         },
                                         method: 'POST',
-                                        url: API_ENDPOINTS.assignRoleforBulkUsers,
+                                        url: API_END_POINTS.assignRoleforBulkUsers,
                                     })
                                 logInfo('Role Assigned data >>>> ' + responseRoleAssign)
                                 finalResponse.push(responseRoleAssign)
@@ -158,7 +152,7 @@ bulkUploadUserApi.post('/create-users', async (req: any, _res) => {
                                           Authorization: CONSTANTS.SB_API_KEY,
                                         },
                                         method: 'POST',
-                                        url: API_ENDPOINTS.kongUserResetPassword,
+                                        url: API_END_POINTS.kongUserResetPassword,
                                       })
                                     logInfo('Received response from password reset -> ' + passwordResetResponse)
 
@@ -185,7 +179,7 @@ bulkUploadUserApi.post('/create-users', async (req: any, _res) => {
                                                 Authorization: CONSTANTS.SB_API_KEY,
                                             },
                                             method: 'POST',
-                                            url: API_ENDPOINTS.kongSendWelcomeEmail,
+                                            url: API_END_POINTS.kongSendWelcomeEmail,
                                             })
 
                                         if (welcomeMailResponse.data.params.status !== 'success') {
@@ -240,7 +234,7 @@ bulkUploadUserApi.post('/create-users', async (req: any, _res) => {
                                 Authorization: CONSTANTS.SB_API_KEY,
                             },
                             method: 'POST',
-                            url: API_ENDPOINTS.createUserOfBulkUpload,
+                            url: API_END_POINTS.createUserOfBulkUpload,
                         })
                         logInfo('UserId after creation >>>>>' + responseUserCreation.data.result.userId)
                         if (responseUserCreation) {
@@ -283,7 +277,7 @@ bulkUploadUserApi.post('/create-users', async (req: any, _res) => {
                                             'x-authenticated-user-token': extractUserToken(req)
                                         },
                                         method: 'POST',
-                                        url: API_ENDPOINTS.assignRoleforBulkUsers,
+                                        url: API_END_POINTS.assignRoleforBulkUsers,
                                     })
                                 logInfo('Role Assigned data >>>> ' + responseRoleAssign)
                                 finalResponse.push(responseRoleAssign)

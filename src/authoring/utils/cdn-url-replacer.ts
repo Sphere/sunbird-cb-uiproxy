@@ -11,19 +11,13 @@ import { logInfo } from '../../utils/logger'
  * @returns The string with replaced URLs
  */
 function replaceS3UrlInString(str: string): string {
-    // Support multiple S3 bucket domains: sunbirdcontent*, s3*.amazonaws.com
-    const s3Pattern = /https:\/\/[^/]*\.s3[^/]*\.amazonaws\.com\//g
-
-    if (s3Pattern.test(str)) {
-        logInfo(`[replaceCdnUrls] Found S3 URL, replacing: ${str.substring(0, 100)}...`)
-        const replaced = str.replace(/https:\/\/[^/]*\.s3[^/]*\.amazonaws\.com\//g, CONSTANTS.CDN_DOMAIN)
-        logInfo(`[replaceCdnUrls] Replaced to: ${replaced.substring(0, 100)}...`)
-        return replaced
-    }
-
-    // Fallback: Also check for exact S3_DOMAIN match if configured
+    // Rewrite ONLY the configured S3 domain to the CDN domain. Matching S3_DOMAIN
+    // exactly (rather than a generic *.s3*.amazonaws.com pattern) avoids rewriting
+    // URLs from other buckets the CDN does not front, and replacing only the domain
+    // segment - not the trailing slash - keeps the path intact whether or not
+    // CDN_DOMAIN has a trailing slash.
     if (CONSTANTS.S3_DOMAIN && str.includes(CONSTANTS.S3_DOMAIN)) {
-        logInfo(`[replaceCdnUrls] Found S3 URL (fallback), replacing: ${str.substring(0, 100)}...`)
+        logInfo(`[replaceCdnUrls] Found S3 URL, replacing: ${str.substring(0, 100)}...`)
         const escapedS3Domain = CONSTANTS.S3_DOMAIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         const replaced = str.replace(new RegExp(escapedS3Domain, 'g'), CONSTANTS.CDN_DOMAIN)
         logInfo(`[replaceCdnUrls] Replaced to: ${replaced.substring(0, 100)}...`)

@@ -4,21 +4,14 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { IContent } from '../../models/content.model'
 import { IPaginatedApiResponse } from '../../models/paginatedApi.model'
 import { processContent } from '../../utils/contentHelpers'
-import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest, IAuthorizedRequest } from '../../utils/requestExtract'
 // sonar-cleanup: file-local requireOrgHeaders replaced with the shared import (CHANGE 43)
 import { requireOrgHeaders } from '../../utils/requireOrgHeaders'
+import { API_END_POINTS } from '../apiConstants'
 import { getMultipleContent } from '../content'
-
-const API_END_POINTS = {
-  assignedContent: (userId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/v1/users/${userId}/assigned-content`,
-  contentLikeNumber: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/likes-count`,
-  like: (userId: string) => `${CONSTANTS.LIKE_API_BASE}/v1/user/${userId}/likes`,
-}
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 

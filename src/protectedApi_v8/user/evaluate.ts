@@ -4,13 +4,10 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest, extractUserToken } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERR_MSG = 'Failed due to unknown reason'
-const API_END_POINTS = {
-  assessmentSubmitV2: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/user`,
-  iapSubmitAssessment: `${CONSTANTS.SB_EXT_API_BASE_2}/v3/iap-assessment`,
-  postAssessment: `${CONSTANTS.POST_ASSESSMENT_BASE}/lmsapi/v1/post_assessment`,
-}
+
 export const evaluateApi = Router()
 
 evaluateApi.post('/assessment/submit/v2', async (req, res) => {

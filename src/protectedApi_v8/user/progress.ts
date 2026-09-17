@@ -1,19 +1,10 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logErrorHeading, logInfo } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserId, extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  // tslint:disable-next-line: max-line-length
-  hash: (userId: string) =>
-    `${CONSTANTS.LEARNING_HISTORY_API_BASE}/v3/users/${userId}/contentlist/progress`,
-  progressMeta: (userId: string, contentId: string) => {
-    return `${CONSTANTS.PROGRESS_API_BASE}/v1/users/${userId}/content-ids/${contentId}/progress-meta`
-  },
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 

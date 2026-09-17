@@ -15,16 +15,7 @@ import { getCurrentUserRoles } from './rolePermission'
 
 const AUTH_FAIL = 'Authentication failed ! Please check credentials and try again.'
 
-const API_END_POINTS = {
-    createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-    generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-    profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-    tnnmcUserDetailsUrl: CONSTANTS.TNNMC_USER_DETAILS_URL,
-    userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const tnnmcApiKey = CONSTANTS.TNNMC_API_KEY
 const tnmcApiSecret = CONSTANTS.TNNMC_API_SECRET
@@ -108,7 +99,7 @@ const handleExistingUserMigration = async (existingUser, tnnmcUserData) => {
         await assignRoleToUser(existingUserResult.id)
     }
 
-    await userProfileUpdate(axiosRequestConfig, existingUserResult.userId, tnnmcUserData)
+    await userProfileUpdate(axiosRequestConfig, existingUserResult.id, tnnmcUserData)
 }
 
 // Route: TNNMC Login
@@ -276,7 +267,7 @@ const migrateUserToTnnmc = async (userDetails) => {
                 forceMigration: true,
                 notifyMigration: false,
                 softDeleteOldOrg: true,
-                userId: userDetails.userId,
+                userId: userDetails.id,
             },
         }
         const migrateUserResponse = await axios({

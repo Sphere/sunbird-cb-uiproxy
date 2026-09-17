@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { Response, Router } from 'express'
+import * as _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 // sonar-cleanup: 5 GET-route bodies replaced with the shared helper (CHANGE 33)
 import { fetchConnectionsList } from '../utils/connectionsListFetch'
@@ -7,9 +8,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserId, extractUserIdFromRequest, extractUserToken } from '../utils/requestExtract'
-
-const _                 = require('lodash')
-
+import { API_END_POINTS } from './apiConstants'
 const unknown = 'Connections Apis:- Failed due to unknown reason'
 
 /**
@@ -30,24 +29,12 @@ function handleConnectionsError(res: Response, err: any, label: string) {
   )
 }
 
-const apiEndpoints = {
-  detail: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/wid`,
-  getConnectionEstablishedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/established`,
-  getConnectionRequestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requested`,
-  getConnectionRequestsReceivedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requests/received`,
-  getConnectionSuggestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/find/suggests`,
-  getUserOrgName: `${CONSTANTS.KONG_API_BASE}/user/v1/search`,
-  getUserRegistryById: (userId: string) => `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/search/profile?userId=${userId}`,
-  postConnectionAddData: `${CONSTANTS.KONG_API_BASE}/connections/add`,
-  postConnectionRecommendationData: `${CONSTANTS.KONG_API_BASE}/connections/profile/find/recommended`,
-  postConnectionUpdateData: `${CONSTANTS.KONG_API_BASE}/connections/update`,
-}
 
 export const connectionsV2Api = Router()
 
 connectionsV2Api.get('/v2/connections/requested', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionRequestsData, extractUserIdFromRequest(req))
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionRequestsData, extractUserIdFromRequest(req))
   } catch (err) {
     handleConnectionsError(res, err, 'CONNECTIONS REQUESTS ERROR> ')
   }
@@ -58,7 +45,7 @@ connectionsV2Api.get('/v2/connections/requests/received', async (req, res) => {
     await fetchConnectionsList(
       req,
       res,
-      apiEndpoints.getConnectionRequestsReceivedData,
+      API_END_POINTS.getConnectionRequestsReceivedData,
       extractUserIdFromRequest(req)
     )
   } catch (err) {
@@ -68,7 +55,7 @@ connectionsV2Api.get('/v2/connections/requests/received', async (req, res) => {
 
 connectionsV2Api.get('/v2/connections/established', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionEstablishedData, extractUserIdFromRequest(req))
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionEstablishedData, extractUserIdFromRequest(req))
   } catch (err) {
     handleConnectionsError(res, err, 'CONNECTIONS ERROR')
   }
@@ -76,7 +63,7 @@ connectionsV2Api.get('/v2/connections/established', async (req, res) => {
 
 connectionsV2Api.get('/v2/connections/established/:id', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionEstablishedData, req.params.id)
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionEstablishedData, req.params.id)
   } catch (err) {
     handleConnectionsError(res, err, 'CONNECTIONS ERROR')
   }
@@ -84,7 +71,7 @@ connectionsV2Api.get('/v2/connections/established/:id', async (req, res) => {
 
 connectionsV2Api.get('/v2/connections/suggests', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionSuggestsData, extractUserId(req))
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionSuggestsData, extractUserId(req))
   } catch (err) {
     handleConnectionsError(res, err, 'SUGGESTS ERROR >')
   }
@@ -120,7 +107,7 @@ connectionsV2Api.post('/v2/add/connection', async (req, res) => {
 
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionAddData,
+      API_END_POINTS.postConnectionAddData,
       body,
       {
         ...axiosRequestConfig,
@@ -172,7 +159,7 @@ connectionsV2Api.post('/v2/update/connection', async (req, res) => {
       userNameTo,
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionUpdateData,
+      API_END_POINTS.postConnectionUpdateData,
       body,
       {
         ...axiosRequestConfig,
@@ -207,7 +194,7 @@ connectionsV2Api.post('/v2/connections/recommended', async (req, res) => {
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationData,
       body,
       {
         ...axiosRequestConfig,
@@ -258,7 +245,7 @@ connectionsV2Api.post('/v2/connections/recommended/userDepartment', async (req, 
             query: '',
         },
     }
-    const url = `${apiEndpoints.getUserOrgName}`
+    const url = `${API_END_POINTS.kongUserSearch}`
     const responseDetails = await axios.post(
         url,
         body,
@@ -308,7 +295,7 @@ connectionsV2Api.post('/v2/connections/recommended/userDepartment', async (req, 
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationData,
       reqtoApi,
       {
         ...axiosRequestConfig,

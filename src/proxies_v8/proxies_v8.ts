@@ -606,7 +606,7 @@ proxiesV8.use('/ext-forms/*',
 )
 
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
 
 proxiesV8.post('/notifyContentState', async (req, res) => {

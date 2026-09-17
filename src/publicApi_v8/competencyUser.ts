@@ -1,11 +1,8 @@
 import axios from 'axios'
 import { Router } from 'express'
 import _ from 'lodash'
-import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
-const API_END_POINTS = {
-  COMPETENCY_USER: `${CONSTANTS.COMPETENCY_API_BASE}/api/user`,
-}
+import { API_END_POINTS } from './apiConstants'
 const COMPETENCY_USER_FAIL = 'Sorry ! Data is not received in competency.'
 export const publicCompetencyUser = Router()
 

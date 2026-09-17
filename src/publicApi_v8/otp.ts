@@ -3,11 +3,7 @@ import _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
-
-const API_END_POINTS = {
-  generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
-  verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-}
+import { API_END_POINTS } from './apiConstants'
 export const getOTP = async (
                                 userUUId: string,
                                 userKey: string,

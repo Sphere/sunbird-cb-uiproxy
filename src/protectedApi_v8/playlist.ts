@@ -3,14 +3,7 @@ import { Request, Response, Router } from 'express'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
-
-// ---- API ENDPOINTS ----
-// Using Kong API Gateway for playlist service routing
-const API_END_POINTS = {
-    playlistCreate: `${CONSTANTS.KONG_API_BASE}/playlist/v1/create`,
-    playlistSearch: `${CONSTANTS.KONG_API_BASE}/playlist/v1/search`,
-    playlistUpdate: `${CONSTANTS.KONG_API_BASE}/playlist/v1/update`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 // ---- ERROR MESSAGES ----
 const ERROR_MESSAGES = {

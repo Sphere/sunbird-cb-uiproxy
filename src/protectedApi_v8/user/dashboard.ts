@@ -5,17 +5,9 @@ import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
-
-const apiEndpoints = {
-  analytics: CONSTANTS.USER_ANALYTICS,
-  childProgress: CONSTANTS.TELEMETRY_API_BASE + '/user/dashboard/courses/details',
-  dashboard: CONSTANTS.TELEMETRY_API_BASE + '/user/dashboard',
-  progress: CONSTANTS.SB_EXT_API_BASE + '/v2/users',
-  progress_history: `${CONSTANTS.LEARNING_HISTORY_API_BASE}/v3/users`,
-  timeSpent: `${CONSTANTS.TIMESPENT_API_BASE}` + '/v3/users',
-}
 
 export const dashboardApi = Router()
 
@@ -23,7 +15,7 @@ dashboardApi.post('/course/details', async (req: Request, res: Response) => {
   try {
     const userId = extractUserIdFromRequest(req)
     const learningHistoryItems = await axios
-      .post(`${apiEndpoints.progress_history}/${userId}/dashboard/courses/details`, req.body, {
+      .post(`${API_END_POINTS.progress_history}/${userId}/dashboard/courses/details`, req.body, {
         headers: {
           Authorization: req.headers.authorization,
           rootOrg: req.header('rootOrg'),
@@ -51,7 +43,7 @@ dashboardApi.get('/analytics/progress/:contentType', async (req: Request, res) =
     startDate,
   })
 
-  const response = await axios.get(`${apiEndpoints.analytics}/api/userprogress?${queryParams}`, {
+  const response = await axios.get(`${API_END_POINTS.analytics}/api/userprogress?${queryParams}`, {
     headers: {
       Authorization: req.headers.authorization,
       verify_url: `${CONSTANTS.HTTPS_HOST}:${CONSTANTS.PORTAL_PORT}/protected/v8/user/details`,
@@ -67,7 +59,7 @@ dashboardApi.get('/course', async (req: Request, res: Response) => {
     const { contentType, status, pageState, pageSize } = req.query
     const response = await axios.get(
       // tslint:disable-next-line:max-line-length
-      `${apiEndpoints.progress_history}/${userId}/dashboard/courses?status=${status}&content_type=${contentType}&page_state=${pageState}&page_size=${pageSize}`,
+      `${API_END_POINTS.progress_history}/${userId}/dashboard/courses?status=${status}&content_type=${contentType}&page_state=${pageState}&page_size=${pageSize}`,
       {
         headers: {
           Authorization: req.headers.authorization,
@@ -100,7 +92,7 @@ dashboardApi.get('/userOrgTime', async (req: Request, res) => {
     }
 
     const response = await axios.get(
-      `${apiEndpoints.timeSpent}/${userID}/dashboard/timespent?${queryParams}`,
+      `${API_END_POINTS.timeSpent}/${userID}/dashboard/timespent?${queryParams}`,
       {
         ...axiosRequestConfig,
         headers: { rootOrg },

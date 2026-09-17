@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { fetchAndRenderCertificate } from '../utils/certificateRenderer'
 import { logError } from '../utils/logger'
 
+import _ from 'lodash'
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const appCertificateDownload = Router()

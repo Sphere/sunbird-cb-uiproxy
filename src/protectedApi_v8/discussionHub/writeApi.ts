@@ -7,26 +7,9 @@ import {
   getWriteApiAdminUID,
   getWriteApiToken,
 } from '../../utils/discussionHub-helper'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-  createTopic: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics`,
-  createUser: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/users`,
-  // tslint:disable-next-line: object-literal-sort-keys
-  createOrUpdateTags: (topicId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics/${topicId}/tags`,
-  followTopic: (topicId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics/${topicId}/follow`,
-  replyToTopic: (topicId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics/${topicId}`,
-  votePost: (postId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/posts/${postId}/vote`,
-  // tslint:disable-next-line: object-literal-sort-keys
-  bookmarkPost: (postId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/posts/${postId}/bookmark`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const writeApi = Router()
 
@@ -123,7 +106,7 @@ export async function createDiscussionHubUser(user: any): Promise<any> {
       ...user,
       _uid: getWriteApiAdminUID(),
     }
-    const url = API_ENDPOINTS.createUser
+    const url = API_END_POINTS.createUser
     return async () => {
       return axios
         .post(url, request1, {
@@ -148,7 +131,7 @@ writeApi.post('/topics', async (req, res) => {
   await postWithUserUid(
     req,
     res,
-    API_ENDPOINTS.createTopic,
+    API_END_POINTS.createTopic,
     req.body,
     'ERROR ON POST writeApi /topics >'
   )
@@ -158,7 +141,7 @@ writeApi.post('/topics/:topicId', async (req, res) => {
   await postWithUserUid(
     req,
     res,
-    API_ENDPOINTS.replyToTopic(req.params.topicId),
+    API_END_POINTS.replyToTopic(req.params.topicId),
     req.body,
     'ERROR ON writeAPI  POST /topics/:topicId >'
   )
@@ -180,7 +163,7 @@ writeApi.post('/posts/:postId/bookmark', async (req, res) => {
   await postWithUserUid(
     req,
     res,
-    API_ENDPOINTS.bookmarkPost(req.params.postId),
+    API_END_POINTS.bookmarkPost(req.params.postId),
     {},
     'ERROR ON writeAPI POST /posts/:postId/bookmark >'
   )
@@ -190,7 +173,7 @@ writeApi.delete('/posts/:postId/bookmark', async (req, res) => {
   await deleteWithUserUid(
     req,
     res,
-    API_ENDPOINTS.bookmarkPost(req.params.postId),
+    API_END_POINTS.bookmarkPost(req.params.postId),
     'ERROR ON writeAPI DELETE /posts/:postId/bookmark >'
   )
 })
@@ -199,7 +182,7 @@ writeApi.post('/posts/:postId/vote', async (req, res) => {
   await postWithUserUid(
     req,
     res,
-    API_ENDPOINTS.votePost(req.params.postId),
+    API_END_POINTS.votePost(req.params.postId),
     req.body,
     'ERROR ON writeAPI POST /posts/:postId/vote >'
   )
@@ -209,7 +192,7 @@ writeApi.delete('/posts/:postId/vote', async (req, res) => {
   await deleteWithUserUid(
     req,
     res,
-    API_ENDPOINTS.votePost(req.params.postId),
+    API_END_POINTS.votePost(req.params.postId),
     'ERROR ON writeAPI Delete /posts/:postId/vote >'
   )
 })
@@ -220,7 +203,7 @@ writeApi.put('/topics/:topicId/follow', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const topicId = req.params.topicId
-    const url = API_ENDPOINTS.followTopic(topicId)
+    const url = API_END_POINTS.followTopic(topicId)
     const userUid = await getUserUID(userId)
     const response = await axios.put(
       url,
@@ -244,7 +227,7 @@ writeApi.put('/topics/:topicId/tags', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const topicId = req.params.topicId
-    const url = API_ENDPOINTS.createOrUpdateTags(topicId)
+    const url = API_END_POINTS.createOrUpdateTags(topicId)
     const response = await axios.put(
       url,
       {

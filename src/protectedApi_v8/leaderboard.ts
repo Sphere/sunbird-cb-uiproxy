@@ -7,6 +7,7 @@ import { appendUrl } from '../utils/contentHelpers'
 import { CONSTANTS } from '../utils/env'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
@@ -27,38 +28,38 @@ function handleLeaderboardError(res: Response, err: any) {
   )
 }
 
-const apiEndpoints = {
-  // tslint:disable-next-line: max-line-length
-  GetBalance: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetBalance`,
-  // tslint:disable-next-line: max-line-length
-  Getsso: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/Getsso`,
-  // tslint:disable-next-line: max-line-length
-  badgeDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchAllBadgesInfoForUser`,
-  // tslint:disable-next-line: max-line-length
-  badgeWon: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchBadgesWonByUser`,
-  // tslint:disable-next-line: max-line-length
-  badgeYetToWin: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetBadgesYetToWinByUSer`,
-  // tslint:disable-next-line: max-line-length
-  dealersDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetRegionsandDealers`,
-  // tslint:disable-next-line: max-line-length
-  fetchConfiguration: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchConfiguration `,
-  // tslint:disable-next-line: max-line-length
-  fetchGuildAwardCountData: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchGuildAwardCountData `,
-  hallOfFame: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/TopLearners`,
-  leaderboard: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/LeaderBoard`,
-  // tslint:disable-next-line: max-line-length
-  leaderboardActivities: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedActivitiesLeaderBoardData`,
-  // tslint:disable-next-line: max-line-length
-  leaderboardDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedLeaderBoardData`,
-  // tslint:disable-next-line: max-line-length
-  leaderboardGuild: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedGuildLeaderBoardData`,
-  // tslint:disable-next-line: max-line-length
-  updateApprovedPoints: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/UpdateApprovedPoints`,
-  // tslint:disable-next-line: max-line-length
-  updateConfiguration: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/UpdateConfiguration`,
-  // tslint:disable-next-line: max-line-length
-  userDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchCompleteUserInfo`,
-}
+// const apiEndpoints = {
+//   // tslint:disable-next-line: max-line-length
+//   GetBalance: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetBalance`,
+//   // tslint:disable-next-line: max-line-length
+//   Getsso: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/Getsso`,
+//   // tslint:disable-next-line: max-line-length
+//   badgeDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchAllBadgesInfoForUser`,
+//   // tslint:disable-next-line: max-line-length
+//   badgeWon: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchBadgesWonByUser`,
+//   // tslint:disable-next-line: max-line-length
+//   badgeYetToWin: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetBadgesYetToWinByUSer`,
+//   // tslint:disable-next-line: max-line-length
+//   dealersDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetRegionsandDealers`,
+//   // tslint:disable-next-line: max-line-length
+//   fetchConfiguration: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchConfiguration `,
+//   // tslint:disable-next-line: max-line-length
+//   fetchGuildAwardCountData: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchGuildAwardCountData `,
+//   hallOfFame: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/TopLearners`,
+//   leaderboard: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/LeaderBoard`,
+//   // tslint:disable-next-line: max-line-length
+//   leaderboardActivities: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedActivitiesLeaderBoardData`,
+//   // tslint:disable-next-line: max-line-length
+//   leaderboardDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedLeaderBoardData`,
+//   // tslint:disable-next-line: max-line-length
+//   leaderboardGuild: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedGuildLeaderBoardData`,
+//   // tslint:disable-next-line: max-line-length
+//   updateApprovedPoints: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/UpdateApprovedPoints`,
+//   // tslint:disable-next-line: max-line-length
+//   updateConfiguration: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/UpdateConfiguration`,
+//   // tslint:disable-next-line: max-line-length
+//   userDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchCompleteUserInfo`,
+// }
 
 // api params required to call gamification related apis
 const apiParams = {
@@ -82,7 +83,7 @@ leaderBoardApi.get('/:durationType/:durationValue/:year', async (req: Request, r
     const userId = extractUserIdFromRequest(req)
 
     const leaderboard: ILeaderboard = await axios
-      .get<ILeaderboard>(`${apiEndpoints.leaderboard}`, {
+      .get<ILeaderboard>(`${API_END_POINTS.leaderboard}`, {
         headers: { rootOrg },
         params: {
           duration_type: durationType,
@@ -112,7 +113,7 @@ leaderBoardApi.get('/hallOfFame', async (req: Request, res: Response) => {
     const userId = extractUserIdFromRequest(req)
 
     const hallOfFame: IHallOfFameItem[] = await axios
-      .get<IHallOfFameItem[]>(`${apiEndpoints.hallOfFame}`, {
+      .get<IHallOfFameItem[]>(`${API_END_POINTS.hallOfFame}`, {
         headers: { rootOrg },
         params: {
           duration_type: 'M',
@@ -136,7 +137,7 @@ leaderBoardApi.post('/fetchLeaderBoardDetails', async (req: Request, res: Respon
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.leaderboardDetails, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.leaderboardDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -151,7 +152,7 @@ leaderBoardApi.post('/leaderboardActivities', async (req: Request, res: Response
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.leaderboardActivities, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.leaderboardActivities, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -166,7 +167,7 @@ leaderBoardApi.post('/leaderboardGuild', async (req: Request, res: Response) => 
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.leaderboardGuild, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.leaderboardGuild, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -182,7 +183,7 @@ leaderBoardApi.post('/badgeDetails', async (req: Request, res: Response) => {
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.badgeDetails, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.gamificationBadgeDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -224,12 +225,12 @@ async function fetchAndProcessBadges<T>(
 
 // Get Badges won For a user
 leaderBoardApi.post('/badgeWon', async (req: Request, res: Response) => {
-  await fetchAndProcessBadges(req, res, apiEndpoints.badgeWon, processBadgeArray)
+  await fetchAndProcessBadges(req, res, API_END_POINTS.gamificationBadgeWon, processBadgeArray)
 })
 
 // Get Badges yet to win For a user
 leaderBoardApi.post('/badgeYetToWin', async (req: Request, res: Response) => {
-  await fetchAndProcessBadges(req, res, apiEndpoints.badgeYetToWin, processAllBadges)
+  await fetchAndProcessBadges(req, res, API_END_POINTS.gamificationBadgeYetToWin, processAllBadges)
 })
 
 // get details of all the dealer codes
@@ -240,7 +241,7 @@ leaderBoardApi.post('/dealersDetails', async (req: Request, res: Response) => {
       ...req.body,
       UserSourceSystemId: '001019288',
     }
-    const response = await axios.post(apiEndpoints.dealersDetails, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.dealersDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -298,7 +299,7 @@ leaderBoardApi.post('/userDetails', async (req: Request, res: Response) => {
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.userDetails, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.leaderboardUserDetails, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -317,7 +318,7 @@ leaderBoardApi.post('/updateApprovedPoints', async (req: Request, res: Response)
       BasicParameters: basicData,
       UpdatedLeaderBoard: req.body.UpdatedLeaderBoard,
     }
-    const response = await axios.post(apiEndpoints.updateApprovedPoints, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.updateApprovedPoints, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -336,7 +337,7 @@ leaderBoardApi.post('/updateConfiguration', async (req: Request, res: Response) 
       BasicParameters: basicData,
       configPropertiesObj: req.body.configPropertiesObj,
     }
-    const response = await axios.post(apiEndpoints.updateConfiguration, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.updateConfiguration, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -352,7 +353,7 @@ leaderBoardApi.post('/Getsso', async (req: Request, res: Response) => {
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.Getsso, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.Getsso, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -368,7 +369,7 @@ leaderBoardApi.post('/GetBalance', async (req: Request, res: Response) => {
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.GetBalance, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.GetBalance, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -384,7 +385,7 @@ leaderBoardApi.post('/fetchConfiguration', async (req: Request, res: Response) =
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.fetchConfiguration, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.fetchConfiguration, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)
@@ -400,7 +401,7 @@ leaderBoardApi.post('/fetchGuildAwardCountData', async (req: Request, res: Respo
       ...req.body,
       UserSourceSystemId: userId,
     }
-    const response = await axios.post(apiEndpoints.fetchGuildAwardCountData, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.fetchGuildAwardCountData, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     handleLeaderboardError(res, err)

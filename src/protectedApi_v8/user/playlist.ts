@@ -8,9 +8,6 @@ import {
   IPlaylistCreateRequest,
   IPlaylistParams,
   IPlaylistSbExtResponse,
-  // IPlaylistShareRequest,
-  // IPlayListUpdateRequest,
-  // IPlaylistUpsertRequest
 } from '../../models/playlist.model'
 import {
   formContentRequestObj,
@@ -18,23 +15,15 @@ import {
   formPlaylistupdateObj,
   transformToPlaylistV2,
   transformToPlaylistV3,
-  // transformToSbExtDeleteRequest,
   transformToSbExtPatchRequest,
   transformToSbExtSyncRequest,
-  // transformToSbExtUpsertRequest
 } from '../../service/playlist'
 import { patchContentViaHierarchyUpdate } from '../../utils/contentPatchHelpers'
-import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest, extractUserNameFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  playlist: (userId: string, playlistId: string) =>
-    `${CONSTANTS.PLAYLIST_API_BASE}/v1/users/${userId}/playlist/${playlistId}`,
-  playlistV1: (userId: string) => `${CONSTANTS.PLAYLISTV1_API_BASE}/v1/users/${userId}`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 

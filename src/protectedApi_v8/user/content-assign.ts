@@ -1,21 +1,13 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 export const contentAssignApi = Router()
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
-
-const API_END_POINTS = {
-    assignContent: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/assign-content`,
-    getAssignments: (userId: string) =>
-        `${CONSTANTS.SB_EXT_API_BASE_2}/v1/content-assignee/${userId}/content-assignments`,
-    searchUsers: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/user-search`,
-    userAdminLevel: (userId: string) => `${CONSTANTS.SB_EXT_API_BASE_2}/v1/users/${userId}/admin-level`,
-}
 
 contentAssignApi.post('/searchUsers', async (req, res) => {
     try {

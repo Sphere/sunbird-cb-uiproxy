@@ -1,15 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  contentRating: (contentId: string, userId: string) =>
-    `${CONSTANTS.RATING_API_BASE}/v1/contents/${contentId}/users/${userId}/ratings`,
-  contentsRating: `${CONSTANTS.RATING_API_BASE}/v1/contents/average-rating`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 

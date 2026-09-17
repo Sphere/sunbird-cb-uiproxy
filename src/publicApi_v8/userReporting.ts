@@ -1,15 +1,7 @@
 import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { CONSTANTS } from '../utils/env'
-
-const API_END_POINTS_REPORTS = {
-    certificateDownloads: `${CONSTANTS.USER_REPORTING_SERVICE}/user/certificate/downloads`,
-    courseCompletedUsers: `${CONSTANTS.USER_REPORTING_SERVICE}/user/course/completed_users`,
-    courseRecommendaion: `${CONSTANTS.USER_REPORTING_SERVICE}/role/course/recommendation`,
-    enrolledUserCount: `${CONSTANTS.USER_REPORTING_SERVICE}/user/enroll/user_count`,
-    regTotalCount: `${CONSTANTS.USER_REPORTING_SERVICE}/user/reg/total_count`,
-    trendingCourses: `${CONSTANTS.USER_REPORTING_SERVICE}/user/top/trendingcourses`,
-}
+import { API_END_POINTS } from './apiConstants'
 const accessKey = CONSTANTS.EKSHAMATA_SECURITY_KEY_MASTER
 const keyMissingMessage = {
     message: 'Access key invalid or not present',
@@ -62,7 +54,7 @@ userReporting.get('/user/top/trendingcourses', async (req, res) => {
     await proxyReportingRoute(
         req,
         res,
-        API_END_POINTS_REPORTS.trendingCourses,
+        API_END_POINTS.trendingCourses,
         'Something went wrong while fetching trending courses'
     )
 })
@@ -71,7 +63,7 @@ userReporting.get('/user/certificate/downloads', async (req, res) => {
     await proxyReportingRoute(
         req,
         res,
-        API_END_POINTS_REPORTS.certificateDownloads,
+        API_END_POINTS.certificateDownloads,
         'Something went wrong while fetching certifcate downloads'
     )
 })
@@ -79,7 +71,7 @@ userReporting.get('/user/reg/total_count', async (req, res) => {
     await proxyReportingRoute(
         req,
         res,
-        API_END_POINTS_REPORTS.regTotalCount,
+        API_END_POINTS.regTotalCount,
         'Something went wrong while fetching registered user total count'
     )
 })
@@ -87,7 +79,7 @@ userReporting.get('/user/enroll/user_count', async (req, res) => {
     await proxyReportingRoute(
         req,
         res,
-        API_END_POINTS_REPORTS.enrolledUserCount,
+        API_END_POINTS.enrolledUserCount,
         'Something went wrong while fetching enrolled user count'
     )
 })
@@ -95,7 +87,7 @@ userReporting.get('/user/course/completed_users', async (req, res) => {
     await proxyReportingRoute(
         req,
         res,
-        API_END_POINTS_REPORTS.courseCompletedUsers,
+        API_END_POINTS.courseCompletedUsers,
         'Something went wrong while fetching course ompleted users'
     )
 })
@@ -104,7 +96,7 @@ userReporting.get('/role/course/recommendation', async (req, res) => {
     await proxyReportingRoute(
         req,
         res,
-        API_END_POINTS_REPORTS.courseRecommendaion,
+        API_END_POINTS.courseRecommendaion,
         'Something went wrong in course recommendation service',
         () => {
             const responseObject = {

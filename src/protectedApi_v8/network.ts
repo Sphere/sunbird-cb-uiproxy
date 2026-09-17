@@ -7,7 +7,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest, extractUserToken } from '../utils/requestExtract'
-
+import { API_END_POINTS } from './apiConstants'
 const unknown = 'Network Apis:- Failed due to unknown reason'
 
 // sonar-cleanup: extracted from this file's 9 identical inline catch blocks
@@ -31,23 +31,12 @@ function handleNetworkError(res: Response, err: any, label: string) {
     }
   )
 }
-const apiEndpoints = {
-  detail: `${CONSTANTS.USER_PROFILE_API_BASE}/user/multi-fetch/wid`,
-  getConnectionEstablishedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/established`,
-  getConnectionRequestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requested`,
-  getConnectionRequestsReceivedData: `${CONSTANTS.KONG_API_BASE}/connections/profile/fetch/requests/received`,
-  getConnectionSuggestsData: `${CONSTANTS.KONG_API_BASE}/connections/profile/find/suggests`,
-  postConnectionAddData: `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/connections/add`,
-  postConnectionRecommendationData: `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/connections/profile/find/recommended`,
-  postConnectionUpdateData: `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/connections/update`,
-
-}
 
 export const networkConnectionApi = Router()
 
 networkConnectionApi.get('/connections/requested', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionRequestsData, extractUserIdFromRequest(req))
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionRequestsData, extractUserIdFromRequest(req))
   } catch (err) {
     handleNetworkError(res, err, 'CONNECTIONS REQUESTS ERROR> ')
   }
@@ -58,7 +47,7 @@ networkConnectionApi.get('/connections/requests/received', async (req, res) => {
     await fetchConnectionsList(
       req,
       res,
-      apiEndpoints.getConnectionRequestsReceivedData,
+      API_END_POINTS.getConnectionRequestsReceivedData,
       extractUserIdFromRequest(req)
     )
   } catch (err) {
@@ -68,7 +57,7 @@ networkConnectionApi.get('/connections/requests/received', async (req, res) => {
 
 networkConnectionApi.get('/connections/established', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionEstablishedData, extractUserIdFromRequest(req))
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionEstablishedData, extractUserIdFromRequest(req))
   } catch (err) {
     handleNetworkError(res, err, 'CONNECTIONS ERROR')
   }
@@ -76,7 +65,7 @@ networkConnectionApi.get('/connections/established', async (req, res) => {
 
 networkConnectionApi.get('/connections/established/:id', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionEstablishedData, req.params.id)
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionEstablishedData, req.params.id)
   } catch (err) {
     handleNetworkError(res, err, 'CONNECTIONS ERROR')
   }
@@ -84,7 +73,7 @@ networkConnectionApi.get('/connections/established/:id', async (req, res) => {
 
 networkConnectionApi.get('/connections/suggests', async (req, res) => {
   try {
-    await fetchConnectionsList(req, res, apiEndpoints.getConnectionSuggestsData, extractUserIdFromRequest(req))
+    await fetchConnectionsList(req, res, API_END_POINTS.getConnectionSuggestsData, extractUserIdFromRequest(req))
   } catch (err) {
     handleNetworkError(res, err, 'SUGGESTS ERROR >')
   }
@@ -110,7 +99,7 @@ networkConnectionApi.post('/add/connection', async (req, res) => {
       userId,
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionAddData,
+      API_END_POINTS.postConnectionAddDataNetwork,
       body,
       {
         ...axiosRequestConfig,
@@ -150,7 +139,7 @@ networkConnectionApi.post('/update/connection', async (req, res) => {
       userId: connectionId,
     }
     const response = await axios.post(
-      apiEndpoints.postConnectionUpdateData,
+      API_END_POINTS.postConnectionUpdateDataNetwork,
       body,
       {
         ...axiosRequestConfig,
@@ -185,7 +174,7 @@ networkConnectionApi.post('/connections/recommended', async (req, res) => {
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationDataNetwork,
       body,
       {
         ...axiosRequestConfig,
@@ -208,7 +197,7 @@ networkConnectionApi.post('/connections/recommended/userDepartment', async (req,
     let userDepartment = ''
     const rootOrg = req.header('rootorg')
     const userId = extractUserIdFromRequest(req)
-    const url = `${apiEndpoints.detail}`
+    const url = API_END_POINTS.detail
     if (!rootOrg) {
       res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
@@ -249,7 +238,7 @@ networkConnectionApi.post('/connections/recommended/userDepartment', async (req,
     }
 
     const response = await axios.post(
-      apiEndpoints.postConnectionRecommendationData,
+      API_END_POINTS.postConnectionRecommendationDataNetwork,
       reqtoApi,
       {
         ...axiosRequestConfig,

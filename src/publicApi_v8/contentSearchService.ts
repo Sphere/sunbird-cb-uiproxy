@@ -2,10 +2,8 @@ import axios from 'axios'
 import { axiosRequestConfigLong } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { API_END_POINTS } from './apiConstants'
 const contentTypeHeader = { 'Content-Type': 'application/json' }
-const API_END_POINTS = {
-  CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-}
 export interface ContentSearchRequest {
   request?: {
     // tslint:disable-next-line: no-any

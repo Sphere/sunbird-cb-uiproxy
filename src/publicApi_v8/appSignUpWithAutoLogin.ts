@@ -3,7 +3,6 @@ import { Router } from 'express'
 import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
 import {
-  API_END_POINTS,
   INDIAN_COUNTRY_CODE as indianCountryCode,
   MSG91_HEADERS as msg91Headers,
 } from '../utils/autoLoginSignupConstants'
@@ -16,6 +15,15 @@ import { validateOTP } from './otp'
 // sonar-cleanup: OTP-dispatch tail replaced with the shared import (CHANGE 33)
 import { sendRegistrationOtp } from './signupOtpDispatch'
 
+import { API_END_POINTS } from './apiConstants'
+
+const indianCountryCode = '+91'
+
+const msg91Headers = {
+  accept: 'application/json',
+  authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+  'content-type': 'application/json',
+}
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
 
@@ -125,7 +133,7 @@ appSignUpWithAutoLogin.post('/validateOtpWithLogin', async (req: any, res) => {
       await updateRoles(userUUId)
       try {
         const transformedData = qs.stringify({
-          client_id: 'aastrika-sso-login',
+          client_id: CONSTANTS.APP_SSO_CLIENT_ID,
           client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
           grant_type: 'password',
           scope: 'offline_access',

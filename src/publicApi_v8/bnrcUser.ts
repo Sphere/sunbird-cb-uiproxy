@@ -7,7 +7,6 @@ import { createDataLakePgPool } from '../utils/dataLakePgPool'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import {
-  API_END_POINTS,
   REGISTRATION_SOURCE as registrationSource,
   STANDARD_DOB as standardDob,
   USER_SUCCESS_REGISTRATION_MESSAGE as userSuccessRegistrationMessage,
@@ -30,6 +29,7 @@ import {
   requiredLastNameValidator,
   requiredPhoneValidator,
 } from '../utils/orgSignupValidators'
+import { API_END_POINTS } from './apiConstants'
 
 const pgPool = createDataLakePgPool()
 
@@ -148,6 +148,7 @@ const serviceSchemaJoi = Joi.object({
         }),
     serviceType: Joi.string().allow('', null).optional(),
 })
+const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-Bihar',
@@ -744,7 +745,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                 authorization: CONSTANTS.SB_API_KEY,
             },
             method: 'PATCH',
-            url: API_END_POINTS.profileUpdate,
+            url: API_END_POINTS.httpsProfileUpdate,
         })
         return true
     } catch (error) {

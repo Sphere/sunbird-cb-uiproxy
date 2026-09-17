@@ -1,13 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-  submission: `${CONSTANTS.SUBMISSION_API_BASE}/v1/users`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const classDiagramApi = Router()
 
@@ -21,7 +17,7 @@ classDiagramApi.post('/classdiagram/submit/:contentId', async (req, res) => {
     }
 
     const response = await axios.post(
-      `${API_ENDPOINTS.submission}/${uuid}/exercises/${contentId}/classdiagram-submission`,
+      `${API_END_POINTS.submission}/${uuid}/exercises/${contentId}/classdiagram-submission`,
       {
         ...req.body,
       },

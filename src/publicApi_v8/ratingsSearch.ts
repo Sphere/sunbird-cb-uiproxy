@@ -7,16 +7,12 @@ import { hasCompetencySearchThreshold, sortCoursesByCompetencyLevel } from '../u
 import { searchCoursesByQuery } from '../utils/courseQuerySearch'
 // sonar-cleanup: '/recommendation/publicSearch/getcourse' body replaced with the shared import (CHANGE 34)
 import { searchCourseByRecommendationApi } from '../utils/courseRecommendationSearch'
-import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { createSearchPgPool } from '../utils/searchPgPool'
 
 export const ratingsSearch = Router()
 
-const API_END_POINTS = {
-    ratingsSearch: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/bulkRatingLookup`,
-    searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const pool = createSearchPgPool()
 const headers = {
@@ -48,7 +44,7 @@ const getCombinedRatingsResult = async (sourceCourses) => {
                 'Content-Type': 'application/json',
             },
             method: 'POST',
-            url: API_END_POINTS.ratingsSearch,
+            url: API_END_POINTS.ratingSearchCommonService,
         })
         return sourceCourses.map((course) => {
             const matchingRating = getRatingsFromRatingService.data.find((rating) => rating.activityId === course.identifier)
@@ -62,7 +58,6 @@ const getCombinedRatingsResult = async (sourceCourses) => {
 }
 ratingsSearch.post('/getCourses', async (request, response) => {
     try {
-        const facetsDataDefault = ['duration', 'lastUpdatedOn']
         const courseSearchRequestData = request.body
         const filters = courseSearchRequestData.request.filters
         const facets = courseSearchRequestData.request.facets
@@ -72,7 +67,7 @@ ratingsSearch.post('/getCourses', async (request, response) => {
         if (!courseSearchRequestData.request.query) {
             const requestBodyForSearch = JSON.stringify({
                 request: {
-                    facets: facets || facetsDataDefault,
+                    facets,
                     filters,
                     limit: 20,
                     sort_by: sortMethod,

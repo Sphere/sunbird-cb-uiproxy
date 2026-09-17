@@ -3,7 +3,6 @@ import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
 import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
-import { API_END_POINTS } from '../utils/autoLoginSignupConstants'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
@@ -12,6 +11,8 @@ import { createAccount, profileUpdate } from '../utils/signupAccountHelpers'
 import { getCurrentUserRoles } from './rolePermission'
 // sonar-cleanup: OTP-dispatch/verify tails replaced with the shared import (CHANGE 33)
 import { sendRegistrationOtp, verifyRegistrationOtp } from './signupOtpDispatch'
+
+import { API_END_POINTS } from './apiConstants'
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'

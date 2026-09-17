@@ -6,14 +6,8 @@ import { logError, logInfo } from '../utils/logger'
 
 import { CONSTANTS } from '../utils/env'
 
+import { API_END_POINTS } from './apiConstants'
 export const customSignUp = Router()
-
-const API_END_POINTS = {
-  createUser: `${CONSTANTS.ES_BASE}`,
-  resendOTP: `${CONSTANTS.MSG91BASE}/api/v5/otp/retry`,
-  sendOTP: `${CONSTANTS.MSG91BASE}/api/v5/otp`,
-  verifyOTP: `${CONSTANTS.MSG91BASE}/api/v5/otp/verify`,
-}
 
 const msgKey = CONSTANTS.MSG91KEY
 // Routes

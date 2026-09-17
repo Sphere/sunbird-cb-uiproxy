@@ -4,13 +4,7 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserToken } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  users: (queryParams: string) =>
-    `${CONSTANTS.KONG_API_BASE}/v1/user/autocomplete?${queryParams}`,
-  usersByDepartment: (rootOrg: string, searchItem: string) =>
-    `${CONSTANTS.USER_PROFILE_API_BASE}/user/autocomplete/${rootOrg}/department/${searchItem}`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const autocompleteApi = Router()
 

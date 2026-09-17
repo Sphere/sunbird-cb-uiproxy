@@ -2,10 +2,7 @@ import axios from 'axios'
 import { Router } from 'express'
 import { IContent } from '../models/content.model'
 import { CONSTANTS } from '../utils/env'
-
-const API_END_POINTS = {
-  infyradio: `${CONSTANTS.ES_BASE}/lexcontentindex/resource/_search`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const infyRadioApi = Router()
 

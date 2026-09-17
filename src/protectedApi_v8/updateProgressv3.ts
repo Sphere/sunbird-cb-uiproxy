@@ -4,12 +4,9 @@ import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
 import { requestValidator } from '../utils/requestValidator'
+import { API_END_POINTS } from './apiConstants'
 
 export const updateProgressv3 = Router()
-
-const API_END_POINTS = {
-    UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
-}
 
 updateProgressv3.patch('/update', async (req, res) => {
     try {
@@ -25,7 +22,7 @@ updateProgressv3.patch('/update', async (req, res) => {
                 'x-authenticated-user-token': extractUserToken(req),
             },
             method: 'PATCH',
-            url: API_END_POINTS.UPDATE_PROGRESS,
+            url: API_END_POINTS.updateProgress,
         })
         logInfo('[updateProgressv3] request>> ' + JSON.stringify(req.body))
         logInfo('[updateProgressv3] response>> ' + JSON.stringify(updateResponse.data))

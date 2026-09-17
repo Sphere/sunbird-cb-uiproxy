@@ -4,10 +4,8 @@ import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
+import { API_END_POINTS } from '../apiConstants'
 
-const API_END_POINTS = {
-  createuser: `${CONSTANTS.USER_CREATE_API_BASE}/users`,
-}
 export const usersApi = Router()
 
 usersApi.post('/createuser', async (req, res) => {

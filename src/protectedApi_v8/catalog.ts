@@ -2,6 +2,7 @@ import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
+import { API_END_POINTS } from './apiConstants'
 
 import { IFilterUnitContent } from '../models/catalog.model'
 import { getFilters, getFilterUnitByType } from '../service/catalog'
@@ -10,10 +11,6 @@ import { ERROR } from '../utils/message'
 import {extractUserIdFromRequest, extractUserToken} from '../utils/requestExtract'
 
 export const catalogApi = Router()
-
-const API_END_POINTS = {
-  getCatalogEndPoint: `${CONSTANTS.KONG_API_BASE}/v1/catalog/`,
-}
 const failedToProcess = 'Failed to process the request. '
 
 catalogApi.get('/', async (req, res) => {

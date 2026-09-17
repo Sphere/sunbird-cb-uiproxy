@@ -1,13 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
-const API_END_POINTS = {
-  accountSettings: `${CONSTANTS.NODE_API_BASE}/userprofiles/pathfinders/upsert`,
-  resetPassword: `${CONSTANTS.RESET_PASSWORD}/pid/reset-password/generate-token`,
-  viewProfile: `${CONSTANTS.NODE_API_BASE}/userprofiles/pathfinders/viewprofile`,
-}
+import { API_END_POINTS } from '../apiConstants'
+
 export const accountSettingsApi = Router()
 
 accountSettingsApi.post('/resetPassword', async (_req, res) => {

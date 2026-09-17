@@ -1,6 +1,7 @@
 import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { proxyCreatorRoute } from '../utils/proxyCreator'
+import { adminUserManage } from './adminUserManage'
 import { appCertificateDownload } from './appCertificateDownload'
 import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { bnrcUserCreation } from './bnrcUser'
@@ -25,7 +26,6 @@ import { publicSearch } from './publicSearch'
 import { publicTelemetry } from './publicTelemetry'
 import { ratingsSearch } from './ratingsSearch'
 import { sashakt } from './sashaktAuth'
-import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
 import { signupWithAutoLoginOrgForm } from './signupWithAutoLoginOrgForm'
 import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
@@ -54,7 +54,6 @@ publicApiV8.use(
 )
 publicApiV8.use('/competency', publicCompetencyUser)
 publicApiV8.use('/tnc', publicTnc)
-publicApiV8.use('/signup', signup)
 publicApiV8.use('/signupWithAutoLogin', signupWithAutoLogin)
 publicApiV8.use('/signupWithAutoLoginV2', signupWithAutoLoginV2)
 publicApiV8.use('/signupWithAutoLoginOrgForm', signupWithAutoLoginOrgForm)
@@ -89,3 +88,4 @@ publicApiV8.use('/ratingsSearch', ratingsSearch)
 publicApiV8.use('/upsmfUserCreation', upsmfUserCreation)
 publicApiV8.use('/mpNHMUserCreation', mpNHMUserCreation)
 publicApiV8.use('/publicReadForm', publicReadForm)
+publicApiV8.use('/adminUserManage', adminUserManage)

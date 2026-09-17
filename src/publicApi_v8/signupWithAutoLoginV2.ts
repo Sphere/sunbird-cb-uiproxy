@@ -3,15 +3,17 @@ import { Router } from 'express'
 import jwt_decode from 'jwt-decode'
 import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
-import { API_END_POINTS } from '../utils/autoLoginSignupConstants'
 import { encryptData } from '../utils/emailHashPasswordGenerator'
 import { CONSTANTS } from '../utils/env'
 import { fetchUserBymobileorEmail } from '../utils/fetchUserExists'
-import { logInfo } from '../utils/logger'
+import { logError, logInfo } from '../utils/logger'
 import { createAccount, profileUpdate, updateRoles } from '../utils/signupAccountHelpers'
 import { getCurrentUserRoles } from './rolePermission'
 // sonar-cleanup: OTP-dispatch/verify tails replaced with the shared import (CHANGE 33)
 import { sendRegistrationOtp, verifyRegistrationOtp } from './signupOtpDispatch'
+
+import { API_END_POINTS } from './apiConstants'
+import _ from 'lodash'
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
@@ -57,6 +59,18 @@ signupWithAutoLoginV2.post('/register', async (req, res) => {
     }
     const newUserDetail = await createAccount(profileData)
     const userId = newUserDetail.data.result.userId
+    // lern-service answers HTTP 200 with status SUCCESS even when it could not create the
+    // Keycloak credential, reporting the failure only in result.err_msg. Unchecked, the signup
+    // looks clean while the account can never log in with a password - which is how a broken
+    // Keycloak client secret went unnoticed on Spark until the realm held only 12 users.
+    const createErrMsg = _.get(newUserDetail, 'data.result.err_msg', '')
+    if (createErrMsg) {
+      logError(
+        'signupV2 register: user ' + userId + ' was created WITHOUT a usable credential. ' +
+        'lern-service reported: "' + createErrMsg + '". Password login will fail for this ' +
+        'account; OTP login is unaffected. Check sunbird_sso_* settings on lern-service.'
+      )
+    }
     await updateRoles(userId)
     await profileUpdate(profileData, userId)
     await sendRegistrationOtp(res, userPhone, userEmail, userId)
@@ -101,7 +115,7 @@ signupWithAutoLoginV2.post('/validateOtpWithLogin', async (req: any, res) => {
           // A new session and cookie will be generated from here
           try {
             const transformedData = qs.stringify({
-              client_id: 'aastrika-sso-login',
+              client_id: CONSTANTS.APP_SSO_CLIENT_ID,
               client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
               grant_type: 'password',
               scope: 'offline_access',

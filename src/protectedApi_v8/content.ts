@@ -10,6 +10,7 @@ import { logError } from '../utils/logger'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
 // sonar-cleanup: file-local requireOrgHeaders replaced with the shared import (CHANGE 43)
 import { requireOrgHeaders } from '../utils/requireOrgHeaders'
+import { API_END_POINTS } from './apiConstants'
 import { getPlaylist } from './user/playlist'
 
 export const VALID_HIERARCHY_TYPES = new Set(['all', 'minimal', 'detail'])
@@ -88,31 +89,6 @@ function handleContentError(res: Response, err: any, label?: string) {
       error: GENERAL_ERROR_MSG,
     })
 }
-
-const API_END_POINTS = {
-  addHierarchy: (apiType: string) => `${CONSTANTS.AUTHORING_BACKEND}/action/content/kb/${apiType}`,
-  contentParent: (contentId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/v1/contents/parents/${contentId}`,
-  externalContentAccess: (contentId: string, userId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/v1/sources/${contentId}/users/${userId}`,
-  fetchApi: (rootOrg?: string) => `${CONSTANTS.CONTENT_META_FETCH_API_BASE}/fetch/${rootOrg}`,
-  hierarchy: (contentId: string) => `${CONSTANTS.SB_EXT_API_BASE_2}/v1/content/hierarchy/${contentId}`,
-  // hierarchy: (contentId: string) => `${CONSTANTS.CONTENT_HIERARCHY}/${contentId}?dt=UI_LITE`,
-  likeCount: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/likes-count`,
-  modifyKB: (apiType: string) => `${CONSTANTS.AUTHORING_BACKEND}/action/content/v2/kb/${apiType}`,
-  multiple: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/content/metas`,
-  next: `${CONSTANTS.NODE_API_BASE_3}/api/v1/moreLikeThis`,
-  parent: `${CONSTANTS.SB_EXT_API_BASE}/v1`,
-  removeSubset: `${CONSTANTS.GOALS_API_BASE}/v4/users/goals/resources`,
-  reorderV3: `${CONSTANTS.AUTHORING_BACKEND}/action/content/v3/kb/reorder`,
-  searchAutoComplete: `${CONSTANTS.ES_BASE}`,
-  searchV4: `${CONSTANTS.SB_EXT_API_BASE}/search4`,
-  searchV5: `${CONSTANTS.SEARCH_API_BASE}/search5`,
-  searchV6: `${CONSTANTS.SEARCH_API_BASE}/v6/search`,
-  setS3Cookie: `${CONSTANTS.CONTENT_API_BASE}/contentv3/cookie`,
-  updateHierarchy: `${CONSTANTS.AUTHORING_BACKEND}/action/content/hierarchy/update`,
-}
-
 export const contentApi = Router()
 
 contentApi.post('/kb/v3/reorder', async (req, res) => {
@@ -198,7 +174,7 @@ export async function getMultipleContent(
     ...axiosRequestConfig,
     data: requestBody,
     method: 'POST',
-    url: API_END_POINTS.multiple,
+    url: API_END_POINTS.contentMetas,
   })
   if (Array.isArray(response.data) && response.data.length) {
     return response.data.map((unitContent) => processContent(unitContent))
@@ -219,7 +195,7 @@ contentApi.get('/parents/:contentId', async (req, res) => {
 export async function getParentDetails(contentId: string) {
   try {
     const response = await axios.get(
-      `${API_END_POINTS.parent}/${contentId}/parents/read`,
+      `${API_END_POINTS.contentParentBase}/${contentId}/parents/read`,
       axiosRequestConfig
     )
     const parents = response.data.result.response.parents
@@ -265,7 +241,7 @@ contentApi.get('/next/:contentId', async (req, res) => {
 contentApi.post('/likeCount', async (req, res) => {
   try {
     const rootOrg = req.header('rootOrg')
-    const response = await axios.post(API_END_POINTS.likeCount, req.body, {
+    const response = await axios.post(API_END_POINTS.contentLikeNumber, req.body, {
       ...axiosRequestConfig,
       headers: { rootOrg },
     })
@@ -277,7 +253,7 @@ contentApi.post('/likeCount', async (req, res) => {
 
 contentApi.get('/searchAutoComplete', async (req, res) => {
   try {
-    await sendAutoCompleteSearchResponse(req, res, API_END_POINTS.searchAutoComplete)
+    await sendAutoCompleteSearchResponse(req, res, API_END_POINTS.contentSearchAutoComplete)
   } catch (err) {
     handleContentError(res, err, 'SEARCH AUTOCOMPLETE ERR -> ')
   }
@@ -375,7 +351,7 @@ contentApi.post('/searchV6', async (req, res) => {
       rootOrg: req.header('rootOrg'),
       uuid: extractUserIdFromRequest(req),
     }
-    const response = await axios.post(API_END_POINTS.searchV6, body, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.contentSearchV6, body, axiosRequestConfig)
     sendSearchResponse(res, response)
   } catch (err) {
     handleContentError(res, err, 'SEARCH V6 API ERROR >')

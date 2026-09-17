@@ -1,20 +1,10 @@
 import axios from 'axios'
 import {Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { logError} from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-  autoenrollment: (userId: string, courseId: string) => `${CONSTANTS.COHORTS_API_BASE}/v1/autoenrollment/${userId}/${courseId}`,
-  cohorts: `${CONSTANTS.COHORTS_API_BASE}/v2/resources`,
-  groupCohorts: (groupId: number) =>
-    `${CONSTANTS.USER_PROFILE_API_BASE}/groups/${groupId}/users `,
-  hierarchyApiEndPoint: (contentId: string) =>
-  `${CONSTANTS.KNOWLEDGE_MW_API_BASE}/action/content/v3/hierarchy/${contentId}?hierarchyType=detail`,
-  searchUserRegistry: `${CONSTANTS.NETWORK_HUB_SERVICE_BACKEND}/v1/user/search/profile`,
-}
+import { API_END_POINTS } from './apiConstants'
 const VALID_COHORT_TYPES = new Set([
   'activeusers',
   'commongoals',

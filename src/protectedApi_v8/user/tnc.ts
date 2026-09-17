@@ -1,18 +1,10 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest} from '../../utils/requestExtract'
-const apiEndpoints = {
-  acceptTnC: `${CONSTANTS.TNC_API_BASE}/v1/terms/accept`,
-  sbacceptTnc: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/v1/user/tnc/accept`,
-  systemConfigEndPoint: (configName: string) => `${CONSTANTS.LEARNER_SERVICE_API_BASE}/v1/system/settings/get/${configName}`,
-  tnc: `${CONSTANTS.TNC_API_BASE}/v1/latest/terms`,
-  tncPostProcessing: (userId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE}/v1/user/${userId}/postprocessing`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
@@ -25,7 +17,7 @@ export async function getCommonTnc(rootOrg: string, org: string) {
         rootOrg,
       },
       method: 'GET',
-      url: apiEndpoints.tnc,
+      url: API_END_POINTS.tnc,
     })
   } catch (e) {
     throw new Error(e)
@@ -34,7 +26,7 @@ export async function getCommonTnc(rootOrg: string, org: string) {
 
 export async function getTnc(userId: string, rootOrg: string, org: string, locale = 'en') {
   try {
-    const response = await axios.get(`${apiEndpoints.tnc}?userId=${userId}`, {
+    const response = await axios.get(`${API_END_POINTS.tnc}?userId=${userId}`, {
       ...axiosRequestConfig,
       headers: {
         langCode: locale,
@@ -160,7 +152,7 @@ protectedTnc.post('/accept', async (req, res) => {
         rootOrg,
       },
       method: 'POST',
-      url: apiEndpoints.acceptTnC,
+      url: API_END_POINTS.acceptTnC,
     })
     const data = response.data.result || ''
     if (data.toUpperCase() === 'SUCCESS') {
@@ -196,7 +188,7 @@ protectedTnc.patch('/postprocessing', async (req, res) => {
         rootOrg,
       },
       method: 'POST',
-      url: apiEndpoints.tncPostProcessing(extractUserIdFromRequest(req)),
+      url: API_END_POINTS.tncPostProcessing(extractUserIdFromRequest(req)),
     })
     res.status(response.data ? 200 : 204).send(response.data)
   } catch (err) {
@@ -216,7 +208,7 @@ protectedTnc.get('/system/settings/:configName', async (req, res) => {
       res.status(400).send('configuration name should not be empty!')
       return
     }
-    const response = await axios.get(apiEndpoints.systemConfigEndPoint(configName), {
+    const response = await axios.get(API_END_POINTS.systemConfigEndPoint(configName), {
       ...axiosRequestConfig,
       headers: {},
   })
@@ -235,7 +227,7 @@ protectedTnc.post('/sbacceptTnc', async (req, res) => {
   try {
     const userToken = String(req.header('Authorization')).replace('bearer ', '')
     const response = await axios.post(
-        apiEndpoints.sbacceptTnc,
+        API_END_POINTS.sbacceptTnc,
           req.body,
           {
               ...axiosRequestConfig,
