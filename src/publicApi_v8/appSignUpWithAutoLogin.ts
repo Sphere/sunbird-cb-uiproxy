@@ -17,13 +17,6 @@ import { sendRegistrationOtp } from './signupOtpDispatch'
 
 import { API_END_POINTS } from './apiConstants'
 
-const indianCountryCode = '+91'
-
-const msg91Headers = {
-  accept: 'application/json',
-  authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
-  'content-type': 'application/json',
-}
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'
 

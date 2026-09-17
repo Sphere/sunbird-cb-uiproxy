@@ -5,9 +5,7 @@ import { getContentDetails, searchV5 } from '../protectedApi_v8/content'
 import { logError } from '../utils/logger'
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 import { sendAutoCompleteSearchResponse, sendSearchResponse } from '../utils/contentHelpers'
-
 import { getFilters } from '../service/catalog'
-import { CONSTANTS } from '../utils/env'
 import { ERROR } from '../utils/message'
 import { API_END_POINTS } from './apiConstants'
 

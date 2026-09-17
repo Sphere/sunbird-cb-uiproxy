@@ -12,8 +12,8 @@ import { getCurrentUserRoles } from './rolePermission'
 // sonar-cleanup: OTP-dispatch/verify tails replaced with the shared import (CHANGE 33)
 import { sendRegistrationOtp, verifyRegistrationOtp } from './signupOtpDispatch'
 
-import { API_END_POINTS } from './apiConstants'
 import _ from 'lodash'
+import { API_END_POINTS } from './apiConstants'
 
 const VALIDATION_FAIL = 'Please provide correct otp and try again.'
 const CREATION_FAIL = 'Sorry ! User not created. Please try again in sometime.'

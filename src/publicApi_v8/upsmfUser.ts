@@ -202,7 +202,6 @@ const serviceSchemaJoi = Joi.object({
     seniorityNumber: Joi.string().allow('', null).optional(),
 
 })
-const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-UP',

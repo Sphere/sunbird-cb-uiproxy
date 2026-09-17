@@ -148,7 +148,6 @@ const serviceSchemaJoi = Joi.object({
         }),
     serviceType: Joi.string().allow('', null).optional(),
 })
-const registrationSource = 'Self Registration'
 const getUserDesignationFromRole = {
     // tslint:disable-next-line: all
     Faculty: 'ANM-Faculty-Bihar',

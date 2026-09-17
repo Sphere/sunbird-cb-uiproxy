@@ -1,7 +1,7 @@
 import axios from 'axios'
 import _ from 'lodash'
-import { logInfo } from './logger'
 import { API_END_POINTS } from '../publicApi_v8/apiConstants'
+import { logInfo } from './logger'
 
 const searchAPI = API_END_POINTS.commonServiceSearch
 const searchUrl = API_END_POINTS.search

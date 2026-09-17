@@ -6,8 +6,8 @@ import {
 } from '../utils/autoLoginSignupConstants'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
-import { getOTP, validateOTP } from './otp'
 import { API_END_POINTS } from './apiConstants'
+import { getOTP, validateOTP } from './otp'
 // sonar-cleanup: extracted from signupWithAutoLogin.ts's, signupWithAutoLoginV2.ts's,
 // and appSignUpWithAutoLogin.ts's byte-identical post-registration OTP-dispatch
 // tail (CHANGE 33). appSignUpWithAutoLogin.ts's success responses include one

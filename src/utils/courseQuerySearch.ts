@@ -1,10 +1,11 @@
 import axios from 'axios'
 import _ from 'lodash'
 import { axiosRequestConfigLong } from '../configs/request.config'
+import { API_END_POINTS } from '../publicApi_v8/apiConstants'
+import { logError, logInfo } from './logger'
 import { CONSTANTS } from './env'
-import { logInfo } from './logger'
 
-const searchv1Url = `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`
+const searchv1Url = API_END_POINTS.searchv1
 const headers = {
   Accept: 'application/json, text/plain, */*',
   'Content-Type': 'application/json',
@@ -41,11 +42,70 @@ const nullResponseStatus = {
  * @param facets the request's facets array
  * @param sortMethod the request's sort_by, or the default `{lastUpdatedOn: 'desc'}`
  */
-export async function searchCoursesByQuery(
+
+
+// tslint:disable-next-line: no-any
+const errorDetail = (e: any): string =>
+  JSON.stringify(_.get(e, 'response.data') || _.get(e, 'message') || e)
+
+// Normalize a competency/query string for comparison: trim, lowercase, collapse
+// internal whitespace. Used to match the search term against a competency name.
+const normalizeName = (value: string): string =>
+  (value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+
+// Resolve a free-text query to competency level ids (entityId-level) via the FRAC
+// entity service (replaces the old competency Postgres/data_node lookup). Returns []
+// if FRAC is unavailable, so course search degrades to the primary text-search
+// results instead of failing. entityId is language-neutral (language defaulted to
+// 'en'); course language is handled downstream by the ES filters (filters.lang).
+//
+// FRAC is called with strict:'false', which fuzzy-matches every WORD in the query
+// against competency names (e.g. "Normal Labour & Birth and AMTSL" returns 57
+// competencies: AMTSL, Normal delivery, Birth Planning, Low birth weight...).
+// Expanding all of them floods the results (67 courses vs prod's 2). So we only
+// keep competencies whose name actually EQUALS the query - i.e. the user searched a
+// competency name (e.g. "amtsl"). A course-title/phrase search matches no competency
+// name and correctly triggers no expansion, matching prod behaviour.
+const getCompetencyLevelIds = async (query: string): Promise<string[]> => {
+  try {
+    const fracResponse = await axios({
+      ...axiosRequestConfigLong,
+      data: {
+        entityType: 'Competency',
+        field: ['code', 'name', 'levels'],
+        language: 'en',
+        query,
+        strict: 'false',
+      },
+      method: 'post',
+      url: `${CONSTANTS.FRAC_ETL_API_BASE}/v1/entity/search`,
+    })
+    // tslint:disable-next-line: no-any
+    const entities: any[] = _.get(fracResponse, 'data.result.entity') || []
+    const normalizedQuery = normalizeName(query)
+    const levelIds: string[] = []
+    for (const competency of entities) {
+      // Only expand competencies the query actually names - drops fuzzy word-matches.
+      if (normalizeName(competency.name) !== normalizedQuery) {
+        continue
+      }
+      const levels: number[] = Array.isArray(competency.levels) && competency.levels.length > 0
+        ? competency.levels.map((lvl: { levelNumber: number }) => lvl.levelNumber)
+        : [1, 2, 3, 4, 5]
+      for (const level of levels) {
+        levelIds.push(`${competency.entityId}-${level}`)
+      }
+    }
+    return levelIds
+  } catch (fracError) {
+    logError('getCompetencyLevelIds: FRAC lookup failed, returning [] so search degrades to primary results: ' + errorDetail(fracError))
+    return []
+  }
+}
+
+export async function   searchCoursesByQuery(
   // tslint:disable-next-line: no-any
   response: any,
-  // tslint:disable-next-line: no-any
-  pool: any,
   // tslint:disable-next-line: no-any
   courseSearchRequestData: any,
   // tslint:disable-next-line: no-any
@@ -82,22 +142,9 @@ export async function searchCoursesByQuery(
   try {
     let finalConcatenatedData = []
     // tslint:disable-next-line: no-any
-
-    const result = await pool.query(
-      `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
-      ['Competency', '%' + courseSearchRequestData.request.query + '%']
-    )
-    // tslint:disable-next-line: no-any
-    const postgresResponseData = result.rows.map((val: any) => val.id)
+    const elasticSearchData = await getCompetencyLevelIds(courseSearchRequestData.request.query)
     let courseDataSecondary = []
-    if (postgresResponseData.length > 0) {
-      const elasticSearchData = []
-      for (const postgresResponse of postgresResponseData) {
-        // adding Competency Level Ids to search for all the competencies in ES
-        for (const value of [1, 2, 3, 4, 5]) {
-          elasticSearchData.push(`${postgresResponse}-${value}`)
-        }
-      }
+    if (elasticSearchData.length > 0) {
       const courseSearchSecondaryData = {
         limit: 50,
         request: {
@@ -120,6 +167,7 @@ export async function searchCoursesByQuery(
           elasticSearchResponseSecond.data.result.content ?? []
       } catch (error) {
         logInfo(JSON.stringify(error))
+        courseDataSecondary = []
         return response.status(500).json({
           message: 'Something went wrong while fetching competency filtered data',
         })
@@ -127,17 +175,12 @@ export async function searchCoursesByQuery(
 
     }
     if (!courseDataPrimary) courseDataPrimary = []
-    const finalFilteredData = []
     finalConcatenatedData = courseDataPrimary.concat(courseDataSecondary)
     if (finalConcatenatedData.length == 0) {
       response.status(200).json(nullResponseStatus)
       return
     }
-    finalConcatenatedData.forEach((element) => {
-      if (!element.competency) {
-        finalFilteredData.push(element)
-      }
-    })
+    const finalFilteredData = finalConcatenatedData.filter((element) => element.competency !== true)
     const uniqueCourseData = _.uniqBy(finalFilteredData, 'identifier')
 
     response.status(200).json({

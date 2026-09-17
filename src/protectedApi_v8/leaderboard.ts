@@ -28,39 +28,6 @@ function handleLeaderboardError(res: Response, err: any) {
   )
 }
 
-// const apiEndpoints = {
-//   // tslint:disable-next-line: max-line-length
-//   GetBalance: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetBalance`,
-//   // tslint:disable-next-line: max-line-length
-//   Getsso: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/Getsso`,
-//   // tslint:disable-next-line: max-line-length
-//   badgeDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchAllBadgesInfoForUser`,
-//   // tslint:disable-next-line: max-line-length
-//   badgeWon: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchBadgesWonByUser`,
-//   // tslint:disable-next-line: max-line-length
-//   badgeYetToWin: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetBadgesYetToWinByUSer`,
-//   // tslint:disable-next-line: max-line-length
-//   dealersDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/GetRegionsandDealers`,
-//   // tslint:disable-next-line: max-line-length
-//   fetchConfiguration: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchConfiguration `,
-//   // tslint:disable-next-line: max-line-length
-//   fetchGuildAwardCountData: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchGuildAwardCountData `,
-//   hallOfFame: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/TopLearners`,
-//   leaderboard: `${CONSTANTS.SB_EXT_API_BASE_2}/v2/LeaderBoard`,
-//   // tslint:disable-next-line: max-line-length
-//   leaderboardActivities: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedActivitiesLeaderBoardData`,
-//   // tslint:disable-next-line: max-line-length
-//   leaderboardDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedLeaderBoardData`,
-//   // tslint:disable-next-line: max-line-length
-//   leaderboardGuild: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchDetailedGuildLeaderBoardData`,
-//   // tslint:disable-next-line: max-line-length
-//   updateApprovedPoints: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/UpdateApprovedPoints`,
-//   // tslint:disable-next-line: max-line-length
-//   updateConfiguration: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/UpdateConfiguration`,
-//   // tslint:disable-next-line: max-line-length
-//   userDetails: `${CONSTANTS.GAMIFICATION_API_BASE}/FordGamification/PlatformServices/ApiGamification/Gamification/FetchCompleteUserInfo`,
-// }
-
 // api params required to call gamification related apis
 const apiParams = {
   ApplicationId: 53200,
