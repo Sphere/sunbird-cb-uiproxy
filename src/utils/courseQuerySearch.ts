@@ -2,8 +2,8 @@ import axios from 'axios'
 import _ from 'lodash'
 import { axiosRequestConfigLong } from '../configs/request.config'
 import { API_END_POINTS } from '../publicApi_v8/apiConstants'
-import { logError, logInfo } from './logger'
 import { CONSTANTS } from './env'
+import { logError, logInfo } from './logger'
 
 const searchv1Url = API_END_POINTS.searchv1
 const headers = {
