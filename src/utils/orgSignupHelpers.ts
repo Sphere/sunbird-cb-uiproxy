@@ -1,8 +1,8 @@
 import axios from 'axios'
 import { CONSTANTS } from './env'
 import { logError, logInfo } from './logger'
-import { API_END_POINTS, INDIAN_COUNTRY_CODE, MSG91_HEADERS } from './orgSignupConstants'
-
+import { INDIAN_COUNTRY_CODE, MSG91_HEADERS } from './orgSignupConstants'
+import { API_END_POINTS } from '../publicApi_v8/apiConstants'
 // sonar-cleanup: extracted from upsmfUser.ts / mpNHMUser.ts / bnrcUser.ts's
 // byte-identical getUserDetails(phone) (CHANGE 30) — searches the Sunbird
 // user service by phone, same request/response shape in all three org-signup
@@ -79,7 +79,7 @@ export async function createOrgSignupUser<T extends { firstName: string; lastNam
       },
       method: 'POST',
       ...(timeoutMs ? { timeout: timeoutMs } : {}),
-      url: API_END_POINTS.createUser,
+      url: API_END_POINTS.httpsCreateUser,
     })
     if (userCreationResponse.data.result.userId) {
       return {

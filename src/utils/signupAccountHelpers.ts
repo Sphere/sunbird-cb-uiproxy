@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { axiosRequestConfig, axiosRequestConfigLong } from '../configs/request.config'
-import { API_END_POINTS } from './autoLoginSignupConstants'
+import { API_END_POINTS } from '../publicApi_v8/apiConstants'
 import { CONSTANTS } from './env'
 import { logError, logInfo } from './logger'
 

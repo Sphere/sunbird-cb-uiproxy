@@ -5,16 +5,6 @@ import { CONSTANTS } from './env'
  * endpoints plus the Sunbird user-service endpoints each of those flows
  * calls to create/assign-role/update a user.
  */
-export const API_END_POINTS = {
-  assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-  createUser: `${CONSTANTS.HTTPS_HOST}/api/user/v3/create`,
-  migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-  profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
-  userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
 
 export const MSG91_HEADERS = {
   accept: 'application/json',

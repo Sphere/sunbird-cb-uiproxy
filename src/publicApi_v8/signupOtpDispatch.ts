@@ -1,14 +1,13 @@
 import axios from 'axios'
 import { Response } from 'express'
 import {
-  API_END_POINTS,
   INDIAN_COUNTRY_CODE as indianCountryCode,
   MSG91_HEADERS as msg91Headers,
 } from '../utils/autoLoginSignupConstants'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { getOTP, validateOTP } from './otp'
-
+import { API_END_POINTS } from './apiConstants'
 // sonar-cleanup: extracted from signupWithAutoLogin.ts's, signupWithAutoLoginV2.ts's,
 // and appSignUpWithAutoLogin.ts's byte-identical post-registration OTP-dispatch
 // tail (CHANGE 33). appSignUpWithAutoLogin.ts's success responses include one

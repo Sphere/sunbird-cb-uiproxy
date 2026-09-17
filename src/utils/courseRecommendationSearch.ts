@@ -1,10 +1,10 @@
 import axios from 'axios'
 import _ from 'lodash'
-import { CONSTANTS } from './env'
 import { logInfo } from './logger'
+import { API_END_POINTS } from '../publicApi_v8/apiConstants'
 
-const searchAPI = `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/getcourse`
-const searchUrl = `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`
+const searchAPI = API_END_POINTS.commonServiceSearch
+const searchUrl = API_END_POINTS.search
 const headers = {
   Accept: 'application/json, text/plain, */*',
   'Content-Type': 'application/json',
