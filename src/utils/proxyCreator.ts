@@ -160,7 +160,14 @@ export function proxyCreatorLearner(
 ): Router {
   route.all('/*', (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}/learner`, req.originalUrl)
-    if (url.includes('/batch/create')) {
+    // Only short-circuit batch creation where something else already creates the
+    // batch. Sunbird ED did this in the post-publish-processor job, so forwarding
+    // would have made a duplicate; Sunbird Spark does not ship that job, so
+    // swallowing the request leaves the course with no batch and learners unable
+    // to enrol. Forwarding also means a genuine failure surfaces instead of being
+    // reported as a success with an empty batchId.
+    if (CONSTANTS.STUB_BATCH_CREATE && url.includes('/batch/create')) {
+      logInfo('batch/create stubbed by STUB_BATCH_CREATE; not forwarding: ', url)
       res.status(200).json({
         responseCode: 'OK',
         result: {

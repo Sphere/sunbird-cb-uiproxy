@@ -171,6 +171,12 @@ export const CONSTANTS = {
   SELF_SERVICE_PORTAL_API_BASE: env.SELF_SERVICE_PORTAL_API_BASE || '',
   SOCIAL_TIMEOUT: env.SOCIAL_TIMEOUT || 10000,
   STATIC_ILP_PROXY: env.STATIC_ILP_PROXY || 'http://localhost:3005',
+  // Sunbird ED created the course batch automatically after publish, via the
+  // post-publish-processor Flink job, so forwarding an explicit batch/create
+  // would have produced a duplicate. Set this to 'true' on deployments that run
+  // that job. Sunbird Spark does not ship it, so the explicit call is the only
+  // way a batch gets created there and the request must be forwarded.
+  STUB_BATCH_CREATE: env.STUB_BATCH_CREATE === 'true',
   SUBMISSION_API_BASE: env.SUBMISSION_API_BASE || env.SB_EXT_API_BASE_2,
   TNAI_ACCESS_KEY: env.TNAI_ACCESS_KEY || '',
   TNAI_USER_DETAILS_URL: env.TNAI_USER_DETAILS_URL || '',
