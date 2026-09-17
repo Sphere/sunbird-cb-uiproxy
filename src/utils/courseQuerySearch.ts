@@ -43,7 +43,6 @@ const nullResponseStatus = {
  * @param sortMethod the request's sort_by, or the default `{lastUpdatedOn: 'desc'}`
  */
 
-
 // tslint:disable-next-line: no-any
 const errorDetail = (e: any): string =>
   JSON.stringify(_.get(e, 'response.data') || _.get(e, 'message') || e)
@@ -107,6 +106,8 @@ export async function   searchCoursesByQuery(
   // tslint:disable-next-line: no-any
   response: any,
   // tslint:disable-next-line: no-any
+  pool: any,
+  // tslint:disable-next-line: no-any
   courseSearchRequestData: any,
   // tslint:disable-next-line: no-any
   filters: any,
@@ -141,9 +142,25 @@ export async function   searchCoursesByQuery(
   const facetsData = esResponsePrimaryCourses.data.result.facets
   try {
     let finalConcatenatedData = []
-    // tslint:disable-next-line: no-any
-    const elasticSearchData = await getCompetencyLevelIds(courseSearchRequestData.request.query)
     let courseDataSecondary = []
+    // tslint:disable-next-line: no-any
+    let elasticSearchData: string[] = []
+    if (pool) {
+      const result = await pool.query(
+        `SELECT id FROM public.data_node where type=$1 and name ILIKE $2`,
+        ['Competency', '%' + courseSearchRequestData.request.query + '%']
+      )
+      // tslint:disable-next-line: no-any
+      const postgresResponseData = result.rows.map((val: any) => val.id)
+      // adding Competency Level Ids to search for all the competencies in ES
+      for (const postgresResponse of postgresResponseData) {
+        for (const value of [1, 2, 3, 4, 5]) {
+          elasticSearchData.push(`${postgresResponse}-${value}`)
+        }
+      }
+    } else {
+      elasticSearchData = await getCompetencyLevelIds(courseSearchRequestData.request.query)
+    }
     if (elasticSearchData.length > 0) {
       const courseSearchSecondaryData = {
         limit: 50,

@@ -88,7 +88,7 @@ publicSearch.post('/getCourses', async (request, response) => {
     }
     // .................................For search button with query on home page..............................
     if (courseSearchRequestData.request.query) {
-      await searchCoursesByQuery(response, courseSearchRequestData, filters, facets, sortMethod)
+      await searchCoursesByQuery(response, undefined, courseSearchRequestData, filters, facets, sortMethod)
     }
   } catch (err) {
     logInfo(JSON.stringify(err))
