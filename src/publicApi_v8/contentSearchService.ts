@@ -14,6 +14,7 @@ export interface ContentSearchRequest {
     offset?: number;
     sort_by?: Record<string, string>;
     query?: string;
+    fields?: string[];
   }
 }
 
@@ -34,6 +35,7 @@ export async function searchContent(
   const sortMethod = searchRequest.request?.sort_by || {
     lastUpdatedOn: 'desc',
   }
+  const fields = searchRequest.request?.fields
 
   const requestBodyForSearch = {
     request: {
@@ -41,6 +43,7 @@ export async function searchContent(
       limit: searchRequest.request?.limit || 20,
       offset: searchRequest.request?.offset || 1,
       sort_by: sortMethod,
+      ...(fields ? { fields } : {}),
     },
     sort: [{ lastUpdatedOn: 'desc' }],
   }
