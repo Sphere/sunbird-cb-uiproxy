@@ -36,3 +36,10 @@ Thumbs.db
 /nodemon/nodemon-aastar-stage.json
 /src/keys
 /src/publicApi_v8/keys
+
+# Local environment files. These hold real credentials — .env.sonar carries a SONAR_TOKEN and
+# env.local-defaults.json carries live passwords and API keys — and neither was matched by any
+# rule above, so a `git add -A` would have committed them.
+.env
+.env.*
+/src/utils/env.local-defaults.json

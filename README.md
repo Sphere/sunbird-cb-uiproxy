@@ -170,6 +170,7 @@ Copy `env-file` and populate with your values. Key variables:
 | `HTTPS_HOST` | Main server base URL | `https://aastrika-sb.idc.tarento.com` |
 | `PORTAL_PORT` | Server port | `3003` |
 | `KONG_API_BASE` | Kong API gateway base URL | `https://sphere.aastrika.org/api` |
+| `AI_STUDIO_API_BASE` | Aastrika AI service base URL | `${KONG_API_BASE}/ai-studio` |
 | `KNOWLEDGE_MW_API_BASE` | Knowledge middleware base URL | — |
 | `SUNBIRD_PROXY_API_BASE` | Sunbird API gateway base URL | — |
 | `CASSANDRA_IP` | Cassandra host IP | `10.0.75.1` |
@@ -361,6 +362,54 @@ Require a valid Keycloak JWT token in the `Authorization: Bearer <token>` header
 | `/protected/v8/rcCert/*` | RC certificate management |
 | `/protected/v8/sunbirdrRcCertificate/*` | Sunbird RC certificate events |
 | `/protected/v8/ratings/*` | Extended content ratings (CB) |
+
+### AI Studio (`/protected/v8/aiStudio/*`)
+
+Proxies the Aastrika AI service: documents in, narrated training videos and validated MCQ
+quizzes out. The upstream service authenticates nothing itself — that is the gateway's job.
+Its whole client integration is one header, `x-aastrika-creator`, naming the signed-in person
+the work belongs to; this proxy sets it from the session on every call and overwrites anything
+the caller sent, so spend cannot be attributed to another user. Request bodies are forwarded
+untouched.
+
+Of the whole flow only `generate-video` spends money; planning and revising are free, so the
+UI should show `costEstimate.totalUsd` from `generate-plan` before offering the render.
+
+| Route | Description |
+|---|---|
+| `POST /protected/v8/aiStudio/studio/upload` | Upload a document, image or video to build from |
+| `GET /protected/v8/aiStudio/studio/list-voices` | Narration voices currently available |
+| `POST /protected/v8/aiStudio/studio/generate-plan` | Write the script and cost estimate (free) |
+| `PATCH /protected/v8/aiStudio/studio/revise-plan/:jobId` | Rework the plan from feedback (free) |
+| `POST /protected/v8/aiStudio/studio/generate-video/:jobId` | Queue the render — the step that spends |
+| `GET /protected/v8/aiStudio/studio/get-video/:jobId` | Poll status, progress and the live log |
+| `GET /protected/v8/aiStudio/studio/list-videos` | List video jobs |
+| `GET /protected/v8/aiStudio/studio/download-video/:jobId` | Download the MP4 (302 to storage) |
+| `DELETE /protected/v8/aiStudio/studio/delete-video/:jobId` | Delete the video, job and reporting row |
+| `GET /protected/v8/aiStudio/quiz/languages` | Languages questions can be generated in |
+| `POST /protected/v8/aiStudio/quiz/upload` | Upload source files or links; media is transcribed |
+| `POST /protected/v8/aiStudio/quiz/generate` | Generate the question set |
+| `GET /protected/v8/aiStudio/quiz/list` | List quizzes |
+| `PATCH /protected/v8/aiStudio/quiz/update/:quizJobId` | Save the operator's corrected assessment |
+| `GET /protected/v8/aiStudio/quiz/export/:quizJobId` | Export as xlsx or csv (302 to storage) |
+| `DELETE /protected/v8/aiStudio/quiz/delete/:quizJobId` | Delete the quiz and its exports |
+| `GET /protected/v8/aiStudio/quiz/:quizJobId` | Read one quiz with its questions |
+| `POST /protected/v8/aiStudio/artifacts/upload` | Store a file that no job produced |
+| `GET /protected/v8/aiStudio/artifacts/:contentId/:filename` | Read a stored file |
+| `DELETE /protected/v8/aiStudio/artifacts/:contentId/:filename` | Delete a stored file |
+| `POST /protected/v8/aiStudio/usage/get-report` | Usage and spend report, filters in the body |
+| `GET /protected/v8/aiStudio/usage/get-report` | The same report, filters as a query string |
+
+The proxy does not validate request bodies: which fields an endpoint requires is the AI
+service's rule, so a request is forwarded as it arrives and the service's own error is
+relayed back with its status and message intact.
+
+Each sub-router ends with a wildcard that forwards anything else to the matching upstream
+prefix, so an endpoint the AI service adds later — a new `/v1/studio/*` or `/v1/quiz/*` —
+is reachable through the portal without a change here. A feature area that does not exist
+yet is reached under its own upstream shape: a future `/v1/translate/run` is
+`/protected/v8/aiStudio/v1/translate/run`. The routes named above always win over the
+wildcard, and carry the validation and documentation.
 
 ### Misc
 
