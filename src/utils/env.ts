@@ -17,11 +17,7 @@ const localDefaults: Record<string, string> = existsSync(LOCAL_DEFAULTS_PATH)
 
 const HTTPS_HOST = env.HTTPS_HOST || 'https://aastrika-sb.idc.tarento.com'
 const DEFAULT_LOCALHOST_7001 = 'http://localhost:7001'
-// Internal-network address of the notification engine's socket server. Kept as a
-// real fallback rather than left undefined because ClientSocket(undefined) silently
-// connects to the process origin instead of failing, which would misroute traffic
-// rather than surface a clear error. This is a service hostname, not a credential.
-const NOTIFICATION_ENGINE_DEFAULT_SOCKET_URL = 'http://notification-engine:3013'
+const DEFAULT_LOCALHOST_3013 = 'http://localhost:3013'
 export const CONSTANTS = {
   ACCESS_CONTROL_API_BASE: env.ACCESS_CONTROL_API_BASE || env.SBEXT_API_BASE,
   AES_ENCRYPTION_METHOD: env.AES_ENCRYPTION_METHOD || 'abc',
@@ -43,7 +39,7 @@ export const CONSTANTS = {
   BNRC_USER_DEFAULT_PASSWORD: env.BNRC_USER_DEFAULT_PASSWORD || '',
   BNRC_USER_ORGANISATION_ID: env.BNRC_USER_ORGANISATION_ID || '',
   NETWORK_HUB_SERVICE_BACKEND:
-    env.NETWORK_HUB_SERVICE_BACKEND || 'http://localhost:3013',
+    env.NETWORK_HUB_SERVICE_BACKEND || DEFAULT_LOCALHOST_3013,
 
   CASSANDRA_IP: env.CASSANDRA_IP || '',
   CASSANDRA_KEYSPACE: env.CASSANDRA_KEYSPACE || 'bodhi',
@@ -148,11 +144,18 @@ export const CONSTANTS = {
     env.NODE_API_BASE_2_CLIENT_SECRET || 'MdiDn@342$',
   NODE_API_BASE_3: env.NODE_API_BASE_3 || 'http://localhost:3015',
   NOTIFICATIONS_API_BASE: env.NOTIFICATIONS_API_BASE || 'http://localhost:5805',
-  NOTIFICATION_ENGINE_API_BASE: env.NOTIFICATION_ENGINE_API_BASE || 'http://localhost:3013',
+  NOTIFICATION_ENGINE_API_BASE:
+    env.NOTIFICATION_ENGINE_API_BASE || DEFAULT_LOCALHOST_3013,
+  // The routable internal hostname comes from the env var or the untracked
+  // env.local-defaults.json, so no cluster address is hard-coded here. The
+  // localhost fallback stays a real value rather than undefined because
+  // server.ts hands this to ClientSocket(), and ClientSocket(undefined)
+  // silently connects to the process origin instead of failing — a refused
+  // connection is far easier to diagnose than a silent misroute.
   NOTIFICATION_ENGINE_SOCKET_URL:
     env.NOTIFICATION_ENGINE_SOCKET_URL ||
     localDefaults.NOTIFICATION_ENGINE_SOCKET_URL ||
-    NOTIFICATION_ENGINE_DEFAULT_SOCKET_URL,
+    DEFAULT_LOCALHOST_3013,
   OTP_EXTRACTION_KEY: env.OTP_EXTRACTION_KEY || '',
   DISCUSSION_HUB_API_BASE:
     env.DISCUSSION_HUB_API_BASE || 'http://localhost:4567',
