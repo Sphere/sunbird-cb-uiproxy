@@ -10,6 +10,64 @@ import {  validateOTP } from './otp'
 const PASSWORD_RESET_FAIL = 'Sorry ! There is some issue in resetting your account. Please contact admin.'
 const VERIFY_OTP_FAIL = 'Sorry ! There is some issue in verifying your account. Please try after sometime.'
 
+const indianCountryCode = '+91'
+const msg91Headers = {
+  accept: 'application/json',
+  authkey: CONSTANTS.MSG_91_AUTH_KEY_SSO,
+  'content-type': 'application/json',
+}
+
+/**
+ * Phone OTP for forgot-password normally goes through lern (/otp/v1/generate and
+ * /otp/v1/verify). On Sunbird Spark that path is unusable: lern's image ships a
+ * mismatched sunbird-notification jar, so sendOTPViaSMS throws NoSuchMethodError on
+ * SMSFactory.getInstance(), which kills the ActorSystem - no SMS is delivered and the
+ * whole service is down for ~60s while it restarts.
+ *
+ * MSG91 is already the OTP provider for phone login (ssoLogin), so these two helpers
+ * reuse that route. The password reset call itself is untouched: it does not
+ * re-validate the OTP, which means the proxy is the only gate - verification must stay
+ * mandatory before reset.
+ *
+ * Gated on FORGOT_PASSWORD_OTP_VIA_MSG91 so production keeps using lern. Remove both
+ * helpers and the flag once the lern image is rebuilt.
+ */
+/**
+ * MSG91 matches the OTP against the exact mobile string it was sent to, and the two
+ * callers do not agree: the send path posts `userName` (trimmed by the UI) while the
+ * verify path posts `key` (not trimmed). Normalising both to digits here means a
+ * stray space or dash cannot make a correct OTP fail verification.
+ */
+function toMsg91Mobile(userPhone: string): string {
+  return `${indianCountryCode}${userPhone.replace(/[^0-9]/g, '')}`
+}
+
+async function sendOtpViaMsg91(userPhone: string) {
+  return axios({
+    headers: msg91Headers,
+    method: 'POST',
+    params: {
+      mobile: toMsg91Mobile(userPhone),
+      template_id: CONSTANTS.MSG_91_TEMPLATE_ID_SEND_OTP_SSO,
+    },
+    url: API_END_POINTS.msg91SendOtp,
+  })
+}
+
+async function isMsg91OtpValid(userPhone: string, otp: string): Promise<boolean> {
+  const verifyResponse = await axios({
+    headers: msg91Headers,
+    method: 'GET',
+    params: {
+      mobile: toMsg91Mobile(userPhone),
+      otp,
+    },
+    url: API_END_POINTS.msg91VerifyOtp,
+  })
+  logInfo('MSG91 verify response : ' + JSON.stringify(verifyResponse.data))
+  return verifyResponse.data.type === 'success'
+}
+
 export const forgotPassword = Router()
 
 forgotPassword.post('/reset/proxy/password', async (req, res) => {
@@ -79,16 +137,21 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
         logInfo('User Id : ', userUUId)
 
         // generate otp
-        const sendResponse = await axios({
-          ...axiosRequestConfig,
-          data: {
-            request: { userId: userUUId, key: sbUsername, type: userType },
-          },
-          headers: { Authorization: CONSTANTS.SB_API_KEY },
-          method: 'POST',
-          url: API_END_POINTS.generateOtp,
-        })
-        logInfo('Sending Responses in phone part : ' + sendResponse)
+        if (CONSTANTS.FORGOT_PASSWORD_OTP_VIA_MSG91) {
+          const msg91Response = await sendOtpViaMsg91(sbUsername)
+          logInfo('Sent phone OTP via MSG91 : ' + JSON.stringify(msg91Response.data))
+        } else {
+          const sendResponse = await axios({
+            ...axiosRequestConfig,
+            data: {
+              request: { userId: userUUId, key: sbUsername, type: userType },
+            },
+            headers: { Authorization: CONSTANTS.SB_API_KEY },
+            method: 'POST',
+            url: API_END_POINTS.generateOtp,
+          })
+          logInfo('Sending Responses in phone part : ' + sendResponse)
+        }
         res.status(200).send({ message: 'Success ! Please verify the OTP .' })
         return
       } else {
@@ -170,13 +233,14 @@ forgotPassword.post('/verifyOtp', async (req, res) => {
           'userId'
         )
         logInfo('User Id in phone : ', userUUId)
-        const verifyOtpResponse = await validateOTP(
-          userUUId,
-          key,
-          userType,
-          validOtp
-        )
-        if (verifyOtpResponse.data.result.response === 'SUCCESS') {
+        // The reset call below does NOT re-validate the OTP, so this check is the
+        // only thing standing between a phone number and a password reset link.
+        // Whichever provider issued the OTP must verify it here.
+        const isOtpValid = CONSTANTS.FORGOT_PASSWORD_OTP_VIA_MSG91
+          ? await isMsg91OtpValid(key, validOtp)
+          : (await validateOTP(userUUId, key, userType, validOtp)).data.result
+              .response === 'SUCCESS'
+        if (isOtpValid) {
           const sendResponse = await axios({
             ...axiosRequestConfig,
             data: {

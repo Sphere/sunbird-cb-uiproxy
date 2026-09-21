@@ -78,6 +78,13 @@ export const CONSTANTS = {
     env.KNOWLEDGE_MW_API_BASE || 'http://knowledge-mw-service:5000',
   KONG_API_BASE: env.KONG_API_BASE || 'https://sphere.aastrika.org/api',
   FRAC_ETL_API_BASE: env.FRAC_ETL_API_BASE || 'http://frac-etl-service:8083',
+  // Spark's lern-service crashes on any SMS OTP (NoSuchMethodError in
+  // SMSFactory.getInstance), so forgot-password by phone never delivers a code and
+  // takes the service down for ~60s. With this on, the OTP is issued and verified
+  // through MSG91 - the provider ssoLogin already uses - while the password reset
+  // call is unchanged. Off unless set to 'true', so production keeps using lern.
+  // Remove once the lern image is rebuilt.
+  FORGOT_PASSWORD_OTP_VIA_MSG91: env.FORGOT_PASSWORD_OTP_VIA_MSG91 === 'true',
   MSG_91_AUTH_KEY_SSO: env.MSG_91_AUTH_KEY_SSO || '',
   MSG91BASE: env.MSG91BASE || 'http://localhost:3300',
   MSG91KEY: env.MSG91KEY || 'http://localhost:3301',
