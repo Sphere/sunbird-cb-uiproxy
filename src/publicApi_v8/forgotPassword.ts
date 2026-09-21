@@ -68,6 +68,27 @@ async function isMsg91OtpValid(userPhone: string, otp: string): Promise<boolean>
   return verifyResponse.data.type === 'success'
 }
 
+/**
+ * `/private/user/v1/search` returns each user with `identifier` and `id`, and no `userId`
+ * field at all - so `_.find(content, 'userId')` never matched and every caller below sent
+ * `userId: undefined`. lern dropped the key, ResetPasswordActor called getUserById(null),
+ * and the password reset hung with no error on either side. The OTP send path shares this
+ * extraction but survived it, because generateOtp does not need a resolved user.
+ */
+interface ISearchUser {
+  id?: string
+  identifier?: string
+  userId?: string
+}
+
+function extractUserId(searchresponse: unknown): string | undefined {
+  const content: ISearchUser[] = _.get(searchresponse, 'data.result.response.content', [])
+  const match = _.find(content, (entry: ISearchUser) =>
+    Boolean(entry && (entry.userId || entry.identifier || entry.id))
+  )
+  return match ? match.userId || match.identifier || match.id : undefined
+}
+
 export const forgotPassword = Router()
 
 forgotPassword.post('/reset/proxy/password', async (req, res) => {
@@ -92,10 +113,7 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
       })
 
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('>>>>>>>> User Id : ', userUUId)
 
         // generate otp
@@ -130,10 +148,7 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
       })
       logInfo('Inside phone type checking..')
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('User Id : ', userUUId)
 
         // generate otp
@@ -187,10 +202,7 @@ forgotPassword.post('/verifyOtp', async (req, res) => {
       })
 
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('User Id in Email : ', userUUId)
         const verifyOtpResponse = await validateOTP(
           userUUId,
@@ -228,10 +240,7 @@ forgotPassword.post('/verifyOtp', async (req, res) => {
         url: API_END_POINTS.searchSb,
       })
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('User Id in phone : ', userUUId)
         // The reset call below does NOT re-validate the OTP, so this check is the
         // only thing standing between a phone number and a password reset link.
