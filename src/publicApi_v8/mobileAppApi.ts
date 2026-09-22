@@ -20,6 +20,7 @@ import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
 import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { requestValidator } from '../utils/requestValidator'
+import { adaptCourseHierarchyResponse } from './adapters/courseHierarchyAdapter'
 import {
   adaptUserReadResponse,
   adaptUserSearchResponse,
@@ -145,6 +146,15 @@ mobileAppApi.get('/kong/course/v2/hierarchy/*', async (req, res) => {
       logInfo('[Hierarchy Mobile API] Error during CDN replacement:', JSON.stringify(replacementError))
       // Continue with original response data if replacement fails
       responseData = response.data
+    }
+
+    // Normalize competencies_v1 to the string shape every mobile consumer expects
+    // (backend can send a JSON string, an already-parsed array, or a single object -
+    // see adapters/courseHierarchyAdapter.ts). Never let this step break the response.
+    try {
+      responseData = adaptCourseHierarchyResponse(responseData)
+    } catch (adapterError) {
+      logInfo('[Hierarchy Mobile API] Error during course hierarchy adaptation:', JSON.stringify(adapterError))
     }
 
     res.status(response.status).send(responseData)
