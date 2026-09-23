@@ -543,6 +543,12 @@ docker run -p 3003:3003 --env-file env-file sunbird-cb-uiproxy
 
 ---
 
+## Releases
+
+Cutting a release — version, notes, branch, tag, GitHub Release and the Jenkins
+parameters — is written up in [docs/RELEASE-PROCESS.md](docs/RELEASE-PROCESS.md).
+Past releases are in [RELEASE_NOTES/](RELEASE_NOTES/).
+
 ## CI/CD
 
 - **Jenkins**: `Jenkinsfile`, `Jenkinsfile-sun`, `Jenkinsfile-sonar`
