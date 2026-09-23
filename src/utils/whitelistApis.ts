@@ -1640,6 +1640,131 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/aiStudio/studio/upload': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/list-voices': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/generate-plan': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/revise-plan/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/generate-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/get-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/list-videos': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/download-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/delete-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/languages': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/upload': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/generate': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/list': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/update/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/export/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/delete/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/artifacts/upload': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/artifacts/:contentId/:filename': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/usage/get-report': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/artifacts/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/usage/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -1939,5 +2064,32 @@ export const API_LIST = {
     '/protected/v8/playlist/search',
     '/protected/v8/playlist/create',
     '/protected/v8/playlist/update',
+    '/protected/v8/aiStudio/studio/upload',
+    '/protected/v8/aiStudio/studio/list-voices',
+    '/protected/v8/aiStudio/studio/generate-plan',
+    '/protected/v8/aiStudio/studio/revise-plan/:jobId',
+    '/protected/v8/aiStudio/studio/generate-video/:jobId',
+    '/protected/v8/aiStudio/studio/get-video/:jobId',
+    '/protected/v8/aiStudio/studio/list-videos',
+    '/protected/v8/aiStudio/studio/download-video/:jobId',
+    '/protected/v8/aiStudio/studio/delete-video/:jobId',
+    '/protected/v8/aiStudio/quiz/languages',
+    '/protected/v8/aiStudio/quiz/upload',
+    '/protected/v8/aiStudio/quiz/generate',
+    '/protected/v8/aiStudio/quiz/list',
+    '/protected/v8/aiStudio/quiz/update/:quizJobId',
+    '/protected/v8/aiStudio/quiz/export/:quizJobId',
+    '/protected/v8/aiStudio/quiz/delete/:quizJobId',
+    '/protected/v8/aiStudio/quiz/:quizJobId',
+    '/protected/v8/aiStudio/artifacts/upload',
+    '/protected/v8/aiStudio/artifacts/:contentId/:filename',
+    '/protected/v8/aiStudio/usage/get-report',
+    // Wildcards last: every concrete AI Studio path above resolves to its own rule, and
+    // anything the service adds later falls through to these.
+    '/protected/v8/aiStudio/studio/:rest+',
+    '/protected/v8/aiStudio/quiz/:rest+',
+    '/protected/v8/aiStudio/artifacts/:rest+',
+    '/protected/v8/aiStudio/usage/:rest+',
+    '/protected/v8/aiStudio/:rest+',
   ],
 }

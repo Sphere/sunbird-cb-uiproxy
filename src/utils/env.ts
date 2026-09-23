@@ -1,12 +1,14 @@
 // tslint:disable-next-line: all
 const env = process.env;
 const HTTPS_HOST = env.HTTPS_HOST || 'https://aastrika-sb.idc.tarento.com'
+const KONG_API_BASE = env.KONG_API_BASE || 'https://sphere.aastrika.org/api'
 export const CONSTANTS = {
   ACCESS_CONTROL_API_BASE: env.ACCESS_CONTROL_API_BASE || env.SBEXT_API_BASE,
   AES_ENCRYPTION_METHOD: env.AES_ENCRYPTION_METHOD || 'abc',
   AES_ENCRYPTION_SECRET: env.AES_ENCRYPTION_SECRET || 'abc',
   AES_SECRET_IV: env.AES_SECRET_IV || 'abc',
   AES_SECRET_KEY: env.AES_SECRET_KEY || 'abc',
+  AI_STUDIO_API_BASE: env.AI_STUDIO_API_BASE || `${KONG_API_BASE}/ai-studio`,
   ANALYTICS_TIMEOUT: env.ANALYTICS_TIMEOUT || 10000,
   APP_ANALYTICS: env.LA_HOST_PROXY || 'http://localhost:portNUmber',
   APP_CONFIGURATIONS: env.APP_CONFIGURATIONS || '/app-config',
@@ -90,7 +92,7 @@ export const CONSTANTS = {
   KHUB_SEARCH_BASE: env.KHUB_SEARCH_BASE || 'http://localhost:3014',
   KNOWLEDGE_MW_API_BASE:
     env.KNOWLEDGE_MW_API_BASE || 'http://knowledge-mw-service:5000',
-  KONG_API_BASE: env.KONG_API_BASE || 'https://sphere.aastrika.org/api',
+  KONG_API_BASE,
   FRAC_ETL_API_BASE: env.FRAC_ETL_API_BASE || 'http://frac-etl-service:8083',
   MSG_91_AUTH_KEY_SSO: env.MSG_91_AUTH_KEY_SSO || '',
   MSG91BASE: env.MSG91BASE || 'http://localhost:3300',

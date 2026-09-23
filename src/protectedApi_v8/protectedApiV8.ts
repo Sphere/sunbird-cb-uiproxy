@@ -2,6 +2,7 @@ import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { admin } from './admin/admin'
 import { aiServiceAPI } from './AI_Hub_Research/AIService'
+import { aiStudioApi } from './aiStudio/aiStudio'
 import { assessmentApi } from './assessment'
 import { assessmentCompetency } from './assessmentCompetency'
 import { attendedContentApi } from './attendent-content'
@@ -118,3 +119,4 @@ protectedApiV8.use('/playlist', playlistApi)
 protectedApiV8.use('/learnerPath', learnerPathApi)
 protectedApiV8.use('/learnerPathV2', learnerPathApiV2)
 protectedApiV8.use('/report', mncAttendanceReportApi)
+protectedApiV8.use('/aiStudio', aiStudioApi)

@@ -14,6 +14,7 @@
     "serve": "node ./index.js",
     "start:nodemon": "nodemon --config nodemon/nodemon.json",
     "start:dev": "nodemon --config nodemon/nodemon-aastar-dev.json",
+    "dev:aiStudio": "node scripts/aiStudio-dev.js",
     "start:stage": "nodemon --config nodemon/nodemon-aastar-stage.json",
     "start:igot": "nodemon --config nodemon/nodemon-igot-stage.json",
     "start": "node index.js"
