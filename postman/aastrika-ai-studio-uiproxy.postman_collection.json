@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "7f3c9d21-4b86-4e17-9a52-1d0c8e6b4a37",
-    "name": "Aastrika AI Studio — via uiproxy",
-    "description": "AI Studio **through the uiproxy**, not the AI service directly.\n\nEvery route here is `/protected/v8/aiStudio/*` on the portal, which forwards to the AI service\nvia Kong. If you want the service's own API, use the `Aastrika AI Service` collection instead —\nthe two are not interchangeable, because the authentication and the identity handling differ.\n\n## Before you start\n\nTwo variables, both under Collection → Variables → **CURRENT VALUE**:\n\n| Variable | What to put in it |\n|---|---|\n| `baseUrl` | `http://localhost:3003/apis` locally, or your portal host + `/apis` |\n| `sessionId` | The `connect.sid` cookie value from a logged-in portal tab |\n\n`rootOrg` defaults to `aastar`; change it if you are on another tenant.\n\nTo get `sessionId`: sign in to the portal, open DevTools → Application → Cookies, copy the\nwhole `connect.sid` value including the `s%3A` prefix.\n\n## If the portal will not start locally\n\n`npm run start:dev` needs Cassandra on 9042 (the session store) and a reachable Keycloak, and\nit binds port 3003 — which may already be taken. If that is in the way, the repo has a runner\nthat serves these same paths with neither dependency:\n\n```\nnpm run dev:aiStudio          # or PORT=4010 npm run dev:aiStudio\n```\n\nPoint `baseUrl` at `http://localhost:3005/apis` and **clear the `sessionId` variable** — that\nrunner supplies the session itself, so no cookie is needed. Everything past that point is the\nreal path: the same router, the same headers, the same Kong route.\n\nUse the full portal when you need to prove the Keycloak hop; use the runner for everything else.\n\n## Authentication — the session cookie, nothing else\n\nThe portal authenticates with Keycloak, so these routes need **your portal session** and\nnothing more. Collection-level auth sends it on every request; individual requests inherit it.\n\n**Do not send a creator, a username, or any identity header.** The proxy reads the signed-in\nuser from your Keycloak session and sends `x-aastrika-creator` to the AI service itself,\noverwriting anything you supply. That is deliberate: it is what stops one user recording spend\nagainst another. It also adds the gateway key (`Authorization`) — a server-side credential that\nnever reaches a browser.\n\nSo the client side is one cookie, and the proxy handles the rest.\n\n## What the proxy does and does not do\n\n- **Does not validate bodies.** Which fields an endpoint requires is the AI service's rule, so a\n  request is forwarded as it arrives and the service's own error is relayed with its status and\n  message intact. A 422 for thin material, a 400 `SOURCE_MISSING`, a 403 on someone else's\n  content all reach you unchanged.\n- **Does not rewrite bodies.** What you send is what the AI service receives, byte for byte.\n- **Forwards anything it does not recognise.** An endpoint the AI service adds later is\n  reachable here the day it ships, under the same path shape.\n\n## Cost\n\nOne request spends money: **2.5 Generate video**. Everything else, planning and revising\nincluded, is free. Check `costEstimate.totalUsd` from 2.3 before running it.\n\n## Order\n\nRequests are numbered in the order they chain, and each saves what the next needs into\ncollection variables — so a folder runs top to bottom without copying ids by hand. 2.1 sets\n`studioSourceId`; 2.3 sets `jobId`; 3.2 sets `sourceId`; 3.3 sets `quizJobId`; 4.1 sets\n`contentId` and `artifactFilename`.\n\nRequests that upload a file are marked **(pick a file)**: Postman cannot ship one for you, so\nopen the Body tab and choose one.\n\n**Start with 3.1 List languages** — no arguments, spends nothing, and tells you whether the\nwhole chain is wired up.\n---\n\n*Every request in this collection was run end to end against the deployed Kong route\n(`https://sphere.aastrika.org/api/ai-studio`) on 2026-09-18: 21 of 22 routes verified working.\nThe exception is `2.5 Generate video`, which was deliberately not run because it is the one\ncall that spends real money.*\n",
+    "name": "Aastrika AI Studio \u2014 via uiproxy",
+    "description": "AI Studio **through the uiproxy**, not the AI service directly.\n\nEvery route here is `/protected/v8/aiStudio/*` on the portal, which forwards to the AI service\nvia Kong. If you want the service's own API, use the `Aastrika AI Service` collection instead \u2014\nthe two are not interchangeable, because the authentication and the identity handling differ.\n\n## Before you start\n\nTwo variables, both under Collection \u2192 Variables \u2192 **CURRENT VALUE**:\n\n| Variable | What to put in it |\n|---|---|\n| `baseUrl` | `http://localhost:3003/apis` locally, or your portal host + `/apis` |\n| `sessionId` | The `connect.sid` cookie value from a logged-in portal tab |\n\n`rootOrg` defaults to `aastar`; change it if you are on another tenant.\n\nTo get `sessionId`: sign in to the portal, open DevTools \u2192 Application \u2192 Cookies, copy the\nwhole `connect.sid` value including the `s%3A` prefix.\n\n## If the portal will not start locally\n\n`npm run start:dev` needs Cassandra on 9042 (the session store) and a reachable Keycloak, and\nit binds port 3003 \u2014 which may already be taken. If that is in the way, the repo has a runner\nthat serves these same paths with neither dependency:\n\n```\nnpm run dev:aiStudio          # or PORT=4010 npm run dev:aiStudio\n```\n\nPoint `baseUrl` at `http://localhost:3005/apis` and **clear the `sessionId` variable** \u2014 that\nrunner supplies the session itself, so no cookie is needed. Everything past that point is the\nreal path: the same router, the same headers, the same Kong route.\n\nUse the full portal when you need to prove the Keycloak hop; use the runner for everything else.\n\n## Authentication \u2014 the session cookie, nothing else\n\nThe portal authenticates with Keycloak, so these routes need **your portal session** and\nnothing more. Collection-level auth sends it on every request; individual requests inherit it.\n\n**Do not send a creator, a username, or any identity header.** The proxy reads the signed-in\nuser from your Keycloak session and sends `x-aastrika-creator` to the AI service itself,\noverwriting anything you supply. That is deliberate: it is what stops one user recording spend\nagainst another. It also adds the gateway key (`Authorization`) \u2014 a server-side credential that\nnever reaches a browser.\n\nSo the client side is one cookie, and the proxy handles the rest.\n\n## What the proxy does and does not do\n\n- **Does not validate bodies.** Which fields an endpoint requires is the AI service's rule, so a\n  request is forwarded as it arrives and the service's own error is relayed with its status and\n  message intact. A 422 for thin material, a 400 `SOURCE_MISSING`, a 403 on someone else's\n  content all reach you unchanged.\n- **Does not rewrite bodies.** What you send is what the AI service receives, byte for byte.\n- **Forwards anything it does not recognise.** An endpoint the AI service adds later is\n  reachable here the day it ships, under the same path shape.\n\n## Cost\n\nOne request spends money: **2.5 Generate video**. Everything else, planning and revising\nincluded, is free. Check `costEstimate.totalUsd` from 2.3 before running it.\n\n## Order\n\nRequests are numbered in the order they chain, and each saves what the next needs into\ncollection variables \u2014 so a folder runs top to bottom without copying ids by hand. 2.1 sets\n`studioSourceId`; 2.3 sets `jobId`; 3.2 sets `sourceId`; 3.3 sets `quizJobId`; 4.1 sets\n`contentId` and `artifactFilename`.\n\nRequests that upload a file are marked **(pick a file)**: Postman cannot ship one for you, so\nopen the Body tab and choose one.\n\n**Start with 3.1 List languages** \u2014 no arguments, spends nothing, and tells you whether the\nwhole chain is wired up.\n---\n\n*Every request in this collection was run end to end against the deployed Kong route\n(`https://sphere.aastrika.org/api/ai-studio`) on 2026-09-18: 21 of 22 routes verified working.\nThe exception is `2.5 Generate video`, which was deliberately not run because it is the one\ncall that spends real money.*\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -28,15 +28,15 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3003/apis",
+      "value": "http://localhost:3005/apis",
       "type": "string",
-      "description": "Portal host plus the /apis prefix. The uiproxy mounts /protected/v8; /apis is added by whatever fronts it."
+      "description": "The dev runner (npm run dev:aiStudio) listens on 3005. The full proxy (node dist/index.js) uses PORTAL_PORT, 3003 by default \u2014 point this there instead when you need real Keycloak sessions."
     },
     {
       "key": "sessionId",
       "value": "",
       "type": "string",
-      "description": "The connect.sid cookie value from a logged-in portal tab, s%3A prefix included. Left blank so a session is never committed with the collection."
+      "description": "connect.sid from a signed-in browser. The dev runner ignores it and uses a fixed creator name, so it only matters against the full proxy."
     },
     {
       "key": "rootOrg",
@@ -48,7 +48,7 @@
       "key": "creator",
       "value": "",
       "type": "string",
-      "description": "Only used as a FILTER in 5.2. It is never sent as an identity — the proxy takes that from your session."
+      "description": "Ignored: the proxy sets the creator from the session and overwrites anything sent, so nobody can record spend against someone else."
     },
     {
       "key": "jobId",
@@ -66,13 +66,13 @@
       "key": "sourceId",
       "value": "",
       "type": "string",
-      "description": "Set by 3.2 — a quiz source."
+      "description": "Set by 3.2 \u2014 a quiz source."
     },
     {
       "key": "studioSourceId",
       "value": "",
       "type": "string",
-      "description": "Set by 2.1 — a studio upload. Distinct from sourceId."
+      "description": "Set by 2.1 \u2014 a studio upload. Distinct from sourceId."
     },
     {
       "key": "contentId",
@@ -84,12 +84,12 @@
       "key": "artifactFilename",
       "value": "",
       "type": "string",
-      "description": "Set by 4.1. Not derivable from contentId — keep both."
+      "description": "Set by 4.1. Not derivable from contentId \u2014 keep both."
     }
   ],
   "item": [
     {
-      "name": "2 · AI Studio — document to video",
+      "name": "2 \u00b7 AI Studio \u2014 document to video",
       "description": "Plan first, produce second. `Generate plan` writes only a script and a cost estimate. `Generate video` is the step that actually spends.",
       "item": [
         {
@@ -110,7 +110,7 @@
                 "upload"
               ]
             },
-            "description": "Source material for a video.\n\n`kind` selects the handling:\n\n- `document` — PDF/DOCX/TXT parsed to text, PDF pages rendered as slides\n- `image` — a diagram or photo for one scene\n- `reference-video` — a video whose look and pacing to copy\n\nUpload a **video** with `kind=document` and it comes back split into segments with a transcript: that is edit mode.\n\nSaves `studioSourceId` for 2.3.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
+            "description": "Source material for a video.\n\n`kind` selects the handling:\n\n- `document` \u2014 PDF/DOCX/TXT parsed to text, PDF pages rendered as slides\n- `image` \u2014 a diagram or photo for one scene\n- `reference-video` \u2014 a video whose look and pacing to copy\n\nUpload a **video** with `kind=document` and it comes back split into segments with a transcript: that is edit mode.\n\nSaves `studioSourceId` for 2.3.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -123,7 +123,7 @@
                   "key": "file",
                   "type": "file",
                   "src": [],
-                  "description": "PDF, DOCX, TXT, MD, SRT — or a video (MP4/MOV/WEBM) to edit instead"
+                  "description": "PDF, DOCX, TXT, MD, SRT \u2014 or a video (MP4/MOV/WEBM) to edit instead"
                 }
               ]
             }
@@ -165,7 +165,7 @@
           }
         },
         {
-          "name": "2.3 Generate plan  (free — nothing is produced)",
+          "name": "2.3 Generate plan  (free \u2014 nothing is produced)",
           "request": {
             "method": "POST",
             "header": [
@@ -187,10 +187,10 @@
                 "generate-plan"
               ]
             },
-            "description": "Writes the script and a cost estimate. **Free** — nothing is generated and nothing is billed. Show `costEstimate.totalUsd` before running 2.5.\n\nOnly `docText` and `userPrompt` are required; delete any line you do not need. The proxy does not validate the body — it forwards what you send and relays the AI service's own error, so a missing field comes back with the service's message.\n\n**sourceId** — from 2.1. Without it a scene planned against a slide page cannot find that page at render time.\n**videoType** — `watercolor` | `slides` | `roleplay` | `translation` | `videoedit`\n**language** — `hi` | `en` | `kn` | `te`\n**depth** — `brief` | `standard` | `detailed`\n**voicePref** — a voice id from 2.2\n**useSourceSlides** — use the PDF's own pages instead of generated art; needs `sourceId`\n\nEdit mode: set `videoType` to `videoedit`, drop `docText`, and send `videoMeta`.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
+            "description": "Writes the script and a cost estimate. **Free** \u2014 nothing is generated and nothing is billed. Show `costEstimate.totalUsd` before running 2.5.\n\nOnly `docText` and `userPrompt` are required; delete any line you do not need. The proxy does not validate the body \u2014 it forwards what you send and relays the AI service's own error, so a missing field comes back with the service's message.\n\n**sourceId** \u2014 from 2.1. Without it a scene planned against a slide page cannot find that page at render time.\n**videoType** \u2014 `watercolor` | `slides` | `roleplay` | `translation` | `videoedit`\n**language** \u2014 `hi` | `en` | `kn` | `te`\n**depth** \u2014 `brief` | `standard` | `detailed`\n**voicePref** \u2014 a voice id from 2.2\n**useSourceSlides** \u2014 use the PDF's own pages instead of generated art; needs `sourceId`\n\nEdit mode: set `videoType` to `videoedit`, drop `docText`, and send `videoMeta`.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"docText\": \"Postpartum haemorrhage is a leading cause of maternal mortality in India. Active management of the third stage of labour reduces this risk. Administer oxytocin within one minute of birth. Watch for danger signs: heavy bleeding, fever, severe headache. Refer immediately if any appear.\",\n  \"userPrompt\": \"A short training video for ANMs and nurses\",\n  \"sourceId\": \"{{studioSourceId}}\",\n  \"videoType\": \"watercolor\",\n  \"language\": \"hi\",\n  \"filename\": \"postpartum-care.pdf\",\n  \"contentName\": \"प्रसव के बाद की देखभाल\",\n  \"depth\": \"standard\",\n  \"aspectRatio\": \"16:9\",\n  \"voicePref\": \"NS2XUDKoFptzsjBWNOWe\",\n  \"pages\": 3,\n  \"useSourceSlides\": false,\n  \"styleGuide\": \"Warm watercolour, Indian rural clinic setting, no text in the images\",\n  \"userImages\": []\n}",
+              "raw": "{\n  \"docText\": \"Postpartum haemorrhage is a leading cause of maternal mortality in India. Active management of the third stage of labour reduces this risk. Administer oxytocin within one minute of birth. Watch for danger signs: heavy bleeding, fever, severe headache. Refer immediately if any appear.\",\n  \"userPrompt\": \"A short training video for ANMs and nurses\",\n  \"sourceId\": \"{{studioSourceId}}\",\n  \"videoType\": \"watercolor\",\n  \"language\": \"hi\",\n  \"filename\": \"postpartum-care.pdf\",\n  \"contentName\": \"\u092a\u094d\u0930\u0938\u0935 \u0915\u0947 \u092c\u093e\u0926 \u0915\u0940 \u0926\u0947\u0916\u092d\u093e\u0932\",\n  \"depth\": \"standard\",\n  \"aspectRatio\": \"16:9\",\n  \"voicePref\": \"NS2XUDKoFptzsjBWNOWe\",\n  \"pages\": 3,\n  \"useSourceSlides\": false,\n  \"styleGuide\": \"Warm watercolour, Indian rural clinic setting, no text in the images\",\n  \"userImages\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -239,10 +239,10 @@
                 "{{jobId}}"
               ]
             },
-            "description": "Free and repeatable — no media exists yet.\n\nScenes the feedback does not touch keep their ids, so a later render reuses their cached audio and images and you pay only for what changed. `changedScenes` in the response says what moved.",
+            "description": "Free and repeatable \u2014 no media exists yet.\n\nScenes the feedback does not touch keep their ids, so a later render reuses their cached audio and images and you pay only for what changed. `changedScenes` in the response says what moved.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"feedback\": \"Scene 3 is too fast — split it in two, and use simpler Hindi in the narration.\",\n  \"voicePref\": \"NS2XUDKoFptzsjBWNOWe\"\n}",
+              "raw": "{\n  \"feedback\": \"Scene 3 is too fast \u2014 split it in two, and use simpler Hindi in the narration.\",\n  \"voicePref\": \"NS2XUDKoFptzsjBWNOWe\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -259,7 +259,7 @@
                   "// Without this the request goes out with a literal '{{jobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('jobId')) {",
-                  "  throw new Error('Run 2.3 first — it sets {{jobId}}, which this request needs.');",
+                  "  throw new Error('Run 2.3 first \u2014 it sets {{jobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -267,7 +267,7 @@
           ]
         },
         {
-          "name": "2.5 Generate video  (⚠ this is the step that spends)",
+          "name": "2.5 Generate video  (\u26a0 this is the step that spends)",
           "request": {
             "method": "POST",
             "header": [
@@ -290,10 +290,10 @@
                 "{{jobId}}"
               ]
             },
-            "description": "**⚠ The only request in this collection that spends money.** Everything else is free.\n\nReturns `202` with `queuePosition`; poll 2.6.\n\n**contentName** names the file in storage — send what the user typed. Max 200 characters.\n**plan** (optional, not shown) — a plan edited client-side. Omit it and the stored plan is used, which is normally what you want.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
+            "description": "**\u26a0 The only request in this collection that spends money.** Everything else is free.\n\nReturns `202` with `queuePosition`; poll 2.6.\n\n**contentName** names the file in storage \u2014 send what the user typed. Max 200 characters.\n**plan** (optional, not shown) \u2014 a plan edited client-side. Omit it and the stored plan is used, which is normally what you want.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"contentName\": \"प्रसव के बाद की देखभाल\"\n}",
+              "raw": "{\n  \"contentName\": \"\u092a\u094d\u0930\u0938\u0935 \u0915\u0947 \u092c\u093e\u0926 \u0915\u0940 \u0926\u0947\u0916\u092d\u093e\u0932\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -310,7 +310,7 @@
                   "// Without this the request goes out with a literal '{{jobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('jobId')) {",
-                  "  throw new Error('Run 2.3 first — it sets {{jobId}}, which this request needs.');",
+                  "  throw new Error('Run 2.3 first \u2014 it sets {{jobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -321,7 +321,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('accepted for rendering', () => pm.response.to.have.status(202));",
-                  "console.log('queued at position', pm.response.json().queuePosition, '— poll 2.6');"
+                  "console.log('queued at position', pm.response.json().queuePosition, '\u2014 poll 2.6');"
                 ]
               }
             }
@@ -346,7 +346,7 @@
                 "{{jobId}}"
               ]
             },
-            "description": "The poll target — call every ~2.5s while producing.\n\n- `status` — `planned` → `rendering` → `done` | `failed`\n- `progress` — 0-100\n- `queuePosition` — 0 means rendering now\n- `log[]` — the live line-by-line feed\n- `video` — the playable URL, once done\n- `qc` — the visual quality report, once done"
+            "description": "The poll target \u2014 call every ~2.5s while producing.\n\n- `status` \u2014 `planned` \u2192 `rendering` \u2192 `done` | `failed`\n- `progress` \u2014 0-100\n- `queuePosition` \u2014 0 means rendering now\n- `log[]` \u2014 the live line-by-line feed\n- `video` \u2014 the playable URL, once done\n- `qc` \u2014 the visual quality report, once done"
           },
           "event": [
             {
@@ -357,7 +357,7 @@
                   "// Without this the request goes out with a literal '{{jobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('jobId')) {",
-                  "  throw new Error('Run 2.3 first — it sets {{jobId}}, which this request needs.');",
+                  "  throw new Error('Run 2.3 first \u2014 it sets {{jobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -415,7 +415,7 @@
                 "{{jobId}}"
               ]
             },
-            "description": "Answers **302** to a short-lived storage URL; Postman follows redirects by default. Do not cache the URL it lands on — it expires.\n\nIf the storage host is internal to the cluster the redirect will not resolve from your machine. That is a deployment matter, not a problem with this request."
+            "description": "Answers **302** to a short-lived storage URL; Postman follows redirects by default. Do not cache the URL it lands on \u2014 it expires.\n\nIf the storage host is internal to the cluster the redirect will not resolve from your machine. That is a deployment matter, not a problem with this request."
           },
           "event": [
             {
@@ -426,7 +426,7 @@
                   "// Without this the request goes out with a literal '{{jobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('jobId')) {",
-                  "  throw new Error('Run 2.3 first — it sets {{jobId}}, which this request needs.');",
+                  "  throw new Error('Run 2.3 first \u2014 it sets {{jobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -452,7 +452,7 @@
                 "{{jobId}}"
               ]
             },
-            "description": "Permanent. Removes the stored files, the job and its reporting row together, and answers `{ ok, artifacts }` with how many stored files went.\n\n`400` while the video is still rendering — wait for it to finish.\n`403` if it belongs to another creator and you are not an admin."
+            "description": "Permanent. Removes the stored files, the job and its reporting row together, and answers `{ ok, artifacts }` with how many stored files went.\n\n`400` while the video is still rendering \u2014 wait for it to finish.\n`403` if it belongs to another creator and you are not an admin."
           },
           "event": [
             {
@@ -463,7 +463,7 @@
                   "// Without this the request goes out with a literal '{{jobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('jobId')) {",
-                  "  throw new Error('Run 2.3 first — it sets {{jobId}}, which this request needs.');",
+                  "  throw new Error('Run 2.3 first \u2014 it sets {{jobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -473,8 +473,8 @@
       ]
     },
     {
-      "name": "3 · Quiz — sources to MCQs",
-      "description": "Sources in, validated MCQs out. **3.1 is the smoke test** — run it first.",
+      "name": "3 \u00b7 Quiz \u2014 sources to MCQs",
+      "description": "Sources in, validated MCQs out. **3.1 is the smoke test** \u2014 run it first.",
       "item": [
         {
           "name": "3.1 List languages",
@@ -494,7 +494,7 @@
                 "languages"
               ]
             },
-            "description": "**Start here.** No arguments, spends nothing — the cheapest way to confirm the whole chain (portal → Kong → AI service) is wired up.\n\n`401`/`419` means the cookie is stale. `404` means Kong has no `/ai-studio` route or is not stripping the prefix. `500` means the proxy reached Kong but the hop failed — check the uiproxy logs for `AI Studio quiz/languages`."
+            "description": "**Start here.** No arguments, spends nothing \u2014 the cheapest way to confirm the whole chain (portal \u2192 Kong \u2192 AI service) is wired up.\n\n`401`/`419` means the cookie is stale. `404` means Kong has no `/ai-studio` route or is not stripping the prefix. `500` means the proxy reached Kong but the hop failed \u2014 check the uiproxy logs for `AI Studio quiz/languages`."
           },
           "event": [
             {
@@ -526,7 +526,7 @@
                 "upload"
               ]
             },
-            "description": "Files and/or links in, parsed text out. Video and audio are transcribed automatically.\n\nA source that failed to read comes back with an `error` instead of `chars` — show it and leave it unticked rather than dropping it silently.\n\nSaves the first readable `sourceId`.",
+            "description": "Files and/or links in, parsed text out. Video and audio are transcribed automatically.\n\nA source that failed to read comes back with an `error` instead of `chars` \u2014 show it and leave it unticked rather than dropping it silently.\n\nSaves the first readable `sourceId`.",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -534,7 +534,7 @@
                   "key": "files",
                   "type": "file",
                   "src": [],
-                  "description": "PDF, DOCX, TXT — or video/audio, which is transcribed"
+                  "description": "PDF, DOCX, TXT \u2014 or video/audio, which is transcribed"
                 },
                 {
                   "key": "language",
@@ -588,7 +588,7 @@
                 "generate"
               ]
             },
-            "description": "Run 3.2 first so `sourceId` is set.\n\nAt least one of `sourceIds`, `docText` or `sourceJobId` is required — the empty ones below are placeholders, so delete what you do not use. They combine: all three are concatenated into the material.\n\n**sourceJobId** — a finished video's job id, to build questions from that video's script.\n**language** — `hi` | `en` | `kn` | `te`\n**numQuestions** — 1-60 (default 10)\n**numOptions** — 2-6 (default 4)\n**difficulty** — `mixed` | `easy` | `medium` | `hard`\n**bloom** — `mixed` | `remember` | `understand` | `apply`\n\nA **422** is deliberate, not a failure: the material was too thin for the number of questions asked for, and the message says how many it can support. The proxy relays it intact — show it verbatim rather than retrying blindly.\n\nAn unknown source id is a **400 SOURCE_MISSING**.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
+            "description": "Run 3.2 first so `sourceId` is set.\n\nAt least one of `sourceIds`, `docText` or `sourceJobId` is required \u2014 the empty ones below are placeholders, so delete what you do not use. They combine: all three are concatenated into the material.\n\n**sourceJobId** \u2014 a finished video's job id, to build questions from that video's script.\n**language** \u2014 `hi` | `en` | `kn` | `te`\n**numQuestions** \u2014 1-60 (default 10)\n**numOptions** \u2014 2-6 (default 4)\n**difficulty** \u2014 `mixed` | `easy` | `medium` | `hard`\n**bloom** \u2014 `mixed` | `remember` | `understand` | `apply`\n\nA **422** is deliberate, not a failure: the material was too thin for the number of questions asked for, and the message says how many it can support. The proxy relays it intact \u2014 show it verbatim rather than retrying blindly.\n\nAn unknown source id is a **400 SOURCE_MISSING**.\n\n**No creator field, no identity header.** The proxy reads the signed-in user from your Keycloak session and sends `x-aastrika-creator` itself, overwriting anything you send. Sending it here does nothing.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"sourceIds\": [\n    \"{{sourceId}}\"\n  ],\n  \"docText\": \"\",\n  \"sourceJobId\": \"\",\n  \"filename\": \"postpartum-care.pdf\",\n  \"language\": \"hi\",\n  \"numQuestions\": 10,\n  \"numOptions\": 4,\n  \"difficulty\": \"mixed\",\n  \"bloom\": \"mixed\",\n  \"userPrompt\": \"Focus on danger signs and referral decisions\"\n}",
@@ -664,7 +664,7 @@
                   "// Without this the request goes out with a literal '{{quizJobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('quizJobId')) {",
-                  "  throw new Error('Run 3.3 first — it sets {{quizJobId}}, which this request needs.');",
+                  "  throw new Error('Run 3.3 first \u2014 it sets {{quizJobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -695,10 +695,10 @@
                 "{{quizJobId}}"
               ]
             },
-            "description": "Send the **whole** assessment back, not a patch of one field — the generated set is a draft, and this replaces it with the operator's corrected version.\n\nThe sample is one question; in practice send the full array you got from 3.3 or 3.5 with your edits applied.",
+            "description": "Send the **whole** assessment back, not a patch of one field \u2014 the generated set is a draft, and this replaces it with the operator's corrected version.\n\nThe sample is one question; in practice send the full array you got from 3.3 or 3.5 with your edits applied.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"assessment\": {\n    \"title\": \"प्रसव के बाद की देखभाल — मूल्यांकन\",\n    \"questions\": [\n      {\n        \"id\": \"q1\",\n        \"question\": \"प्रसव के बाद रक्तस्राव रोकने के लिए कौन सी दवा दी जाती है?\",\n        \"options\": [\n          \"ऑक्सीटोसिन\",\n          \"पैरासिटामोल\",\n          \"आयरन\",\n          \"कैल्शियम\"\n        ],\n        \"correctIndex\": 0,\n        \"explanation\": \"जन्म के एक मिनट के भीतर ऑक्सीटोसिन दी जाती है।\",\n        \"difficulty\": \"easy\",\n        \"bloom\": \"remember\",\n        \"sourceRef\": \"postpartum-care.txt\"\n      }\n    ]\n  }\n}",
+              "raw": "{\n  \"assessment\": {\n    \"title\": \"\u092a\u094d\u0930\u0938\u0935 \u0915\u0947 \u092c\u093e\u0926 \u0915\u0940 \u0926\u0947\u0916\u092d\u093e\u0932 \u2014 \u092e\u0942\u0932\u094d\u092f\u093e\u0902\u0915\u0928\",\n    \"questions\": [\n      {\n        \"id\": \"q1\",\n        \"question\": \"\u092a\u094d\u0930\u0938\u0935 \u0915\u0947 \u092c\u093e\u0926 \u0930\u0915\u094d\u0924\u0938\u094d\u0930\u093e\u0935 \u0930\u094b\u0915\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u0915\u094c\u0928 \u0938\u0940 \u0926\u0935\u093e \u0926\u0940 \u091c\u093e\u0924\u0940 \u0939\u0948?\",\n        \"options\": [\n          \"\u0911\u0915\u094d\u0938\u0940\u091f\u094b\u0938\u093f\u0928\",\n          \"\u092a\u0948\u0930\u093e\u0938\u093f\u091f\u093e\u092e\u094b\u0932\",\n          \"\u0906\u092f\u0930\u0928\",\n          \"\u0915\u0948\u0932\u094d\u0936\u093f\u092f\u092e\"\n        ],\n        \"correctIndex\": 0,\n        \"explanation\": \"\u091c\u0928\u094d\u092e \u0915\u0947 \u090f\u0915 \u092e\u093f\u0928\u091f \u0915\u0947 \u092d\u0940\u0924\u0930 \u0911\u0915\u094d\u0938\u0940\u091f\u094b\u0938\u093f\u0928 \u0926\u0940 \u091c\u093e\u0924\u0940 \u0939\u0948\u0964\",\n        \"difficulty\": \"easy\",\n        \"bloom\": \"remember\",\n        \"sourceRef\": \"postpartum-care.txt\"\n      }\n    ]\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -715,7 +715,7 @@
                   "// Without this the request goes out with a literal '{{quizJobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('quizJobId')) {",
-                  "  throw new Error('Run 3.3 first — it sets {{quizJobId}}, which this request needs.');",
+                  "  throw new Error('Run 3.3 first \u2014 it sets {{quizJobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -759,7 +759,7 @@
                   "// Without this the request goes out with a literal '{{quizJobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('quizJobId')) {",
-                  "  throw new Error('Run 3.3 first — it sets {{quizJobId}}, which this request needs.');",
+                  "  throw new Error('Run 3.3 first \u2014 it sets {{quizJobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -796,7 +796,7 @@
                   "// Without this the request goes out with a literal '{{quizJobId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('quizJobId')) {",
-                  "  throw new Error('Run 3.3 first — it sets {{quizJobId}}, which this request needs.');",
+                  "  throw new Error('Run 3.3 first \u2014 it sets {{quizJobId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -806,7 +806,7 @@
       ]
     },
     {
-      "name": "4 · Artifacts — direct file storage",
+      "name": "4 \u00b7 Artifacts \u2014 direct file storage",
       "description": "For files that are not produced by a job.",
       "item": [
         {
@@ -827,7 +827,7 @@
                 "upload"
               ]
             },
-            "description": "Returns `{ contentId, filename, key, url }` and saves the first two.\n\n**Keep `contentId` *and* `filename`** and reuse them verbatim — they are not derivable. Storage addresses an object by its exact key, so there is no \"fetch whatever is under this id\".",
+            "description": "Returns `{ contentId, filename, key, url }` and saves the first two.\n\n**Keep `contentId` *and* `filename`** and reuse them verbatim \u2014 they are not derivable. Storage addresses an object by its exact key, so there is no \"fetch whatever is under this id\".",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -840,7 +840,7 @@
                   "key": "contentId",
                   "value": "",
                   "type": "text",
-                  "description": "Optional. Omit to mint a new do_… id; pass an existing one to add another file to it."
+                  "description": "Optional. Omit to mint a new do_\u2026 id; pass an existing one to add another file to it."
                 }
               ]
             }
@@ -891,7 +891,7 @@
                   "// Without this the request goes out with a literal '{{contentId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('contentId')) {",
-                  "  throw new Error('Run 4.1 first — it sets {{contentId}}, which this request needs.');",
+                  "  throw new Error('Run 4.1 first \u2014 it sets {{contentId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -917,7 +917,7 @@
                 "{{artifactFilename}}"
               ]
             },
-            "description": "Idempotent — deleting something already gone still answers `{ ok: true }`."
+            "description": "Idempotent \u2014 deleting something already gone still answers `{ ok: true }`."
           },
           "event": [
             {
@@ -928,7 +928,7 @@
                   "// Without this the request goes out with a literal '{{contentId}}' in the path and comes",
                   "// back 404, which reads like a broken route rather than a step that was skipped.",
                   "if (!pm.collectionVariables.get('contentId')) {",
-                  "  throw new Error('Run 4.1 first — it sets {{contentId}}, which this request needs.');",
+                  "  throw new Error('Run 4.1 first \u2014 it sets {{contentId}}, which this request needs.');",
                   "}"
                 ]
               }
@@ -938,11 +938,11 @@
       ]
     },
     {
-      "name": "5 · Usage & spend — the dashboard",
+      "name": "5 \u00b7 Usage & spend \u2014 the dashboard",
       "description": "Two endpoints, five ways of calling them. The POST is the one to build a dashboard on.",
       "item": [
         {
-          "name": "5.1 Full report  (POST — the one to build on)",
+          "name": "5.1 Full report  (POST \u2014 the one to build on)",
           "request": {
             "method": "POST",
             "header": [
@@ -964,7 +964,7 @@
                 "get-report"
               ]
             },
-            "description": "All supported filters, shown empty. An empty string is treated as absent, so this body as-is returns everything.\n\n**creator** — one creator (`user` is accepted as its former name)\n**type** — `video` | `assessment` (`quiz` also accepted)\n**status** — `created` | `planned` | `rendering` | `done` | `failed`\n**from**, **to** — ISO dates, inclusive\n**limit** — default 100, max 1000; `0` returns totals with no rows\n**offset** — for paging\n\nA malformed filter is a **400 INVALID_QUERY** naming the field — never silently ignored, because a spend report that quietly answers a different question than the one asked is worse than one that fails.\n\nIn the response, `page.total` counts everything matching the filter, not just this page; `costEstimated: true` on an item means the figure was back-estimated.",
+            "description": "All supported filters, shown empty. An empty string is treated as absent, so this body as-is returns everything.\n\n**creator** \u2014 one creator (`user` is accepted as its former name)\n**type** \u2014 `video` | `assessment` (`quiz` also accepted)\n**status** \u2014 `created` | `planned` | `rendering` | `done` | `failed`\n**from**, **to** \u2014 ISO dates, inclusive\n**limit** \u2014 default 100, max 1000; `0` returns totals with no rows\n**offset** \u2014 for paging\n\nA malformed filter is a **400 INVALID_QUERY** naming the field \u2014 never silently ignored, because a spend report that quietly answers a different question than the one asked is worse than one that fails.\n\nIn the response, `page.total` counts everything matching the filter, not just this page; `costEstimated: true` on an item means the figure was back-estimated.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"creator\": \"\",\n  \"type\": \"\",\n  \"status\": \"\",\n  \"from\": \"\",\n  \"to\": \"\",\n  \"limit\": 500,\n  \"offset\": 0\n}",
@@ -991,7 +991,7 @@
           ]
         },
         {
-          "name": "5.2 Filtered — videos finished in a month",
+          "name": "5.2 Filtered \u2014 videos finished in a month",
           "request": {
             "method": "POST",
             "header": [
@@ -1013,7 +1013,7 @@
                 "get-report"
               ]
             },
-            "description": "Filters combine, so this is every finished video in the date range.\n\n**`creator` ships blank**, and an empty string is treated as absent — so as-is this covers all creators. Put a username in the `creator` collection variable to scope it to one person; the name to use is whatever the Creator column in 5.1 shows, since that is what the proxy recorded from the session.\n\nThe dates are fixed rather than relative. Change them to a range you actually have data in.\n\n**creator** — one creator (`user` is accepted as its former name)\n**type** — `video` | `assessment` (`quiz` also accepted)\n**status** — `created` | `planned` | `rendering` | `done` | `failed`\n**from**, **to** — ISO dates, inclusive\n**limit** — default 100, max 1000; `0` returns totals with no rows\n**offset** — for paging\n\nA malformed filter is a **400 INVALID_QUERY** naming the field — never silently ignored, because a spend report that quietly answers a different question than the one asked is worse than one that fails.\n\nIn the response, `page.total` counts everything matching the filter, not just this page; `costEstimated: true` on an item means the figure was back-estimated.",
+            "description": "Filters combine, so this is every finished video in the date range.\n\n**`creator` ships blank**, and an empty string is treated as absent \u2014 so as-is this covers all creators. Put a username in the `creator` collection variable to scope it to one person; the name to use is whatever the Creator column in 5.1 shows, since that is what the proxy recorded from the session.\n\nThe dates are fixed rather than relative. Change them to a range you actually have data in.\n\n**creator** \u2014 one creator (`user` is accepted as its former name)\n**type** \u2014 `video` | `assessment` (`quiz` also accepted)\n**status** \u2014 `created` | `planned` | `rendering` | `done` | `failed`\n**from**, **to** \u2014 ISO dates, inclusive\n**limit** \u2014 default 100, max 1000; `0` returns totals with no rows\n**offset** \u2014 for paging\n\nA malformed filter is a **400 INVALID_QUERY** naming the field \u2014 never silently ignored, because a spend report that quietly answers a different question than the one asked is worse than one that fails.\n\nIn the response, `page.total` counts everything matching the filter, not just this page; `costEstimated: true` on an item means the figure was back-estimated.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"creator\": \"{{creator}}\",\n  \"type\": \"video\",\n  \"status\": \"done\",\n  \"from\": \"2026-09-01\",\n  \"to\": \"2026-09-30\",\n  \"limit\": 50,\n  \"offset\": 0\n}",
@@ -1109,7 +1109,7 @@
           ]
         },
         {
-          "name": "5.5 Same report by URL  (GET — quick checks)",
+          "name": "5.5 Same report by URL  (GET \u2014 quick checks)",
           "request": {
             "method": "GET",
             "header": [],
@@ -1169,11 +1169,11 @@
         "type": "text/javascript",
         "exec": [
           "// Runs after every request. Only the auth failures are checked here, because they are",
-          "// never a legitimate answer from any endpoint in this collection — whereas a 404 can be",
+          "// never a legitimate answer from any endpoint in this collection \u2014 whereas a 404 can be",
           "// (an id that does not exist) and a 400 can be (5.4 expects one).",
           "if (pm.response.code === 401 || pm.response.code === 419) {",
           "  throw new Error(",
-          "    pm.response.code + ' from the portal, not from the AI service — your session cookie ' +",
+          "    pm.response.code + ' from the portal, not from the AI service \u2014 your session cookie ' +",
           "    'is missing or expired. Sign in to the portal again and copy a fresh connect.sid ' +",
           "    'into the \"sessionId\" variable.'",
           "  );",
