@@ -54,6 +54,7 @@ const { CONSTANTS } = require('../src/utils/env')
 
 const PORT = Number(process.env.PORT || 3005)
 const CREATOR = process.env.DEV_CREATOR || 'Local Dev'
+const USER_ID = process.env.DEV_USER_ID || 'dev-user-id'
 
 const app = express()
 app.use(express.json({ limit: '50mb' }))
@@ -62,16 +63,17 @@ app.use(fileUpload())
 
 /**
  * Stands in for keycloak.protect, which normally populates both of these from the session
- * behind the connect.sid cookie. resolveCreator() reads the token's display name first and
- * falls back to session.userName, so both are supplied to mirror a real signed-in user.
+ * behind the connect.sid cookie. resolveCreatorId() reads the session's user id (then the
+ * token's subject) and resolveCreatorName() the token's display name, so both are supplied
+ * to mirror a real signed-in user. Set DEV_USER_ID to act as a particular person.
  */
 app.use((req, _res, next) => {
   const [given, ...rest] = CREATOR.split(' ')
-  req.session = { userId: 'dev-user-id', userName: CREATOR.toLowerCase().replace(/\s+/g, '.') }
+  req.session = { userId: USER_ID, userName: CREATOR.toLowerCase().replace(/\s+/g, '.') }
   req.kauth = {
     grant: {
       access_token: {
-        content: { family_name: rest.join(' '), given_name: given, name: CREATOR },
+        content: { family_name: rest.join(' '), given_name: given, name: CREATOR, sub: USER_ID },
         token: 'dev-stand-in-token',
       },
     },
@@ -86,7 +88,8 @@ app.listen(PORT, '127.0.0.1', () => {
   console.log('  AI Studio proxy (dev runner — no Cassandra, no Keycloak)')
   console.log('  listening   http://localhost:' + PORT + '/apis/protected/v8/aiStudio')
   console.log('  forwarding  ' + CONSTANTS.AI_STUDIO_API_BASE)
-  console.log('  creator     ' + CREATOR + '   (override with DEV_CREATOR)')
+  console.log('  creator     ' + USER_ID + '   (override with DEV_USER_ID)')
+  console.log('  name        ' + CREATOR + '   (override with DEV_CREATOR)')
   console.log('')
   console.log('  try:  curl http://localhost:' + PORT + '/apis/protected/v8/aiStudio/quiz/languages')
   console.log('')

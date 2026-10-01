@@ -200,29 +200,35 @@ describe("AI Studio proxy", function () {
 
     it("names the creator on read endpoints too, not only the creating ones", async function () {
       await api().get(BASE + "/studio/list-videos");
-      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "Asha Kumari");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42");
 
       await api().get(BASE + "/usage/get-report");
-      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "Asha Kumari");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42");
     });
 
-    it("names the creator in x-aastrika-creator, taken from the Keycloak display name", async function () {
+    it("sends the user id as x-aastrika-creator and the display name beside it", async function () {
+      // Regression: the display name used to be sent as the creator, so rows were keyed by a
+      // name — and "my history", filtered by the user id, came back empty for everyone.
       const res = await api()
         .post(BASE + "/studio/generate-plan")
         .send({ docText: "PPH is a leading cause", userPrompt: "a training video" });
 
       assert.strictEqual(res.status, 201, "the upstream 201 must survive");
-      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "Asha Kumari");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator-name"], "Asha Kumari");
     });
 
     it("overwrites an x-aastrika-creator the caller tried to set", async function () {
       await api()
         .post(BASE + "/studio/generate-plan")
         .set("x-aastrika-creator", "somebody-else")
+        .set("x-aastrika-creator-name", "Somebody Else")
         .send({ docText: "PPH is a leading cause", userPrompt: "a training video" });
 
-      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "Asha Kumari",
+      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42",
         "spend must not be recordable against another user");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator-name"], "Asha Kumari",
+        "nor shown under another user's name");
     });
 
     it("leaves the request body exactly as the caller sent it", async function () {
@@ -492,7 +498,7 @@ describe("AI Studio proxy", function () {
         .set("x-aastrika-creator", "spoofed")
         .send({ n: 3 });
 
-      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "Asha Kumari");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42");
       assert.deepStrictEqual(JSON.parse(lastHit().body), { n: 3 }, "body untouched");
     });
 
@@ -597,8 +603,9 @@ describe("AI Studio proxy", function () {
     });
   });
 
-  describe("Creator identity — the fallback ladder", function () {
-    // display name -> Sunbird userName -> user id -> nothing at all.
+  describe("Creator identity — id and name", function () {
+    // The id is the grouping key: user id, then the token's subject, then nothing at all.
+    // The name rides beside it and is never used to group or filter.
     const appWith = (session, kauth) => {
       const a = express();
       a.use(express.json());
@@ -607,43 +614,66 @@ describe("AI Studio proxy", function () {
       a.use("/protected/v8/aiStudio", aiStudioApi);
       return a;
     };
-    const creatorFor = async (session, kauth) => {
+    const headersFor = async (session, kauth) => {
       await request(appWith(session, kauth)).get(BASE + "/studio/list-videos");
-      return lastHit().headers["x-aastrika-creator"];
+      return {
+        creator: lastHit().headers["x-aastrika-creator"],
+        name: lastHit().headers["x-aastrika-creator-name"],
+      };
     };
 
-    it("prefers the Keycloak display name", async function () {
-      const creator = await creatorFor(
+    it("keys on the user id even when a display name exists", async function () {
+      const { creator, name } = await headersFor(
         { userId: "uuid-42", userName: "asha.kumari" },
-        { grant: { access_token: { content: { name: "Asha Kumari" } } } }
+        { grant: { access_token: { content: { name: "Asha Kumari", sub: "uuid-42" } } } }
       );
-      assert.strictEqual(creator, "Asha Kumari");
+      assert.strictEqual(creator, "uuid-42", "a name as the key merges namesakes and empties my-history");
+      assert.strictEqual(name, "Asha Kumari");
     });
 
-    it("builds the name from given and family name when there is no display name", async function () {
-      const creator = await creatorFor(
-        { userId: "uuid-42", userName: "asha.kumari" },
-        { grant: { access_token: { content: { family_name: "Kumari", given_name: "Asha" } } } }
-      );
-      assert.strictEqual(creator, "Asha Kumari");
-    });
-
-    it("falls back to the Sunbird userName when the token carries no name", async function () {
-      const creator = await creatorFor(
-        { userId: "uuid-42", userName: "asha.kumari" },
-        { grant: { access_token: { content: {} } } }
-      );
-      assert.strictEqual(creator, "asha.kumari");
-    });
-
-    it("falls back to the user id when the profile has not been read yet", async function () {
-      const creator = await creatorFor({ userId: "uuid-42" }, undefined);
+    it("never uses the Sunbird userName as the id", async function () {
+      const { creator } = await headersFor({ userId: "uuid-42", userName: "asha.kumari" }, undefined);
       assert.strictEqual(creator, "uuid-42");
     });
 
-    it("sends no header at all when nothing identifies the user", async function () {
-      const creator = await creatorFor({}, undefined);
+    it("falls back to the token's subject when the session has no user id yet", async function () {
+      const { creator } = await headersFor(
+        {},
+        { grant: { access_token: { content: { sub: "uuid-sub-7", name: "Asha Kumari" } } } }
+      );
+      assert.strictEqual(creator, "uuid-sub-7");
+    });
+
+    it("builds the name from given and family name when there is no display name", async function () {
+      const { name } = await headersFor(
+        { userId: "uuid-42" },
+        { grant: { access_token: { content: { family_name: "Kumari", given_name: "Asha" } } } }
+      );
+      assert.strictEqual(name, "Asha Kumari");
+    });
+
+    it("leaves out a name that cannot travel in a header, instead of failing the call", async function () {
+      // Node rejects non-ASCII header values; a Devanagari name must not turn into a 500.
+      const res = await request(appWith(
+        { userId: "uuid-42" },
+        { grant: { access_token: { content: { name: "आशा कुमारी" } } } }
+      )).get(BASE + "/studio/list-videos");
+      assert.strictEqual(res.status, 200, "the call must still reach upstream");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42");
+      assert.strictEqual(lastHit().headers["x-aastrika-creator-name"], undefined,
+        "the service falls back to the name the portal sends in the body");
+    });
+
+    it("sends no name header when the token carries no name", async function () {
+      const { creator, name } = await headersFor({ userId: "uuid-42" }, { grant: { access_token: { content: {} } } });
+      assert.strictEqual(creator, "uuid-42");
+      assert.strictEqual(name, undefined);
+    });
+
+    it("sends no creator header at all when nothing identifies the user", async function () {
+      const { creator, name } = await headersFor({}, undefined);
       assert.strictEqual(creator, undefined, "absent means admin; empty would be a blank name");
+      assert.strictEqual(name, undefined);
     });
   });
 

@@ -88,8 +88,10 @@ export const HEADERS = {
     CONTENT_RANGE: 'Content-Range',
     CONTENT_TYPE: 'Content-Type',
     CONTENT_TYPE_JSON: 'application/json',
-    /** The AI service's whole client integration: the signed-in person this work belongs to. */
-    CREATOR: 'x-aastrika-creator',
+    /** The signed-in person this work belongs to, as a stable id: what the service groups by. */
+    CREATOR_ID: 'x-aastrika-creator',
+    /** The same person's display name, shown beside the id; never grouped or filtered on. */
+    CREATOR_NAME: 'x-aastrika-creator-name',
     RANGE: 'Range',
     USER_TOKEN: 'x-authenticated-user-token',
 }
