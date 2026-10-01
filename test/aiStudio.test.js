@@ -644,6 +644,16 @@ describe("AI Studio proxy", function () {
       assert.strictEqual(creator, "uuid-sub-7");
     });
 
+    it("takes only the user id from a federated subject (f:<federation>:<user id>)", async function () {
+      // Keycloak's sub carries a federation prefix; the stored id must be the bare user id,
+      // the same value custom-keycloak puts in session.userId.
+      const { creator } = await headersFor(
+        {},
+        { grant: { access_token: { content: { sub: "f:5a8a3f2b-fed:ea33105d-5270-40e0-9060-77ae12d0f692" } } } }
+      );
+      assert.strictEqual(creator, "ea33105d-5270-40e0-9060-77ae12d0f692");
+    });
+
     it("builds the name from given and family name when there is no display name", async function () {
       const { name } = await headersFor(
         { userId: "uuid-42" },

@@ -27,8 +27,10 @@ const tokenClaims = (req: any): any => {
  * The value is taken from the session, never from the incoming request, and it overwrites any
  * `x-aastrika-creator` a caller sent, so nobody can record their spend against someone else.
  *
- * Only ever an id: the session's user id, then the token's subject (the same id, read from
- * Keycloak when the session has not been populated yet). This used to prefer the display name,
+ * Only ever an id: the session's user id (set at login by custom-keycloak), then the token's
+ * subject for a session not populated yet. The subject is `f:<federation id>:<user id>`, so
+ * only its last part is taken — the same split custom-keycloak uses, so both sources yield the
+ * same bare user id. This used to prefer the display name,
  * which made a name the grouping key: two people sharing a name became one row, a renamed
  * person became two, and "my history" — filtered by the user id the portal knows — came back
  * empty, because the rows had been recorded under the name. The readable name now travels
@@ -43,7 +45,8 @@ const tokenClaims = (req: any): any => {
 // tslint:disable-next-line: no-any
 export const resolveCreatorId = (req: any): string => {
     const session = (req && req.session) || {}
-    return String(session.userId || tokenClaims(req).sub || '').trim()
+    const subject = String(tokenClaims(req).sub || '').split(':').pop() || ''
+    return String(session.userId || subject).trim()
 }
 
 /**
