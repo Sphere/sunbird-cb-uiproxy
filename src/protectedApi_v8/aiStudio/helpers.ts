@@ -7,48 +7,69 @@ import { logError, logInfo } from '../../utils/logger'
 import { extractUserToken } from '../../utils/requestExtract'
 import { ERROR_MESSAGES, HEADERS, TIMEOUTS } from './constants'
 
+/** The Keycloak token's claims, or an empty object when the request carries none. */
+// tslint:disable-next-line: no-any
+const tokenClaims = (req: any): any => {
+    // Read defensively: a request can reach here with a session but no Keycloak grant, and
+    // a grant whose token carries no profile claims at all.
+    const grant = req && req.kauth && req.kauth.grant
+    return (grant && grant.access_token && grant.access_token.content) || {}
+}
+
 /**
- * The person the AI service records as the creator of whatever a request produces.
+ * The person the AI service records as the creator of whatever a request produces, as a
+ * stable id — what the service groups the usage report by and filters "my history" on.
  *
- * The service's entire client integration is one header, `x-aastrika-creator`, naming whoever
- * is using the consuming app. Kong's `x-consumer-username` identifies the *application* — one
- * value for every request the portal makes — so it cannot answer "which health worker made
- * this video". Only the portal knows that.
+ * Kong's `x-consumer-username` identifies the *application* — one value for every request the
+ * portal makes — so it cannot answer "which health worker made this video". Only the portal
+ * knows that.
  *
  * The value is taken from the session, never from the incoming request, and it overwrites any
  * `x-aastrika-creator` a caller sent, so nobody can record their spend against someone else.
  *
- * Three sources, in order, each falling through when the one before it is unavailable:
+ * Only ever an id: the session's user id (set at login by custom-keycloak), then the token's
+ * subject for a session not populated yet. The subject is `f:<federation id>:<user id>`, so
+ * only its last part is taken — the same split custom-keycloak uses, so both sources yield the
+ * same bare user id. This used to prefer the display name,
+ * which made a name the grouping key: two people sharing a name became one row, a renamed
+ * person became two, and "my history" — filtered by the user id the portal knows — came back
+ * empty, because the rows had been recorded under the name. The readable name now travels
+ * separately, in `x-aastrika-creator-name` (see {@link resolveCreatorName}).
  *
- *  1. **The Keycloak display name** — for example `Meera Nair`. What the usage dashboard's Creator column
- *     is meant to read like, so it is preferred.
- *  2. **The Sunbird `userName`** — `asha.kumari`. Less readable but always distinct, so it is
- *     what a profile with no display name falls back to.
- *  3. **The user id** — a UUID, set on every authenticated request, so something is always
- *     available when the profile has not been read yet.
- *
- * With none of the three the header is omitted entirely and the service records the work
- * against `admin`, which is a truthful "we do not know" rather than a blank name.
- *
- * **A display name is not unique.** Two users sharing a name are one row in the usage
- * report, and their spend cannot be separated afterwards because it was recorded that way.
- * That is an accepted trade for a readable dashboard, not an oversight — if per-person
- * accuracy ever matters more than readability, source 2 is the one to promote.
+ * With neither, the header is omitted entirely and the service records the work against
+ * `admin`, which is a truthful "we do not know" rather than a blank name.
  *
  * @param req - the incoming request, whose session was populated by Keycloak
- * @returns the creator identity, or an empty string when nothing identifies the user
+ * @returns the creator id, or an empty string when nothing identifies the user
  */
 // tslint:disable-next-line: no-any
-export const resolveCreator = (req: any): string => {
-    // Read defensively: a request can reach here with a session but no Keycloak grant, and
-    // a grant whose token carries no profile claims at all.
-    const grant = req && req.kauth && req.kauth.grant
-    const claims = (grant && grant.access_token && grant.access_token.content) || {}
-    const fullName = [claims.given_name, claims.family_name].filter(Boolean).join(' ')
-    const displayName = String(claims.name || fullName || '').trim()
-
+export const resolveCreatorId = (req: any): string => {
     const session = (req && req.session) || {}
-    return displayName || session.userName || session.userId || ''
+    const subject = String(tokenClaims(req).sub || '').split(':').pop() || ''
+    return String(session.userId || subject).trim()
+}
+
+/**
+ * The creator's display name, for the usage report to show beside the id — for example
+ * `Meera Nair`. Never grouped or filtered on, so a shared or changed name cannot merge or split
+ * anyone's records.
+ *
+ * Taken from the Keycloak token: its `name` claim, or given and family name when it has none.
+ *
+ * Empty when the name cannot travel in a header: HTTP header values are ASCII in Node, and a
+ * name in Devanagari would make the upstream call throw (an opaque 500 from inside this proxy).
+ * Leaving it out is safe — the service then uses the name the portal sends in the request body,
+ * which carries any script.
+ *
+ * @param req - the incoming request, whose session was populated by Keycloak
+ * @returns the display name, or an empty string when there is none or it is not ASCII-safe
+ */
+// tslint:disable-next-line: no-any
+export const resolveCreatorName = (req: any): string => {
+    const claims = tokenClaims(req)
+    const fullName = [claims.given_name, claims.family_name].filter(Boolean).join(' ')
+    const name = String(claims.name || fullName || '').trim()
+    return /^[\x20-\x7E]+$/.test(name) ? name : ''
 }
 
 /**
@@ -60,7 +81,8 @@ export const resolveCreator = (req: any): string => {
  *    does not read it, but every other protected route in this repo that calls Kong on a
  *    user's behalf sends it, so a Kong route or plugin may expect it. Being the one caller
  *    that leaves it out risks an integration that fails only once deployed.
- *  - **`x-aastrika-creator`** — the *person* the work belongs to. See {@link resolveCreator}.
+ *  - **`x-aastrika-creator`** — the *person* the work belongs to, as an id. See {@link resolveCreatorId}.
+ *  - **`x-aastrika-creator-name`** — that person's display name. See {@link resolveCreatorName}.
  *  - **`Range`** — forwarded only when the caller sent one, so a player can seek when the AI
  *    service streams bytes itself rather than redirecting to storage.
  *
@@ -91,11 +113,15 @@ export const buildUpstreamHeaders = (
         headers[HEADERS.USER_TOKEN] = userToken
     }
 
-    // Set after the spread so a caller's own x-aastrika-creator, had one arrived in
+    // Set after the spread so a caller's own x-aastrika-creator(-name), had one arrived in
     // extraHeaders, could never survive into the upstream request.
-    const creator = resolveCreator(req)
-    if (creator) {
-        headers[HEADERS.CREATOR] = creator
+    const creatorId = resolveCreatorId(req)
+    if (creatorId) {
+        headers[HEADERS.CREATOR_ID] = creatorId
+    }
+    const creatorName = resolveCreatorName(req)
+    if (creatorName) {
+        headers[HEADERS.CREATOR_NAME] = creatorName
     }
 
     const range = req.headers && req.headers.range
@@ -114,8 +140,8 @@ export const buildUpstreamHeaders = (
  *
  * The line answers the questions worth asking of a proxy:
  *
- *     AI Studio GET /protected/v8/aiStudio/quiz/languages -> 200 412ms creator="Meera Nair"
- *     AI Studio POST /protected/v8/aiStudio/v1/quiz/generate -> 422 1203ms creator="Meera Nair" via=passthrough
+ *     AI Studio GET /protected/v8/aiStudio/quiz/languages -> 200 412ms creator="9f1c…" name="Meera Nair"
+ *     AI Studio POST /protected/v8/aiStudio/v1/quiz/generate -> 422 1203ms creator="9f1c…" name="Meera Nair" via=passthrough
  *
  * `via=passthrough` marks a request that matched no named route and went through the wildcard.
  * Seeing it on a path the proxy *does* name usually means the caller sent the upstream shape
@@ -138,12 +164,14 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
             return
         }
         written = true
-        const creator = resolveCreator(req) || 'unknown'
+        const creatorId = resolveCreatorId(req) || 'unknown'
+        const creatorName = resolveCreatorName(req)
+        const nameField = creatorName ? ' name="' + creatorName + '"' : ''
         // tslint:disable-next-line: no-any
         const via = (res as any).locals && (res as any).locals.aiStudioPassthrough ? ' via=passthrough' : ''
         logInfo(
             `AI Studio ${req.method} ${req.originalUrl} -> ${res.statusCode} ` +
-            `${Date.now() - started}ms creator="${creator}"${via}${outcome}`
+            `${Date.now() - started}ms creator="${creatorId}"${nameField}${via}${outcome}`
         )
     }
     res.on('finish', () => write(''))
