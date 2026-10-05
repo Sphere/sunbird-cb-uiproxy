@@ -993,6 +993,8 @@ sunbirdrRcCertificate.get('/events/:eventId/users', async (req, res) => {
         const users = result.rows.map((user: any) => ({
             certificateGenerationStatus: user.certificategenerationstatus,
             createdAt: user.createdat,
+            email: user.email || '',
+            emailSentAt: user.emailsentat || null,
             eventId: user.eventid,
             firstName: user.firstname,
             lastName: user.lastname,
