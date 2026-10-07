@@ -5,6 +5,7 @@ import nodeHtmlToImage from 'node-html-to-image'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
 import { API_END_POINTS } from './apiConstants'
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
@@ -33,25 +34,10 @@ appCertificateDownload.get('/download', async (req, res) => {
       'Certificate download in progress of certificate ID',
       certificateId
     )
-    function getPosition(stringValue, subStringValue, index) {
-      return stringValue.split(subStringValue, index).join(subStringValue)
-        .length
-    }
-    let imageData = response.data.result.printUri
-    imageData = decodeURIComponent(imageData)
-    imageData = imageData.substring(imageData.indexOf(','))
-    let width = imageData.substring(
-      imageData.indexOf("<svg width='") + 12,
-      getPosition(imageData, "'", 2)
-    )
-    let height = imageData.substring(
-      imageData.indexOf("height='") + 8,
-      getPosition(imageData, "'", 4)
-    )
-    if (!imageData.includes("<svg width='")) {
-      width = '1400'
-      height = '950'
-    }
+    // printUri is a data URI for older certificates and raw SVG markup for
+    // the ones sunbird-rc renders; toSvgMarkup handles both.
+    const imageData = toSvgMarkup(response.data.result.printUri)
+    const { width, height } = svgSize(imageData)
     const puppeteer = {
       args: [
         '--no-sandbox',

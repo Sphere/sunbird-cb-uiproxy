@@ -53,6 +53,9 @@ const client = new cassandra.Client({
     localDataCenter: 'datacenter1',
 })
 const getEventQuery = 'SELECT * FROM sunbird.rc_events WHERE eventId = ?'
+const CERTIFICATE_EMAIL_URL = `${CONSTANTS.NOTIFICATION_SERVIC_API_BASE}/v1/notification/send/sync`
+const CERTIFICATE_EMAIL_SUBJECT = 'Your certificate – {{eventName}}'
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 export const sunbirdrRcCertificate = Router()
 sunbirdrRcCertificate.post('/events', async (req, res) => {
@@ -312,6 +315,8 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
 
             try {
                 const { phone, place } = user
+                // optional column: kept only when it is a valid address, used to email the certificate
+                const email = EMAIL_PATTERN.test(String(user.email || '').trim()) ? String(user.email).trim().toLowerCase() : ''
                 const linkId = uuid.v4()
                 let firstName = ''
                 let lastName = ''
@@ -345,6 +350,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                         firstName,
                         lastName,
                         eventData.eventplace || place,
+                        email,
                         STATUS_IN_PROGRESS,
                         new Date(),
                         new Date(),
@@ -358,6 +364,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                         firstName,
                         lastName,
                         eventData.eventplace || place,
+                        email,
                         STATUS_FAILED_USER_CREATION,
                         new Date(),
                         new Date(),
@@ -431,7 +438,7 @@ async function getUserDetailsFromSunbird(phone: string, user: any) {
 // tslint:disable-next-line: no-any
 async function insertUserEventLink(queryParamsLink: any) {
     // tslint:disable-next-line: max-line-length
-    const queryLink = 'INSERT INTO sunbird.rc_events_users (linkid, userid, eventid, firstname, lastname, place, certificateGenerationStatus, createdat, updatedat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    const queryLink = 'INSERT INTO sunbird.rc_events_users (linkid, userid, eventid, firstname, lastname, place, email, certificateGenerationStatus, createdat, updatedat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     await client.execute(queryLink, queryParamsLink, { prepare: true })
 }
 // tslint:disable-next-line: no-any
@@ -448,9 +455,9 @@ async function tryGenerateCertificateWithRetry(user, eventDetails, templateId, m
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
             const result = await generateCertificateFromRcMapper(user, eventDetails, user.userid, templateId)
-            if (result === true) {
+            if (result) {
                 logInfo(`[tryGenerateCertificateWithRetry] SUCCESS on attempt ${attempt} for user ${user.userid}`)
-                return true
+                return result
             } else if (result === false) {
                 // Permanent failure - don't retry
                 logError(`[tryGenerateCertificateWithRetry] Permanent failure for user ${user.userid} on attempt ${attempt}`)
@@ -498,6 +505,8 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
         const processingDelay = 300 // Add 300ms delay between users to avoid rate limiting
 
         logInfo(`[/events/generateCertificates] Starting certificate generation for ${users.length} users`)
+        // loaded once per run; null means no emails this run, certificate generation is unaffected
+        const emailTemplate = CONSTANTS.CERT_EMAIL_ENABLED === 'true' ? await loadCertificateEmailTemplate() : null
 
         for (let userIndex = 0; userIndex < users.length; userIndex++) {
             const user = users[userIndex]
@@ -529,6 +538,10 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
                 if (certificateGenerationStatus) {
                     successCount++
                     logInfo(`[/events/generateCertificates] SUCCESS: User ${userIndex + 1}/${users.length} - ${userid}`)
+                    if (emailTemplate && user.email && !user.emailsentat) {
+                        // not awaited: email must never slow down or fail certificate generation
+                        sendCertificateEmail(user, eventDetails[0], certificateGenerationStatus.pdfUrl, emailTemplate)
+                    }
                 } else {
                     failedCount++
                     logError(`[/events/generateCertificates] FAILED: User ${userIndex + 1}/${users.length} - ${userid}`)
@@ -556,6 +569,68 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
         }
     }
 })
+
+async function loadCertificateEmailTemplate() {
+    try {
+        const response = await axios.get(CONSTANTS.CERT_EMAIL_TEMPLATE_URL, { responseType: 'text', timeout: 10000 })
+        const html = String(response.data || '')
+        if (!html.includes('{{certificateUrl}}')) {
+            logError('[certificateEmail] template has no {{certificateUrl}} placeholder, no emails this run')
+            return null
+        }
+        const title = html.match(/<title>([^<]*)<\/title>/i)
+        return { html, subject: title && title[1].trim() ? title[1].trim() : CERTIFICATE_EMAIL_SUBJECT }
+    } catch (err) {
+        logError(`[certificateEmail] could not load template ${CONSTANTS.CERT_EMAIL_TEMPLATE_URL}, no emails this run: ${err.message}`)
+        return null
+    }
+}
+
+function escapeHtml(value: string) {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+// tslint:disable-next-line: no-any
+async function sendCertificateEmail(user: any, eventData: any, certificateUrl: string, template: { html: string, subject: string }) {
+    try {
+        const values: Record<string, string> = {
+            certificateUrl,
+            eventDate: new Date(eventData.eventdate).toLocaleDateString('en-IN').replace(/\//g, '-'),
+            eventName: eventData.eventname || '',
+            eventPlace: eventData.eventplace || '',
+            name: `${user.firstname || ''} ${user.lastname || ''}`.trim(),
+            portalLink: CONSTANTS.HTTPS_HOST,
+        }
+        const fill = (text: string) => text.replace(/{{(\w+)}}/g, (_match, key) => escapeHtml(values[key] || ''))
+        const response = await axios({
+            data: {
+                request: {
+                    notifications: [{
+                        config: { subject: fill(template.subject) },
+                        deliveryType: 'message',
+                        ids: [user.email],
+                        mode: 'email',
+                        template: { data: fill(template.html), params: {} },
+                    }],
+                },
+            },
+            method: 'POST',
+            url: CERTIFICATE_EMAIL_URL,
+        })
+        if (!(response.data && response.data.result && response.data.result.response)) {
+            throw new Error('notification service did not confirm the send')
+        }
+        // marks the participant so a re-generation never emails them twice
+        await client.execute(
+            'UPDATE sunbird.rc_events_users SET emailsentat = ? WHERE userId = ? AND eventId = ? AND linkid = ?',
+            [new Date(), user.userid, user.eventid, user.linkid],
+            { prepare: true }
+        )
+        logInfo(`[certificateEmail] SENT for linkid ${user.linkid}`)
+    } catch (err) {
+        logError(`[certificateEmail] FAILED for linkid ${user.linkid}: ${err.message}`)
+    }
+}
 
 // tslint:disable-next-line: no-any
 async function updateEventStatus(queryParams: any): Promise<void> {
@@ -647,7 +722,8 @@ const generateCertificateFromRcMapper = async (user: any, eventDataFromCassandra
 
         if (responseData.certificateUrl) {
             logInfo(`[generateCertificateFromRcMapper] SUCCESS: Certificate generated for user ${user.userid} - URL: ${responseData.certificateUrl}`)
-            return true
+            // pdfUrl is the downloadable certificate emailed to the participant; older mappers only return the PNG
+            return { pdfUrl: responseData.pdfUrl || responseData.certificateUrl }
         }
 
         // Check for error in response
@@ -917,6 +993,8 @@ sunbirdrRcCertificate.get('/events/:eventId/users', async (req, res) => {
         const users = result.rows.map((user: any) => ({
             certificateGenerationStatus: user.certificategenerationstatus,
             createdAt: user.createdat,
+            email: user.email || '',
+            emailSentAt: user.emailsentat || null,
             eventId: user.eventid,
             firstName: user.firstname,
             lastName: user.lastname,

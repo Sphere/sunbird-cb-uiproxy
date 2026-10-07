@@ -129,6 +129,9 @@ export const CONSTANTS = {
   MNC_REPORT_S3_SECRET_ACCESS_KEY: env.MNC_REPORT_S3_SECRET_ACCESS_KEY,
 
   RC_MAPPER_HOST: env.RC_MAPPER_HOST,
+  CERT_EMAIL_ENABLED: env.CERT_EMAIL_ENABLED || 'false',
+  CERT_EMAIL_TEMPLATE_URL: env.CERT_EMAIL_TEMPLATE_URL
+    || 'https://aastar-assets.s3.ap-south-1.amazonaws.com/rc-mdo-templates/certificate-email.html',
   PORTAL_API_WHITELIST_CHECK: env.PORTAL_API_WHITELIST_CHECK || 'false',
   POSTGRES_USER: env.POSTGRES_USER,
   POSTGRES_HOST: env.POSTGRES_HOST || 'http://localhost:5433',
