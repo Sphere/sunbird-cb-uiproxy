@@ -22,12 +22,16 @@ const DEFAULT_LOCALHOST_7001 = 'http://localhost:7001'
 // connects to the process origin instead of failing, which would misroute traffic
 // rather than surface a clear error. This is a service hostname, not a credential.
 const NOTIFICATION_ENGINE_DEFAULT_SOCKET_URL = 'http://notification-engine:3013'
+// Hoisted so AI_STUDIO_API_BASE below can derive from it. Not in localDefaults: this is a
+// public gateway hostname and the same value in every environment that does not override it.
+const KONG_API_BASE = env.KONG_API_BASE || 'https://sphere.aastrika.org/api'
 export const CONSTANTS = {
   ACCESS_CONTROL_API_BASE: env.ACCESS_CONTROL_API_BASE || env.SBEXT_API_BASE,
   AES_ENCRYPTION_METHOD: env.AES_ENCRYPTION_METHOD || 'abc',
   AES_ENCRYPTION_SECRET: env.AES_ENCRYPTION_SECRET || 'abc',
   AES_SECRET_IV: env.AES_SECRET_IV || 'abc',
   AES_SECRET_KEY: env.AES_SECRET_KEY || 'abc',
+  AI_STUDIO_API_BASE: env.AI_STUDIO_API_BASE || `${KONG_API_BASE}/ai-studio`,
   ANALYTICS_TIMEOUT: env.ANALYTICS_TIMEOUT || 10000,
   APP_ANALYTICS: env.LA_HOST_PROXY || localDefaults.APP_ANALYTICS,
   APP_CONFIGURATIONS: env.APP_CONFIGURATIONS || '/app-config',
@@ -98,7 +102,7 @@ export const CONSTANTS = {
   KHUB_SEARCH_BASE: env.KHUB_SEARCH_BASE || 'http://localhost:3014',
   KNOWLEDGE_MW_API_BASE:
     env.KNOWLEDGE_MW_API_BASE || localDefaults.KNOWLEDGE_MW_API_BASE,
-  KONG_API_BASE: env.KONG_API_BASE || 'https://sphere.aastrika.org/api',
+  KONG_API_BASE,
   FRAC_ETL_API_BASE: env.FRAC_ETL_API_BASE || localDefaults.FRAC_ETL_API_BASE,
   MSG_91_AUTH_KEY_SSO: env.MSG_91_AUTH_KEY_SSO || '',
   MSG91BASE: env.MSG91BASE || 'http://localhost:3300',
