@@ -131,6 +131,9 @@ export const CONSTANTS = {
   MNC_REPORT_S3_SECRET_ACCESS_KEY: env.MNC_REPORT_S3_SECRET_ACCESS_KEY,
 
   RC_MAPPER_HOST: env.RC_MAPPER_HOST,
+  // Sunbird RC registry, read directly for public certificate verification (same base the
+  // certificate generator uses). Cluster-internal; never exposed to the browser.
+  SUNBIRD_RC_REGISTRY_BASE: env.SUNBIRD_RC_REGISTRY_BASE || 'http://registry-service:8081/api/v1',
   CERT_EMAIL_ENABLED: env.CERT_EMAIL_ENABLED || 'false',
   CERT_EMAIL_TEMPLATE_URL: env.CERT_EMAIL_TEMPLATE_URL
     || 'https://aastar-assets.s3.ap-south-1.amazonaws.com/rc-mdo-templates/certificate-email.html',

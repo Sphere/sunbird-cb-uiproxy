@@ -6,6 +6,7 @@ import { appCertificateDownload } from './appCertificateDownload'
 import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { bnrcUserCreation } from './bnrcUser'
 import { validateCertificate } from './certificateValidate'
+import { certificateVerify } from './certificateVerify'
 import { competencyAssets } from './competencyAssets'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
@@ -65,6 +66,7 @@ publicApiV8.use('/forgot-password/', forgotPassword)
 publicApiV8.use('/publicContent/', publicContentApi)
 publicApiV8.use('/login/', emailOrMobileLogin)
 publicApiV8.use('/certificate/', validateCertificate)
+publicApiV8.use('/certificate/', certificateVerify)
 publicApiV8.use('/sashaktAuth/', sashakt)
 publicApiV8.use('/appCertificateDownload/', appCertificateDownload)
 publicApiV8.use('/publicCertificateFlinkv2/', publicCertificateFlinkv2)
