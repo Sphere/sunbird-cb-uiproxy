@@ -63,6 +63,7 @@ describe("rcCertificateVerify", function () {
     it("maps a read-by-id record to the public view", function () {
       assert.deepStrictEqual(toVerifiedCertificate(rcRecord, "TrainingCertificate"), {
         certificateId: rcRecord.osid,
+        courseId: "do_1",
         entity: "TrainingCertificate",
         recipientName: "Asha Kumari",
         courseName: "Normal Labour & Birth and AMTSL",
@@ -91,6 +92,30 @@ describe("rcCertificateVerify", function () {
         "MDO-Active-Birth"
       );
       assert.strictEqual(view.issuedOn, "2026-10-01T10:00:00Z");
+    });
+
+    // RC read-by-id returns no `training`; the signed credential still names the course.
+    it("reads the course from the signed credential when read-by-id omits training", function () {
+      const signed = {
+        credentialSubject: { trainingName: "Lactation management", trainingId: "do_2", issuedDate: "12 October 2026" },
+      };
+      const record = {
+        osid: "1-30a4b945-dc86",
+        recipient: { name: "Automation Script" },
+        certificateLabel: "Sunbird rc certificate test",
+        osCreatedAt: "2026-10-12T10:24:14.326Z",
+      };
+      [JSON.stringify(signed), signed].forEach((osSignedData) => {
+        const view = toVerifiedCertificate({ ...record, _osSignedData: osSignedData }, "TrainingCertificate");
+        assert.strictEqual(view.courseName, "Lactation management");
+        assert.strictEqual(view.courseId, "do_2");
+        assert.strictEqual(view.issuedOn, "12 October 2026");
+      });
+    });
+
+    it("falls back to the template label only when no course name exists anywhere", function () {
+      const record = { osid: "1-30a4b945-dc86", recipient: { name: "R" }, certificateLabel: "Label", _osSignedData: "{not json" };
+      assert.strictEqual(toVerifiedCertificate(record, "TrainingCertificate").courseName, "Label");
     });
 
     it("flags revoked certificates", function () {

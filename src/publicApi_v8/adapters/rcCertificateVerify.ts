@@ -15,6 +15,7 @@ const ENTITY_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{1,60}$/
 
 export interface IVerifiedCertificate {
   certificateId: string
+  courseId: string
   entity: string
   recipientName: string
   courseName: string
@@ -48,13 +49,33 @@ function firstRecord(body: unknown): RcRecord | null {
 }
 
 /**
+ * The signed credential's subject. RC's read-by-id omits the nested `training` object (search
+ * returns it), but `_osSignedData` always carries what credential_template.json mapped into
+ * credentialSubject: trainingName, trainingId, issuedDate. Stored as a JSON string or object.
+ */
+function signedSubject(record: RcRecord): RcRecord {
+  let signed = record._osSignedData
+  if (typeof signed === 'string') {
+    try {
+      signed = JSON.parse(signed)
+    } catch {
+      return {}
+    }
+  }
+  const subject = signed && typeof signed === 'object' ? signed.credentialSubject : null
+  const first = Array.isArray(subject) ? subject[0] : subject
+  return first && typeof first === 'object' ? first : {}
+}
+
+/**
  * The issued date as the certificate prints it. Course certificates carry the pre-formatted
  * training.issuedDate ("10 September 2026"); older and event records only have timestamps.
  */
-function issuedOn(record: RcRecord): string {
+function issuedOn(record: RcRecord, subject: RcRecord): string {
   const training = record.training || {}
   return (
     text(training.issuedDate) ||
+    text(subject.issuedDate) ||
     text(record.issuedDate) ||
     text(record.issuanceDate) ||
     text(training.osCreatedAt) ||
@@ -82,11 +103,15 @@ export function toVerifiedCertificate(body: unknown, entity: string): IVerifiedC
   if (!certificateId || !recipientName) {
     return null
   }
+  const training = record.training || {}
+  const subject = signedSubject(record)
   return {
     certificateId,
-    courseName: text((record.training || {}).name) || text(record.certificateLabel),
+    courseId: text(training.id) || text(subject.trainingId),
+    // certificateLabel is the template's name, so it is only the last resort for the course
+    courseName: text(training.name) || text(subject.trainingName) || text(record.certificateLabel),
     entity,
-    issuedOn: issuedOn(record),
+    issuedOn: issuedOn(record, subject),
     issuerName: text((record.issuer || {}).name),
     recipientName,
     revoked: isRevoked(record),
