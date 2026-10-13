@@ -99,12 +99,14 @@ export function toVerifiedCertificate(body: unknown, entity: string): IVerifiedC
     return null
   }
   const certificateId = text(record.osid) || text(record.id)
-  const recipientName = text((record.recipient || {}).name)
+  // RC read-by-id drops nested objects inconsistently (training on one env, recipient on
+  // another); the signed credential always names the learner.
+  const subject = signedSubject(record)
+  const recipientName = text((record.recipient || {}).name) || text(subject.recipientName)
   if (!certificateId || !recipientName) {
     return null
   }
   const training = record.training || {}
-  const subject = signedSubject(record)
   return {
     certificateId,
     courseId: text(training.id) || text(subject.trainingId),

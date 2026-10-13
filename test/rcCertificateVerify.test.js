@@ -113,6 +113,23 @@ describe("rcCertificateVerify", function () {
       });
     });
 
+    // Prod RC read-by-id returns no `recipient` (staging dropped `training` instead).
+    it("reads the learner from the signed credential when read-by-id omits recipient", function () {
+      const record = {
+        osid: "1-2a97d782-bfb7",
+        training: { id: "do_3", name: "Menopausal Health", issuedDate: "13 October 2026" },
+        _osSignedData: JSON.stringify({ credentialSubject: { recipientName: "Test Automation", trainingName: "Menopausal Health" } }),
+      };
+      const view = toVerifiedCertificate(record, "TrainingCertificate");
+      assert.ok(view, "a certificate without a recipient object must still verify");
+      assert.strictEqual(view.recipientName, "Test Automation");
+      assert.strictEqual(view.courseName, "Menopausal Health");
+    });
+
+    it("still rejects a record with no learner name anywhere", function () {
+      assert.strictEqual(toVerifiedCertificate({ osid: "1-2a97d782-bfb7", _osSignedData: "{}" }, "TrainingCertificate"), null);
+    });
+
     it("falls back to the template label only when no course name exists anywhere", function () {
       const record = { osid: "1-30a4b945-dc86", recipient: { name: "R" }, certificateLabel: "Label", _osSignedData: "{not json" };
       assert.strictEqual(toVerifiedCertificate(record, "TrainingCertificate").courseName, "Label");
