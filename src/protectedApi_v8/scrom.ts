@@ -5,13 +5,9 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 const unknown = 'Failed due to unknown reason'
-const apiEndpoints = {
-  deleteScromData: `${CONSTANTS.AUTHORING_BACKEND}/action/scrom/delete`,
-  getScromData: `${CONSTANTS.AUTHORING_BACKEND}/action/scrom/fetch`,
-  postScromData: `${CONSTANTS.AUTHORING_BACKEND}/action/scrom/add`,
-}
 
 export const scromApi = Router()
 
@@ -32,7 +28,7 @@ scromApi.get('/get/:id', async (req, res) => {
       return
     }
 
-    const response = await axios.get(apiEndpoints.getScromData, {
+    const response = await axios.get(API_END_POINTS.getScromData, {
       ...axiosRequestConfig,
       headers: {
         org,
@@ -101,7 +97,7 @@ scromApi.post('/add/:id', async (req, res) => {
     ) {
       res.status(400).send('Bad Request, already passed the module')
     } else {
-      const response = await axios.post(apiEndpoints.postScromData, body, {
+      const response = await axios.post(API_END_POINTS.postScromData, body, {
         ...axiosRequestConfig,
         headers: {
           org,
@@ -138,7 +134,7 @@ scromApi.delete('/remove/:id', async (req, res) => {
     }
 
     const response = await axios.post(
-      apiEndpoints.deleteScromData,
+      API_END_POINTS.deleteScromData,
       {},
       {
         ...axiosRequestConfig,

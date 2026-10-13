@@ -1,26 +1,10 @@
-
-import cassandraDriver from 'cassandra-driver'
 import KcAdminClient from 'keycloak-admin'
 import { RequiredActionAlias } from 'keycloak-admin/lib/defs/requiredActionProviderRepresentation'
 import request from 'request'
 import { CONSTANTS } from './env'
 import { logError, logInfo } from './logger'
 
-const CASSANDRA_KEYSPACE = CONSTANTS.CASSANDRA_KEYSPACE
 const defaultNewUserPassword = CONSTANTS.KC_NEW_USER_DEFAULT_PWD
-
-const cassandraClientOptions: cassandraDriver.ClientOptions = {
-    contactPoints: getIPList(),
-    keyspace: CASSANDRA_KEYSPACE,
-    localDataCenter: 'datacenter1',
-    queryOptions: {
-        prepare: true,
-    },
-}
-
-function getIPList() {
-    return CONSTANTS.CASSANDRA_IP.split(',')
-}
 
 const keycloakConfig = {
     baseUrl: `${CONSTANTS.HTTPS_HOST}/auth`,
@@ -33,82 +17,6 @@ const keycloakConfig = {
 }
 
 const kcAdminClient = new KcAdminClient(keycloakConfig)
-
-// tslint:disable-next-line: no-any
-export function checkUniqueKey(uniqueKey: any, callback: (arg0: Error, arg1: any) => void) {
-    const clientConnect = new cassandraDriver.Client(cassandraClientOptions)
-    clientConnect.execute(`SELECT * FROM ${CASSANDRA_KEYSPACE}.eagle_unique_identifiers
-     WHERE key=${uniqueKey}`, (err, result) => {
-        if (!err && result && result.rows.length > 0) {
-            const key = result.rows[0]
-            callback(err, key)
-        } else {
-            callback(new Error('checkUniqueKey: No records'), null)
-        }
-        // Run next function in series
-        clientConnect.shutdown()
-    })
-}
-
-// tslint:disable-next-line: no-any
-export function checkUUIDMaster(uniqueKey: any): Promise<any> {
-    try {
-        const clientConnect = new cassandraDriver.Client(cassandraClientOptions)
-        return new Promise((resolve, reject) => {
-            clientConnect.execute(`SELECT * FROM ${CASSANDRA_KEYSPACE}.eagle_uuid_master
-            WHERE key=${uniqueKey} allow filtering`, (error, result) => {
-                if (!error && result && result.rows.length > 0) {
-                    const key = result.rows[0]
-                    resolve(key)
-                } else {
-                    logInfo('Error on DB request : ')
-                    reject(false)
-                }
-                clientConnect.shutdown()
-            })
-        })
-    } catch (err) {
-        logError('DB Request to open user profile status failed')
-        throw err
-    }
-}
-
-// tslint:disable-next-line: no-any
-export function updateUniqueKey(uniqueKey: any, callback: (arg0: Error, arg1: any) => void) {
-    const clientConnect = new cassandraDriver.Client(cassandraClientOptions)
-    clientConnect.execute(`UPDATE ${CASSANDRA_KEYSPACE}.eagle_unique_identifiers
-    SET active = false WHERE key = ${uniqueKey}`,
-        (err, result) => {
-            if (result) {
-                callback(err, result)
-            } else {
-                callback(new Error('updateUniqueKey: No records'), null)
-            }
-            clientConnect.shutdown()
-        })
-}
-
-// tslint:disable-next-line: no-any
-export function updateUUIDMaster(uniqueKey: any, email: string): Promise<any> {
-    try {
-        const clientConnect = new cassandraDriver.Client(cassandraClientOptions)
-        return new Promise((resolve, reject) => {
-            clientConnect.execute(`UPDATE ${CASSANDRA_KEYSPACE}.eagle_uuid_master
-            SET active = false WHERE key = ${uniqueKey} and email = '${email}'`,
-                (_err, result) => {
-                    if (result) {
-                        resolve(result)
-                    } else {
-                        reject(new Error('updateUUIDMaster: No records'))
-                    }
-                    clientConnect.shutdown()
-                })
-        })
-    } catch (err) {
-        logError('DB Request to open user profile status failed')
-        throw err
-    }
-}
 
 // tslint:disable-next-line: no-any
 export async function createKeycloakUser(req: any) {

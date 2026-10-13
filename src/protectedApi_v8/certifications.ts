@@ -5,16 +5,11 @@ import { UploadedFile } from 'express-fileupload'
 import { axiosRequestConfig } from '../configs/request.config'
 import { ICertificationUserPrivileges } from '../models/certification.model'
 import { IIGOTJLStatus } from '../models/training.model'
-import { CONSTANTS } from '../utils/env'
 import { getEmailLocalPart } from '../utils/helpers'
 import { extractUserEmailFromRequest } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
-
-const apiEndpoints = {
-  certifications: `${CONSTANTS.LEARNING_HUB_API_BASE}/lHub`,
-  trainings: `${CONSTANTS.LEARNING_HUB_API_BASE}/lHub/v1`,
-}
 
 export const certificationApi = Router()
 
@@ -26,7 +21,7 @@ certificationApi.get('/:certificationId/bookingInfo', async (req, res) => {
 
     const certification = await axios
       .get(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/booking-information`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/booking-information`,
         { ...axiosRequestConfig }
       )
       .then((response) => response.data)
@@ -47,7 +42,7 @@ certificationApi.get('/:certificationId/testCenters', async (req, res) => {
     const { certificationId } = req.params
 
     const testCenters = await axios
-      .get(`${apiEndpoints.certifications}/certifications/${certificationId}/test-centers`, {
+      .get(`${API_END_POINTS.certifications}/certifications/${certificationId}/test-centers`, {
         ...axiosRequestConfig,
       })
       .then((response) => response.data)
@@ -69,7 +64,7 @@ certificationApi.get(
     try {
       const { certificationId, location, testCenter } = req.params
       const url =
-        `${apiEndpoints.certifications}` +
+        `${API_END_POINTS.certifications}` +
         `/certifications/${certificationId}/locations/${location}/test-centers/${testCenter}/slots`
 
       const accSlots = await axios
@@ -92,7 +87,7 @@ certificationApi.post('/:certificationId/booking/:slotNo', async (req, res) => {
   try {
     const emailId = getEmailLocalPart(extractUserEmailFromRequest(req))
     const { certificationId, slotNo } = req.params
-    const url = `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/booking/${slotNo}`
+    const url = `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/booking/${slotNo}`
 
     const accBookingResponse = await axios({
       ...axiosRequestConfig,
@@ -114,7 +109,7 @@ certificationApi.post('/:certificationId/booking/:slotNo', async (req, res) => {
 certificationApi.get('/countries', async (_req, res) => {
   try {
     const atDeskCountries = await axios
-      .get(`${apiEndpoints.certifications}/countries`, {
+      .get(`${API_END_POINTS.certifications}/countries`, {
         ...axiosRequestConfig,
       })
       .then((response) => response.data)
@@ -135,7 +130,7 @@ certificationApi.get('/countries/:countryCode/locations', async (req, res) => {
     const { countryCode } = req.params
 
     const atDeskLocations = await axios
-      .get(`${apiEndpoints.certifications}/countries/${countryCode}/locations`, {
+      .get(`${API_END_POINTS.certifications}/countries/${countryCode}/locations`, {
         ...axiosRequestConfig,
       })
       .then((response) => response.data)
@@ -154,7 +149,7 @@ certificationApi.get('/countries/:countryCode/locations', async (req, res) => {
 certificationApi.get('/slots', async (_req, res) => {
   try {
     const atDeskSlots = await axios
-      .get(`${apiEndpoints.certifications}/slots`, { ...axiosRequestConfig })
+      .get(`${API_END_POINTS.certifications}/slots`, { ...axiosRequestConfig })
       .then((response) => response.data)
 
     return res.send(atDeskSlots)
@@ -175,7 +170,7 @@ certificationApi.post('/:certificationId/atDeskBooking', async (req, res) => {
 
     const atDeskBookingResponse = await axios
       .post(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/atdesk-booking`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/atdesk-booking`,
         req.body,
         { ...axiosRequestConfig }
       )
@@ -200,7 +195,7 @@ certificationApi.delete('/:certificationId/slots/:slotNo', async (req, res) => {
 
     const slotDeleteResponse = await axios
       .delete(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/slots/${slotNo}`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/slots/${slotNo}`,
         {
           ...axiosRequestConfig,
           params: { icfd_id: icfdId },
@@ -222,7 +217,7 @@ certificationApi.delete('/:certificationId/slots/:slotNo', async (req, res) => {
 certificationApi.get('/currencies', async (_req, res) => {
   try {
     const currencies = await axios
-      .get(`${apiEndpoints.certifications}/currencies`, {
+      .get(`${API_END_POINTS.certifications}/currencies`, {
         ...axiosRequestConfig,
       })
       .then((response) => response.data)
@@ -245,7 +240,7 @@ certificationApi.post('/:certificationId/budgetRequest', async (req, res) => {
 
     const budgetRequestSubmitResponse = await axios
       .post(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/budget-request`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/budget-request`,
         req.body,
         { ...axiosRequestConfig }
       )
@@ -269,7 +264,7 @@ certificationApi.delete('/:certificationId/budgetRequest', async (req, res) => {
 
     const budgetRequestCancelResponse = await axios
       .delete(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/budget-request`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/budget-request`,
         { ...axiosRequestConfig }
       )
       .then((response) => response.data)
@@ -305,7 +300,7 @@ certificationApi.post('/:certificationId/result', async (req, res) => {
 
     const resultUploadResponse = await axios
       .post(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/result`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/result`,
         {
           exam_date: req.body.examDate,
           file: fileBase64,
@@ -337,7 +332,7 @@ certificationApi.patch('/:certificationId/result', async (req, res) => {
 
     const resultSubmitResponse = await axios
       .patch(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/result`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/result`,
         req.body,
         { ...axiosRequestConfig, params: { action } }
       )
@@ -359,7 +354,7 @@ certificationApi.get('/submittedDocument', async (req, res) => {
     const { documentUrl } = req.query
 
     const document = await axios
-      .get(`${apiEndpoints.certifications}/submitted-document`, {
+      .get(`${API_END_POINTS.certifications}/submitted-document`, {
         ...axiosRequestConfig,
         params: { document: documentUrl },
       })
@@ -384,7 +379,7 @@ certificationApi.delete('/:certificationId/document', async (req, res) => {
 
     const docDeleteResponse = await axios
       .delete(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/document`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/document`,
         { ...axiosRequestConfig, params: { filename: documentUrl } }
       )
       .then((response) => response.data)
@@ -406,7 +401,7 @@ certificationApi.get('/certificationApprovals', async (req, res) => {
     const { type } = req.query
 
     const approvalItems = await axios
-      .get(`${apiEndpoints.certifications}/users/${emailId}/certification-approvals`, {
+      .get(`${API_END_POINTS.certifications}/users/${emailId}/certification-approvals`, {
         ...axiosRequestConfig,
         params: { type },
       })
@@ -428,7 +423,7 @@ certificationApi.post('/atDeskRequests/:icfdId', async (req, res) => {
     const { icfdId } = req.params
 
     const resp = await axios
-      .post(`${apiEndpoints.certifications}/certification-requests/${icfdId}`, req.body, {
+      .post(`${API_END_POINTS.certifications}/certification-requests/${icfdId}`, req.body, {
         ...axiosRequestConfig,
       })
       .then((response) => response.data)
@@ -452,7 +447,7 @@ certificationApi.post('/:certificationId/budgetRequestApproval', async (req, res
 
     const resp = await axios
       .post(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/budget-request-approval`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/budget-request-approval`,
         req.body,
         { ...axiosRequestConfig, params: { sino, ecdp_id: ecdpId } }
       )
@@ -475,7 +470,7 @@ certificationApi.post('/:certificationId/resultVerificationRequests', async (req
     const { certificationId } = req.params
 
     const url =
-      `${apiEndpoints.certifications}` +
+      `${API_END_POINTS.certifications}` +
       `/users/${emailId}/certifications/${certificationId}/result-verification-requests`
 
     const resp = await axios
@@ -499,7 +494,7 @@ certificationApi.get('/', async (req, res) => {
     const { status } = req.query
 
     const certifications = await axios
-      .get(`${apiEndpoints.certifications}/users/${emailId}/certifications`, {
+      .get(`${API_END_POINTS.certifications}/users/${emailId}/certifications`, {
         ...axiosRequestConfig,
         params: { status },
       })
@@ -523,7 +518,7 @@ certificationApi.get('/certificationRequests', async (req, res) => {
 
     const certificationRequests = await axios
       .get(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/certification-requests`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/certification-requests`,
         {
           ...axiosRequestConfig,
           params: { start_date: startDate, end_date: endDate, type },
@@ -549,7 +544,7 @@ certificationApi.get('/:certificationId/submissions', async (req, res) => {
 
     const submissions = await axios
       .get(
-        `${apiEndpoints.certifications}/users/${emailId}/certifications/${certificationId}/submissions`,
+        `${API_END_POINTS.certifications}/users/${emailId}/certifications/${certificationId}/submissions`,
         { ...axiosRequestConfig }
       )
       .then((response) => response.data)
@@ -603,7 +598,7 @@ certificationApi.get('/defaultProctor', async (req, res) => {
 // FUNCTIONS
 const getCertificationUserPrivileges = async (emailId: string) => {
   return axios
-    .get<IIGOTJLStatus>(`${apiEndpoints.trainings}/users/${emailId}`)
+    .get<IIGOTJLStatus>(`${API_END_POINTS.trainings}/users/${emailId}`)
     .then((response) => response.data)
     .then(
       (userData) =>

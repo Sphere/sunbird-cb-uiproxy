@@ -7,26 +7,9 @@ import {
   getWriteApiAdminUID,
   getWriteApiToken,
 } from '../../utils/discussionHub-helper'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-  createTopic: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics`,
-  createUser: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/users`,
-  // tslint:disable-next-line: object-literal-sort-keys
-  createOrUpdateTags: (topicId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics/${topicId}/tags`,
-  followTopic: (topicId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics/${topicId}/follow`,
-  replyToTopic: (topicId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/topics/${topicId}`,
-  votePost: (postId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/posts/${postId}/vote`,
-  // tslint:disable-next-line: object-literal-sort-keys
-  bookmarkPost: (postId: string | number) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/v2/posts/${postId}/bookmark`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const writeApi = Router()
 
@@ -39,7 +22,7 @@ export async function createDiscussionHubUser(user: any): Promise<any> {
       ...user,
       _uid: getWriteApiAdminUID(),
     }
-    const url = API_ENDPOINTS.createUser
+    const url = API_END_POINTS.createUser
     return async () => {
       return axios
         .post(url, request1, {
@@ -65,7 +48,7 @@ writeApi.post('/topics', async (req, res) => {
     const rootOrg = getRootOrg(req)
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
-    const url = API_ENDPOINTS.createTopic
+    const url = API_END_POINTS.createTopic
     const userUid = await getUserUID(userId)
     const response = await axios.post(
       url,
@@ -92,7 +75,7 @@ writeApi.post('/topics/:topicId', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const topicId = req.params.topicId
-    const url = API_ENDPOINTS.replyToTopic(topicId)
+    const url = API_END_POINTS.replyToTopic(topicId)
     const userUid = await getUserUID(userId)
     const response = await axios.post(
       url,
@@ -134,7 +117,7 @@ writeApi.post('/posts/:postId/bookmark', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const postId = req.params.postId
-    const url = API_ENDPOINTS.bookmarkPost(postId)
+    const url = API_END_POINTS.bookmarkPost(postId)
     const userUid = await getUserUID(userId)
     const response = await axios.post(
       url,
@@ -161,7 +144,7 @@ writeApi.delete('/posts/:postId/bookmark', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const postId = req.params.postId
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.bookmarkPost(postId) + `?_uid=${userUid}`
+    const url = API_END_POINTS.bookmarkPost(postId) + `?_uid=${userUid}`
     const response = await axios.delete(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -183,7 +166,7 @@ writeApi.post('/posts/:postId/vote', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const postId = req.params.postId
-    const url = API_ENDPOINTS.votePost(postId)
+    const url = API_END_POINTS.votePost(postId)
     const userUid = await getUserUID(userId)
     const response = await axios.post(
       url,
@@ -211,7 +194,7 @@ writeApi.delete('/posts/:postId/vote', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const postId = req.params.postId
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.votePost(postId) + `?_uid=${userUid}`
+    const url = API_END_POINTS.votePost(postId) + `?_uid=${userUid}`
     const response = await axios.delete(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -233,7 +216,7 @@ writeApi.put('/topics/:topicId/follow', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const topicId = req.params.topicId
-    const url = API_ENDPOINTS.followTopic(topicId)
+    const url = API_END_POINTS.followTopic(topicId)
     const userUid = await getUserUID(userId)
     const response = await axios.put(
       url,
@@ -260,7 +243,7 @@ writeApi.put('/topics/:topicId/tags', async (req, res) => {
     const userId = extractUserIdFromRequest(req)
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const topicId = req.params.topicId
-    const url = API_ENDPOINTS.createOrUpdateTags(topicId)
+    const url = API_END_POINTS.createOrUpdateTags(topicId)
     const response = await axios.put(
       url,
       {

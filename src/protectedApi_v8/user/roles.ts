@@ -5,13 +5,9 @@ import { CONSTANTS } from '../../utils/env'
 import { logError, logObject } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERR_MSG = 'Failed due to unknown reason'
-const apiEndpoints = {
-  role: `${CONSTANTS.ROLES_API_BASE}/v1/user/roles`,
-  rolesV2: `${CONSTANTS.ROLES_API_BASE}/v2/roles`,
-  updateRoles: `${CONSTANTS.ROLES_API_BASE}/v1/update/roles`,
-}
 
 export async function getUserRoles(userId: string, rootOrg: string) {
   try {
@@ -106,7 +102,7 @@ rolesApi.patch('/', async (req, res) => {
         rootOrg,
       },
       method: 'PATCH',
-      url: `${apiEndpoints.updateRoles}`,
+      url: `${API_END_POINTS.updateRoles}`,
     })
     res.json(response.data || {})
   } catch (err) {
@@ -147,7 +143,7 @@ rolesApi.get('/getUsersV2/:role', async (req, res) => {
       res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
-    const response = await axios.get(`${apiEndpoints.rolesV2}/${role}/users`, {
+    const response = await axios.get(`${API_END_POINTS.rolesV2}/${role}/users`, {
       ...axiosRequestConfig,
       headers: {
         rootOrg,
@@ -176,7 +172,7 @@ rolesApi.post('/updateRolesV2', async (req, res) => {
       res.status(400).send(ERROR.ERROR_NO_ORG_DATA)
       return
     }
-    const response = await axios.post(apiEndpoints.rolesV2, body, {
+    const response = await axios.post(API_END_POINTS.rolesV2, body, {
       ...axiosRequestConfig,
       headers: {
         rootOrg,
@@ -212,7 +208,7 @@ export async function updateRolesV2Mock(
     }
     logObject('Updating roles with', body)
     return axios
-      .post(apiEndpoints.rolesV2, body, {
+      .post(API_END_POINTS.rolesV2, body, {
         ...axiosRequestConfig,
         headers: {
           rootOrg,

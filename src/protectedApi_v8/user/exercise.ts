@@ -6,20 +6,11 @@ import FormData from 'form-data'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { ISubmission } from '../../models/exercise.model'
 import { processUrl } from '../../utils/contentHelpers'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERR_MSG = 'Failed due to unknown reason'
-const API_END_POINTS = {
-  createContentDirectory: (contentId: string) =>
-    `${CONSTANTS.CONTENT_API_BASE}/content/submissions/${contentId}`,
-  postSubmission: (contentId: string, uuId: string) =>
-    `${CONSTANTS.SUBMISSION_API_BASE}/v1/users/${uuId}/exercises/${contentId}/submissions`,
-  submissionData: `${CONSTANTS.SB_EXT_API_BASE_3}/v1/users`,
-  uploadFile: (contentId: string) =>
-    `${CONSTANTS.CONTENT_API_BASE}/content/submissions/${contentId}/artifacts`,
-}
 
 export const exerciseApi = Router()
 exerciseApi.get('/getSubmissions', async (req, res) => {

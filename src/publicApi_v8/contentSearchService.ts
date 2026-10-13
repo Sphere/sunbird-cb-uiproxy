@@ -2,10 +2,8 @@ import axios from 'axios'
 import { axiosRequestConfigLong } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { API_END_POINTS } from './apiConstants'
 const contentTypeHeader = { 'Content-Type': 'application/json' }
-const API_END_POINTS = {
-  CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-}
 export interface ContentSearchRequest {
   request?: {
     // tslint:disable-next-line: no-any
@@ -14,6 +12,7 @@ export interface ContentSearchRequest {
     offset?: number;
     sort_by?: Record<string, string>;
     query?: string;
+    fields?: string[];
   }
 }
 
@@ -34,13 +33,14 @@ export async function searchContent(
   const sortMethod = searchRequest.request?.sort_by || {
     lastUpdatedOn: 'desc',
   }
-
+  const fields = searchRequest.request?.fields
   const requestBodyForSearch = {
     request: {
       filters,
       limit: searchRequest.request?.limit || 20,
-      offset: searchRequest.request?.offset || 1,
+      offset: searchRequest.request?.offset ?? 1,
       sort_by: sortMethod,
+      ...(fields ? { fields } : {})
     },
     sort: [{ lastUpdatedOn: 'desc' }],
   }
@@ -80,7 +80,7 @@ export async function searchContentV2(
     request: {
       filters,
       limit: searchRequest.request?.limit || 20,
-      offset: searchRequest.request?.offset || 1,
+      offset: searchRequest.request?.offset ?? 1,
       query: searchRequest.request?.query || '',
       sort_by: sortMethod,
     },

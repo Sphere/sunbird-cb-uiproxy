@@ -8,33 +8,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
-const API_END_POINTS = {
-  acceptAnswer: `${CONSTANTS.NODE_API_BASE}/useractivity/acceptAnswer`,
-  activityUpdate: `${CONSTANTS.NODE_API_BASE}/useractivity/create`,
-  activityUsers: `${CONSTANTS.NODE_API_BASE}/post/users`,
-  adminDeletePosts: `${CONSTANTS.NODE_API_BASE}/admin/deletepost`,
-  adminPostsTimeline: `${CONSTANTS.NODE_API_BASE}/admin/timeline`,
-  adminReactivatePost: `${CONSTANTS.NODE_API_BASE}/admin/reactivatepost`,
-  authoringCatalog: `${CONSTANTS.NODE_API_BASE}/catalog/fetch`,
-  autocomplete: `${CONSTANTS.NODE_API_BASE}/post/autocomplete`,
-  createForum: `${CONSTANTS.NODE_API_BASE}/forum/createforum`,
-  deletePost: `${CONSTANTS.NODE_API_BASE}/authtool/deletepost`,
-  draftPost: `${CONSTANTS.NODE_API_BASE}/authtool/draftpost`,
-  editForum: `${CONSTANTS.NODE_API_BASE}/forum/editforum`,
-  editMeta: `${CONSTANTS.NODE_API_BASE}/authtool/editmeta`,
-  editTags: `${CONSTANTS.NODE_API_BASE}/authtool/edittags`,
-  moderatorPostsTimeline: `${CONSTANTS.NODE_API_BASE}/moderator/timeline`,
-  moderatorReact: `${CONSTANTS.NODE_API_BASE}/moderator/moderatepost`,
-  publishPost: `${CONSTANTS.NODE_API_BASE}/authtool/publishpost`,
-  searchSocial: `${CONSTANTS.NODE_API_BASE}/search/searchv1`,
-  timeline: `${CONSTANTS.NODE_API_BASE}/post/timeline`,
-  timelineV2: `${CONSTANTS.NODE_API_BASE}/post/timelinev2`,
-  uploadImage: `${CONSTANTS.CONTENT_API_BASE}/contentv3/upload-live`,
-  viewConversation: `${CONSTANTS.NODE_API_BASE}/post/viewConversation`,
-  viewConversationV2: `${CONSTANTS.NODE_API_BASE}/post/viewConversationv2`,
-  viewForum: `${CONSTANTS.NODE_API_BASE}/forum/viewforum`,
-  viewForumlist: `${CONSTANTS.NODE_API_BASE}/forum/forumtimeline`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
@@ -221,7 +195,7 @@ socialApi.post('/post/autocomplete', async (req, res) => {
       res.status(400).send(INVALID_ORG_MSG)
       return
     }
-    const response = await axios.post(API_END_POINTS.autocomplete, req.body, {
+    const response = await axios.post(API_END_POINTS.socialAutocomplete, req.body, {
       ...axiosRequestConfig,
       headers: {
         org,
@@ -299,7 +273,7 @@ socialApi.post('/post/timeline', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.timeline, data, {
+    const response = await axios.post(API_END_POINTS.socialTimeline, data, {
       ...axiosRequestConfig,
       timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
     })
@@ -328,7 +302,7 @@ socialApi.post('/post/timelineV2', async (req, res) => {
       rootOrg,
       userId,
     }
-    const response = await axios.post(API_END_POINTS.timelineV2, data, {
+    const response = await axios.post(API_END_POINTS.socialTimelineV2, data, {
       ...axiosRequestConfig,
       timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
     })

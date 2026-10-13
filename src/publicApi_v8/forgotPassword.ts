@@ -4,16 +4,32 @@ import _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { API_END_POINTS } from './apiConstants'
 import {  validateOTP } from './otp'
-const API_END_POINTS = {
-  generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
-  recoverPassword: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/password/reset`,
-  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-}
 
 const PASSWORD_RESET_FAIL = 'Sorry ! There is some issue in resetting your account. Please contact admin.'
 const VERIFY_OTP_FAIL = 'Sorry ! There is some issue in verifying your account. Please try after sometime.'
+
+interface ISearchUser {
+  id?: string
+  identifier?: string
+  userId?: string
+}
+
+/**
+ * `/private/user/v1/search` returns each user with `identifier` and `id`, and no `userId`
+ * field at all - so `_.find(content, 'userId')` never matched and every caller below sent
+ * `userId: undefined`. lern dropped the key, ResetPasswordActor called getUserById(null),
+ * and the password reset hung with no error on either side. The OTP send path shares this
+ * extraction but survived it, because generateOtp does not need a resolved user.
+ */
+function extractUserId(searchresponse: unknown): string | undefined {
+  const content: ISearchUser[] = _.get(searchresponse, 'data.result.response.content', [])
+  const match = _.find(content, (entry: ISearchUser) =>
+    Boolean(entry && (entry.userId || entry.identifier || entry.id))
+  )
+  return match ? match.userId || match.identifier || match.id : undefined
+}
 
 export const forgotPassword = Router()
 
@@ -39,10 +55,7 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
       })
 
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('>>>>>>>> User Id : ', userUUId)
 
         // generate otp
@@ -77,10 +90,7 @@ forgotPassword.post('/reset/proxy/password', async (req, res) => {
       })
       logInfo('Inside phone type checking..')
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('User Id : ', userUUId)
 
         // generate otp
@@ -129,10 +139,7 @@ forgotPassword.post('/verifyOtp', async (req, res) => {
       })
 
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('User Id in Email : ', userUUId)
         const verifyOtpResponse = await validateOTP(
           userUUId,
@@ -170,10 +177,7 @@ forgotPassword.post('/verifyOtp', async (req, res) => {
         url: API_END_POINTS.searchSb,
       })
       if (searchresponse.data.result.response.count > 0) {
-        const userUUId = _.get(
-          _.find(searchresponse.data.result.response.content, 'userId'),
-          'userId'
-        )
+        const userUUId = extractUserId(searchresponse)
         logInfo('User Id in phone : ', userUUId)
         const verifyOtpResponse = await validateOTP(
           userUUId,

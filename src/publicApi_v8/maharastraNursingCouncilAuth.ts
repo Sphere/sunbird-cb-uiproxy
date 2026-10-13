@@ -14,16 +14,7 @@ import { getCurrentUserRoles } from './rolePermission'
 
 const AUTH_FAIL = 'Authentication failed ! Please check credentials and try again.'
 
-const API_END_POINTS = {
-    createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-    fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-    fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-    generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-    profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-    migrateUser: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
-    assignRole: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/assign/role`,
-    userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 /** Error message shown when the user belongs to an org outside the allowed list. */
 const userOtherText = `User already exist on the Sphere platform. Please log in using your email ID. For any queries, please contact: support@aastrika.org`
@@ -433,7 +424,7 @@ const userProfileUpdate = async (axiosRequestConfig, userId, mncUserData, existi
  * @returns `true` on success, `false` if the API call fails.
  */
 const migrateUserToMNC = async (userDetails) => {
-    logInfo('[MNC] migrateUserToMNC: start | userId:', userDetails.userId)
+    logInfo('[MNC] migrateUserToMNC: start | userId:', userDetails.id)
     try {
         const migrateUserResponse = await axios({
             data: {
@@ -442,7 +433,7 @@ const migrateUserToMNC = async (userDetails) => {
                     forceMigration: true,
                     notifyMigration: false,
                     softDeleteOldOrg: true,
-                    userId: userDetails.userId,
+                    userId: userDetails.id,
                 },
             },
             headers: {
@@ -453,13 +444,13 @@ const migrateUserToMNC = async (userDetails) => {
             url: API_END_POINTS.migrateUser,
         })
         if (migrateUserResponse.data.result.response == 'success') {
-            logInfo('[MNC] migrateUserToMNC: success | userId:', userDetails.userId)
+            logInfo('[MNC] migrateUserToMNC: success | userId:', userDetails.id)
             return true
         }
-        logError('[MNC] migrateUserToMNC: unexpected response | userId:', userDetails.userId,
+        logError('[MNC] migrateUserToMNC: unexpected response | userId:', userDetails.id,
             '| response:', migrateUserResponse.data.result.response)
     } catch (error) {
-        logError('[MNC] migrateUserToMNC: failed | userId:', userDetails.userId, '| error:', error.message)
+        logError('[MNC] migrateUserToMNC: failed | userId:', userDetails.id, '| error:', error.message)
         return false
     }
 }

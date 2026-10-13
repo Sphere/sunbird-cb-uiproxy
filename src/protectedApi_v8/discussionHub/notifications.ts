@@ -3,13 +3,9 @@ import { Router } from 'express'
 import { getRootOrg } from '../../authoring/utils/header'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { getUserUID, getWriteApiToken } from '../../utils/discussionHub-helper'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-    getNotifications: `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/notifications`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const notificationsApi = Router()
 
@@ -19,7 +15,7 @@ notificationsApi.get('/', async (req, res) => {
         const userId = extractUserIdFromRequest(req)
         logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
         const userUid = await getUserUID(userId)
-        const url = API_ENDPOINTS.getNotifications + `?_uid=${userUid}`
+        const url = API_END_POINTS.getNotifications + `?_uid=${userUid}`
         const response = await axios.get(
             url,
             { ...axiosRequestConfig, headers: { authorization: getWriteApiToken() } }

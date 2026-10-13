@@ -7,13 +7,8 @@ import qs from 'querystring'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
+import { API_END_POINTS } from './apiConstants'
 import { getCurrentUserRoles } from './rolePermission'
-const API_END_POINTS = {
-  createUserWithMailId: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmailId: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-  userRoles : `${CONSTANTS.LEARNER_SERVICE_API_BASE}/api/user/private/v1/assign/role`,
-}
 const AUTH_FAIL =
   'Authentication failed ! Please check credentials and try again.'
 const AUTHENTICATED = 'Success ! User is sucessfully authenticated.'

@@ -2,12 +2,7 @@ import axios from 'axios'
 import { Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
-
-const API_END_POINTS = {
-    getAllDepartment: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/getAllDept`,
-    searchDepartment: (friendlyName: string) => `${CONSTANTS.SB_EXT_API_BASE_2}/portal/deptSearch?friendlyName=${friendlyName}`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const deptApi = Router()
 const unknownError = 'Failed due to unknown reason'

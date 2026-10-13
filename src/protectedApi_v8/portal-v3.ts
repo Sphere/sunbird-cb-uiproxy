@@ -2,49 +2,11 @@
 import axios from 'axios'
 import express from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { extractAuthorizationFromRequest } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 export const portalApi = express.Router()
-
-const API_END_POINTS = {
-  accessValidator: (keyWord: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/${keyWord}/isAdmin`,
-  cbcDeptByIdApi: (deptId: string, isUserInfoRequired: boolean) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/cbc/department/${deptId}?allUsers=${isUserInfoRequired}`,
-  deptApi: (portalName: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/${portalName}/department`,
-  deptByIdApi: (deptId: string, isUserInfoRequired: boolean) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/department/${deptId}?allUsers=${isUserInfoRequired}`,
-  deptType: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/departmentType`,
-  deptTypeByName: (deptType: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/departmentType/${deptType}`,
-  deptTypeByTypeId: (deptTypeId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/departmentTypeById/${deptTypeId}`,
-  getDeptNameList: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/listDeptNames`,
-  getDeptTypeName: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/departmentTypeName`,
-  isDeptAdmin: (userId: string, deptId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/department/${deptId}/user/${userId}/isAdmin`,
-  myDeptApi: (portalName: string, isUserInfoRequired: boolean) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/${portalName}/mydepartment?allUsers=${isUserInfoRequired}`,
-  roleApi: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/deptRole`,
-  roleByTypeApi: (deptType: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/deptRole/${deptType}`,
-  spvDeleteDepartmentApi: (deptId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/spv/${deptId}`,
-  spvDeptApi: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/spv/department`,
-  spvDeptByIdApi: (deptId: string, isUserInfoRequired: boolean) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/spv/department/${deptId}?allUsers=${isUserInfoRequired}`,
-  spvMyDeptApi: (isUserInfoRequired: boolean) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/spv/mydepartment?allUsers=${isUserInfoRequired}`,
-  spvUserRoleApi: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/spv/userrole`,
-  userRoleApi: (portalName: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/${portalName}/userrole`,
-  userRolesApi: (userId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/portal/${userId}/roles`,
-  userStatusCheckApi: `${CONSTANTS.SB_EXT_API_BASE_2}/portal/isUserActive`,
-}
 
 const unknownError = 'Failed due to unknown reason'
 const failedToProcess = 'Failed to process the request.'
@@ -339,7 +301,7 @@ portalApi.patch('/cbc/deptAction/userrole', async (req, res) => {
 // ------------------ Role APIs ----------------------
 portalApi.get('/deptRole', async (req, res) => {
   try {
-    const response = await axios.get(API_END_POINTS.roleApi, {
+    const response = await axios.get(API_END_POINTS.portalRoleApi, {
       ...axiosRequestConfig,
       headers: req.headers,
     })
@@ -474,7 +436,7 @@ export async function updateUserRole(portalName: string, req: any, res: any) {
 
 portalApi.get(departmentType, async (req, res) => {
   try {
-    const response = await axios.get(API_END_POINTS.deptType)
+    const response = await axios.get(API_END_POINTS.portalDeptType)
     res.status(response.status).send(response.data)
   } catch (err) {
     logError(failedToProcess + req.originalUrl + err)

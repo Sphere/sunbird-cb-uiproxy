@@ -1,17 +1,13 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const apiEndpoints = {
-  preferences: `${CONSTANTS.PREFERENCE_API_BASE}/v1/user`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export async function getUserPreference(userId: string, rootOrg: string) {
   try {
-    const response = await axios.get<JSON>(`${apiEndpoints.preferences}/${userId}/preferences`, {
+    const response = await axios.get<JSON>(`${API_END_POINTS.preferences}/${userId}/preferences`, {
       ...axiosRequestConfig,
       headers: { rootOrg },
     })
@@ -49,7 +45,7 @@ protectedPreference.put('/', async (req, res) => {
       return
     }
     const response = await axios.put(
-      `${apiEndpoints.preferences}/${userId}/preferences`,
+      `${API_END_POINTS.preferences}/${userId}/preferences`,
       req.body,
       { ...axiosRequestConfig, headers: { rootOrg } }
     )

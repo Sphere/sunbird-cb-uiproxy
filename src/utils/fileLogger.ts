@@ -2,7 +2,7 @@
 
 const fs          = require('fs')
 const fileFormat = () => {
-    let date    = new Date().toISOString().substr(0, 10)
+    let date    = new Date().toISOString().substring(0, 10)
     date        = date.replace(/:/g, '_')
     date        = date.replace(/-/g, '_')
     date        = date.replace(/T/g, '_')

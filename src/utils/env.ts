@@ -11,23 +11,17 @@ export const CONSTANTS = {
   AI_STUDIO_API_BASE: env.AI_STUDIO_API_BASE || `${KONG_API_BASE}/ai-studio`,
   ANALYTICS_TIMEOUT: env.ANALYTICS_TIMEOUT || 10000,
   APP_ANALYTICS: env.LA_HOST_PROXY || 'http://localhost:portNUmber',
-  APP_CONFIGURATIONS: env.APP_CONFIGURATIONS || '/app-config',
-  APP_LOGS: env.APP_LOGS || '/logs',
+  APP_SSO_CLIENT_ID: env.APP_SSO_CLIENT_ID || 'aastrika-sso-login',
   APP_SSO_KEYCLOAK_SECRET: env.APP_SSO_KEYCLOAK_SECRET,
   APP_VERSION_PATH: env.APP_VERSION_PATH || 'abc',
   ATTENDANCE_API_BASE: env.ATTENDANCE_API_BASE || env.SB_EXT_API_BASE_2,
   AUTHORING_BACKEND: env.SUNBIRD_BACKEND || 'http://localhost:3011',
-  BADGE_API_BASE: env.BADGE_API_BASE || env.SB_EXT_API_BASE_2,
   BNRC_MSG91_TEMPLATE_ID: env.BNRC_MSG91_TEMPLATE_ID || '',
-  BNRC_USER_CHANNEL: env.BNRC_USER_CHANNEL
-    || '',
   BNRC_USER_DEFAULT_PASSWORD: env.BNRC_USER_DEFAULT_PASSWORD || '',
-  BNRC_USER_ORGANISATION_ID: env.BNRC_USER_ORGANISATION_ID || '',
   NETWORK_HUB_SERVICE_BACKEND:
     env.NETWORK_HUB_SERVICE_BACKEND || 'http://localhost:3013',
 
   CASSANDRA_IP: env.CASSANDRA_IP || '',
-  CASSANDRA_KEYSPACE: env.CASSANDRA_KEYSPACE || 'bodhi',
   CASSANDRA_PASSWORD: env.CASSANDRA_PASSWORD || '',
   CASSANDRA_USERNAME: env.CASSANDRA_USERNAME || '',
   CERTIFICATE_DOWNLOAD_KEY: env.CERTIFICATE_DOWNLOAD_KEY,
@@ -37,10 +31,8 @@ export const CONSTANTS = {
   COMPETENCY_ROLES_DATA_PATH: env.COMPETENCY_ROLES_WISE_DATA_PATH || '',
   COMPETENCY_ROLES_MAPPING_PATH: env.COMPETENCY_ROLES_MAPPING_PATH || '',
   CONTENT_API_BASE: env.CONTENT_API_BASE || 'http://localhost:5903',
-  CONTENT_HIERARCHY: env.CONTENT_HIERARCHY || 'http://localhost:5903/hierarchy',
   CONTENT_META_FETCH_API_BASE:
     env.CONTENT_META_FETCH_API_BASE || 'http://localhost:5906',
-  CONTENT_STORE_DEVELOPMENT_BASE: '',
   CORS_ENVIRONMENT: env.CORS_ENVIRONMENT || 'prod',
   COUNTER: 'http://localhost:5903',
   DECRYPTION_API_BASE:
@@ -57,22 +49,18 @@ export const CONSTANTS = {
   GAMIFICATION_API_BASE:
     env.GAMIFICATION_API_BASE || 'http://localhost:port-number',
   GOALS_API_BASE: env.GOALS_API_BASE || env.SB_EXT_API_BASE_2,
-  HIERARCHY_API_BASE: env.HIERARCHY_API_BASE,
   HTTPS_HOST,
   IAP_BACKEND_AUTH: env.IAP_BACKEND_AUTH || '',
   IAP_CLIENT_SECRET: env.IAP_CLIENT_SECRET,
   IAP_CODE_API_BASE: env.IAP_CODE_API_BASE || '',
-  IAP_PROFILE_API_BASE: env.IAP_PROFILE_API_BASE || '',
   ILP_FP_PROXY: env.ILP_FP_PROXY || 'http://localhost:port',
   INTEREST_API_BASE: env.INTEREST_API_BASE || env.SB_EXT_API_BASE_2,
 
   IS_CASSANDRA_AUTH_ENABLED: Boolean(env.CASSANDRA_AUTH_ENABLED),
   IS_DEVELOPMENT: env.NODE_ENV === 'development',
-  JAVA_API_BASE: env.JAVA_API_BASE || 'http://localhost:5825',
   KB_TIMEOUT: env.KB_TIMEOUT || 60000,
   KEYCLOAK_ADMIN_PASSWORD: env.KEYCLOAK_ADMIN_PASSWORD || '',
   KEYCLOAK_ADMIN_USERNAME: env.KEYCLOAK_ADMIN_USERNAME || '',
-  KEYCLOAK_PUBLIC_KEY: env.KEYCLOAK_PUBLIC_KEY || '',
   // tslint:disable-next-line: object-literal-sort-keys
   KC_NEW_USER_DEFAULT_PWD: env.KC_NEW_USER_DEFAULT_PWD || 'User@123',
   KEYCLOAK_CLIENT_SECRET: env.client_secret,
@@ -83,8 +71,6 @@ export const CONSTANTS = {
   KEYCLOAK_REALM: env.KEYCLOAK_REALM || 'sunbird',
   KEYCLOAK_REDIRECT_URL: env.KEYCLOAK_REDIRECT_URL || 'https://requestbin.io/',
   KEYCLOAK_SESSION_TTL: 30 * 24 * 60 * 60 * 1000,
-  KHUB_CLIENT_SECRET: env.KHUB_CLIENT_SECRET || 'axc123',
-  KHUB_GRAPH_DATA: env.KHUB_GRAPH_DATA || 'http://localhost:3016',
   TNNMC_USER_DETAILS_URL: env.TNNMC_USER_DETAILS_URL || '',
   TNNMC_API_KEY: env.TNNMC_API_KEY || '',
   TNNMC_API_SECRET: env.TNNMC_API_SECRET || '',
@@ -99,7 +85,6 @@ export const CONSTANTS = {
   MSG91KEY: env.MSG91KEY || 'http://localhost:3301',
   MSG91TEMPLATEID: env.MSG91TEMPLATEID || 'http://localhost:3302',
   MSG_91_TEMPLATE_ID_SEND_OTP_SSO: env.MSG_91_TEMPLATE_ID_SEND_OTP_SSO || '',
-  MONGODB_URL: env.MONGODB_URL || 'mongodb://10.1.1.85:27017',
   // pilot demo add-on, see utils/pilotMockEntity.ts. Off unless set to 'true'
   PILOT_MOCK_ENTITY_ENABLED: env.PILOT_MOCK_ENTITY_ENABLED === 'true',
   PILOT_MOCK_ENTITY_URL:
@@ -112,21 +97,13 @@ export const CONSTANTS = {
     env.S3_BUCKET_URL || 'https://sunbirdcontent.s3-ap-south-1.amazonaws.com/',
   S3_DOMAIN: env.S3_DOMAIN,
   CDN_DOMAIN: env.CDN_DOMAIN,
-  LEADERBOARD_API_BASE: env.LEADERBOARD_API_BASE || env.SB_EXT_API_BASE_2,
   LEARNING_HISTORY_API_BASE:
     env.LEARNING_HISTORY_API_BASE || env.SB_SEXT_API_BASE_3,
   LEARNING_HUB_API_BASE: env.LEARNING_HUB_API_BASE || env.SB_EXT_API_BASE_2,
   LIKE_API_BASE: env.LIKE_API_BASE || env.SB_EXT_API_BASE_2,
   MULTI_TENANT_KEYCLOAK:
     env.MULTI_TENANT_KEYCLOAK || 'igot,https://igot-dev.in/auth,sunbird',
-  NAVIGATOR_JSON_HOST:
-    env.NAVIGATOR_JSON_HOST ||
-    'http://localhost:3007/web-hosted/navigator/json',
   NODE_API_BASE: env.NODE_API_BASE || 'http://localhost:5001',
-  NODE_API_BASE_2: env.NODE_API_BASE_2 || 'http://localhost:3009',
-  NODE_API_BASE_2_CLIENT_ID: env.NODE_API_BASE_2_CLIENT_ID || 'admin',
-  NODE_API_BASE_2_CLIENT_SECRET:
-    env.NODE_API_BASE_2_CLIENT_SECRET || 'MdiDn@342$',
   NODE_API_BASE_3: env.NODE_API_BASE_3 || 'http://localhost:3015',
   NOTIFICATIONS_API_BASE: env.NOTIFICATIONS_API_BASE || 'http://localhost:5805',
   NOTIFICATION_ENGINE_API_BASE: env.NOTIFICATION_ENGINE_API_BASE || 'http://localhost:3013',
@@ -140,8 +117,6 @@ export const CONSTANTS = {
   DISCUSSION_HUB_WRITE_API_KEY:
     env.DISCUSSION_HUB_WRITE_API_KEY || '5aaf0ac3-c7ad-4e06-bc1b-5311d462cef3',
   DISCUSSION_HUB_WRITE_API_UID: env.DISCUSSION_HUB_WRITE_API_UID || 1,
-  OPEN_SABER_USER_REGISTRY_BASE:
-    env.OPEN_SABER_USER_REGISTRY_BASE || 'http://localhost:8005',
   MATERNITY_FOUNDATION_USER_DETAILS_URL:
     env.MATERNITY_FOUNDATION_USER_DETAILS_URL,
   MATERNITY_FOUNDATION_ACCESS_KEY: env.MATERNITY_FOUNDATION_ACCESS_KEY,
@@ -156,10 +131,15 @@ export const CONSTANTS = {
   MNC_REPORT_S3_SECRET_ACCESS_KEY: env.MNC_REPORT_S3_SECRET_ACCESS_KEY,
 
   RC_MAPPER_HOST: env.RC_MAPPER_HOST,
-  PID_API_BASE: env.PID_API_BASE || 'http://localhost:3304',
+  // Sunbird RC registry, read directly for public certificate verification (same base the
+  // certificate generator uses). Cluster-internal; never exposed to the browser.
+  SUNBIRD_RC_REGISTRY_BASE: env.SUNBIRD_RC_REGISTRY_BASE || 'http://registry-service:8081/api/v1',
+  CERT_EMAIL_ENABLED: env.CERT_EMAIL_ENABLED || 'false',
+  CERT_EMAIL_TEMPLATE_URL: env.CERT_EMAIL_TEMPLATE_URL
+    || 'https://aastar-assets.s3.ap-south-1.amazonaws.com/rc-mdo-templates/certificate-email.html',
   PORTAL_API_WHITELIST_CHECK: env.PORTAL_API_WHITELIST_CHECK || 'false',
   POSTGRES_USER: env.POSTGRES_USER,
-  POSTGRES_HOST: env.POSTGRES_HOST,
+  POSTGRES_HOST: env.POSTGRES_HOST || 'http://localhost:5433',
   POSTGRES_DATABASE: env.POSTGRES_DATABASE,
   POSTGRES_PASSWORD: env.POSTGRES_PASSWORD,
   POSTGRES_PORT: env.POSTGRES_PORT,
@@ -168,7 +148,6 @@ export const CONSTANTS = {
   DATA_LAKE_POSTGRES_DATABASE: env.DATA_LAKE_POSTGRES_DATABASE,
   DATA_LAKE_POSTGRES_PASSWORD: env.DATA_LAKE_POSTGRES_PASSWORD,
   DATA_LAKE_POSTGRES_PORT: env.DATA_LAKE_POSTGRES_PORT,
-  PORTAL_REALM: env.PORTAL_REALM || 'sunbird',
   PLAYLISTV1_API_BASE: env.PLAYLISTV1_API_BASE || env.SBEXT_API_BASE_2,
   PLAYLIST_API_BASE: env.PLAYLIST_API_BASE || env.SBEXT_API_BASE,
   // tslint:disable-next-line:ban
@@ -187,7 +166,6 @@ export const CONSTANTS = {
   SASHAKT_USER_DETAILS_URL: env.SASHAKT_USER_DETAILS_URL,
   SB_EXT_API_BASE: env.SBEXT_API_BASE || 'http://localhost:5902',
   SB_EXT_API_BASE_2: env.SBEXT_API_BASE_2 || 'http://localhost:7001',
-  // SB_EXT_API_BASE_2: env.SB_EXT_API_BASE_2,
   SB_EXT_API_BASE_3:
     env.SBEXT_API_BASE_3 || env.SBEXT_API_BASE_2 || 'http://localhost:7002',
   SB_EXT_API_BASE_4:
@@ -195,14 +173,18 @@ export const CONSTANTS = {
     env.SBEXT_API_BASE_2 ||
     env.SB_EXT_BASE_4 ||
     'http://localhost:7002',
-  // SB_EXT_API_BASE_4: env.SB_EXT_API_BASE_4,
 
   SCORM_PLAYER_BASE: env.SCORM_PLAYER_BASE || 'http://localhost:port',
   SEARCH_API_BASE: env.SEARCH_API_BASE || env.SBEXT_API_BASE,
-  SELF_SERVICE_PORTAL_AUTH_KEY: env.SELF_SERVICE_PORTAL_AUTH_KEY || 'aqwrs',
   SELF_SERVICE_PORTAL_API_BASE: env.SELF_SERVICE_PORTAL_API_BASE || '',
   SOCIAL_TIMEOUT: env.SOCIAL_TIMEOUT || 10000,
   STATIC_ILP_PROXY: env.STATIC_ILP_PROXY || 'http://localhost:3005',
+  // Sunbird ED created the course batch automatically after publish, via the
+  // post-publish-processor Flink job, so forwarding an explicit batch/create
+  // would have produced a duplicate. Set this to 'true' on deployments that run
+  // that job. Sunbird Spark does not ship it, so the explicit call is the only
+  // way a batch gets created there and the request must be forwarded.
+  STUB_BATCH_CREATE: env.STUB_BATCH_CREATE === 'true',
   SUBMISSION_API_BASE: env.SUBMISSION_API_BASE || env.SB_EXT_API_BASE_2,
   TNAI_ACCESS_KEY: env.TNAI_ACCESS_KEY || '',
   TNAI_USER_DETAILS_URL: env.TNAI_USER_DETAILS_URL || '',
@@ -223,7 +205,6 @@ export const CONSTANTS = {
   USER_CREATE_USERNAME: env.USER_CREATE_USERNAME || 'ui-client',
   USER_DETAILS_API_BASE: env.USER_DETAILS_API_BASE || env.SB_EXT_API_BASE_2,
   USER_PROFILE_API_BASE: env.USER_PROFILE_API_BASE || 'http://localhost:3004',
-  USER_SUNBIRD_DETAILS_API_BASE: 'https://igot-sunbird.idc.tarento.com',
   USER_BULK_UPLOAD_DIR: env.USER_BULK_UPLOAD_DIR,
   USE_SERVING_HOST_COUNTER: env.USE_SERVING_HOST_COUNTER,
   VIEWER_PLUGIN_RDBMS_API_BASE:
@@ -232,13 +213,12 @@ export const CONSTANTS = {
 
   COHORTS_API_BASE: env.COHORTS_API_BASE || env.SB_EXT_API_BASE_2,
   RECOMMENDATION_API_BASE_V2:
-    env.RECOMMENDATION_API_BASE_V2 || 'http://localhost:8086',
+    env.RECOMMENDATION_API_BASE_V2 || 'http://192.168.0.147:7011',
+  COMMON_SERVICE_API_BASE: env.COMMON_SERVICE_API_BASE || 'http://localhost:7011',
   FORM_API_BASE: env.FORM_API_BASE || 'http://localhost:3004',
-  CONTENT_SOURCE_API_BASE: env.CONTENT_SOURCE_API_BASE || env.SB_EXT_API_BASE_2,
   CONTINUE_LEARNING_API_BASE:
     env.CONTINUE_LEARNING_API_BASE || env.SB_EXT_API_BASE_2,
   FRAC_API_BASE: env.FRAC_API_BASE || 'https://igot-frac-dev.tarento.com',
-  NETWORK_SERVICE_BACKEND: env.NETWOR_SERVICE_API_BASE || 'http:localhost:7001',
   CONTENT_VALIDATION_API_BASE:
     env.CONTENT_VALIDATION_API_BASE || 'http://localhost:6590',
   PROFANITY_SERVICE_API_BASE:
@@ -280,18 +260,14 @@ export const CONSTANTS = {
   CONTENT_SERVICE_API_BASE:
     env.CONTENT_SERVICE_API_BASE || 'http://content-service:9000',
   VM_LEARNING_SERVICE_URL: env.VM_LEARNING_SERVICE_URL,
-  // tslint:disable-next-line: max-line-length
-  CERT_AUTH_TOKEN: '',
   GOOGLE_CLIENT_ID: env.google_client_id || '',
   BULK_USER: env.BULK_USER || 'Sunbird@123',
   USER_REPORTING_SERVICE: env.USER_REPORTING_SERVICE,
   PORTAL_CASSANDRA_CONSISTENCY_LEVEL: env.PORTAL_CASSANDRA_CONSISTENCY_LEVEL || 'one',
   CASSANDRA_REPLICATION_FORM: env.CASSANDRA_REPLICATION_FORM || 3,
-  PORTAL_AUTH_SERVER_URL: env.PORTAL_AUTH_SERVER_URL || 'https://sphere.aastrika.org/auth',
   FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID || '',
   FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY ? env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : '',
   FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL || '',
-  FIREBASE_CLIENT_ID: env.FIREBASE_CLIENT_ID || '',
 }
 
 export const RESTRICTED_PYTHON_STMT: string[] = process.env

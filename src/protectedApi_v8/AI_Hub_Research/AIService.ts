@@ -5,13 +5,8 @@ import FormData from 'form-data'
 import { axiosRequestConfig } from '../../configs/request.config'
 import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
+import { API_END_POINTS } from '../apiConstants'
 
-const API_END_POINTS = {
-    bhashiniIntefrancePipeline: `${CONSTANTS.DHURVA_BHASHINI_API_BASE}/services/inference/pipeline`,
-    generateUUID: `${CONSTANTS.JUGALBANDI_API_BASE}/upload-files`,
-    getModelsPipeline: `${CONSTANTS.MEITY_AUTH_ULCACONTRIB}/ulca/apis/v0/model/getModelsPipeline`,
-    querywWithLangchainGpt: `${CONSTANTS.JUGALBANDI_API_BASE}/query-with-langchain-gpt3-5`,
-}
 export const aiServiceAPI = Router()
 aiServiceAPI.post('/uploadFileAndGetUUID', async (req, res) => {
     try {

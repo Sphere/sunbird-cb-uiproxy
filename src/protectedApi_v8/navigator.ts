@@ -4,24 +4,9 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { IFsData, IGroup, ILpData, INsoData, IOfferings, IProfile, IRole, IVariant } from '../models/navigator.model'
 import { filterOnTopics, findRoleVariant, transformNsoData } from '../service/navigator'
 import { appendProxiesUrl } from '../utils/contentHelpers'
-import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
-
-const NAVIGATOR_BASE_API = `${CONSTANTS.WEB_HOST_PROXY}/web-hosted/navigator/json`
-const API_END_POINTS = {
-  accountsData: `${NAVIGATOR_BASE_API}/accounts_data.json`,
-  bpmData: `${NAVIGATOR_BASE_API}/bpm_data.json`,
-  commonGoalsData: `${NAVIGATOR_BASE_API}/common_goal_mapping.json`,
-  commonsData: `${NAVIGATOR_BASE_API}/commonsdata.json`,
-  deliveryPartnerData: `${NAVIGATOR_BASE_API}/dpn_data.json`,
-  dmData: `${NAVIGATOR_BASE_API}/dmdata.json`,
-  fullStackData: `${NAVIGATOR_BASE_API}/fsdata.json`,
-  industriesData: `${NAVIGATOR_BASE_API}/industries_data.json`,
-  learningPathData: `${NAVIGATOR_BASE_API}/data.json`,
-  nsoData: `${NAVIGATOR_BASE_API}/nsodata.json`,
-  subDomainsData: `${NAVIGATOR_BASE_API}/industries_subdomain.json`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const navigatorApi = Router()
 

@@ -5,24 +5,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-  acceptAnswer: `${CONSTANTS.NODE_API_BASE}/useractivity/acceptAnswer`,
-  activityUpdate: `${CONSTANTS.NODE_API_BASE}/useractivity/create`,
-  activityUsers: `${CONSTANTS.NODE_API_BASE}/post/users`,
-  authoringCatalog: `${CONSTANTS.NODE_API_BASE}/catalog/fetch`,
-  autocomplete: `${CONSTANTS.NODE_API_BASE}/post/autocomplete`,
-  deletePost: `${CONSTANTS.NODE_API_BASE}/authtool/deletepost`,
-  draftPost: `${CONSTANTS.NODE_API_BASE}/authtool/draftpost`,
-  editMeta: `${CONSTANTS.NODE_API_BASE}/authtool/editmeta`,
-  editTags: `${CONSTANTS.NODE_API_BASE}/authtool/edittags`,
-  publishPost: `${CONSTANTS.NODE_API_BASE}/authtool/publishpost`,
-  searchSocial: `${CONSTANTS.NODE_API_BASE}/search/searchv1`,
-  timeline: `${CONSTANTS.NODE_API_BASE}/post/timeline`,
-  timelineV2: `${CONSTANTS.NODE_API_BASE}/post/timelinev2`,
-  viewConversation: `${CONSTANTS.NODE_API_BASE}/post/viewConversation`,
-  viewConversationV2: `${CONSTANTS.NODE_API_BASE}/post/viewConversationv2`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
@@ -43,7 +26,7 @@ socialApi.post('/post/publish', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.publishPost, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialPublishPost, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -67,7 +50,7 @@ socialApi.post('/post/draft', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.draftPost, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialDraftPost, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -91,7 +74,7 @@ socialApi.put('/edit/tags', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.put(API_END_POINTS.editTags, data, axiosRequestConfig)
+    const response = await axios.put(API_END_POINTS.socialEditTags, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -114,7 +97,7 @@ socialApi.put('/edit/meta', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.put(API_END_POINTS.editMeta, data, axiosRequestConfig)
+    const response = await axios.put(API_END_POINTS.socialEditMeta, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     logError('EDIT META ERROR >', err)
@@ -143,7 +126,7 @@ socialApi.post('/post/delete', async (req, res) => {
       ...axiosRequestConfig,
       data,
       method: 'DELETE',
-      url: API_END_POINTS.deletePost,
+      url: API_END_POINTS.socialDeletePost,
     })
     res.status(response.status).send(response.data)
   } catch (err) {
@@ -169,7 +152,7 @@ socialApi.post('/post/autocomplete', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.autocomplete, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialPostAutocomplete, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -193,7 +176,7 @@ socialApi.post('/post/viewConversation', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.viewConversation, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialViewConversation, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -217,7 +200,7 @@ socialApi.post('/post/viewConversationV2', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.viewConversationV2, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialViewConversationV2, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -241,7 +224,7 @@ socialApi.post('/post/timeline', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.timeline, data, {
+    const response = await axios.post(API_END_POINTS.socialTimeline, data, {
       ...axiosRequestConfig,
       timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
     })
@@ -270,7 +253,7 @@ socialApi.post('/post/timelineV2', async (req, res) => {
       rootOrg,
       userId,
     }
-    const response = await axios.post(API_END_POINTS.timelineV2, data, {
+    const response = await axios.post(API_END_POINTS.socialTimelineV2, data, {
       ...axiosRequestConfig,
       timeout: Number(CONSTANTS.SOCIAL_TIMEOUT),
     })
@@ -297,7 +280,7 @@ socialApi.post('/post/activity/create', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.activityUpdate, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialActivityUpdate, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -321,7 +304,7 @@ socialApi.post('/post/acceptAnswer', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.acceptAnswer, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialAcceptAnswer, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -345,7 +328,7 @@ socialApi.post('/post/activity/users', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.activityUsers, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialActivityUsers, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -369,7 +352,7 @@ socialApi.post('/post/search', async (req, res) => {
       org,
       rootOrg,
     }
-    const response = await axios.post(API_END_POINTS.searchSocial, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialSearch, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(
@@ -396,7 +379,7 @@ socialApi.post('/catalog', async (req, res) => {
       rootOrg,
       userid: userId,
     }
-    const response = await axios.post(API_END_POINTS.authoringCatalog, data, axiosRequestConfig)
+    const response = await axios.post(API_END_POINTS.socialAuthoringCatalog, data, axiosRequestConfig)
     res.status(response.status).send(response.data)
   } catch (err) {
     res.status((err && err.response && err.response.status) || 500).send(

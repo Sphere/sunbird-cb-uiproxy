@@ -6,21 +6,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserToken } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-    applicationTransition: `${CONSTANTS.KONG_API_BASE}/workflow/transition`,
-    applicationsSearch: `${CONSTANTS.KONG_API_BASE}/workflow/applications/search`,
-    historyBasedOnApplicationId: (applicationId: string) =>
-        `${CONSTANTS.WORKFLOW_HANDLER_SERVICE_API_BASE}/v1/workflow/${applicationId}/history`,
-    historyBasedOnWfId: (workflowId: string, applicationId: string) =>
-        `${CONSTANTS.WORKFLOW_HANDLER_SERVICE_API_BASE}/v1/workflow/${workflowId}/${applicationId}/history`,
-    nextActionSearch: (serviceName: string, state: string) =>
-        `${CONSTANTS.KONG_API_BASE}/workflow/nextAction/${serviceName}/${state}`,
-    userProfileUpdate: `${CONSTANTS.KONG_API_BASE}/workflow/updateUserProfileWF`,
-    userWfFieldsSearch: `${CONSTANTS.KONG_API_BASE}/workflow/getUserWFApplicationFields`,
-    userWfSearch: `${CONSTANTS.KONG_API_BASE}/workflow/getUserWF`,
-    workflowProcess: (wfId: string) => `${CONSTANTS.KONG_API_BASE}/workflow/workflowProcess/${wfId}`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const workflowHandlerApi = Router()
 const unknownError = 'Failed due to unknown reason'
@@ -205,7 +191,7 @@ workflowHandlerApi.post('/updateUserProfileWf', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.userProfileUpdate,
+            API_END_POINTS.workflowUserProfileUpdate,
             req.body,
             {
                 ...axiosRequestConfig,

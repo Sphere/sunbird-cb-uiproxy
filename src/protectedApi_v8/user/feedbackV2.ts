@@ -7,17 +7,13 @@ import {
   IFeedbackSearchQuery,
   IFeedbackSubmit,
 } from '../../models/feedback.model'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 export const feedbackV2Api = Router()
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
-
-const apiEndpoints = {
-  feedback: `${CONSTANTS.FEEDBACK_API_BASE}/v1`,
-}
 
 // Middleware function for content request and service request submission
 const sendSentimentNeutralFeedback = async (req: Request, res: Response) => {
@@ -45,7 +41,7 @@ const sendSentimentNeutralFeedback = async (req: Request, res: Response) => {
       body.category = feedback.category
     }
 
-    const response = await axios.post(`${apiEndpoints.feedback}/feedback/submit`, body, {
+    const response = await axios.post(`${API_END_POINTS.feedback_v1}/feedback/submit`, body, {
       ...axiosRequestConfig,
       headers: { rootOrg },
       params: { role: feedback.role },
@@ -87,7 +83,7 @@ feedbackV2Api.post('/platform', async (req: Request, res: Response) => {
       body.category = feedback.category
     }
 
-    const response = await axios.post(`${apiEndpoints.feedback}/feedback/submit`, body, {
+    const response = await axios.post(`${API_END_POINTS.feedback_v1}/feedback/submit`, body, {
       ...axiosRequestConfig,
       headers: { rootOrg },
       params: { role: feedback.role },
@@ -130,7 +126,7 @@ feedbackV2Api.post('/content/:contentId', async (req: Request, res: Response) =>
     }
 
     const response = await axios
-      .post(`${apiEndpoints.feedback}/feedback/submit`, body, {
+      .post(`${API_END_POINTS.feedback_v1}/feedback/submit`, body, {
         ...axiosRequestConfig,
         headers: { rootOrg },
         params: { role: feedback.role },
@@ -164,7 +160,7 @@ feedbackV2Api.get('/feedback-summary', async (req: Request, res: Response) => {
     const uuid = extractUserIdFromRequest(req)
 
     const feedbackSummary = await axios
-      .get(`${apiEndpoints.feedback}/users/${uuid}/feedback-summary`, {
+      .get(`${API_END_POINTS.feedback_v1}/users/${uuid}/feedback-summary`, {
         headers: { rootOrg },
       })
       .then((response) => response.data)
@@ -201,7 +197,7 @@ feedbackV2Api.post('/search', async (req: Request, res: Response) => {
     }
 
     const searchResults = await axios
-      .post(`${apiEndpoints.feedback}/feedback/search`, body, {
+      .post(`${API_END_POINTS.feedback_v1}/feedback/search`, body, {
         headers: { rootOrg },
       })
       .then((response) => response.data)
@@ -228,7 +224,7 @@ feedbackV2Api.get('/:feedbackId', async (req: Request, res: Response) => {
     const uuid = extractUserIdFromRequest(req)
 
     const feedbackThread = await axios
-      .get(`${apiEndpoints.feedback}/feedback/${feedbackId}?user_Id=${uuid}`, {
+      .get(`${API_END_POINTS.feedback_v1}/feedback/${feedbackId}?user_Id=${uuid}`, {
         headers: { rootOrg },
       })
       .then((response) => response.data)
@@ -257,7 +253,7 @@ feedbackV2Api.patch('/:feedbackId', async (req: Request, res: Response) => {
     const uuid = extractUserIdFromRequest(req)
 
     const response = await axios
-      .patch(`${apiEndpoints.feedback}/users/${uuid}/feedback/${feedbackId}`, req.body, {
+      .patch(`${API_END_POINTS.feedback_v1}/users/${uuid}/feedback/${feedbackId}`, req.body, {
         headers: { rootOrg },
         params: { category },
       })
@@ -282,7 +278,7 @@ feedbackV2Api.get('/categories', async (req: Request, res: Response) => {
     }
 
     const feedbackConfig = await axios
-      .get(`${apiEndpoints.feedback}/config`, {
+      .get(`${API_END_POINTS.feedback_v1}/config`, {
         headers: { rootOrg },
       })
       .then((response) => response.data)

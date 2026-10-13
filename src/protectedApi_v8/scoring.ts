@@ -5,16 +5,7 @@ import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractUserToken } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-    calculateScoreEndPoint: `${CONSTANTS.KONG_API_BASE}/scoring/v1/add`,
-    createComment: `${CONSTANTS.SCORING_SERVICE_API_BASE}/api/comments/create`,
-    fetchScore: `${CONSTANTS.KONG_API_BASE}/scoring/v1/fetch`,
-    fetchTemplate: (templateId: string) => `${CONSTANTS.KONG_API_BASE}/scoring/v1/getTemplate/${templateId}`,
-    getAllComments: `${CONSTANTS.SCORING_SERVICE_API_BASE}/api/comments/getall`,
-    getCommentsByCourse: `${CONSTANTS.SCORING_SERVICE_API_BASE}/api/comments/course`,
-    updateComment: `${CONSTANTS.SCORING_SERVICE_API_BASE}/api/comments/update`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const scoringApi = Router()
 

@@ -3,13 +3,11 @@ import { Router } from 'express'
 import { CONSTANTS } from '../../utils/env'
 import { logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest, extractUserToken } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 
 export const rcCert = Router()
 const contentTypeHeader = { 'Content-Type': 'application/json' }
-const API_END_POINTS = {
-    rcMapperHost: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/getUserCertificateDetails`,
-    userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
-}
+
 rcCert.get('/user/enrollment/list/adhocCertificates', async (req, res) => {
     try {
         /* tslint:disable-next-line */

@@ -318,6 +318,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/discussion/user/uid/:username': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/proxies/v8/action/content/v3/hierarchyUpdate': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -428,6 +433,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/org/v1/status/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/proxies/v8/user/v1/block': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -524,11 +534,6 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.MDO_ADMIN],
     },
     '/proxies/v8/user/v1/migrate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/private/v1/migrate': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1096,11 +1101,6 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.PUBLIC],
     },
     '/protected/v8/learnerPath': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/protected/v8/learnerPathV2': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1794,6 +1794,7 @@ export const API_LIST = {
     '/proxies/v8/data/v1/system/settings/get/orgTypeList',
     '/proxies/v8/org/v1/search',
     '/proxies/v8/org/v1/update',
+    '/proxies/v8/org/v1/status/update',
     '/proxies/v8/discussion/topic/:id/:slug',
     '/proxies/v8/discussion/topic/:tid/:tid/:slug',
     '/proxies/v8/discussion/v2/posts/:id/vote',
@@ -1812,6 +1813,7 @@ export const API_LIST = {
     '/proxies/v8/discussion/forum/tags',
     '/proxies/v8/action/content/v3/update/:do_id',
     '/proxies/v8/discussion/user/:id',
+    '/proxies/v8/discussion/user/uid/:username',
     '/proxies/v8/action/content/v3/create',
     '/proxies/v8/upload/action/content/v3/upload/:do_id',
     '/proxies/v8/getContent',
@@ -1848,7 +1850,6 @@ export const API_LIST = {
     '/proxies/v8/userData/v1/bulkupload/:id',
     '/proxies/v8/userData/v1/bulkupload',
     '/proxies/v8/user/v1/migrate',
-    '/proxies/v8/user/private/v1/migrate',
     '/proxies/v8/user/private/v1/assign/role/userrole',
     '/proxies/v8/learner/course/v1/enrol',
     '/proxies/v8/learnervm/private/content/v3/retire/',
@@ -1970,7 +1971,6 @@ export const API_LIST = {
     '/protected/v8/updateProgressv2/update',
     '/protected/v8/updateProgressv3/update',
     '/protected/v8/learnerPath',
-    '/protected/v8/learnerPathV2',
     '/protected/v8/report/mnc-attendance',
     '/protected/v8/report/mnc-attendance/meta',
     '/protected/v8/frac/addDataNodeBulk',

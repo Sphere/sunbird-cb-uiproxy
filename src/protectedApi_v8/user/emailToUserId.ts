@@ -1,11 +1,7 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
-
-const API_END_POINTS = {
-  emailToUserId: CONSTANTS.SB_EXT_API_BASE + '/v1/user/finduuid?userEmail=',
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export async function getUserId(userEmail: string) {
   const url = `${API_END_POINTS.emailToUserId}${userEmail}`

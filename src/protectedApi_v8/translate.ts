@@ -1,11 +1,7 @@
 import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
-
-const API_END_POINTS = {
-    filterTranslate: `${CONSTANTS.SB_EXT_API_BASE_2}/filters`,
-}
+import { API_END_POINTS } from './apiConstants'
 export const translateApi = Router()
 
 translateApi.get('/filterdata/:lang', async (req: Request, res: Response) => {

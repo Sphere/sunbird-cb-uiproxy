@@ -7,8 +7,8 @@ import { extractUserIdFromRequest, extractUserToken } from '../utils/requestExtr
 export const learnerPathApi = Router()
 
 const API_END_POINTS = {
-  GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
-  UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
+  GET_LEARNER_PATH: `${CONSTANTS.SB_EXT_API_BASE_2}/learnerpath`,
+  UPDATE_LEARNER_PATH: `${CONSTANTS.SB_EXT_API_BASE_2}/learnerpath`,
 }
 
 learnerPathApi.post('/', async (req, res) => {
