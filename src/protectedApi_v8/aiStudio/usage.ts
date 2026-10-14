@@ -43,6 +43,7 @@ usageApi.post('/get-report', async (req: Request, res: Response) => {
     const context = 'usage/get-report'
     try {
         const response = await axios.post(API_END_POINTS.usageReport, req.body || {}, {
+            params: req.query,
             headers: jsonHeaders(req),
             timeout: TIMEOUTS.READ,
         })

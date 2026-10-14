@@ -179,6 +179,29 @@ describe("AI Studio proxy", function () {
       assert.ok(/document/.test(lastHit().body), "kind must be forwarded");
     });
 
+    it("forwards every field of an upload sent in pieces, so a big file is joined, not cut", async function () {
+      const res = await api()
+        .post(BASE + "/studio/upload")
+        .field("kind", "document")
+        .field("chunkUpload", "1b4e28ba-2fa1-11d2-883f-0016d3cca427")
+        .field("chunkIndex", "0")
+        .field("chunkCount", "2")
+        .field("totalSize", "6000000")
+        .field("filename", "book.pdf")
+        .attach("file", Buffer.from("first piece"), "book.pdf");
+
+      assert.strictEqual(res.status, 200);
+      ["chunkUpload", "chunkIndex", "chunkCount", "totalSize", "filename"].forEach((field) =>
+        assert.ok(lastHit().body.includes(`name="${field}"`), field + " must be forwarded"));
+    });
+
+    it("forwards a link upload's url", async function () {
+      await api().post(BASE + "/studio/upload").field("kind", "link").field("url", "https://example.org/guide.pdf");
+
+      assert.ok(/name="url"/.test(lastHit().body), "url must be forwarded");
+      assert.ok(/example\.org\/guide\.pdf/.test(lastHit().body), "the link itself must arrive");
+    });
+
     it("carries the gateway key and the user token, as every Kong caller here does", async function () {
       await api().get(BASE + "/studio/list-voices");
 

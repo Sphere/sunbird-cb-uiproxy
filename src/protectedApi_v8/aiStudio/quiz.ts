@@ -68,13 +68,15 @@ quizApi.post('/upload', async (req: Request, res: Response) => {
 
         const formData = new FormData()
         files.forEach((file) => appendFile(formData, 'files', file))
+        // Every text field the page sent (language, links, and any added later) goes
+        // upstream unchanged, so a new field can never go missing here only.
         const fields = req.body || {}
-        appendField(formData, 'language', fields.language)
-        appendField(formData, 'links', fields.links)
+        Object.keys(fields).forEach((field) => appendField(formData, field, fields[field]))
 
         logInfo(`AI Studio ${context} initiated with ${files.length} file(s)`)
 
         const response = await axios.post(API_END_POINTS.quizUpload, formData, {
+            params: req.query,
             headers: multipartHeaders(req, formData),
             maxContentLength: Infinity,
             timeout: TIMEOUTS.UPLOAD,
@@ -118,6 +120,7 @@ quizApi.post('/generate', async (req: Request, res: Response) => {
     const context = 'quiz/generate'
     try {
         const response = await axios.post(API_END_POINTS.quizGenerate, req.body, {
+            params: req.query,
             headers: jsonHeaders(req),
             timeout: TIMEOUTS.GENERATION,
         })
@@ -178,6 +181,7 @@ quizApi.patch('/update/:quizJobId', async (req: Request, res: Response) => {
             API_END_POINTS.quizUpdate(req.params.quizJobId),
             req.body,
             {
+                params: req.query,
                 headers: jsonHeaders(req),
                 timeout: TIMEOUTS.READ,
             }
@@ -213,6 +217,7 @@ quizApi.delete('/delete/:quizJobId', async (req: Request, res: Response) => {
     try {
         const quizJobId = req.params.quizJobId
         const response = await axios.delete(API_END_POINTS.quizDelete(quizJobId), {
+            params: req.query,
             headers: jsonHeaders(req),
             timeout: TIMEOUTS.READ,
         })

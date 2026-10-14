@@ -44,11 +44,14 @@ artifactsApi.post('/upload', async (req: Request, res: Response) => {
 
         const formData = new FormData()
         files.forEach((file) => appendFile(formData, 'file', file))
-        appendField(formData, 'contentId', (req.body || {}).contentId)
+        // Every text field the page sent (contentId, and any added later) goes upstream unchanged.
+        const fields = req.body || {}
+        Object.keys(fields).forEach((field) => appendField(formData, field, fields[field]))
 
         logInfo(`AI Studio ${context} initiated with ${files.length} file(s)`)
 
         const response = await axios.post(API_END_POINTS.artifactUpload, formData, {
+            params: req.query,
             headers: multipartHeaders(req, formData),
             maxContentLength: Infinity,
             timeout: TIMEOUTS.UPLOAD,
@@ -87,6 +90,7 @@ artifactsApi.delete('/:contentId/:filename', async (req: Request, res: Response)
     try {
         const { contentId, filename } = req.params
         const response = await axios.delete(API_END_POINTS.artifactObject(contentId, filename), {
+            params: req.query,
             headers: jsonHeaders(req),
             timeout: TIMEOUTS.READ,
         })

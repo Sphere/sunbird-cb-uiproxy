@@ -33,8 +33,8 @@ export const studioApi = Router()
  *
  * Multipart body:
  *   file — PDF, DOCX, TXT, MD, SRT, an image, or a video (MP4/MOV/WEBM)
- *   kind — `document` | `image` | `reference-video`; selects the handling. Forwarded only
- *          when sent: the default is the AI service's to choose, not this proxy's.
+ *   kind — `document` | `image` | `reference-video`; selects the handling. Forwarded, like
+ *          every other text field (a large file arrives in pieces), only when sent.
  *
  * A document comes back parsed to text with its PDF pages rendered as slide images. A video
  * sent as `kind=document` comes back split into segments with a transcript, which is what
@@ -49,12 +49,18 @@ studioApi.post('/upload', async (req: Request, res: Response) => {
         const files = filesFromField(req, 'file')
 
         const formData = new FormData()
-        appendField(formData, 'kind', (req.body || {}).kind)
+        // Every text field the page sent goes upstream unchanged: `kind`, and for a file
+        // sent in pieces, which piece it is (chunkUpload, chunkIndex, chunkCount, totalSize,
+        // filename, async). Forwarding only `kind` made the service read the first 5 MB
+        // piece of a bigger PDF as the whole file ("Invalid PDF structure").
+        const body = req.body || {}
+        Object.keys(body).forEach((field) => appendField(formData, field, body[field]))
         files.forEach((file) => appendFile(formData, 'file', file))
 
         logInfo(`AI Studio ${context} initiated with ${files.length} file(s)`)
 
         const response = await axios.post(API_END_POINTS.studioUpload, formData, {
+            params: req.query,
             headers: multipartHeaders(req, formData),
             maxContentLength: Infinity,
             timeout: TIMEOUTS.UPLOAD,
@@ -121,6 +127,7 @@ studioApi.post('/generate-plan', async (req: Request, res: Response) => {
     const context = 'studio/generate-plan'
     try {
         const response = await axios.post(API_END_POINTS.studioGeneratePlan, req.body, {
+            params: req.query,
             headers: jsonHeaders(req),
             timeout: TIMEOUTS.GENERATION,
         })
@@ -152,6 +159,7 @@ studioApi.patch('/revise-plan/:jobId', async (req: Request, res: Response) => {
             API_END_POINTS.studioRevisePlan(req.params.jobId),
             req.body,
             {
+                params: req.query,
                 headers: jsonHeaders(req),
                 timeout: TIMEOUTS.GENERATION,
             }
@@ -184,6 +192,7 @@ studioApi.post('/generate-video/:jobId', async (req: Request, res: Response) => 
             API_END_POINTS.studioGenerateVideo(jobId),
             req.body,
             {
+                params: req.query,
                 headers: jsonHeaders(req),
                 timeout: TIMEOUTS.READ,
             }
@@ -270,6 +279,7 @@ studioApi.delete('/delete-video/:jobId', async (req: Request, res: Response) => 
     try {
         const jobId = req.params.jobId
         const response = await axios.delete(API_END_POINTS.studioDeleteVideo(jobId), {
+            params: req.query,
             headers: jsonHeaders(req),
             timeout: TIMEOUTS.READ,
         })
