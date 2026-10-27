@@ -11,6 +11,7 @@ import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import nodeHtmlToImage from 'node-html-to-image'
+import { Pool } from 'pg'
 import request from 'request'
 import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { axiosRequestConfig } from '../configs/request.config'
@@ -18,9 +19,9 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
-import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
 import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { requestValidator } from '../utils/requestValidator'
+import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
 import { adaptCourseHierarchyResponse } from './adapters/courseHierarchyAdapter'
 import {
   adaptUserReadResponse,
@@ -29,7 +30,6 @@ import {
   isUserSearchRequest,
 } from './adapters/userReadAdapter'
 import { API_END_POINTS } from './apiConstants'
-import { Pool } from 'pg'
 import { searchContent, searchContentV2 } from './contentSearchService'
 import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
@@ -63,6 +63,7 @@ const getHeaders = (req: any) => {
 }
 const DEFAULT_ERROR_STATUS = 500
 const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
+const UNKNOWN_ERROR_MSG = 'Unknown error'
 
 // Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
 const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
@@ -123,7 +124,7 @@ const deviceTokenPool = new Pool({
   host: CONSTANTS.POSTGRES_HOST,
   password: CONSTANTS.POSTGRES_PASSWORD,
   port: Number(CONSTANTS.POSTGRES_PORT),
-  user: CONSTANTS.POSTGRES_USER
+  user: CONSTANTS.POSTGRES_USER,
 })
 
 deviceTokenPool.query(`
@@ -1895,9 +1896,9 @@ mobileAppApi.post('/register-fcm-token', async (req, res) => {
       userId,
     })
   } catch (error) {
-    console.error('Error registering device token: ' + JSON.stringify(error))
+    logError('Error registering device token: ' + JSON.stringify(error))
     return res.status(500).json({
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : UNKNOWN_ERROR_MSG,
       error: 'Failed to register device token',
       success: false,
     })
@@ -1926,17 +1927,16 @@ mobileAppApi.post('/remove-fcm-token', async (req, res) => {
   } catch (error: unknown) {
     logError('Error during logout: ' + JSON.stringify(error))
     return res.status(500).json({
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : UNKNOWN_ERROR_MSG,
       error: 'Failed to logout',
       success: false,
     })
   }
 })
 
-
 // Expected body: { title, body, userId, data? }
-mobileAppApi.post("/send-by-token", async (req, res) => {
-  const { userId, userIds, title, body, data } = req.body.request || {};
+mobileAppApi.post('/send-by-token', async (req, res) => {
+  const { userId, userIds, title, body, data } = req.body.request || {}
   // Accept either one user ("userId") or many ("userIds": [...]).
   const ids = [...new Set([].concat(userIds || [], userId || []).filter(Boolean))];
   if (ids.length === 0) {
@@ -1952,7 +1952,6 @@ mobileAppApi.post("/send-by-token", async (req, res) => {
     const tokens = result.rows.map((row) => row.fcm_token);
     const usersWithDevices = new Set(result.rows.map((row) => row.user_id));
     const usersWithoutDevices = ids.filter((id) => !usersWithDevices.has(id));
-    console.log(`📱 ${tokens.length} token(s) for ${usersWithDevices.size} user(s)`);
     if (tokens.length === 0) {
       return res.status(404).json({
         error: "No registered devices found for the given user(s)",
@@ -1995,7 +1994,6 @@ mobileAppApi.post("/send-by-token", async (req, res) => {
     }
     if (deadTokens.length > 0) {
       await deviceTokenPool.query("DELETE FROM user_fcm_tokens WHERE fcm_token = ANY($1)", [deadTokens]);
-      console.log("Removed invalid tokens:", deadTokens.length);
     }
 
     res.json({
@@ -2058,7 +2056,7 @@ mobileAppApi.post('/send-by-topic', async (req, res) => {
     })
   } catch (error: unknown) {
     return res.status(500).json({
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : UNKNOWN_ERROR_MSG,
       error: 'Failed to send topic notification',
       success: false,
     })
