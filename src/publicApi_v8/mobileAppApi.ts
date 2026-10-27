@@ -1865,21 +1865,28 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
   }
 })
 
-// Expected body: { userId, fcmToken }
+// Expected body: { request: { userId, fcmToken, deviceId } }
 mobileAppApi.post('/register-fcm-token', async (req, res) => {
   try {
-    const { userId, fcmToken } = req.body
-    if (!userId || !fcmToken) {
+    const { userId, fcmToken, deviceId, status } = req.body.request || {}
+    if (!userId || !fcmToken || !deviceId) {
       return res.status(400).json({
-        error: 'userId and fcmToken are required',
+        error: 'request.userId, request.fcmToken and request.deviceId are required',
         success: false,
       })
     }
+    if (status === 'update') {
+      // Remove the stale token previously registered for this user's device
+      await deviceTokenPool.query(
+        'DELETE FROM user_fcm_tokens WHERE user_id = $1 AND device_id = $2',
+        [userId, deviceId]
+      )
+    }
     await deviceTokenPool.query(
-      `INSERT INTO user_fcm_tokens (user_id, fcm_token, created_at, updated_at)
-       VALUES ($1, $2, NOW(), NOW())
-       ON CONFLICT (fcm_token) DO UPDATE SET user_id = $1, updated_at = NOW()`,
-      [userId, fcmToken]
+      `INSERT INTO user_fcm_tokens (user_id, fcm_token, device_id, created_at, updated_at)
+       VALUES ($1, $2, $3, NOW(), NOW())
+       ON CONFLICT (fcm_token) DO UPDATE SET user_id = $1, device_id = $3, updated_at = NOW()`,
+      [userId, fcmToken, deviceId]
     )
 
     return res.status(200).json({
@@ -1899,7 +1906,7 @@ mobileAppApi.post('/register-fcm-token', async (req, res) => {
 
 mobileAppApi.post('/remove-fcm-token', async (req, res) => {
   try {
-    const { token } = req.body
+    const { token } = req.body.request
     if (!token) {
       return res.status(400).json({
         error: 'token is required',
@@ -1926,9 +1933,10 @@ mobileAppApi.post('/remove-fcm-token', async (req, res) => {
   }
 })
 
+
 // Expected body: { title, body, userId, data? }
 mobileAppApi.post("/send-by-token", async (req, res) => {
-  const { userId, userIds, title, body, data } = req.body || {};
+  const { userId, userIds, title, body, data } = req.body.request || {};
   // Accept either one user ("userId") or many ("userIds": [...]).
   const ids = [...new Set([].concat(userIds || [], userId || []).filter(Boolean))];
   if (ids.length === 0) {
