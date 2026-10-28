@@ -6,6 +6,7 @@ import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
+import { ENROLMENT_CERTIFICATE_QUERY, pickIssuedCertificate } from './adapters/enrolmentCertificate'
 import { API_END_POINTS } from './apiConstants'
 const cassandra = require('cassandra-driver')
 const VALIDATION_FAIL =
@@ -18,8 +19,8 @@ publicCertificateFlinkv2.get('/download', async (req, res) => {
     const courseid = req.query.courseid
     const secretKey = req.query.secretKey
 
-    if (!(userid || courseid || secretKey)) {
-      res.status(400).json({
+    if (!userid || !courseid || !secretKey) {
+      return res.status(400).json({
         msg: 'UserID, courseID or secretKey can not be empty',
         status: 'error',
         status_code: 400,
@@ -27,7 +28,7 @@ publicCertificateFlinkv2.get('/download', async (req, res) => {
     }
     const certificateKey = CONSTANTS.CERTIFICATE_DOWNLOAD_KEY
     if (certificateKey !== secretKey) {
-      res.status(400).json({
+      return res.status(400).json({
         msg: 'Invalid certificate download key',
         status: 'error',
         status_code: 400,
@@ -38,20 +39,22 @@ publicCertificateFlinkv2.get('/download', async (req, res) => {
       keyspace: 'sunbird_courses',
       localDataCenter: 'datacenter1',
     })
-    // tslint:disable-next-line: max-line-length
-    const query = `SELECT userid, courseid, batchid, issued_certificates FROM sunbird_courses.user_enrolments WHERE userid='${userid}' AND courseid='${courseid}'`
-    const certificateData = await client.execute(query)
-    if (!certificateData) {
-      res.status(400).json({
-        msg: 'Certificate ID cannot be fetched',
+    let certificateData
+    try {
+      certificateData = await client.execute(ENROLMENT_CERTIFICATE_QUERY, [userid, courseid], { prepare: true })
+    } finally {
+      client.shutdown()
+    }
+    const issued = pickIssuedCertificate(certificateData && certificateData.rows)
+    if (!issued) {
+      return res.status(404).json({
+        msg: 'No certificate has been issued for this course',
         status: 'error',
-        status_code: 400,
+        status_code: 404,
       })
     }
-    client.shutdown()
-    const certificateId =
-      certificateData.rows[0].issued_certificates[0].identifier
-    const certificateName = certificateData.rows[0].issued_certificates[0].name
+    const certificateId = issued.identifier
+    const certificateName = issued.name
     const response = await axios({
       ...axiosRequestConfig,
       headers: {
