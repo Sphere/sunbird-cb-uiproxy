@@ -129,7 +129,8 @@ const deviceTokenPool = new Pool({
 
 deviceTokenPool.query(`
   CREATE TABLE IF NOT EXISTS user_fcm_tokens (
-    fcm_token  TEXT PRIMARY KEY,
+    device_id  TEXT PRIMARY KEY,
+    fcm_token  TEXT NOT NULL UNIQUE,
     user_id    TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -1886,7 +1887,7 @@ mobileAppApi.post('/register-fcm-token', async (req, res) => {
     await deviceTokenPool.query(
       `INSERT INTO user_fcm_tokens (user_id, fcm_token, device_id, created_at, updated_at)
        VALUES ($1, $2, $3, NOW(), NOW())
-       ON CONFLICT (fcm_token) DO UPDATE SET user_id = $1, device_id = $3, updated_at = NOW()`,
+       ON CONFLICT (device_id) DO UPDATE SET user_id = $1, fcm_token = $2, updated_at = NOW()`,
       [userId, fcmToken, deviceId]
     )
 
