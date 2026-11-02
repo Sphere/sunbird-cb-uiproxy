@@ -27,6 +27,7 @@ import { entityCompetencyApi } from './entityCompetency'
 import { externalEventsApi } from './event-external'
 import { eventsApi } from './events'
 import { fracApi } from './frac'
+import { fracStudioApi } from './fracStudio/fracStudio'
 import { knowledgeHubApi } from './khub'
 import { leaderBoardApi } from './leaderboard'
 import { learnerPathApi } from './learnerPath'
@@ -118,3 +119,4 @@ protectedApiV8.use('/playlist', playlistApi)
 protectedApiV8.use('/learnerPath', learnerPathApi)
 protectedApiV8.use('/report', mncAttendanceReportApi)
 protectedApiV8.use('/aiStudio', aiStudioApi)
+protectedApiV8.use('/fracStudio', fracStudioApi)
