@@ -1765,6 +1765,13 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    // FRAC Studio forwards every path to frac-studio-service, which scopes each record to
+    // its owner; one wildcard rule covers the whole /v1 API.
+    '/protected/v8/fracStudio/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -2091,5 +2098,6 @@ export const API_LIST = {
     '/protected/v8/aiStudio/artifacts/:rest+',
     '/protected/v8/aiStudio/usage/:rest+',
     '/protected/v8/aiStudio/:rest+',
+    '/protected/v8/fracStudio/:rest+',
   ],
 }

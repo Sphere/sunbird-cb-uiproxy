@@ -132,4 +132,30 @@ describe("FRAC Studio proxy", function () {
     assert.strictEqual(res.status, 404);
     assert.deepStrictEqual(res.body, { error: "FRAC not found" });
   });
+
+  /**
+   * With PORTAL_API_WHITELIST_CHECK=true (staging, prod) an unlisted path is a 403 before it
+   * reaches the router. Resolve each route the way isAllowed() does: first matching
+   * URL_PATTERN, then that pattern's rule in API_LIST.URL.
+   */
+  it("whitelists every FRAC Studio path the portal calls", function () {
+    const { pathToRegexp } = require("path-to-regexp");
+    const { API_LIST } = require("../src/utils/whitelistApis");
+    const paths = [
+      "/protected/v8/fracStudio/fracs",
+      "/protected/v8/fracStudio/fracs/f1",
+      "/protected/v8/fracStudio/fracs/f1/steps/check",
+      "/protected/v8/fracStudio/fracs/f1/export.xlsx",
+      "/protected/v8/fracStudio/fracs/f1/versions/3/restore",
+      "/protected/v8/fracStudio/frac-reviews",
+      "/protected/v8/fracStudio/frac-reviews/r1/export.xlsx",
+      "/protected/v8/fracStudio/frac-reviews/r1/open-in-creator",
+      "/protected/v8/fracStudio/jobs/j1",
+    ];
+    for (const path of paths) {
+      const pattern = API_LIST.URL_PATTERN.find((p) => pathToRegexp(p).test(path));
+      assert.ok(pattern, `${path} matches no URL_PATTERN`);
+      assert.ok(API_LIST.URL[pattern], `${path} resolved to ${pattern}, which has no rule`);
+    }
+  });
 });
