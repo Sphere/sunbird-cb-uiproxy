@@ -9,6 +9,7 @@ const unknownError = 'Failed due to unknown reason'
 
 export const ratingsSearch = Router()
 
+import { COURSE_SORT_FIELD, courseSortTime } from './adapters/courseSortDate'
 import { API_END_POINTS } from './apiConstants'
 const postgresConnectionDetails = {
     database: CONSTANTS.POSTGRES_DATABASE,
@@ -72,7 +73,7 @@ ratingsSearch.post('/getCourses', async (request, response) => {
         const filters = courseSearchRequestData.request.filters
         const facets = courseSearchRequestData.request.facets
         const sortMethod = courseSearchRequestData.request.sort_by || {
-            lastUpdatedOn: 'desc',
+            [COURSE_SORT_FIELD]: 'desc',
         }
         if (!courseSearchRequestData.request.query) {
             const requestBodyForSearch = JSON.stringify({
@@ -115,6 +116,7 @@ ratingsSearch.post('/getCourses', async (request, response) => {
                     lang: string
                     competencies_v1: string
                     lastUpdatedOn: string
+                    lastPublishedOn?: string
                     // tslint:disable-next-line: no-any
                     [key: string]: any
                 }
@@ -136,7 +138,7 @@ ratingsSearch.post('/getCourses', async (request, response) => {
                     return group.slice().sort((a, b) => {
                         const levelDiff = getLevel(a) - getLevel(b)
                         if (levelDiff !== 0) return levelDiff
-                        return new Date(b.lastUpdatedOn).getTime() - new Date(a.lastUpdatedOn).getTime()
+                        return courseSortTime(b) - courseSortTime(a)
                     })
                 })
                 combinedRatingsData = sortedGrouped
