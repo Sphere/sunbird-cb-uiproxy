@@ -139,6 +139,57 @@ describe("rcCertificateVerify", function () {
       assert.strictEqual(toVerifiedCertificate({ ...rcRecord, status: "REVOKED" }, "TrainingCertificate").revoked, true);
     });
 
+    describe("event certificates (flat name / workshop-name / date records)", function () {
+      // Shapes read from staging RC: DynamicEventCertificate and an rc-setup schema (Ddd).
+      const workshop = {
+        osid: "1-ebdd40f9-9481-4028-9431-02001c03d1ab",
+        name: "Asha Kumari",
+        "workshop-name": "Dynamic Template Test",
+        date: "27-10-2026",
+        place: "Delhi",
+        osCreatedAt: "2026-10-27T10:02:27.891Z",
+        _osSignedData: "{}",
+      };
+
+      it("maps the learner, event name and printed date", function () {
+        const view = toVerifiedCertificate(workshop, "DynamicEventCertificate");
+        assert.strictEqual(view.certificateId, workshop.osid);
+        assert.strictEqual(view.recipientName, "Asha Kumari");
+        assert.strictEqual(view.courseName, "Dynamic Template Test");
+        assert.strictEqual(view.issuedOn, "27-10-2026");
+        assert.strictEqual(view.entity, "DynamicEventCertificate");
+        assert.strictEqual(view.revoked, false);
+      });
+
+      it("prefers a schema-mapped courseName over workshop-name", function () {
+        const record = { osid: "1-b6b4ba8e-28ec", name: "ddd name", courseName: "test ddd", date: "10-jan-1999" };
+        const view = toVerifiedCertificate(record, "Ddd");
+        assert.strictEqual(view.recipientName, "ddd name");
+        assert.strictEqual(view.courseName, "test ddd");
+      });
+
+      it("reads the fields from the signed credential when the record lacks them", function () {
+        const signed = JSON.stringify({ credentialSubject: { name: "Ravi", "workshop-name": "WaterBirth", date: "01-11-2026" } });
+        const view = toVerifiedCertificate({ osid: "1-c6dd14fc-a79f", _osSignedData: signed }, "WaterBirth");
+        assert.strictEqual(view.recipientName, "Ravi");
+        assert.strictEqual(view.courseName, "WaterBirth");
+        assert.strictEqual(view.issuedOn, "01-11-2026");
+      });
+
+      it("falls back to the timestamp when an event has no date", function () {
+        const { date, ...noDate } = workshop;
+        assert.strictEqual(toVerifiedCertificate(noDate, "DynamicEventCertificate").issuedOn, workshop.osCreatedAt);
+      });
+
+      it("does not read the flat name on course certificates", function () {
+        assert.strictEqual(toVerifiedCertificate({ osid: "1-2a97d782-bfb7", name: "Template name" }, "TrainingCertificate"), null);
+      });
+
+      it("still rejects an event record with no learner name", function () {
+        assert.strictEqual(toVerifiedCertificate({ osid: "1-ebdd40f9-9481", date: "27-10-2026" }, "MDO-Active-Birth"), null);
+      });
+    });
+
     it("returns null for empty or unrecognisable responses", function () {
       [null, undefined, [], {}, "x", [{ osid: "1-abcdefgh" }], { recipient: { name: "No id" } }].forEach((v) =>
         assert.strictEqual(toVerifiedCertificate(v, "TrainingCertificate"), null, JSON.stringify(v))
