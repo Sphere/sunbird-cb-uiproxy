@@ -11,6 +11,7 @@ import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
 import _ from 'lodash'
 import nodeHtmlToImage from 'node-html-to-image'
+import { Pool } from 'pg'
 import request from 'request'
 import { replaceCdnUrls } from '../authoring/utils/cdn-url-replacer'
 import { axiosRequestConfig } from '../configs/request.config'
@@ -18,9 +19,9 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
-import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
 import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { requestValidator } from '../utils/requestValidator'
+import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
 import { adaptCourseHierarchyResponse } from './adapters/courseHierarchyAdapter'
 import {
   adaptUserReadResponse,
@@ -62,6 +63,7 @@ const getHeaders = (req: any) => {
 }
 const DEFAULT_ERROR_STATUS = 500
 const DEFAULT_ERROR_MSG = 'Something went wrong fetching results'
+const UNKNOWN_ERROR_MSG = 'Unknown error'
 
 // Use PUBLIC_KEY_PATH env var for local dev, fallback to Docker path for production
 const publicKeyPath = process.env.PUBLIC_KEY_PATH || '/keys/access_key'
@@ -115,6 +117,25 @@ const cassandraClient = new cassandra.Client({
   keyspace: 'sunbird_courses',
   localDataCenter: 'datacenter1',
 })
+
+const deviceTokenPool = new Pool({
+  connectionTimeoutMillis: 3000,
+  database: CONSTANTS.POSTGRES_DATABASE,
+  host: CONSTANTS.POSTGRES_HOST,
+  password: CONSTANTS.POSTGRES_PASSWORD,
+  port: Number(CONSTANTS.POSTGRES_PORT),
+  user: CONSTANTS.POSTGRES_USER,
+})
+
+deviceTokenPool.query(`
+  CREATE TABLE IF NOT EXISTS user_fcm_tokens (
+    device_id  TEXT PRIMARY KEY,
+    fcm_token  TEXT NOT NULL UNIQUE,
+    user_id    TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch((err: Error) => logError('Failed to create user_fcm_tokens table: ' + err.message))
 // CDN URL replacement handler for course/v1/hierarchy endpoint
 // tslint:disable-next-line: no-any
 // This route is defined to replace CDN URLs in the response of course hierarchy API
@@ -1846,6 +1867,157 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
   }
 })
 
+// Expected body: { request: { userId, fcmToken, deviceId } }
+mobileAppApi.post('/register-fcm-token', async (req, res) => {
+  try {
+    const { userId, fcmToken, deviceId, status } = req.body.request || {}
+    if (!userId || !fcmToken || !deviceId) {
+      return res.status(400).json({
+        error: 'request.userId, request.fcmToken and request.deviceId are required',
+        success: false,
+      })
+    }
+    if (status === 'update') {
+      // Remove the stale token previously registered for this user's device
+      await deviceTokenPool.query(
+        'DELETE FROM user_fcm_tokens WHERE user_id = $1 AND device_id = $2',
+        [userId, deviceId]
+      )
+    }
+    await deviceTokenPool.query(
+      `INSERT INTO user_fcm_tokens (user_id, fcm_token, device_id, created_at, updated_at)
+       VALUES ($1, $2, $3, NOW(), NOW())
+       ON CONFLICT (device_id) DO UPDATE SET user_id = $1, fcm_token = $2, updated_at = NOW()`,
+      [userId, fcmToken, deviceId]
+    )
+
+    return res.status(200).json({
+      message: 'Device token registered successfully',
+      success: true,
+      userId,
+    })
+  } catch (error) {
+    logError('Error registering device token: ' + JSON.stringify(error))
+    return res.status(500).json({
+      details: error instanceof Error ? error.message : UNKNOWN_ERROR_MSG,
+      error: 'Failed to register device token',
+      success: false,
+    })
+  }
+})
+
+mobileAppApi.post('/remove-fcm-token', async (req, res) => {
+  try {
+    const { token } = req.body.request
+    if (!token) {
+      return res.status(400).json({
+        error: 'token is required',
+        success: false,
+      })
+    }
+
+    await deviceTokenPool.query(
+      'DELETE FROM user_fcm_tokens WHERE fcm_token = $1',
+      [token]
+    )
+
+    return res.status(200).json({
+      message: 'Device token unregistered successfully',
+      success: true,
+    })
+  } catch (error: unknown) {
+    logError('Error during logout: ' + JSON.stringify(error))
+    return res.status(500).json({
+      details: error instanceof Error ? error.message : UNKNOWN_ERROR_MSG,
+      error: 'Failed to logout',
+      success: false,
+    })
+  }
+})
+
+// Expected body: { title, body, userId, data? }
+mobileAppApi.post('/send-by-token', async (req, res) => {
+  const { userId, userIds, title, body, data } = req.body.request || {}
+  // Accept either one user ("userId") or many ("userIds": [...]).
+  const ids = [...new Set([].concat(userIds || [], userId || []).filter(Boolean))];
+  if (ids.length === 0) {
+    return res.status(400).json({
+      error: "userId or userIds is required",
+    });
+  }
+  try {
+    const result = await deviceTokenPool.query(
+      "SELECT user_id, fcm_token FROM user_fcm_tokens WHERE user_id = ANY($1)",
+      [ids]
+    );
+    const tokens = result.rows.map((row) => row.fcm_token);
+    const usersWithDevices = new Set(result.rows.map((row) => row.user_id));
+    const usersWithoutDevices = ids.filter((id) => !usersWithDevices.has(id));
+    if (tokens.length === 0) {
+      return res.status(404).json({
+        error: "No registered devices found for the given user(s)",
+        usersWithoutDevices,
+      });
+    }
+
+    // FCM accepts at most 500 tokens per multicast call.
+    let successCount = 0;
+    let failureCount = 0;
+    const deadTokens = [];
+    for (let i = 0; i < tokens.length; i += 500) {
+      const batch = tokens.slice(i, i + 500);
+      const response = await getFirebaseApp().messaging().sendEachForMulticast({
+        tokens: batch,
+        notification: {
+          title,
+          body,
+        },
+        data: data ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])) : {},
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "default",
+          },
+        },
+      });
+      successCount += response.successCount;
+      failureCount += response.failureCount;
+
+      // Remove tokens of devices that uninstalled the app or whose token expired.
+      response.responses.forEach((r, j) => {
+        if (!r.success && [
+          "messaging/registration-token-not-registered",
+          "messaging/invalid-registration-token",
+        ].includes(r.error?.code)) {
+          deadTokens.push(batch[j]);
+        }
+      });
+    }
+    if (deadTokens.length > 0) {
+      await deviceTokenPool.query("DELETE FROM user_fcm_tokens WHERE fcm_token = ANY($1)", [deadTokens]);
+    }
+
+    res.json({
+      success: true,
+      userCount: usersWithDevices.size,
+      deviceCount: tokens.length,
+      successCount,
+      failureCount,
+      removedTokens: deadTokens.length,
+      usersWithoutDevices,
+    });
+  } catch (error) {
+    const errMsg = (error as Error).message || String(error)
+    const errCode = (error as any).code || undefined
+    console.error("Send Notification Error:", error);
+    res.status(500).json({
+      error: "Failed to send notification",
+      message: errMsg,
+      code: errCode,
+    });
+  }
+});
+
 mobileAppApi.post('/send-by-topic', async (req, res) => {
   try {
     const { topic, title, body, data} = req.body
@@ -1885,7 +2057,7 @@ mobileAppApi.post('/send-by-topic', async (req, res) => {
     })
   } catch (error: unknown) {
     return res.status(500).json({
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : UNKNOWN_ERROR_MSG,
       error: 'Failed to send topic notification',
       success: false,
     })
