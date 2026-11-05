@@ -1765,6 +1765,146 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/courseReview/checklist': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/preview': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/reuse': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/reviews/:reviewId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/context': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/:uploadId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/reviews/:reviewId/report.md': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/checklist': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/preview': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/reuse': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/reviews/:reviewId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/context': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/:uploadId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/reviews/:reviewId/report.md': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -2091,5 +2231,34 @@ export const API_LIST = {
     '/protected/v8/aiStudio/artifacts/:rest+',
     '/protected/v8/aiStudio/usage/:rest+',
     '/protected/v8/aiStudio/:rest+',
+    // AI course review: named routes only, there is no passthrough (starting a review spends credit).
+    '/protected/v8/courseReview/checklist',
+    '/protected/v8/courseReview/courses/:courseId/preview',
+    '/protected/v8/courseReview/courses/:courseId/reuse',
+    '/protected/v8/courseReview/courses/:courseId/measure',
+    '/protected/v8/courseReview/courses/:courseId/frac',
+    '/protected/v8/courseReview/uploads/context',
+    '/protected/v8/courseReview/uploads/measure',
+    '/protected/v8/courseReview/uploads/frac',
+    '/protected/v8/courseReview/uploads/reviews',
+    '/protected/v8/courseReview/uploads',
+    '/protected/v8/courseReview/uploads/:uploadId',
+    '/protected/v8/courseReview/reviews/:reviewId/report.md',
+    '/protected/v8/courseReview/reviews/:reviewId',
+    '/protected/v8/courseReview/reviews',
+    '/protected/v8/courseReview/v1/checklist',
+    '/protected/v8/courseReview/v1/courses/:courseId/preview',
+    '/protected/v8/courseReview/v1/courses/:courseId/reuse',
+    '/protected/v8/courseReview/v1/courses/:courseId/measure',
+    '/protected/v8/courseReview/v1/courses/:courseId/frac',
+    '/protected/v8/courseReview/v1/uploads/context',
+    '/protected/v8/courseReview/v1/uploads/measure',
+    '/protected/v8/courseReview/v1/uploads/frac',
+    '/protected/v8/courseReview/v1/uploads/reviews',
+    '/protected/v8/courseReview/v1/uploads',
+    '/protected/v8/courseReview/v1/uploads/:uploadId',
+    '/protected/v8/courseReview/v1/reviews/:reviewId/report.md',
+    '/protected/v8/courseReview/v1/reviews/:reviewId',
+    '/protected/v8/courseReview/v1/reviews',
   ],
 }

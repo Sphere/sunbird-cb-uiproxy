@@ -20,6 +20,7 @@ import { connectionsV2Api } from './connections_v2'
 import { contentApi } from './content'
 import { contentValidationApi } from './contentValidation'
 import { counterApi } from './counter'
+import { courseReviewApi } from './courseReview/courseReview'
 import { creatorCertificateTemplate } from './creatorCertificateTemplate'
 import { deptApi } from './departments'
 import { discussionHubApi } from './discussionHub/discussionHub'
@@ -118,3 +119,4 @@ protectedApiV8.use('/playlist', playlistApi)
 protectedApiV8.use('/learnerPath', learnerPathApi)
 protectedApiV8.use('/report', mncAttendanceReportApi)
 protectedApiV8.use('/aiStudio', aiStudioApi)
+protectedApiV8.use('/courseReview', courseReviewApi)
