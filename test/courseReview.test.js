@@ -67,6 +67,7 @@ describe("Course review proxy", function () {
       // Must be set before the router is loaded: constants.ts reads it at module scope.
       process.env.COURSE_REVIEW_API_BASE = "http://127.0.0.1:" + upstream.address().port + "/course-review";
       process.env.SB_API_KEY = "test-gateway-key";
+      process.env.COURSE_REVIEW_SECRET = "test-caller-secret-0123456789abcdef";
 
       require("ts-node").register({
         compilerOptions: { esModuleInterop: true, module: "commonjs", strict: false, target: "ES2019" },
@@ -109,6 +110,11 @@ describe("Course review proxy", function () {
       assert.strictEqual(headers["x-authenticated-user-token"], "kc-token");
       assert.strictEqual(headers["x-aastrika-user-id"], "uuid-42");
       assert.strictEqual(headers["x-aastrika-user-name"], "Asha Kumari");
+    });
+
+    it("proves the call comes from this proxy with the caller secret, whatever the browser sent", async function () {
+      await api().get(BASE + "/checklist").set("x-course-review-secret", "forged");
+      assert.strictEqual(lastHit().headers["x-course-review-secret"], "test-caller-secret-0123456789abcdef");
     });
 
     it("overwrites identity headers the caller tried to set", async function () {
@@ -297,7 +303,7 @@ describe("Course review proxy", function () {
       assert.strictEqual(hits.length, before, "an unknown path must not reach the service");
     });
 
-    it("answers 500 when the service cannot be reached", async function () {
+    it("answers 502, in the service's error shape, when the service cannot be reached", async function () {
       // A closed port: the request fails before any response exists.
       const closed = http.createServer();
       await new Promise((resolve) => closed.listen(0, "127.0.0.1", resolve));
@@ -309,11 +315,46 @@ describe("Course review proxy", function () {
       axios.get = (url, config) => original.call(axios, url.replace(/^http:\/\/127\.0\.0\.1:\d+/, "http://127.0.0.1:" + port), config);
       try {
         const res = await api().get(BASE + "/checklist");
-        assert.strictEqual(res.status, 500);
-        assert.strictEqual(res.body.status, "error");
+        assert.strictEqual(res.status, 502);
+        assert.strictEqual(res.body.error.code, "UPSTREAM_UNAVAILABLE");
+        assert.match(res.body.error.message, /could not be reached/);
       } finally {
         axios.get = original;
       }
+    });
+  });
+
+  describe("failures with no answer from the service", function () {
+    let handleUpstreamError;
+    before(function () {
+      ({ handleUpstreamError } = require("../src/protectedApi_v8/courseReview/helpers"));
+    });
+    const fakeRes = () => {
+      const out = { statusCode: 0, body: null };
+      out.status = (code) => { out.statusCode = code; return out; };
+      out.json = (body) => { out.body = body; return out; };
+      return out;
+    };
+
+    it("says the service took too long (504) when the call timed out", function () {
+      const res = fakeRes();
+      handleUpstreamError(res, { code: "ECONNABORTED", message: "timeout of 30000ms exceeded" }, "reviews/read");
+      assert.strictEqual(res.statusCode, 504);
+      assert.deepStrictEqual(res.body.error.code, "UPSTREAM_TIMEOUT");
+    });
+
+    it("keeps any other failure a 500, in the same shape", function () {
+      const res = fakeRes();
+      handleUpstreamError(res, new Error("boom"), "reviews/read");
+      assert.strictEqual(res.statusCode, 500);
+      assert.strictEqual(res.body.error.code, "INTERNAL");
+    });
+
+    it("passes the service's own answer through unchanged", function () {
+      const res = fakeRes();
+      handleUpstreamError(res, { response: { status: 429, data: { error: { code: "DAILY_LIMIT", message: "limit" } } } }, "reviews/create");
+      assert.strictEqual(res.statusCode, 429);
+      assert.deepStrictEqual(res.body, { error: { code: "DAILY_LIMIT", message: "limit" } });
     });
   });
 

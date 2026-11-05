@@ -68,7 +68,7 @@ routes.post('/courses/:courseId/frac', async (req: Request, res: Response) => {
     try {
         const response = await axios.post(API_END_POINTS.courseFrac(req.params.courseId), req.body || {}, {
             headers: buildUpstreamHeaders(req, true),
-            timeout: TIMEOUTS.READ,
+            timeout: TIMEOUTS.FRAC,
         })
         return relay(res, response)
     } catch (error) {
@@ -119,7 +119,7 @@ routes.post('/reviews', async (req: Request, res: Response) => {
     try {
         const response = await axios.post(API_END_POINTS.reviewCreate, req.body || {}, {
             headers: buildUpstreamHeaders(req, true),
-            timeout: TIMEOUTS.WRITE,
+            timeout: TIMEOUTS.CREATE,
         })
         return relay(res, response)
     } catch (error) {
@@ -257,7 +257,7 @@ routes.post('/uploads/frac', async (req: Request, res: Response) => {
     try {
         const response = await axios.post(API_END_POINTS.uploadFrac, req.body || {}, {
             headers: buildUpstreamHeaders(req, true),
-            timeout: TIMEOUTS.READ,
+            timeout: TIMEOUTS.FRAC,
         })
         return relay(res, response)
     } catch (error) {
@@ -273,7 +273,7 @@ routes.post('/uploads/reviews', async (req: Request, res: Response) => {
     try {
         const response = await axios.post(API_END_POINTS.uploadReviewCreate, req.body || {}, {
             headers: buildUpstreamHeaders(req, true),
-            timeout: TIMEOUTS.MEASURE,
+            timeout: TIMEOUTS.CREATE,
         })
         return relay(res, response)
     } catch (error) {

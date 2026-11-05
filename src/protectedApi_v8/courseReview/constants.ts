@@ -7,6 +7,9 @@ import { CONSTANTS } from '../../utils/env'
  */
 const COURSE_REVIEW_BASE = CONSTANTS.COURSE_REVIEW_API_BASE
 
+/** The caller secret for the service (CONSTANTS.COURSE_REVIEW_SECRET); empty when not configured. */
+export const CALLER_SECRET_ENV = (): string => CONSTANTS.COURSE_REVIEW_SECRET
+
 /**
  * Ids the caller supplies are interpolated into the upstream URL, so they are percent-encoded:
  * neither may introduce a `/` or a `?` and address a different resource. The service validates
@@ -37,8 +40,14 @@ export const API_END_POINTS = {
     uploadSign: `${COURSE_REVIEW_BASE}/v1/uploads`,
 }
 
+/**
+ * What the portal is told when the service gives no answer of its own. The same shape as the
+ * service's errors (`{ error: { code, message } }`), so the portal reads every failure one way.
+ */
 export const ERROR_MESSAGES = {
     INTERNAL_SERVER_ERROR: 'Internal server error',
+    UPSTREAM_TIMEOUT: 'The AI review service took too long to answer. Try again in a moment.',
+    UPSTREAM_UNAVAILABLE: 'The AI review service could not be reached. Try again in a moment.',
 }
 
 /**
@@ -47,6 +56,7 @@ export const ERROR_MESSAGES = {
  * the Keycloak session on every call, never copied from the incoming request.
  */
 export const HEADERS = {
+    CALLER_SECRET: 'x-course-review-secret',
     CONTENT_DISPOSITION: 'Content-Disposition',
     CONTENT_TYPE: 'Content-Type',
     CONTENT_TYPE_JSON: 'application/json',
@@ -56,12 +66,16 @@ export const HEADERS = {
 }
 
 /**
- * Every call is short: the service records a review and queues it, then the portal polls.
- * The preview is the slowest, since it reads the course hierarchy and the competency list.
+ * Each a little longer than the work behind it, so the service's own answer (or Kong's) comes
+ * back rather than a cut-off here.
  */
 export const TIMEOUTS = {
-    /** Measuring opens every PDF of the course to count its pages. */
-    MEASURE: 120000,
+    /** Starting a review reads the course, its competencies and the result cache. */
+    CREATE: 60000,
+    /** The FRAC role check reads a position's roles and activities from the FRAC service. */
+    FRAC: 45000,
+    /** Measuring opens every PDF and video of a course or upload; Kong allows it 130 s. */
+    MEASURE: 150000,
     READ: 30000,
     WRITE: 30000,
 }

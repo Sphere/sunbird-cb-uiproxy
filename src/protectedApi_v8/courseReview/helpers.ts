@@ -4,7 +4,7 @@ import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserToken } from '../../utils/requestExtract'
 import { resolveCreatorId, resolveCreatorName } from '../aiStudio/helpers'
-import { ERROR_MESSAGES, HEADERS } from './constants'
+import { CALLER_SECRET_ENV, ERROR_MESSAGES, HEADERS } from './constants'
 
 /**
  * The headers every upstream call carries.
@@ -17,6 +17,8 @@ import { ERROR_MESSAGES, HEADERS } from './constants'
  *    is the one value that decides who may see or start a review.
  *  - **`x-aastrika-user-name`**: shown in the review history. Left out when it is not ASCII,
  *    since a non-ASCII header value makes the upstream call throw.
+ *  - **`x-course-review-secret`**: proves the call comes from this proxy, so nothing else in
+ *    the cluster can call the service with made-up identity headers (set when configured).
  *
  * The map is built from scratch, so nothing the browser sent, an `x-aastrika-user-id` naming
  * someone else included, can reach the service.
@@ -32,6 +34,10 @@ import { ERROR_MESSAGES, HEADERS } from './constants'
  */
 export const buildUpstreamHeaders = (req: Request, json = false): Record<string, string> => {
     const headers: Record<string, string> = { Authorization: CONSTANTS.SB_API_KEY }
+    const secret = CALLER_SECRET_ENV()
+    if (secret) {
+        headers[HEADERS.CALLER_SECRET] = secret
+    }
     if (json) {
         headers[HEADERS.CONTENT_TYPE] = HEADERS.CONTENT_TYPE_JSON
     }
@@ -71,10 +77,17 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     next()
 }
 
+/** axios codes for a call that ran out of time (ours, or the socket's). */
+const TIMEOUT_CODES = new Set(['ECONNABORTED', 'ETIMEDOUT', 'ESOCKETTIMEDOUT'])
+/** axios / Node codes for a service that could not be reached at all. */
+const UNREACHABLE_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'EPIPE'])
+
 /**
- * Relays an upstream failure unchanged. The portal branches on the service's codes (429 for a
- * user's limit, 403 for a course they cannot review, 400 for a course with nothing to review),
- * so status and body pass through. Only a transport failure, with no response, becomes a 500.
+ * Relays an upstream failure. The portal branches on the service's codes (429 for a user's
+ * limit, 403 for a course they cannot review, 400 for a course with nothing to review), so a
+ * service answer passes through unchanged. With no answer, the portal still gets the reason, in
+ * the service's own shape: 504 when the call ran out of time (the portal says "took too long"
+ * and can try again), 502 when the service could not be reached, 500 for anything else.
  */
 // tslint:disable-next-line: no-any
 export const handleUpstreamError = (res: Response, error: any, context: string): Response => {
@@ -82,8 +95,15 @@ export const handleUpstreamError = (res: Response, error: any, context: string):
         logError(`Course review ${context} upstream error: status ${error.response.status}`)
         return res.status(error.response.status).json(error.response.data)
     }
-    logError(`Course review ${context} failed: ${error}`)
-    return res.status(500).json({ message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR, status: 'error' })
+    const code = String((error && error.code) || '')
+    logError(`Course review ${context} failed: ${code || error}`)
+    if (TIMEOUT_CODES.has(code)) {
+        return res.status(504).json({ error: { code: 'UPSTREAM_TIMEOUT', message: ERROR_MESSAGES.UPSTREAM_TIMEOUT } })
+    }
+    if (UNREACHABLE_CODES.has(code)) {
+        return res.status(502).json({ error: { code: 'UPSTREAM_UNAVAILABLE', message: ERROR_MESSAGES.UPSTREAM_UNAVAILABLE } })
+    }
+    return res.status(500).json({ error: { code: 'INTERNAL', message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR } })
 }
 
 /** Relays a successful JSON response, keeping its status: 202 (queued) and 200 (joined) differ. */
