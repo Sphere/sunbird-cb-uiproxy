@@ -58,6 +58,16 @@ export const buildUpstreamHeaders = (req: Request, json = false): Record<string,
     return headers
 }
 
+/** The service's own credentials and nothing about a user: for the token-authorised package files. */
+export const callerHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = { Authorization: CONSTANTS.SB_API_KEY }
+    const secret = CALLER_SECRET_ENV()
+    if (secret) {
+        headers[HEADERS.CALLER_SECRET] = secret
+    }
+    return headers
+}
+
 /** One access line per request, written when the response finishes or the client goes away. */
 export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
     const started = Date.now()

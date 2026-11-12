@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { API_END_POINTS, HEADERS, TIMEOUTS } from './constants'
-import { buildUpstreamHeaders, handleUpstreamError, relay, requestLogger } from './helpers'
+import { buildUpstreamHeaders, callerHeaders, handleUpstreamError, relay, requestLogger } from './helpers'
 
 /**
  * AI course review: the Creation Portal's "AI Review" on a course.
@@ -171,6 +171,78 @@ routes.get('/reviews/:id/report.md', async (req: Request, res: Response) => {
     }
 })
 
+/**
+ * The sandbox the service sends with every package file. Set here as well, whatever came back:
+ * a package is somebody else's HTML and scripts, and it must never run with the portal's origin
+ * (its cookies, storage and pages), even when the link is opened in a tab of its own.
+ */
+export const PACKAGE_SANDBOX = "sandbox allow-scripts allow-forms allow-popups allow-modals; frame-ancestors 'self'"
+const PACKAGE_HEADERS = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'x-content-type-options', 'referrer-policy', 'cache-control']
+/** One byte range ("bytes=0-", "bytes=500-999", "bytes=-500"): what a video player asks for to seek. */
+const BYTE_RANGE = /^bytes=\d*-\d*$/
+
+/** A stream's body as JSON (an error from the service), or its text as a message. */
+const streamJson = (stream: NodeJS.ReadableStream): Promise<unknown> =>
+    new Promise((resolve) => {
+        const chunks: Buffer[] = []
+        stream.on('data', (c: Buffer) => chunks.push(Buffer.from(c)))
+        stream.on('error', () => resolve({ message: 'The package file could not be read.' }))
+        stream.on('end', () => {
+            const text = Buffer.concat(chunks).toString('utf8')
+            try {
+                resolve(JSON.parse(text))
+            } catch (parseError) {
+                resolve({ message: text })
+            }
+        })
+    })
+
+/**
+ * GET /package/:reviewId/:contentId/:token/*: one file of a reviewed HTML package, for the
+ * report's preview frame, streamed through as it comes.
+ *
+ * Mounted under /public/v8, outside the session: the package runs sandboxed in an opaque
+ * origin, so the requests for its scripts, styles, images and videos are cross-site to the
+ * browser and carry no session cookie. The signed token (handed out by GET /reviews/:id, which
+ * does check the user) is what authorises it, and the service checks it; no user is sent on.
+ * Paths with "." or ".." parts are refused here, so a crafted link cannot reach another route.
+ */
+export const courseReviewPublicApi = Router()
+courseReviewPublicApi.use(requestLogger)
+courseReviewPublicApi.get('/package/:reviewId/:contentId/:token/*', async (req: Request, res: Response) => {
+    const file = String((req.params as Record<string, string>)[0] || '')
+    if (file.split('/').some((part) => part === '.' || part === '..') || file.indexOf('\\') !== -1) {
+        return res.status(400).json({ error: { code: 'BAD_PATH', message: 'Not a file of this package.' } })
+    }
+    try {
+        const response = await axios.get(API_END_POINTS.packageFile(req.params.reviewId, req.params.contentId, req.params.token, file), {
+            headers: { ...callerHeaders(), ...(BYTE_RANGE.test(String(req.headers.range || '')) ? { range: String(req.headers.range) } : {}) },
+            maxRedirects: 0,
+            responseType: 'stream',
+            timeout: TIMEOUTS.PACKAGE,
+            // 416 (a range past the end) is passed on as it is, with its Content-Range.
+            validateStatus: (status: number) => (status >= 200 && status < 300) || status === 416,
+        })
+        PACKAGE_HEADERS.forEach((name) => {
+            const value = response.headers[name]
+            if (value) {
+                res.setHeader(name, value)
+            }
+        })
+        res.setHeader('Content-Security-Policy', PACKAGE_SANDBOX)
+        // no-transform keeps compression() off: a gzipped part of a file breaks a ranged reply.
+        res.setHeader('Cache-Control', 'private, max-age=600, no-transform')
+        res.status(response.status)
+        response.data.on('error', () => res.destroy())
+        return response.data.pipe(res)
+    } catch (error) {
+        if (error && error.response && error.response.data && typeof error.response.data.pipe === 'function') {
+            error.response.data = await streamJson(error.response.data)
+        }
+        return handleUpstreamError(res, error, 'package')
+    }
+})
+
 /** GET /reviews/:id: status, progress and, when done, the report. The portal polls this. */
 routes.get('/reviews/:id', async (req: Request, res: Response) => {
     try {
@@ -273,7 +345,7 @@ routes.post('/uploads/reviews', async (req: Request, res: Response) => {
     try {
         const response = await axios.post(API_END_POINTS.uploadReviewCreate, req.body || {}, {
             headers: buildUpstreamHeaders(req, true),
-            timeout: TIMEOUTS.CREATE,
+            timeout: TIMEOUTS.MEASURE,
         })
         return relay(res, response)
     } catch (error) {

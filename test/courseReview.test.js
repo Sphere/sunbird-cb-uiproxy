@@ -21,6 +21,8 @@ describe("Course review proxy", function () {
   const api = () => request(server);
   const lastHit = () => hits[hits.length - 1];
   const BASE = "/protected/v8/courseReview";
+  // Package files are served outside the session (see courseReviewPublicApi).
+  const PUB = "/public/v8/courseReview";
 
   before(function (done) {
     hits = [];
@@ -49,6 +51,22 @@ describe("Course review proxy", function () {
         if (path === "/course-review/v1/courses/do_forbidden/preview") {
           return json(403, { error: { code: "FORBIDDEN", message: "You cannot review this course" } });
         }
+        if (path.indexOf("/course-review/v1/package/") === 0) {
+          if (path.endsWith("/clip.mp4")) {
+            if (req.headers.range === "bytes=999-") {
+              res.writeHead(416, { "content-range": "bytes */10", "accept-ranges": "bytes" });
+              return res.end();
+            }
+            res.writeHead(206, { "content-type": "video/mp4", "content-range": "bytes 2-4/10", "content-length": "3", "accept-ranges": "bytes" });
+            return res.end("abc");
+          }
+          if (path.endsWith("/missing.js")) {
+            return json(404, { error: { code: "NOT_FOUND", message: "This file is not in the package." } });
+          }
+          // A weaker policy than the proxy's own: the proxy must replace it.
+          res.writeHead(200, { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src *", "x-content-type-options": "nosniff" });
+          return res.end("<h1>पैकेज</h1>");
+        }
         if (path.endsWith("/report.md")) {
           if (path.indexOf("/missing/") !== -1) {
             return json(404, { error: { code: "NOT_FOUND", message: "Review not found" } });
@@ -73,10 +91,12 @@ describe("Course review proxy", function () {
         compilerOptions: { esModuleInterop: true, module: "commonjs", strict: false, target: "ES2019" },
         transpileOnly: true,
       });
-      const { courseReviewApi } = require("../src/protectedApi_v8/courseReview/courseReview");
+      const { courseReviewApi, courseReviewPublicApi } = require("../src/protectedApi_v8/courseReview/courseReview");
 
       const app = express();
       app.use(express.json());
+      // Mounted before the Keycloak stand-in, as in server.ts: no session reaches it.
+      app.use(PUB, courseReviewPublicApi);
       // Stands in for Keycloak. `userRoles` mirrors permissionHelper, which gives everyone the
       // same fixed list, including admin roles.
       app.use((req, _res, next) => {
@@ -237,6 +257,48 @@ describe("Course review proxy", function () {
       assert.ok(/attachment; filename="ai-review-course\.md"/.test(res.headers["content-disposition"]));
       assert.ok(/text\/markdown/.test(res.headers["content-type"]));
       assert.ok(res.text.indexOf("समीक्षा") !== -1, "the body must survive byte for byte");
+    });
+
+    it("streams a package file for the preview, always in the sandbox", async function () {
+      const res = await api().get(PUB + "/package/22222222-2222-4222-8222-222222222222/do_html1/1790000000.sig/pages/one%20two.html");
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(lastHit().url, "/course-review/v1/package/22222222-2222-4222-8222-222222222222/do_html1/1790000000.sig/pages/one%20two.html");
+      // The signed token authorises it; no user is passed on, the service's caller secret is.
+      assert.strictEqual(lastHit().headers["x-aastrika-user-id"], undefined);
+      assert.strictEqual(lastHit().headers["x-authenticated-user-token"], undefined);
+      assert.ok(/no-transform/.test(res.headers["cache-control"]), "never re-compressed, so ranges stay intact");
+      assert.ok(/text\/html/.test(res.headers["content-type"]));
+      assert.ok(/^sandbox allow-scripts/.test(res.headers["content-security-policy"]), "the package never gets the portal's origin");
+      assert.ok(res.headers["content-security-policy"].indexOf("allow-same-origin") === -1);
+      assert.strictEqual(res.headers["x-content-type-options"], "nosniff");
+      assert.ok(res.text.indexOf("पैकेज") !== -1, "the body must survive byte for byte");
+    });
+
+    it("passes a video's byte range through, so the report can open it at a moment", async function () {
+      const res = await api().get(PUB + "/package/r/c/t/assets/clip.mp4").set("Range", "bytes=2-4");
+      assert.strictEqual(res.status, 206);
+      assert.strictEqual(lastHit().headers.range, "bytes=2-4");
+      assert.strictEqual(res.headers["content-range"], "bytes 2-4/10");
+      assert.strictEqual(res.headers["accept-ranges"], "bytes");
+      const past = await api().get(PUB + "/package/r/c/t/assets/clip.mp4").set("Range", "bytes=999-");
+      assert.strictEqual(past.status, 416);
+      assert.strictEqual(past.headers["content-range"], "bytes */10");
+      await api().get(PUB + "/package/r/c/t/assets/clip.mp4").set("Range", "items=1-2");
+      assert.strictEqual(lastHit().headers.range, undefined, "only a plain byte range is passed on");
+    });
+
+    it("refuses package paths that would step out of the package", async function () {
+      const before = hits.length;
+      const res = await api().get(PUB + "/package/r/c/t/a/%2E%2E/%2E%2E/reviews/x");
+      assert.strictEqual(res.status, 400);
+      assert.strictEqual(res.body.error.code, "BAD_PATH");
+      assert.strictEqual(hits.length, before, "nothing may reach the service");
+    });
+
+    it("relays a missing package file as JSON", async function () {
+      const res = await api().get(PUB + "/package/r/c/t/missing.js");
+      assert.strictEqual(res.status, 404);
+      assert.strictEqual(res.body.error.code, "NOT_FOUND");
     });
 
     it("relays a report error as JSON", async function () {

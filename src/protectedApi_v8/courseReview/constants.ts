@@ -24,6 +24,12 @@ export const API_END_POINTS = {
     courseMeasure: (courseId: string) => `${COURSE_REVIEW_BASE}/v1/courses/${segment(courseId)}/measure`,
     coursePreview: (courseId: string) => `${COURSE_REVIEW_BASE}/v1/courses/${segment(courseId)}/preview`,
     courseReuse: (courseId: string) => `${COURSE_REVIEW_BASE}/v1/courses/${segment(courseId)}/reuse`,
+    /**
+     * One file of a reviewed HTML package, for the report's preview. `file` is the path inside the
+     * package; each of its parts is encoded on its own (the caller has refused "." and "..").
+     */
+    packageFile: (reviewId: string, contentId: string, token: string, file: string) =>
+        `${COURSE_REVIEW_BASE}/v1/package/${segment(reviewId)}/${segment(contentId)}/${segment(token)}/${file.split('/').map(segment).join('/')}`,
     reviewCancel: (reviewId: string) => `${COURSE_REVIEW_BASE}/v1/reviews/${segment(reviewId)}`,
     reviewCreate: `${COURSE_REVIEW_BASE}/v1/reviews`,
     reviewList: `${COURSE_REVIEW_BASE}/v1/reviews`,
@@ -76,6 +82,8 @@ export const TIMEOUTS = {
     FRAC: 45000,
     /** Measuring opens every PDF and video of a course or upload; Kong allows it 130 s. */
     MEASURE: 150000,
+    /** A package file: the first one waits while the service fetches the package's zip. */
+    PACKAGE: 90000,
     READ: 30000,
     WRITE: 30000,
 }
