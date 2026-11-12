@@ -3,9 +3,9 @@ import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { logInfo } from '../utils/logger'
 import { extractUserToken } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 export const creatorCertificateTemplate = express.Router()
-const templateAddEndpoint = `${CONSTANTS.HTTPS_HOST}/api/course/batch/cert/v1/template/add`
 creatorCertificateTemplate.patch('/template/add', async (req, res) => {
   try {
     const templateBody = req.body.request.batch
@@ -27,7 +27,7 @@ creatorCertificateTemplate.patch('/template/add', async (req, res) => {
         'x-authenticated-user-token': extractUserToken(req),
       },
       method: 'PATCH',
-      url: templateAddEndpoint,
+      url: API_END_POINTS.templateAdd,
     })
     logInfo()
     res.status(200).json({

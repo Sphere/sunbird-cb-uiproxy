@@ -4,8 +4,35 @@ import _ from 'lodash'
 import { axiosRequestConfig } from '../configs/request.config'
 import { CONSTANTS } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
-const API_END_POINTS = {
-    VALIDATE_CERTIFICATE:  `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/certreg/v1/certs/validate`,
+import { API_END_POINTS } from './apiConstants'
+
+// Fetches the user's masked email/phone via the Sunbird user-search API for a given userId.
+// Mirrors the search pattern used in maharastraNursingCouncilAuth.ts (getUserDetails).
+async function getUserContactDetails(userId: string) {
+    try {
+        const userResponse = await axios({
+            ...axiosRequestConfig,
+            data: {
+                request: {
+                    filters: { userId },
+                },
+            },
+            headers: {
+                Authorization: CONSTANTS.SB_API_KEY,
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+            url: API_END_POINTS.USER_SEARCH,
+        })
+        const userData = _.get(userResponse, 'data.result.response.content[0]', {})
+        return {
+            maskedEmail: _.get(userData, 'maskedEmail') || _.get(userData, 'email') || '',
+            maskedPhone: _.get(userData, 'maskedPhone') || _.get(userData, 'phone') || '',
+        }
+    } catch (error) {
+        logError('Error fetching user contact details in validate certificate >>>>>>' + error)
+        return { maskedEmail: '', maskedPhone: '' }
+    }
 }
 const VALIDATION_FAIL = 'Sorry ! Validate cerificate not worked . Please try again in sometime.'
 export const validateCertificate = Router()
@@ -45,7 +72,18 @@ validateCertificate.post('/validate', async (req, res) => {
           })
         if (response.data.responseCode === 'OK') {
             logInfo('Log of validate certificate if OK :')
-            res.status(response.status).send(response.data.result)
+            const result = response.data.result
+            // The recipient userId lives at result.response.json.recipient.identity
+            const recipientId =
+                _.get(result, 'response.json.recipient.identity') ||
+                _.get(result, 'response.json.recipient.id') ||
+                ''
+            if (recipientId) {
+                const contactDetails = await getUserContactDetails(recipientId)
+                result.maskedEmail = contactDetails.maskedEmail
+                result.maskedPhone = contactDetails.maskedPhone
+            }
+            res.status(response.status).send(result)
           } else {
             throw new Error(
               _.get(response.data, 'params.errmsg') ||
@@ -54,8 +92,16 @@ validateCertificate.post('/validate', async (req, res) => {
           }
     } catch (error) {
         logError('Error in validate certificate  >>>>>>' + error)
-        res.status(500).send({
-          message : VALIDATION_FAIL,
+        logError('Validate certificate upstream response >>>>>>' +
+            JSON.stringify(_.get(error, 'response.data') || _.get(error, 'message')))
+        // Forward the upstream status (e.g. 400 for an invalid certId/accessCode)
+        // so the client can distinguish a bad certificate from a real server error.
+        const upstreamStatus = _.get(error, 'response.status')
+        const upstreamMessage =
+            _.get(error, 'response.data.params.errmsg') ||
+            _.get(error, 'response.data.params.err')
+        res.status(upstreamStatus || 500).send({
+          message : upstreamMessage || VALIDATION_FAIL,
           status : 'failed',
         })
     }

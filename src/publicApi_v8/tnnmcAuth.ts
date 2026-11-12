@@ -14,16 +14,7 @@ import { getCurrentUserRoles } from './rolePermission'
 
 const AUTH_FAIL =
     'Authentication failed ! Please check credentials and try again.'
-const API_END_POINTS = {
-    createUser: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-    fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-    fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-    generateToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-    profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-    tnnmcUserDetailsUrl:
-        CONSTANTS.TNNMC_USER_DETAILS_URL,
-    userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const tnnmcApiKey = CONSTANTS.TNNMC_API_KEY
 const tnmcApiSecret = CONSTANTS.TNNMC_API_SECRET

@@ -1,12 +1,8 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  unreadNotificationCount: CONSTANTS.NOTIFICATIONS_API_BASE + '/v1/users',
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const iconBadgeApi = Router()
 

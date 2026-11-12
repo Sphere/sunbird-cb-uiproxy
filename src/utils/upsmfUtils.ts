@@ -29,7 +29,7 @@ export const getDetailsAsPerRole = (userDetails: UserDetails) => {
             }
 
         case 'ANM-UP': {
-            const designation = 'ANM-UP'
+            const designation = 'ANM_UP'
             // Government side: Regular / Contractual
             if (userDetails?.roleForInService === 'Government') {
                 if (userDetails?.serviceType === 'Regular') {

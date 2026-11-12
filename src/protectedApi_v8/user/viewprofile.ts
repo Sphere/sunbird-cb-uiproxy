@@ -1,11 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
-const API_END_POINTS = {
-  viewProfileOwn: `${CONSTANTS.NODE_API_BASE}/userprofiles/pathfinders/viewprofile`,
-}
+import { API_END_POINTS } from '../apiConstants'
+
 export const viewProfileApi = Router()
 viewProfileApi.get('/:wid', async (req, res) => {
   try {

@@ -2,6 +2,7 @@ import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { admin } from './admin/admin'
 import { aiServiceAPI } from './AI_Hub_Research/AIService'
+import { aiStudioApi } from './aiStudio/aiStudio'
 import { assessmentApi } from './assessment'
 import { assessmentCompetency } from './assessmentCompetency'
 import { attendedContentApi } from './attendent-content'
@@ -19,6 +20,7 @@ import { connectionsV2Api } from './connections_v2'
 import { contentApi } from './content'
 import { contentValidationApi } from './contentValidation'
 import { counterApi } from './counter'
+import { courseReviewApi } from './courseReview/courseReview'
 import { creatorCertificateTemplate } from './creatorCertificateTemplate'
 import { deptApi } from './departments'
 import { discussionHubApi } from './discussionHub/discussionHub'
@@ -28,6 +30,8 @@ import { eventsApi } from './events'
 import { fracApi } from './frac'
 import { knowledgeHubApi } from './khub'
 import { leaderBoardApi } from './leaderboard'
+import { learnerPathApi } from './learnerPath'
+import { mncAttendanceReportApi } from './mncAttendanceReport'
 import { navigatorApi } from './navigator'
 import { networkConnectionApi } from './network'
 import { networkHubApi } from './network-hub'
@@ -112,3 +116,7 @@ protectedApiV8.use('/rcCert', rcCert)
 protectedApiV8.use('/sunbirdrRcCertificate', sunbirdrRcCertificate)
 protectedApiV8.use('/profileupdatev2', profileupdatev2)
 protectedApiV8.use('/playlist', playlistApi)
+protectedApiV8.use('/learnerPath', learnerPathApi)
+protectedApiV8.use('/report', mncAttendanceReportApi)
+protectedApiV8.use('/aiStudio', aiStudioApi)
+protectedApiV8.use('/courseReview', courseReviewApi)

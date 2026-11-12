@@ -1,13 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { ERROR } from '../utils/message'
 import { extractUserIdFromRequest } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-    getNetworkHubUsers: `${CONSTANTS.USER_PROFILE_API_BASE}/public/v8/networkHub/users`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const networkHubApi = Router()
 

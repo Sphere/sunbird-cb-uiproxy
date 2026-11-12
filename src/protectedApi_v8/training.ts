@@ -3,12 +3,9 @@ import { format as formatDate } from 'date-fns'
 import { Request, Response, Router } from 'express'
 import { IFeedbackTraining, IIGOTJLStatus, IJITForm, IJITRequest, ITraining, ITrainingApiResponse, ITrainingCounts, ITrainingFeedbackQuestion, ITrainingRequest, ITrainingSession, ITrainingShareBody, ITrainingUserPrivileges } from '../models/training.model'
 import { IUserAutocomplete } from '../models/user.model'
-import { CONSTANTS } from '../utils/env'
 import { getDateRangeString, getEmailLocalPart, getStringifiedQueryParams } from '../utils/helpers'
 import { extractUserEmailFromRequest } from '../utils/requestExtract'
-const apiEndpoints = {
-  training: `${CONSTANTS.LEARNING_HUB_API_BASE}/lHub/v1`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 
@@ -31,7 +28,7 @@ trainingApi.get('/content/:contentId/trainings', async (req: Request, res: Respo
 
     const queryParams: string = getStringifiedQueryParams(queryParamObj)
 
-    let url = `${apiEndpoints.training}/content/${contentId}/trainings?${queryParams}`
+    let url = `${API_END_POINTS.training}/content/${contentId}/trainings?${queryParams}`
 
     if (location) {
       url += `&location=${location}`
@@ -57,7 +54,7 @@ trainingApi.get('/trainingsId/sessions', async (req: Request, res: Response) => 
     const trainingId = req.params.trainingId
 
     const trainingSessions: ITrainingSession[] = await axios
-      .get<ITrainingSession[]>(`${apiEndpoints.training}/offerings/${trainingId}/sessions`)
+      .get<ITrainingSession[]>(`${API_END_POINTS.training}/offerings/${trainingId}/sessions`)
       .then((response) => response.data)
 
     return res.send(trainingSessions)
@@ -76,7 +73,7 @@ trainingApi.get('/content/:contentId/trainings/count', async (req: Request, res:
     const { contentId } = req.params
 
     const countsObj: ITrainingCounts = await axios
-      .post<ITrainingCounts>(`${apiEndpoints.training}/offerings/count`, {
+      .post<ITrainingCounts>(`${API_END_POINTS.training}/offerings/count`, {
         identifiers: [contentId],
       })
       .then((response) => response.data)
@@ -95,7 +92,7 @@ trainingApi.get('/content/:contentId/trainings/count', async (req: Request, res:
 trainingApi.post('/count', async (req: Request, res: Response) => {
   try {
     const apiResult: ITrainingCounts = await axios
-      .post<ITrainingCounts>(`${apiEndpoints.training}/offerings/count`, req.body)
+      .post<ITrainingCounts>(`${API_END_POINTS.training}/offerings/count`, req.body)
       .then((response) => response.data)
 
     return res.send(apiResult)
@@ -116,7 +113,7 @@ trainingApi.post(TRAINING_ENDPOINT, async (req: Request, res: Response) => {
 
     const apiResult: ITrainingApiResponse = await axios
       .post<ITrainingApiResponse>(
-        `${apiEndpoints.training}/offerings/${trainingId}/users/${emailId}`
+        `${API_END_POINTS.training}/offerings/${trainingId}/users/${emailId}`
       )
       .then((response) => response.data)
       .then(() => {
@@ -141,7 +138,7 @@ trainingApi.delete(TRAINING_ENDPOINT, async (req: Request, res: Response) => {
 
     const apiResult: ITrainingApiResponse = await axios
       .delete<ITrainingApiResponse>(
-        `${apiEndpoints.training}/offerings/${trainingId}/users/${emailId}`
+        `${API_END_POINTS.training}/offerings/${trainingId}/users/${emailId}`
       )
       .then((response) => response.data)
 
@@ -177,7 +174,7 @@ trainingApi.post('/:trainingId/nominees', async (req: Request, res: Response) =>
     }
 
     const resp: ITrainingApiResponse[] = await axios
-      .post<ITrainingApiResponse[]>(`${apiEndpoints.training}/offerings/${trainingId}/users`, body)
+      .post<ITrainingApiResponse[]>(`${API_END_POINTS.training}/offerings/${trainingId}/users`, body)
       .then((response) => response.data)
 
     return res.send(resp)
@@ -208,7 +205,7 @@ trainingApi.post('/:trainingId/share', async (req: Request, res: Response) => {
     }
 
     const apiResult: ITrainingApiResponse = await axios
-      .post(`${apiEndpoints.training}/offerings/${trainingId}/share`, shareBody)
+      .post(`${API_END_POINTS.training}/offerings/${trainingId}/share`, shareBody)
       .then((response) => response.data)
 
     return res.send(apiResult)
@@ -227,7 +224,7 @@ trainingApi.get('/watchlist', async (req: Request, res: Response) => {
     const emailId = getEmailLocalPart(extractUserEmailFromRequest(req))
 
     const watchlist: string[] = await axios
-      .get<string[]>(`${apiEndpoints.training}/users/${emailId}/watchlist`)
+      .get<string[]>(`${API_END_POINTS.training}/users/${emailId}/watchlist`)
       .then((response) => response.data)
 
     return res.send(watchlist)
@@ -247,7 +244,7 @@ trainingApi.get('/watchlist/content/:contentId/status', async (req: Request, res
     const { contentId } = req.params
 
     const inWatchlist: boolean = await axios
-      .get<string[]>(`${apiEndpoints.training}/users/${emailId}/watchlist`)
+      .get<string[]>(`${API_END_POINTS.training}/users/${emailId}/watchlist`)
       .then((response) => response.data)
       .then((watchlist) => {
         const index = watchlist.findIndex((id) => id === contentId)
@@ -274,7 +271,7 @@ trainingApi.post('/watchlist/content/:contentId', async (req: Request, res: Resp
     const emailId = getEmailLocalPart(extractUserEmailFromRequest(req))
 
     const apiResult: ITrainingApiResponse = await axios
-      .post(`${apiEndpoints.training}/content/${contentId}/users/${emailId}`)
+      .post(`${API_END_POINTS.training}/content/${contentId}/users/${emailId}`)
       .then((response) => response.data)
 
     return res.send(apiResult)
@@ -295,7 +292,7 @@ trainingApi.delete('/watchlist/content/:contentId', async (req: Request, res: Re
 
     const apiResult: ITrainingApiResponse = await axios
       .delete<ITrainingApiResponse>(
-        `${apiEndpoints.training}/content/${contentId}/users/${emailId}`
+        `${API_END_POINTS.training}/content/${contentId}/users/${emailId}`
       )
       .then((response) => response.data)
 
@@ -315,7 +312,7 @@ trainingApi.get('/trainings/jit', async (req: Request, res: Response) => {
     const userId = getEmailLocalPart(extractUserEmailFromRequest(req))
 
     const jitRequests: IJITRequest[] = await axios
-      .get<IJITRequest[]>(`${apiEndpoints.training}/users/${userId}/jit`)
+      .get<IJITRequest[]>(`${API_END_POINTS.training}/users/${userId}/jit`)
       .then((response) => response.data)
 
     return res.send(jitRequests)
@@ -347,7 +344,7 @@ trainingApi.post('/trainings/jit', async (req: Request, res: Response) => {
     }
 
     const apiResult: ITrainingApiResponse = await axios
-      .post<ITrainingApiResponse>(`${apiEndpoints.training}/jit`, jitRequest)
+      .post<ITrainingApiResponse>(`${API_END_POINTS.training}/jit`, jitRequest)
       .then((response) => response.data)
 
     return res.send(apiResult)
@@ -366,7 +363,7 @@ trainingApi.get('/trainingsForApproval', async (req: Request, res: Response) => 
     const userId = getEmailLocalPart(extractUserEmailFromRequest(req))
 
     const trainingRequests: ITrainingRequest[] = await axios
-      .get<ITrainingRequest[]>(`${apiEndpoints.training}/manager/${userId}/offerings`)
+      .get<ITrainingRequest[]>(`${API_END_POINTS.training}/manager/${userId}/offerings`)
       .then((response) => response.data)
 
     return res.send(trainingRequests)
@@ -387,7 +384,7 @@ trainingApi.patch(TRAINING_ENDPOINT, async (req: Request, res: Response) => {
 
     const apiResult: ITrainingApiResponse = await axios
       .patch<ITrainingApiResponse>(
-        `${apiEndpoints.training}/offerings/${trainingId}/users/${emailId}`,
+        `${API_END_POINTS.training}/offerings/${trainingId}/users/${emailId}`,
         req.body
       )
       .then((response) => response.data)
@@ -408,7 +405,7 @@ trainingApi.get('/trainings/feedback', async (req: Request, res: Response) => {
     const emailId = getEmailLocalPart(extractUserEmailFromRequest(req))
 
     const trainingsForFeedback: IFeedbackTraining[] = await axios
-      .get<IFeedbackTraining[]>(`${apiEndpoints.training}/users/${emailId}/offerings/feedback`)
+      .get<IFeedbackTraining[]>(`${API_END_POINTS.training}/users/${emailId}/offerings/feedback`)
       .then((response) => response.data)
       .then((trainings) => {
         trainings.forEach((training) => {
@@ -433,7 +430,7 @@ trainingApi.get('/feedback/:formId', async (req: Request, res: Response) => {
     const { formId } = req.params
 
     const feedbackQuestions: ITrainingFeedbackQuestion[] = await axios
-      .get<ITrainingFeedbackQuestion[]>(`${apiEndpoints.training}/feedback/${formId}`)
+      .get<ITrainingFeedbackQuestion[]>(`${API_END_POINTS.training}/feedback/${formId}`)
       .then((response) => response.data)
 
     return res.send(feedbackQuestions)
@@ -462,7 +459,7 @@ trainingApi.post('/trainings/:trainingId/feedback', async (req: Request, res: Re
 
     const apiResult: ITrainingApiResponse = await axios
       .post(
-        `${apiEndpoints.training}/offerings/${trainingId}/users/${emailId}/feedback?${queryParams}`,
+        `${API_END_POINTS.training}/offerings/${trainingId}/users/${emailId}/feedback?${queryParams}`,
         req.body
       )
       .then((response) => response.data)
@@ -483,7 +480,7 @@ trainingApi.get('/userInfo', async (req: Request, res: Response) => {
     const emailId = getEmailLocalPart(extractUserEmailFromRequest(req))
 
     const isJL6OrAbove: ITrainingUserPrivileges = await axios
-      .get<IIGOTJLStatus>(`${apiEndpoints.training}/users/${emailId}`)
+      .get<IIGOTJLStatus>(`${API_END_POINTS.training}/users/${emailId}`)
       .then((response) => ({
         canNominate: response.data.isJL6AndAbove || false,
         canRequestJIT: response.data.isJL6AndAbove || false,

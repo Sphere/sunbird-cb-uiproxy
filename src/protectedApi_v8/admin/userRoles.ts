@@ -1,15 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
-
-const API_ENDPOINTS = {
-  getRoles: `${CONSTANTS.SB_EXT_API_BASE_4}/v1/user`,
-  getRolesDescription: `${CONSTANTS.ROLES_API_BASE}/v2/all-roles`,
-  updateRoles: `${CONSTANTS.ROLES_API_BASE}/v1/update/roles`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 export const userRolesApi = Router()
@@ -29,7 +23,7 @@ userRolesApi.get('/getRolesDescription/:lang', async (req, res) => {
         rootOrg,
       },
       method: 'GET',
-      url: `${API_ENDPOINTS.getRolesDescription}`,
+      url: `${API_END_POINTS.getRolesDescription}`,
     })
     res.send(response.data)
   } catch (err) {
@@ -51,7 +45,7 @@ userRolesApi.get('/allRoles', async (req, res) => {
         rootOrg,
       },
       method: 'GET',
-      url: `${API_ENDPOINTS.getRoles}/roles?userid=${uuid}`,
+      url: `${API_END_POINTS.getRoles}/roles?userid=${uuid}`,
     })
     res.json(response.data || {})
   } catch (err) {
@@ -74,7 +68,7 @@ userRolesApi.get('/:id', async (req, res) => {
         rootOrg,
       },
       method: 'GET',
-      url: `${API_ENDPOINTS.getRoles}/roles?userid=${id}`,
+      url: `${API_END_POINTS.getRoles}/roles?userid=${id}`,
     })
     res.json(response.data || {})
   } catch (err) {
@@ -97,7 +91,7 @@ userRolesApi.patch('/', async (req, res) => {
         rootOrg,
       },
       method: 'PATCH',
-      url: `${API_ENDPOINTS.updateRoles}`,
+      url: `${API_END_POINTS.updateRoles}`,
     })
     res.json(response.data || {})
   } catch (err) {

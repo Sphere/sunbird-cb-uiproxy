@@ -5,14 +5,10 @@ import { ERROR } from '../utils/message'
 
 import axios from 'axios'
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { extractAuthorizationFromRequest } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 export const roleActivityApi = Router()
-
-const API_END_POINTS = {
-    searchNodes: `${CONSTANTS.FRAC_API_BASE}/fracapis/frac/searchNodes`,
-}
 
 roleActivityApi.get('/', async (req, res) => {
     try {
@@ -58,7 +54,7 @@ roleActivityApi.get('/:roleKey', async (req, res) => {
                 ],
           }
         logInfo('Req body========>', JSON.stringify(searchBody))
-        const response = await axios.post(API_END_POINTS.searchNodes, searchBody, {
+        const response = await axios.post(API_END_POINTS.fracSearchNodes, searchBody, {
             ...axiosRequestConfig,
             headers: {
                 Authorization: extractAuthorizationFromRequest(req),

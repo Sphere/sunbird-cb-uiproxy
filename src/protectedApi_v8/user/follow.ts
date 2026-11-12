@@ -1,21 +1,9 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  follow: `${CONSTANTS.NODE_API_BASE}/follow`,
-  followers: `${CONSTANTS.NODE_API_BASE}/getFollowers`,
-  getAll: `${CONSTANTS.NODE_API_BASE}/getAll`,
-  getFollowers: `${CONSTANTS.NODE_API_BASE}/getfollowersv2`,
-  getFollowersv3: `${CONSTANTS.NODE_API_BASE}/getfollowersv3`,
-  getFollowing: `${CONSTANTS.NODE_API_BASE}/getfollowing`,
-  getFollowingv3: (isIntranet: boolean, isStandAlone: boolean) =>
-    `${CONSTANTS.NODE_API_BASE}/getfollowingv3?isIntranet=${isIntranet}&isStandAlone=${isStandAlone}`,
-  unFollow: `${CONSTANTS.NODE_API_BASE}/unfollow`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const followApi = Router()
 

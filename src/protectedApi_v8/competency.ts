@@ -2,15 +2,9 @@ import axios from 'axios'
 import { Router } from 'express'
 
 import { axiosRequestConfig } from '../configs/request.config'
-import { CONSTANTS } from '../utils/env'
 import { ERROR } from '../utils/message'
 import { extractAuthorizationFromRequest } from '../utils/requestExtract'
-
-const API_END_POINTS = {
-  addCompetency: `${CONSTANTS.FRAC_API_BASE}/api/frac/addDataNode`,
-  getCompetency: `${CONSTANTS.FRAC_API_BASE}/api/frac/getAllNodes?type=COMPETENCY&status=VERIFIED`,
-  searchCompetency: `${CONSTANTS.FRAC_API_BASE}/api/frac/searchNodes`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const competencyApi = Router()
 const unknownError = 'Failed due to unknown reason'

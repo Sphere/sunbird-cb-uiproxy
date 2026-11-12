@@ -151,7 +151,7 @@ proxiesV8.post('/upload/action/*', (req, res) => {
       contentType: file.mimetype,
       filename: file.name,
     })
-    const targetUrl = '/api/content/v1/upload/' + url
+    const targetUrl = '/api/asset/v1/upload/' + url
     logInfo('URL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>' + targetUrl)
     axios({
       ...axiosRequestConfig,
@@ -606,7 +606,7 @@ proxiesV8.use('/ext-forms/*',
 )
 
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
 
 proxiesV8.post('/notifyContentState', async (req, res) => {

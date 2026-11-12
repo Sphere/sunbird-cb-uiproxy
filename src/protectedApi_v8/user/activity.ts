@@ -1,13 +1,8 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_END_POINTS = {
-  activities: (userId: string) =>
-    `${CONSTANTS.SB_EXT_API_BASE_3}/v1/activities/user/${userId}`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const activity = Router()
 

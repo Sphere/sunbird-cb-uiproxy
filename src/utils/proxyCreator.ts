@@ -39,19 +39,6 @@ uploadProxy.on('error', (err, _req, _res) => {
   logError('[UPLOAD PROXY ERROR]', errorMessage)
 })
 
-// /**
-//  * Backup validation: Ensures multipart/form-data uploads bypass body parsing.
-//  * Works in conjunction with server.ts skipBodyParser middleware (line 205).
-//  * Prevents double-parsing of stream data.
-//  */
-// // tslint:disable-next-line: no-any
-// uploadProxy.on('proxyReq', (_proxyReq: any, req: any) => {
-//   const contentType = req.headers[CONTENT_TYPE_KEY] || ''
-//   if (contentType.startsWith('multipart/form-data')) {
-//     return // Stream passes through unmodified to backend
-//   }
-// })
-
 // tslint:disable-next-line: no-any
 proxy.on('proxyReq', (proxyReq: any, req: any, _res: any, _options: any) => {
   proxyReq.setHeader('X-Channel-Id', '0132317968766894088')
@@ -173,7 +160,14 @@ export function proxyCreatorLearner(
 ): Router {
   route.all('/*', (req, res) => {
     const url = removePrefix(`${PROXY_SLUG}/learner`, req.originalUrl)
-    if (url.includes('/batch/create')) {
+    // Only short-circuit batch creation where something else already creates the
+    // batch. Sunbird ED did this in the post-publish-processor job, so forwarding
+    // would have made a duplicate; Sunbird Spark does not ship that job, so
+    // swallowing the request leaves the course with no batch and learners unable
+    // to enrol. Forwarding also means a genuine failure surfaces instead of being
+    // reported as a success with an empty batchId.
+    if (CONSTANTS.STUB_BATCH_CREATE && url.includes('/batch/create')) {
+      logInfo('batch/create stubbed by STUB_BATCH_CREATE; not forwarding: ', url)
       res.status(200).json({
         responseCode: 'OK',
         result: {
@@ -445,7 +439,7 @@ export function proxyCreatorUpload(
 }
 
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
 
 /**
@@ -597,7 +591,7 @@ export function proxyCreatorDownloadCertificate(
   route.all('/*', (req, res) => {
     const originalUrl = req.originalUrl
     const lastIndex = originalUrl.lastIndexOf('/')
-    const subStr = originalUrl.substr(lastIndex).substr(1)
+    const subStr = originalUrl.substring(lastIndex).substring(1)
     // tslint:disable-next-line: no-console
     console.log('REQ_URL_ORIGINAL proxyCreatorSunbirdSearch', req.originalUrl)
     // tslint:disable-next-line: no-console

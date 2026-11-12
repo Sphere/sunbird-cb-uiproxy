@@ -6,10 +6,7 @@ import { logError, logInfo } from '../utils/logger'
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason 11'
 import { processContent } from '../utils/contentHelpers'
 
-import { CONSTANTS } from '../utils/env'
-const API_END_POINTS = {
-  searchV6: `${CONSTANTS.SEARCH_API_BASE}/v6/search`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 export const publicOrg = Router()
 

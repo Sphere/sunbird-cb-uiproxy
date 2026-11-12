@@ -43,6 +43,7 @@ const maskSensitiveData = (data: Record<string, unknown>): Record<string, unknow
 const RC_S3_BUCKET_NAME = CONSTANTS.RC_S3_BUCKET_NAME
 const EVENT_TYPE_REGISTERED_WITH_SPHERE = 'registred with sphere'
 const EVENT_TYPE_REGISTERED_WITHOUT_SPHERE = 'registred without sphere'
+const VALID_EVENT_TYPES = [EVENT_TYPE_REGISTERED_WITH_SPHERE, EVENT_TYPE_REGISTERED_WITHOUT_SPHERE]
 const ERROR_EVENT_NOT_FOUND = 'Event not found'
 const STATUS_IN_PROGRESS = 'inProgress'
 const STATUS_FAILED_USER_CREATION = 'failed during user creation'
@@ -52,14 +53,40 @@ const client = new cassandra.Client({
     localDataCenter: 'datacenter1',
 })
 const getEventQuery = 'SELECT * FROM sunbird.rc_events WHERE eventId = ?'
+const CERTIFICATE_EMAIL_URL = `${CONSTANTS.NOTIFICATION_SERVIC_API_BASE}/v1/notification/send/sync`
+const CERTIFICATE_EMAIL_SUBJECT = 'Your certificate – {{eventName}}'
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 export const sunbirdrRcCertificate = Router()
 sunbirdrRcCertificate.post('/events', async (req, res) => {
     logInfo('Create event request body', req.body)
     // tslint:disable-next-line: max-line-length
-    const { eventName, eventDescription, eventDate, eventPlace, eventType, createdBy } = req.body
-    if (!eventName || !eventDescription || !eventDate || !eventPlace || !createdBy) {
-        return res.status(400).json({ error: 'Missing required fields' })
+    const { eventName, eventDescription, eventDate, eventPlace, eventType } = req.body
+    // createdBy is taken from the authenticated session, NOT the request body. The events
+    // dashboard lists only events whose createdBy equals the caller's userId, so a
+    // client-supplied value that does not match the session hides the event from its own
+    // creator, and would let a caller attribute an event to somebody else. The body value
+    // is retained only as a fallback for older clients.
+    // tslint:disable-next-line: no-any
+    const createdBy = ((req as any).session && (req as any).session.userId) || req.body.createdBy
+
+    const missingFields: string[] = []
+    if (!eventName) { missingFields.push('eventName') }
+    if (!eventDescription) { missingFields.push('eventDescription') }
+    if (!eventDate) { missingFields.push('eventDate') }
+    if (!eventPlace) { missingFields.push('eventPlace') }
+    if (!createdBy) { missingFields.push('createdBy') }
+    if (missingFields.length > 0) {
+        logError(`[/events] Missing required fields: ${missingFields.join(', ')}`)
+        return res.status(400).json({ error: 'Missing required fields', missingFields })
+    }
+
+    // An unrecognised eventType breaks the certificate flow silently: the template filter
+    // falls through to its else branch and offers both registered and non-registered
+    // templates, and the no-registration path never activates.
+    if (VALID_EVENT_TYPES.indexOf(eventType) === -1) {
+        logError(`[/events] Invalid eventType: ${eventType}`)
+        return res.status(400).json({ error: 'Invalid eventType', allowedValues: VALID_EVENT_TYPES })
     }
     const eventId = uuid.v4()
     // tslint:disable-next-line: max-line-length
@@ -156,14 +183,89 @@ sunbirdrRcCertificate.get('/events/:id', async (req, res) => {
 })
 
 // Get All Events API (GET /events)
-sunbirdrRcCertificate.get('/events', async (_req, res) => {
-    const query = 'SELECT * FROM sunbird.rc_events'
+/**
+ * Events for one user.
+ *
+ * Prefers an indexed lookup on createdby so the read cost tracks the caller's own events
+ * rather than the size of the whole table. That needs a secondary index:
+ *
+ *   CREATE INDEX IF NOT EXISTS rc_events_createdby_idx ON sunbird.rc_events (createdby);
+ *
+ * Until that index exists the query is rejected, so this falls back to the previous
+ * behaviour (scan the table, filter here) and logs it. That keeps the endpoint working
+ * either side of the migration instead of depending on deploy order.
+ */
+// tslint:disable-next-line: no-any
+const fetchEventsForUser = async (callerId: string): Promise<any[]> => {
     try {
-        const result = await client.execute(query)
-        if (result.rowLength === 0) {
-            return res.status(404).json({ error: 'No events found' })
+        const indexed = await client.execute(
+            'SELECT * FROM sunbird.rc_events WHERE createdby = ?',
+            [callerId],
+            { prepare: true }
+        )
+        return indexed.rows
+    } catch (indexErr) {
+        logError('[/events] indexed createdby lookup unavailable, falling back to a table scan. '
+            + 'Create rc_events_createdby_idx to avoid this. ' + JSON.stringify(indexErr))
+        const scan = await client.execute('SELECT * FROM sunbird.rc_events')
+        logInfo(`[/events] scanned ${scan.rowLength} rows to find events for ${callerId}`)
+        // tslint:disable-next-line: no-any
+        return scan.rows.filter((event: any) => event.createdby === callerId)
+    }
+}
+
+/**
+ * Participant counts for the given events only.
+ *
+ * Each count is a single-partition read, because rc_events_users is partitioned by eventid.
+ * This replaces a full scan of that table, which was the fastest-growing cost on the page:
+ * it grew with the total number of participants across every event, not with the caller's.
+ * Issued in small batches so a user with many events cannot open hundreds of concurrent
+ * queries.
+ */
+// tslint:disable-next-line: no-any
+const countParticipantsForEvents = async (events: any[]): Promise<Map<string, number>> => {
+    const counts = new Map<string, number>()
+    const ids = events.map((event) => String(event.eventid))
+    const BATCH = 10
+    for (let i = 0; i < ids.length; i += BATCH) {
+        const batch = ids.slice(i, i + BATCH)
+        await Promise.all(batch.map(async (id) => {
+            try {
+                const row = await client.execute(
+                    'SELECT COUNT(*) AS total FROM sunbird.rc_events_users WHERE eventid = ?',
+                    [id],
+                    { prepare: true }
+                )
+                // the driver returns COUNT as a Long
+                counts.set(id, Number(row.rows[0] && row.rows[0].total) || 0)
+            } catch (countErr) {
+                // Leave this event without a count rather than failing the whole list; the
+                // dashboard treats an absent count as "unknown" and skips that status step.
+                logError(`[/events] participant count failed for ${id}: ${JSON.stringify(countErr)}`)
+            }
+        }))
+    }
+    return counts
+}
+
+sunbirdrRcCertificate.get('/events', async (req, res) => {
+    try {
+        // tslint:disable-next-line: no-any
+        const callerId = (req as any).session && (req as any).session.userId
+        if (!callerId) {
+            // Fail closed: without an identity we cannot tell which events belong to the
+            // caller, and returning everything would leak other users' events.
+            logError('[/events] No session userId on request; returning an empty list')
+            return res.status(200).json([])
         }
-        const events = result.rows.map((event) => ({
+
+        const ownRows = await fetchEventsForUser(callerId)
+        const participantCounts = await countParticipantsForEvents(ownRows)
+
+        // An empty result is a 200 with [], not a 404 — "you have no events yet" is a normal
+        // state and should render an empty list rather than surface as a fetch error.
+        const events = ownRows.map((event) => ({
             createdAt: event.createdat,
             createdBy: event.createdby,
             eventDate: event.eventdate,
@@ -172,6 +274,7 @@ sunbirdrRcCertificate.get('/events', async (_req, res) => {
             eventName: event.eventname,
             eventPlace: event.eventplace,
             eventType: event.eventtype,
+            participantCount: participantCounts.get(String(event.eventid)),
             status: event.status,
             templateId: event.templateid,
             updatedAt: event.updatedat,
@@ -212,6 +315,8 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
 
             try {
                 const { phone, place } = user
+                // optional column: kept only when it is a valid address, used to email the certificate
+                const email = EMAIL_PATTERN.test(String(user.email || '').trim()) ? String(user.email).trim().toLowerCase() : ''
                 const linkId = uuid.v4()
                 let firstName = ''
                 let lastName = ''
@@ -245,6 +350,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                         firstName,
                         lastName,
                         eventData.eventplace || place,
+                        email,
                         STATUS_IN_PROGRESS,
                         new Date(),
                         new Date(),
@@ -258,6 +364,7 @@ sunbirdrRcCertificate.post('/events/users', async (req, res) => {
                         firstName,
                         lastName,
                         eventData.eventplace || place,
+                        email,
                         STATUS_FAILED_USER_CREATION,
                         new Date(),
                         new Date(),
@@ -331,7 +438,7 @@ async function getUserDetailsFromSunbird(phone: string, user: any) {
 // tslint:disable-next-line: no-any
 async function insertUserEventLink(queryParamsLink: any) {
     // tslint:disable-next-line: max-line-length
-    const queryLink = 'INSERT INTO sunbird.rc_events_users (linkid, userid, eventid, firstname, lastname, place, certificateGenerationStatus, createdat, updatedat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    const queryLink = 'INSERT INTO sunbird.rc_events_users (linkid, userid, eventid, firstname, lastname, place, email, certificateGenerationStatus, createdat, updatedat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     await client.execute(queryLink, queryParamsLink, { prepare: true })
 }
 // tslint:disable-next-line: no-any
@@ -348,9 +455,9 @@ async function tryGenerateCertificateWithRetry(user, eventDetails, templateId, m
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
             const result = await generateCertificateFromRcMapper(user, eventDetails, user.userid, templateId)
-            if (result === true) {
+            if (result) {
                 logInfo(`[tryGenerateCertificateWithRetry] SUCCESS on attempt ${attempt} for user ${user.userid}`)
-                return true
+                return result
             } else if (result === false) {
                 // Permanent failure - don't retry
                 logError(`[tryGenerateCertificateWithRetry] Permanent failure for user ${user.userid} on attempt ${attempt}`)
@@ -398,6 +505,8 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
         const processingDelay = 300 // Add 300ms delay between users to avoid rate limiting
 
         logInfo(`[/events/generateCertificates] Starting certificate generation for ${users.length} users`)
+        // loaded once per run; null means no emails this run, certificate generation is unaffected
+        const emailTemplate = CONSTANTS.CERT_EMAIL_ENABLED === 'true' ? await loadCertificateEmailTemplate() : null
 
         for (let userIndex = 0; userIndex < users.length; userIndex++) {
             const user = users[userIndex]
@@ -429,6 +538,10 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
                 if (certificateGenerationStatus) {
                     successCount++
                     logInfo(`[/events/generateCertificates] SUCCESS: User ${userIndex + 1}/${users.length} - ${userid}`)
+                    if (emailTemplate && user.email && !user.emailsentat) {
+                        // not awaited: email must never slow down or fail certificate generation
+                        sendCertificateEmail(user, eventDetails[0], certificateGenerationStatus.pdfUrl, emailTemplate)
+                    }
                 } else {
                     failedCount++
                     logError(`[/events/generateCertificates] FAILED: User ${userIndex + 1}/${users.length} - ${userid}`)
@@ -456,6 +569,68 @@ sunbirdrRcCertificate.post('/events/generateCertificates', async (req, res) => {
         }
     }
 })
+
+async function loadCertificateEmailTemplate() {
+    try {
+        const response = await axios.get(CONSTANTS.CERT_EMAIL_TEMPLATE_URL, { responseType: 'text', timeout: 10000 })
+        const html = String(response.data || '')
+        if (!html.includes('{{certificateUrl}}')) {
+            logError('[certificateEmail] template has no {{certificateUrl}} placeholder, no emails this run')
+            return null
+        }
+        const title = html.match(/<title>([^<]*)<\/title>/i)
+        return { html, subject: title && title[1].trim() ? title[1].trim() : CERTIFICATE_EMAIL_SUBJECT }
+    } catch (err) {
+        logError(`[certificateEmail] could not load template ${CONSTANTS.CERT_EMAIL_TEMPLATE_URL}, no emails this run: ${err.message}`)
+        return null
+    }
+}
+
+function escapeHtml(value: string) {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+// tslint:disable-next-line: no-any
+async function sendCertificateEmail(user: any, eventData: any, certificateUrl: string, template: { html: string, subject: string }) {
+    try {
+        const values: Record<string, string> = {
+            certificateUrl,
+            eventDate: new Date(eventData.eventdate).toLocaleDateString('en-IN').replace(/\//g, '-'),
+            eventName: eventData.eventname || '',
+            eventPlace: eventData.eventplace || '',
+            name: `${user.firstname || ''} ${user.lastname || ''}`.trim(),
+            portalLink: CONSTANTS.HTTPS_HOST,
+        }
+        const fill = (text: string) => text.replace(/{{(\w+)}}/g, (_match, key) => escapeHtml(values[key] || ''))
+        const response = await axios({
+            data: {
+                request: {
+                    notifications: [{
+                        config: { subject: fill(template.subject) },
+                        deliveryType: 'message',
+                        ids: [user.email],
+                        mode: 'email',
+                        template: { data: fill(template.html), params: {} },
+                    }],
+                },
+            },
+            method: 'POST',
+            url: CERTIFICATE_EMAIL_URL,
+        })
+        if (!(response.data && response.data.result && response.data.result.response)) {
+            throw new Error('notification service did not confirm the send')
+        }
+        // marks the participant so a re-generation never emails them twice
+        await client.execute(
+            'UPDATE sunbird.rc_events_users SET emailsentat = ? WHERE userId = ? AND eventId = ? AND linkid = ?',
+            [new Date(), user.userid, user.eventid, user.linkid],
+            { prepare: true }
+        )
+        logInfo(`[certificateEmail] SENT for linkid ${user.linkid}`)
+    } catch (err) {
+        logError(`[certificateEmail] FAILED for linkid ${user.linkid}: ${err.message}`)
+    }
+}
 
 // tslint:disable-next-line: no-any
 async function updateEventStatus(queryParams: any): Promise<void> {
@@ -547,7 +722,8 @@ const generateCertificateFromRcMapper = async (user: any, eventDataFromCassandra
 
         if (responseData.certificateUrl) {
             logInfo(`[generateCertificateFromRcMapper] SUCCESS: Certificate generated for user ${user.userid} - URL: ${responseData.certificateUrl}`)
-            return true
+            // pdfUrl is the downloadable certificate emailed to the participant; older mappers only return the PNG
+            return { pdfUrl: responseData.pdfUrl || responseData.certificateUrl }
         }
 
         // Check for error in response
@@ -737,7 +913,7 @@ const createUserIfNotExists = async (userData: any) => {
                     authorization: CONSTANTS.SB_API_KEY,
                 },
                 method: 'PATCH',
-                url: `${CONSTANTS.KONG_API_BASE}/user/private/v1/update`,
+                url: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
             })
             logInfo(`[createUserIfNotExists] Profile updated successfully - Response: ${JSON.stringify(profileUpdateResponse.data)}`)
         } catch (errProfile) {
@@ -817,6 +993,8 @@ sunbirdrRcCertificate.get('/events/:eventId/users', async (req, res) => {
         const users = result.rows.map((user: any) => ({
             certificateGenerationStatus: user.certificategenerationstatus,
             createdAt: user.createdat,
+            email: user.email || '',
+            emailSentAt: user.emailsentat || null,
             eventId: user.eventid,
             firstName: user.firstname,
             lastName: user.lastname,

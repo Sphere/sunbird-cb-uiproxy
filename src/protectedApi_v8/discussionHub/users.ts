@@ -7,33 +7,9 @@ import {
   getUserUID,
   getWriteApiToken,
 } from '../../utils/discussionHub-helper'
-import { CONSTANTS } from '../../utils/env'
 import { logError, logInfo } from '../../utils/logger'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-  getUserBookmarks: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}/bookmarks`,
-  getUserDownvotedPosts: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}/downvoted`,
-  getUserGroups: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}/groups`,
-  getUserInfo: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}/info`,
-  getUserPosts: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}/posts`,
-  getUserProfile: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}`,
-  getUserUpvotedPosts: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}/upvoted`,
-  getUsersWatchedTopics: (slug: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/${slug}/watched`,
-  // tslint:disable-next-line: object-literal-sort-keys
-  getUserByEmail: (email: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/email/${email}`,
-  getUserByUsername: (username: string) =>
-    `${CONSTANTS.DISCUSSION_HUB_API_BASE}/api/user/username/${username}`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const usersApi = Router()
 
@@ -44,7 +20,7 @@ usersApi.get('/:slug/bookmarks', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUserBookmarks(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserBookmarks(slug) + `?_uid=${userUid}`
     const responseSlugBookmark = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -65,7 +41,7 @@ usersApi.get('/:slug/downvoted', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUserDownvotedPosts(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserDownvotedPosts(slug) + `?_uid=${userUid}`
     const responseSlugDownVoted = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -86,7 +62,7 @@ usersApi.get('/:slug/groups', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUserGroups(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserGroups(slug) + `?_uid=${userUid}`
     const responseSlugGroups = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -107,7 +83,7 @@ usersApi.get('/:slug/info', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUserInfo(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserInfo(slug) + `?_uid=${userUid}`
     const responseSlugInfo = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -128,7 +104,7 @@ usersApi.get('/me', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const userSlug = await getUserSlug(userId)
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUserProfile(userSlug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserProfile(userSlug) + `?_uid=${userUid}`
     const responseMe = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -149,7 +125,7 @@ usersApi.get('/:slug/posts', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUserPosts(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserPosts(slug) + `?_uid=${userUid}`
     const responseSlugPosts = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -170,7 +146,7 @@ usersApi.get('/:slug/upvoted', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUserUpvotedPosts(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserUpvotedPosts(slug) + `?_uid=${userUid}`
     const responseSlugUpvoted = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -191,7 +167,7 @@ usersApi.get('/:slug/watched', async (req, res) => {
     logInfo(`UserId: ${userId}, rootOrg: ${rootOrg}`)
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
-    const url = API_ENDPOINTS.getUsersWatchedTopics(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUsersWatchedTopics(slug) + `?_uid=${userUid}`
     const responseSlugWatched = await axios.get(url, {
       ...axiosRequestConfig,
       headers: { authorization: getWriteApiToken() },
@@ -229,7 +205,7 @@ usersApi.get('/:slug/about', async (req, res) => {
     const slug = req.params.slug
     const userUid = await getUserUID(userId)
     logInfo('called /:slug/about slug=> ', slug)
-    const url = API_ENDPOINTS.getUserProfile(slug) + `?_uid=${userUid}`
+    const url = API_END_POINTS.getUserProfile(slug) + `?_uid=${userUid}`
     logInfo('called /:slug/about url=> ', url)
     const responseSlug = await axios.get(url, {
       ...axiosRequestConfig,
@@ -249,7 +225,7 @@ export async function getUserByEmail(email: any): Promise<any> {
   logInfo('Finding user in NodeBB DiscussionHub...')
   // tslint:disable-next-line: no-try-promise
   try {
-    const url = API_ENDPOINTS.getUserByEmail(email)
+    const url = API_END_POINTS.getUserByEmail(email)
     return async () => {
       const responseAPI = axios
         .get(url, { ...axiosRequestConfig })
@@ -272,7 +248,7 @@ export async function getUserByUsername(username: any): Promise<any> {
   logInfo('Finding user in NodeBB DiscussionHub...')
   // tslint:disable-next-line: no-try-promise
   try {
-    const url = API_ENDPOINTS.getUserByUsername(username)
+    const url = API_END_POINTS.getUserByUsername(username)
     return async () => {
       axios.get(url, { ...axiosRequestConfig }).catch((err) => {
         logError(

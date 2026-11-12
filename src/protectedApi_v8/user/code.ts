@@ -7,12 +7,7 @@ import { CONSTANTS, RESTRICTED_PYTHON_STMT } from '../../utils/env'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
-
-const API_ENDPOINTS = {
-  execute: `${CONSTANTS.IAP_CODE_API_BASE}/backend/Code/Compile`,
-  verify_submit_base: `${CONSTANTS.SUBMISSION_API_BASE}/v1/users`,
-  view_last_submission_base: `${CONSTANTS.SUBMISSION_API_BASE}/v1/users`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 const API_ENDPOINT_TAILS = {
   ceSubmit: `multilanguage-submission?type=submit`,
@@ -40,7 +35,7 @@ export type verifySubmitType =
 export async function execute(requestBody: Response['body']): Promise<{}> {
   try {
     const response = await axios.post(
-      `${API_ENDPOINTS.execute}`,
+      `${API_END_POINTS.execute}`,
       {
         ...requestBody,
         clientId: 'LEX',
@@ -63,7 +58,7 @@ export async function verifySubmit(
   rootOrg: string
 ): Promise<{}> {
   try {
-    const url = `${API_ENDPOINTS.verify_submit_base}/${uuid}/exercises/${lexId}/${API_ENDPOINT_TAILS[type]}`
+    const url = `${API_END_POINTS.verify_submit_base}/${uuid}/exercises/${lexId}/${API_ENDPOINT_TAILS[type]}`
     const requestBody = {
       ...body,
       clientId: 'LEX',
@@ -92,7 +87,7 @@ export async function viewLastSubmission(
 ): Promise<{}> {
   try {
     // tslint:disable-next-line: max-line-length
-    const url = `${API_ENDPOINTS.view_last_submission_base}/${uuid}/exercises/${lexId}/submissions?user_id_type=uuid&type=latest`
+    const url = `${API_END_POINTS.view_last_submission_base}/${uuid}/exercises/${lexId}/submissions?user_id_type=uuid&type=latest`
     const response = await axios({
       ...axiosRequestConfig,
       headers: {

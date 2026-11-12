@@ -1,10 +1,13 @@
 import express from 'express'
 import { CONSTANTS } from '../utils/env'
 import { proxyCreatorRoute } from '../utils/proxyCreator'
+import { adminUserManage } from './adminUserManage'
 import { appCertificateDownload } from './appCertificateDownload'
 import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { bnrcUserCreation } from './bnrcUser'
 import { validateCertificate } from './certificateValidate'
+import { certificateVerify } from './certificateVerify'
+import { courseReviewPublicApi } from '../protectedApi_v8/courseReview/courseReview'
 import { competencyAssets } from './competencyAssets'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
@@ -14,8 +17,10 @@ import { emailOrMobileLogin } from './emailOrMobileLoginSignIn'
 import { forgotPassword } from './forgotPassword'
 import { googleAuth } from './googleSignInRoutes'
 import { homePage } from './home'
+import {maharastraNursingCouncilAuth} from './maharastraNursingCouncilAuth'
 import { maternityFoundationAuth } from './maternityFoundationAuth'
 import { mobileAppApi } from './mobileAppApi'
+import { mpNHMUserCreation } from './mpNHMUser'
 import { publicCertificateFlinkv2 } from './publicCertifcateFlinkv2'
 import { publicContentApi } from './publicContent'
 import { publicReadForm } from './publicReadForm'
@@ -23,7 +28,6 @@ import { publicSearch } from './publicSearch'
 import { publicTelemetry } from './publicTelemetry'
 import { ratingsSearch } from './ratingsSearch'
 import { sashakt } from './sashaktAuth'
-import { signup } from './signup'
 import { signupWithAutoLogin } from './signupWithAutoLogin'
 import { signupWithAutoLoginOrgForm } from './signupWithAutoLoginOrgForm'
 import { signupWithAutoLoginV2 } from './signupWithAutoLoginV2'
@@ -35,7 +39,6 @@ import { upsmfUserCreation } from './upsmfUser'
 import { deactivateUser } from './userDeactivation'
 import { userOtp } from './userOtp'
 import { userReporting } from './userReporting'
-import { mpNHMUserCreation } from './mpNHMUser'
 export const publicApiV8 = express.Router()
 
 publicApiV8.get('/', (_req, res) => {
@@ -52,8 +55,9 @@ publicApiV8.use(
   )
 )
 publicApiV8.use('/competency', publicCompetencyUser)
+// An HTML package's files for the AI review's preview, authorised by their signed link.
+publicApiV8.use('/courseReview', courseReviewPublicApi)
 publicApiV8.use('/tnc', publicTnc)
-publicApiV8.use('/signup', signup)
 publicApiV8.use('/signupWithAutoLogin', signupWithAutoLogin)
 publicApiV8.use('/signupWithAutoLoginV2', signupWithAutoLoginV2)
 publicApiV8.use('/signupWithAutoLoginOrgForm', signupWithAutoLoginOrgForm)
@@ -65,6 +69,7 @@ publicApiV8.use('/forgot-password/', forgotPassword)
 publicApiV8.use('/publicContent/', publicContentApi)
 publicApiV8.use('/login/', emailOrMobileLogin)
 publicApiV8.use('/certificate/', validateCertificate)
+publicApiV8.use('/certificate/', certificateVerify)
 publicApiV8.use('/sashaktAuth/', sashakt)
 publicApiV8.use('/appCertificateDownload/', appCertificateDownload)
 publicApiV8.use('/publicCertificateFlinkv2/', publicCertificateFlinkv2)
@@ -81,9 +86,11 @@ publicApiV8.use('/testUserOtp', userOtp)
 publicApiV8.use('/ssoLogin', ssoLogin)
 publicApiV8.use('/tnai', tnaiAuth)
 publicApiV8.use('/tnnmc', tnnmcAuth)
+publicApiV8.use('/mnc', maharastraNursingCouncilAuth)
 publicApiV8.use('/bnrcUserCreation', bnrcUserCreation)
 publicApiV8.use('/courseRecommendation', courseRecommendation)
 publicApiV8.use('/ratingsSearch', ratingsSearch)
 publicApiV8.use('/upsmfUserCreation', upsmfUserCreation)
 publicApiV8.use('/mpNHMUserCreation', mpNHMUserCreation)
 publicApiV8.use('/publicReadForm', publicReadForm)
+publicApiV8.use('/adminUserManage', adminUserManage)

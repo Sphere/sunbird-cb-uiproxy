@@ -6,25 +6,10 @@ import { CONSTANTS } from '../utils/env'
 import { logError } from '../utils/logger'
 import { ERROR } from '../utils/message'
 import { extractAuthorizationFromRequest, extractUserId, extractUserToken } from '../utils/requestExtract'
+import { API_END_POINTS } from './apiConstants'
 
 const workallocationV1Path = 'v1/workallocation'
 const workallocationV2Path = 'v2/workallocation'
-const API_END_POINTS = {
-    addAllocationEndPoint: (path: string) => `${CONSTANTS.KONG_API_BASE}/${path}/add`,
-    addWorkOrderEndPoint: (path: string) => `${CONSTANTS.KONG_API_BASE}/${path}/add/workorder`,
-    copyWorkOrderEndPoint: (path: string) => `${CONSTANTS.KONG_API_BASE}/${path}/copy/workOrder`,
-    getPdf: (id: string) => `${CONSTANTS.KONG_API_BASE}/getWOPdf/${id}`,
-    getUserBasicDetails: (userId: string) => `${CONSTANTS.KONG_API_BASE}/${workallocationV2Path}/user/basicInfo/${userId}`,
-    getUsersEndPoint: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/workallocation/getUsers`,
-    getWorkAllocationById: (path: string, id: string) => `${CONSTANTS.KONG_API_BASE}/${path}/getWorkAllocationById/${id}`,
-    getWorkOrderById: (path: string, id: string) => `${CONSTANTS.KONG_API_BASE}/${path}/getWorkOrderById/${id}`,
-    getWorkOrders: (path: string) => `${CONSTANTS.KONG_API_BASE}/${path}/getWorkOrders`,
-    updateAllocationEndPoint: `${CONSTANTS.SB_EXT_API_BASE_2}/v1/workallocation/update`,
-    updateWorkAllocationEndPoint: (path: string) => `${CONSTANTS.KONG_API_BASE}/${path}/update`,
-    updateWorkOrder: (path: string) => `${CONSTANTS.KONG_API_BASE}/${path}/update/workorder`,
-    userAutoCompleteEndPoint: (searchTerm: string) =>
-    `${CONSTANTS.KONG_API_BASE}/v1/workallocation/users/autocomplete?searchTerm=${searchTerm}`,
-}
 
 export const workAllocationApi = Router()
 
@@ -41,7 +26,7 @@ workAllocationApi.post('/add', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.addAllocationEndPoint(workallocationV1Path),
+            API_END_POINTS.workallocationAddAllocation(workallocationV1Path),
             req.body,
             {
                 ...axiosRequestConfig,
@@ -70,7 +55,7 @@ workAllocationApi.post('/update', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.updateAllocationEndPoint,
+            API_END_POINTS.workallocationUpdateAllocation,
             req.body,
             {
                 ...axiosRequestConfig,
@@ -94,7 +79,7 @@ workAllocationApi.post('/update', async (req, res) => {
 workAllocationApi.post('/userSearch', async (req, res) => {
     try {
         const response = await axios.post(
-            API_END_POINTS.getUsersEndPoint,
+            API_END_POINTS.workallocationGetUsers,
             req.body,
             {
                 ...axiosRequestConfig,
@@ -116,7 +101,7 @@ workAllocationApi.post('/userSearch', async (req, res) => {
 workAllocationApi.get('/user/autocomplete/:searchTerm', async (req, res) => {
     try {
         const searchTerm = req.params.searchTerm
-        const response = await axios.get(API_END_POINTS.userAutoCompleteEndPoint(searchTerm), {
+        const response = await axios.get(API_END_POINTS.workallocationUserAutoComplete(searchTerm), {
             ...axiosRequestConfig,
             headers: {
                 Authorization: CONSTANTS.SB_API_KEY,
@@ -145,7 +130,7 @@ workAllocationApi.post('/v2/add', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.addAllocationEndPoint(workallocationV2Path),
+            API_END_POINTS.workallocationAddAllocation(workallocationV2Path),
             req.body,
             {
                 ...axiosRequestConfig,
@@ -177,7 +162,7 @@ workAllocationApi.post('/v2/update', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.updateWorkAllocationEndPoint(workallocationV2Path),
+            API_END_POINTS.workallocationUpdateWorkAllocation(workallocationV2Path),
             req.body,
             {
                 ...axiosRequestConfig,
@@ -207,7 +192,7 @@ workAllocationApi.post('/add/workorder', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.addWorkOrderEndPoint(workallocationV2Path),
+            API_END_POINTS.workallocationAddWorkOrder(workallocationV2Path),
             req.body,
             {
                 ...axiosRequestConfig,
@@ -237,7 +222,7 @@ workAllocationApi.post('/update/workorder', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.updateWorkOrder(workallocationV2Path),
+            API_END_POINTS.workallocationUpdateWorkOrder(workallocationV2Path),
             req.body,
             {
                 ...axiosRequestConfig,
@@ -263,7 +248,7 @@ workAllocationApi.post('/update/workorder', async (req, res) => {
 workAllocationApi.post('/getWorkOrders', async (req, res) => {
     try {
         const response = await axios.post(
-            API_END_POINTS.getWorkOrders(workallocationV2Path),
+            API_END_POINTS.workallocationGetWorkOrders(workallocationV2Path),
             req.body,
             {
                 ...axiosRequestConfig,
@@ -293,7 +278,7 @@ workAllocationApi.get('/getWorkOrderById/:workOrderId', async (req, res) => {
             return
         }
         const response = await axios.get(
-            API_END_POINTS.getWorkOrderById(workallocationV2Path, workOrderId),
+            API_END_POINTS.workallocationGetWorkOrderById(workallocationV2Path, workOrderId),
             {
                 ...axiosRequestConfig,
                 headers: {
@@ -322,7 +307,7 @@ workAllocationApi.get('/getWorkAllocationById/:workAllocationId', async (req, re
             return
         }
         const response = await axios.get(
-            API_END_POINTS.getWorkAllocationById(workallocationV2Path, workAllocationId),
+            API_END_POINTS.workallocationGetWorkAllocationById(workallocationV2Path, workAllocationId),
             {
                 ...axiosRequestConfig,
                 headers: {
@@ -351,7 +336,7 @@ workAllocationApi.post('/copy/workOrder', async (req, res) => {
             return
         }
         const response = await axios.post(
-            API_END_POINTS.copyWorkOrderEndPoint(workallocationV2Path),
+            API_END_POINTS.workallocationCopyWorkOrder(workallocationV2Path),
             req.body,
             {
                 ...axiosRequestConfig,
@@ -382,7 +367,7 @@ workAllocationApi.get('/getUserBasicInfo/:userId', async (req, res) => {
             return
         }
         const response = await axios.get(
-            API_END_POINTS.getUserBasicDetails(userId),
+            API_END_POINTS.workallocationGetUserBasicDetails(userId),
             {
                 ...axiosRequestConfig,
                 headers: {
@@ -411,7 +396,7 @@ workAllocationApi.get('/getWOPdf/:workOrderId', async (req, res) => {
             return
         }
         const response = await axios.get(
-            API_END_POINTS.getPdf(workOrderId),
+            API_END_POINTS.workallocationGetPdf(workOrderId),
             {
                 ...axiosRequestConfig,
                 headers: {

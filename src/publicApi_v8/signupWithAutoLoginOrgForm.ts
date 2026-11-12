@@ -80,21 +80,7 @@ interface UserJourneyStatus {
   validationStatusFailedReason?: string
 }
 
-const API_END_POINTS = {
-  createUserWithMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v3/create`,
-  fetchUserByEmail: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/email/`,
-  fetchUserByMobileNo: `${CONSTANTS.KONG_API_BASE}/user/v1/exists/phone/`,
-  generateOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/generate`,
-  grantAccessToken: `${CONSTANTS.HTTPS_HOST}/auth/realms/sunbird/protocol/openid-connect/token`,
-  keycloak_redirect_url: `${CONSTANTS.KEYCLOAK_REDIRECT_URL}`,
-  msg91ResendOtp: `https://control.msg91.com/api/v5/otp/retry`,
-  msg91SendOtp: `https://control.msg91.com/api/v5/otp`,
-  msg91VerifyOtp: `https://control.msg91.com/api/v5/otp/verify`,
-  profileUpdate: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/update`,
-  searchSb: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-  userRoles: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/user/private/v1/assign/role`,
-  verifyOtp: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/otp/v1/verify`,
-}
+import { API_END_POINTS } from './apiConstants'
 
 const indianCountryCode = '+91'
 
@@ -271,10 +257,10 @@ const migrateUserToOrg = async (
         forceMigration: true,
         notifyMigration: false,
         softDeleteOldOrg: true,
-        userId: userDetails.userId,
+        userId: userDetails.identifier,
       },
     }
-    logInfo(`Migrating user ${userDetails.userId} to ${profileData.channelName}`)
+    logInfo(`Migrating user ${userDetails.identifier} to ${profileData.channelName}`)
     const migrateResponse = await axios({
       data: migrateData,
       headers: { Authorization: CONSTANTS.SB_API_KEY },
@@ -282,13 +268,13 @@ const migrateUserToOrg = async (
       url: `${CONSTANTS.SB_EXT_API_BASE_2}/user/v1/migrate`,
     })
     if (migrateResponse.data?.result?.response === 'SUCCESS') {
-      logInfo(`User ${userDetails.userId} migrated successfully`)
+      logInfo(`User ${userDetails.identifier} migrated successfully`)
       return true
     }
     logError(`Migration failed: ${JSON.stringify(migrateResponse.data)}`)
     return false
   } catch (error) {
-    logError(`Error migrating user ${userDetails.userId}: ${JSON.stringify(error)}`)
+    logError(`Error migrating user ${userDetails.identifier}: ${JSON.stringify(error)}`)
     return false
   }
 }
@@ -669,7 +655,7 @@ signupWithAutoLoginOrgForm.post('/validateOtpWithLogin', async (req: any, res) =
         req.session.regenerate(async () => {
           try {
             const transformedData = qs.stringify({
-              client_id: 'aastrika-sso-login',
+              client_id: CONSTANTS.APP_SSO_CLIENT_ID,
               client_secret: CONSTANTS.APP_SSO_KEYCLOAK_SECRET,
               grant_type: 'password',
               scope: 'offline_access',

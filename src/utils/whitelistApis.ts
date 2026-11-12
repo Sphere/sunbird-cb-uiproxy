@@ -20,6 +20,7 @@ const ROLE = {
   IFU_MEMBER: 'IFU_MEMBER',
   MDO_ADMIN: 'MDO_ADMIN',
   MDO_LEADER: 'MDO_LEADER',
+  MNC_REPORT_VIEWER: 'MNC_REPORT_VIEWER',
   PUBLIC: 'PUBLIC',
   SPV_ADMIN: 'SPV_ADMIN',
   WAT_MEMBER: 'WAT_MEMBER',
@@ -317,6 +318,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/discussion/user/uid/:username': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/proxies/v8/action/content/v3/hierarchyUpdate': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -427,6 +433,11 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/proxies/v8/org/v1/status/update': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/proxies/v8/user/v1/block': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -523,11 +534,6 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.MDO_ADMIN],
     },
     '/proxies/v8/user/v1/migrate': {
-      checksNeeded: [CHECK.ROLE],
-      // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.PUBLIC],
-    },
-    '/proxies/v8/user/private/v1/migrate': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
@@ -1094,6 +1100,23 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/learnerPath': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    // Restricted report: gated on MNC_REPORT_VIEWER, not PUBLIC. The route re-checks the
+    // role itself, because this whitelist only runs when PORTAL_API_WHITELIST_CHECK is true.
+    '/protected/v8/report/mnc-attendance': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.MNC_REPORT_VIEWER],
+    },
+    '/protected/v8/report/mnc-attendance/meta': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.MNC_REPORT_VIEWER],
+    },
     '/protected/v8/frac/addDataNodeBulk': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -1617,6 +1640,271 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/aiStudio/studio/upload': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/list-voices': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/generate-plan': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/revise-plan/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/generate-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/get-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/list-videos': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/download-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/delete-video/:jobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/languages': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/upload': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/generate': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/list': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/update/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/export/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/delete/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/:quizJobId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/artifacts/upload': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/artifacts/:contentId/:filename': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/usage/get-report': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/studio/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/quiz/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/artifacts/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/usage/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/aiStudio/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/checklist': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/preview': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/reuse': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/courses/:courseId/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/reviews/:reviewId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/context': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/uploads/:uploadId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/reviews/:reviewId/report.md': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/checklist': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/preview': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/reuse': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/courses/:courseId/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/reviews/:reviewId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/context': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/measure': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/frac': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/uploads/:uploadId': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/reviews/:reviewId/report.md': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
   },
   URL_PATTERN: [
     '/authApi/action/content/hierarchy/:do_id',
@@ -1646,6 +1934,7 @@ export const API_LIST = {
     '/proxies/v8/data/v1/system/settings/get/orgTypeList',
     '/proxies/v8/org/v1/search',
     '/proxies/v8/org/v1/update',
+    '/proxies/v8/org/v1/status/update',
     '/proxies/v8/discussion/topic/:id/:slug',
     '/proxies/v8/discussion/topic/:tid/:tid/:slug',
     '/proxies/v8/discussion/v2/posts/:id/vote',
@@ -1664,6 +1953,7 @@ export const API_LIST = {
     '/proxies/v8/discussion/forum/tags',
     '/proxies/v8/action/content/v3/update/:do_id',
     '/proxies/v8/discussion/user/:id',
+    '/proxies/v8/discussion/user/uid/:username',
     '/proxies/v8/action/content/v3/create',
     '/proxies/v8/upload/action/content/v3/upload/:do_id',
     '/proxies/v8/getContent',
@@ -1700,7 +1990,6 @@ export const API_LIST = {
     '/proxies/v8/userData/v1/bulkupload/:id',
     '/proxies/v8/userData/v1/bulkupload',
     '/proxies/v8/user/v1/migrate',
-    '/proxies/v8/user/private/v1/migrate',
     '/proxies/v8/user/private/v1/assign/role/userrole',
     '/proxies/v8/learner/course/v1/enrol',
     '/proxies/v8/learnervm/private/content/v3/retire/',
@@ -1821,6 +2110,9 @@ export const API_LIST = {
     '/protected/v8/user/profileDetails/v2/updateUser',
     '/protected/v8/updateProgressv2/update',
     '/protected/v8/updateProgressv3/update',
+    '/protected/v8/learnerPath',
+    '/protected/v8/report/mnc-attendance',
+    '/protected/v8/report/mnc-attendance/meta',
     '/protected/v8/frac/addDataNodeBulk',
     '/protected/v8/roleactivity/:txt',
     '/protected/v8/connections/update/connection',
@@ -1907,10 +2199,66 @@ export const API_LIST = {
     '/proxies/v8/entity/v1/search',
     '/proxies/v8/entity/v1/upload',
     '/proxies/v8/entity/v1/mapping',
+    '/proxies/v8/entity/v1/mapping/search',
+    '/proxies/v8/entity/v1/delete',
     '/protected/v8/playlist/search',
     '/protected/v8/playlist/create',
     '/protected/v8/playlist/update',
-    '/proxies/v8/entity/v1/mapping/search',
-    '/proxies/v8/entity/v1/delete',
+    '/protected/v8/aiStudio/studio/upload',
+    '/protected/v8/aiStudio/studio/list-voices',
+    '/protected/v8/aiStudio/studio/generate-plan',
+    '/protected/v8/aiStudio/studio/revise-plan/:jobId',
+    '/protected/v8/aiStudio/studio/generate-video/:jobId',
+    '/protected/v8/aiStudio/studio/get-video/:jobId',
+    '/protected/v8/aiStudio/studio/list-videos',
+    '/protected/v8/aiStudio/studio/download-video/:jobId',
+    '/protected/v8/aiStudio/studio/delete-video/:jobId',
+    '/protected/v8/aiStudio/quiz/languages',
+    '/protected/v8/aiStudio/quiz/upload',
+    '/protected/v8/aiStudio/quiz/generate',
+    '/protected/v8/aiStudio/quiz/list',
+    '/protected/v8/aiStudio/quiz/update/:quizJobId',
+    '/protected/v8/aiStudio/quiz/export/:quizJobId',
+    '/protected/v8/aiStudio/quiz/delete/:quizJobId',
+    '/protected/v8/aiStudio/quiz/:quizJobId',
+    '/protected/v8/aiStudio/artifacts/upload',
+    '/protected/v8/aiStudio/artifacts/:contentId/:filename',
+    '/protected/v8/aiStudio/usage/get-report',
+    // Wildcards last: every concrete AI Studio path above resolves to its own rule, and
+    // anything the service adds later falls through to these.
+    '/protected/v8/aiStudio/studio/:rest+',
+    '/protected/v8/aiStudio/quiz/:rest+',
+    '/protected/v8/aiStudio/artifacts/:rest+',
+    '/protected/v8/aiStudio/usage/:rest+',
+    '/protected/v8/aiStudio/:rest+',
+    // AI course review: named routes only, there is no passthrough (starting a review spends credit).
+    '/protected/v8/courseReview/checklist',
+    '/protected/v8/courseReview/courses/:courseId/preview',
+    '/protected/v8/courseReview/courses/:courseId/reuse',
+    '/protected/v8/courseReview/courses/:courseId/measure',
+    '/protected/v8/courseReview/courses/:courseId/frac',
+    '/protected/v8/courseReview/uploads/context',
+    '/protected/v8/courseReview/uploads/measure',
+    '/protected/v8/courseReview/uploads/frac',
+    '/protected/v8/courseReview/uploads/reviews',
+    '/protected/v8/courseReview/uploads',
+    '/protected/v8/courseReview/uploads/:uploadId',
+    '/protected/v8/courseReview/reviews/:reviewId/report.md',
+    '/protected/v8/courseReview/reviews/:reviewId',
+    '/protected/v8/courseReview/reviews',
+    '/protected/v8/courseReview/v1/checklist',
+    '/protected/v8/courseReview/v1/courses/:courseId/preview',
+    '/protected/v8/courseReview/v1/courses/:courseId/reuse',
+    '/protected/v8/courseReview/v1/courses/:courseId/measure',
+    '/protected/v8/courseReview/v1/courses/:courseId/frac',
+    '/protected/v8/courseReview/v1/uploads/context',
+    '/protected/v8/courseReview/v1/uploads/measure',
+    '/protected/v8/courseReview/v1/uploads/frac',
+    '/protected/v8/courseReview/v1/uploads/reviews',
+    '/protected/v8/courseReview/v1/uploads',
+    '/protected/v8/courseReview/v1/uploads/:uploadId',
+    '/protected/v8/courseReview/v1/reviews/:reviewId/report.md',
+    '/protected/v8/courseReview/v1/reviews/:reviewId',
+    '/protected/v8/courseReview/v1/reviews',
   ],
 }

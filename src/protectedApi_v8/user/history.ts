@@ -8,19 +8,12 @@ import {
 } from '../../models/content.model'
 import { IPaginatedApiResponse } from '../../models/paginatedApi.model'
 import { processDisplayContentType, processUrl } from '../../utils/contentHelpers'
-import { CONSTANTS } from '../../utils/env'
 import { getStringifiedQueryParams } from '../../utils/helpers'
 import { logError } from '../../utils/logger'
 import { ERROR } from '../../utils/message'
 import { extractUserIdFromRequest } from '../../utils/requestExtract'
+import { API_END_POINTS } from '../apiConstants'
 import { getContentDetails } from '../content'
-
-const API_END_POINTS = {
-  continueGet: (userId: string) =>
-    `${CONSTANTS.CONTINUE_LEARNING_API_BASE}/v1/continue/user/${userId}/getdata`,
-  continuePut: (userId: string) =>
-    `${CONSTANTS.CONTINUE_LEARNING_API_BASE}/v1/continue/user/${userId}/putdata`,
-}
 
 const GENERAL_ERROR_MSG = 'Failed due to unknown reason'
 

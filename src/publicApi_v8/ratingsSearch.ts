@@ -9,13 +9,8 @@ const unknownError = 'Failed due to unknown reason'
 
 export const ratingsSearch = Router()
 
-const API_END_POINTS = {
-    ratingsSearch: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/bulkRatingLookup`,
-    search: `${CONSTANTS.HTTPS_HOST}/apis/public/v8/publicContent/v1/search`,
-    searchAPI: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/getcourse`,
-    searchv1: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-
-}
+import { COURSE_SORT_FIELD, courseSortTime } from './adapters/courseSortDate'
+import { API_END_POINTS } from './apiConstants'
 const postgresConnectionDetails = {
     database: CONSTANTS.POSTGRES_DATABASE,
     host: CONSTANTS.POSTGRES_HOST,
@@ -60,7 +55,7 @@ const getCombinedRatingsResult = async (sourceCourses) => {
                 'Content-Type': 'application/json',
             },
             method: 'POST',
-            url: API_END_POINTS.ratingsSearch,
+            url: API_END_POINTS.ratingSearchCommonService,
         })
         return sourceCourses.map((course) => {
             const matchingRating = getRatingsFromRatingService.data.find((rating) => rating.activityId === course.identifier)
@@ -74,17 +69,16 @@ const getCombinedRatingsResult = async (sourceCourses) => {
 }
 ratingsSearch.post('/getCourses', async (request, response) => {
     try {
-        const facetsDataDefault = ['duration', 'lastUpdatedOn']
         const courseSearchRequestData = request.body
         const filters = courseSearchRequestData.request.filters
         const facets = courseSearchRequestData.request.facets
         const sortMethod = courseSearchRequestData.request.sort_by || {
-            lastUpdatedOn: 'desc',
+            [COURSE_SORT_FIELD]: 'desc',
         }
         if (!courseSearchRequestData.request.query) {
             const requestBodyForSearch = JSON.stringify({
                 request: {
-                    facets: facets || facetsDataDefault,
+                    facets,
                     filters,
                     limit: 20,
                     sort_by: sortMethod,
@@ -122,6 +116,7 @@ ratingsSearch.post('/getCourses', async (request, response) => {
                     lang: string
                     competencies_v1: string
                     lastUpdatedOn: string
+                    lastPublishedOn?: string
                     // tslint:disable-next-line: no-any
                     [key: string]: any
                 }
@@ -143,7 +138,7 @@ ratingsSearch.post('/getCourses', async (request, response) => {
                     return group.slice().sort((a, b) => {
                         const levelDiff = getLevel(a) - getLevel(b)
                         if (levelDiff !== 0) return levelDiff
-                        return new Date(b.lastUpdatedOn).getTime() - new Date(a.lastUpdatedOn).getTime()
+                        return courseSortTime(b) - courseSortTime(a)
                     })
                 })
                 combinedRatingsData = sortedGrouped
@@ -300,7 +295,7 @@ ratingsSearch.post('/recommendation/publicSearch/getcourse', async (req, res) =>
                 'Content-Type': 'application/json',
             },
             method: 'POST',
-            url: API_END_POINTS.searchAPI,
+            url: API_END_POINTS.commonServiceSearch,
         })
         let finalConcatenatedData = []
         let courseDataPrimary = searchServiceResponse.data.results.content

@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { Router } from 'express'
 import express from 'express'
+import * as admin from 'firebase-admin'
 import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
@@ -17,47 +18,30 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
+import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
+import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { requestValidator } from '../utils/requestValidator'
-import { searchContent } from './contentSearchService'
+import { adaptCourseHierarchyResponse } from './adapters/courseHierarchyAdapter'
+import {
+  adaptUserReadResponse,
+  adaptUserSearchResponse,
+  isUserReadRequest,
+  isUserSearchRequest,
+} from './adapters/userReadAdapter'
+import { API_END_POINTS } from './apiConstants'
+import { searchContent, searchContentV2 } from './contentSearchService'
+import { getFirebaseApp } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
-import { getContentWithRatings } from './ratingSummary'
 import { getCurrentUserRoles } from './rolePermission'
 
 // ... other imports ...
 const cassandra = require('cassandra-driver')
 
+const INTERNAL_SERVER_ERROR = 'Internal Server Error'
 const VALIDATION_FAIL =
   'Sorry ! Download cerificate not worked . Please try again in sometime.'
 export const publicCertificateFlinkv2 = Router()
 const REDIRECT_URL = 'https://sphere.aastrika.org/app/profile-view'
-const API_END_POINTS = {
-  CERTIFICATE_DOWNLOAD: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download`,
-  CONTENT_SEARCH_PROXY: `${CONSTANTS.SUNBIRD_PROXY_API_BASE}/content/v1/search`,
-  DOWNLOAD_CERTIFICATE: `${CONSTANTS.HTTPS_HOST}/api/certreg/v2/certs/download/`,
-  FORM_API: `${CONSTANTS.FORM_API_BASE}`,
-  GET_ALL_ENTITY: `${CONSTANTS.ENTITY_API_BASE}/getAllEntity`,
-  GET_ENTITY_BY_ID: `${CONSTANTS.ENTITY_API_BASE}/getEntityById/`,
-  GET_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
-  NOTIFICATION_ENGINE: `${CONSTANTS.NOTIFICATION_ENGINE_API_BASE}`,
-  READ_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/read`,
-  RECOMMENDATION_API: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/course/recommendation`,
-  SEARCH_COURSE_SB: `${CONSTANTS.KONG_API_BASE}/content/v1/search`,
-  UPDATE_LEARNER_PATH: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/learnerpath`,
-  UPDATE_PROGRESS: `${CONSTANTS.HTTPS_HOST}/api/course/v1/content/state/update`,
-  cbpCourseRecommendation: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/publicSearch/CoursesRecomendationCBP`,
-  formHomeConfig: `${CONSTANTS.RECOMMENDATION_API_BASE_V2}/homepageconfig`,
-  kongUpdateUser: `${CONSTANTS.KONG_API_BASE}/user/v1/update`,
-  profileUpdate: `${CONSTANTS.HTTPS_HOST}/api/user/private/v1/update`,
-  ratingLookUp: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/ratingLookUp`,
-  ratingRead: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v2/read`,
-  ratingUpsert: `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/upsert`,
-  rcMapperHost: `${CONSTANTS.RC_MAPPER_HOST}/v1/certificate/getUserCertificateDetails`,
-  summary: (courseId) =>
-    `${CONSTANTS.SB_EXT_API_BASE_2}/ratings/v1/summary/${courseId}/Course`,
-  telemetryUpdate: `${CONSTANTS.TELEMETRY_SB_BASE}/v1/telemetry`,
-  userEnrollmentList: `${CONSTANTS.KONG_API_BASE}/course/v1/user/enrollment/list`,
-  userSearch: `${CONSTANTS.LEARNER_SERVICE_API_BASE}/private/user/v1/search`,
-}
 const PROXY_SLUG_FORMS = '/public/v8/mobileApp/ext-forms'
 const GET_ENTITY_BY_ID_FAIL =
   "Sorry ! couldn't get entity for the respective ID."
@@ -165,6 +149,15 @@ mobileAppApi.get('/kong/course/v2/hierarchy/*', async (req, res) => {
       responseData = response.data
     }
 
+    // Normalize competencies_v1 to the string shape every mobile consumer expects
+    // (backend can send a JSON string, an already-parsed array, or a single object -
+    // see adapters/courseHierarchyAdapter.ts). Never let this step break the response.
+    try {
+      responseData = adaptCourseHierarchyResponse(responseData)
+    } catch (adapterError) {
+      logInfo('[Hierarchy Mobile API] Error during course hierarchy adaptation:', JSON.stringify(adapterError))
+    }
+
     res.status(response.status).send(responseData)
   } catch (error) {
     logInfo('[Hierarchy Mobile API] Error fetching hierarchy:', JSON.stringify(error))
@@ -236,12 +229,25 @@ mobileAppApi.use(async (req, res, next) => {
         axiosOptions.data = req.body
       }
       const response = await axios(axiosOptions)
-      // No CDN replacement for other kong endpoints
-      res.status(response.status).send(response.data)
+      // No CDN replacement for other kong endpoints. USER_READ and user/v1/search are
+      // adapted back to the OLD mobile-compatible contract while Spark migration is in
+      // progress - see adapters/userReadAdapter.ts. Every other /kong endpoint is sent
+      // through as-is.
+      let responseData = response.data
+      if (isUserReadRequest(req)) {
+        responseData = adaptUserReadResponse(responseData)
+      } else if (isUserSearchRequest(req)) {
+        responseData = adaptUserSearchResponse(responseData)
+      }
+      res.status(response.status).send(responseData)
       // tslint:disable-next-line: no-any
     } catch (error) {
       logInfo('Error forwarding request:', JSON.stringify(error))
-      res.status(500).send('Internal Server Error')
+      // Propagate the upstream status and body. A hardcoded 500 here masked real
+      // upstream answers - a 401 from the gateway read as an unexplained server error.
+      res.status((error && error.response && error.response.status) || 500).send(
+        (error && error.response && error.response.data) || INTERNAL_SERVER_ERROR
+      )
     }
   } else {
     // If "/kong" is not in the URL, pass to the next route
@@ -311,7 +317,7 @@ mobileAppApi.post('/user/profileUpdate', async (req, res) => {
     delete req.body.request.profileDetails.profileLocation
     // Update user profile
     const profileUpdateResponse = await axios.patch(
-      API_END_POINTS.profileUpdate,
+      API_END_POINTS.httpsProfileUpdate,
       req.body,
       {
         ...axiosRequestConfig,
@@ -407,21 +413,27 @@ mobileAppApi.post('/submitAssessment', async (req, res) => {
   }
 })
 mobileAppApi.get('/v1/assessment/*', async (req, res) => {
+  const contentPath = removePrefix(
+    '/public/v8/mobileApp/v1/assessment/',
+    req.originalUrl
+  )
+  logInfo('New getAssessments competency mobile APP >>>>>>>>>>> ', contentPath)
   try {
-    const contentPath = removePrefix(
-      '/public/v8/mobileApp/v1/assessment/',
-      req.originalUrl
-    )
-    jumbler(contentPath).then((response) => {
-      return res.send(response)
-    })
-    logInfo(
-      'New getAssessments competency mobile APP >>>>>>>>>>> ',
-      contentPath
-    )
+    // Awaited, not a floating .then(). Previously jumbler() was called without
+    // await and without .catch(), so the surrounding try/catch could never see
+    // its rejection - when S3 answered NoSuchKey the response was never sent at
+    // all and the browser hung until it gave up. A missing artifact must fail
+    // fast with a status the caller can act on.
+    const response = await jumbler(contentPath)
+    return res.send(response)
   } catch (err) {
-    res.status(404).json({
-      message: 'Error occured while get assessment',
+    logError('Error while getting assessment for ' + contentPath + ' :: ' + err)
+    const status = _.get(err, 'response.status') === 404 ? 404 : 502
+    return res.status(status).json({
+      message:
+        status === 404
+          ? 'Assessment content not found'
+          : 'Error occured while get assessment',
     })
   }
 })
@@ -508,7 +520,10 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
         url: API_END_POINTS.GET_ALL_ENTITY,
       })
       logInfo('Check req body of getAllEntity >> ' + req.body)
-      res.status(response.data.responseCode).send(response.data)
+      // PILOT DEMO ADD-ON: returns response.data untouched unless the pilot
+      // flag is on. Remove this wrapper + its import to drop the add-on.
+      const payload = await appendPilotMockEntity(response.data, req.body)
+      res.status(response.data.responseCode).send(payload)
     }
   } catch (error) {
     logError('Error in GET_ALL_ENTITY  >>>>>>' + error)
@@ -519,7 +534,7 @@ mobileAppApi.post('/getAllEntity', async (req, res) => {
   }
 })
 function removePrefix(prefix: string, s: string) {
-  return s.substr(prefix.length)
+  return s.substring(prefix.length)
 }
 mobileAppApi.post('/cmi5/getAuthorization', async (req, res) => {
   logInfo('Check req body of cmi5 authorization>> ' + req.body)
@@ -833,25 +848,10 @@ mobileAppApi.get('/ios/certificateDownload', async (req, res) => {
         'Certificate download in progress of certificate ID',
         certificateId
       )
-      function getPosition(stringValue, subStringValue, index) {
-        return stringValue.split(subStringValue, index).join(subStringValue)
-          .length
-      }
-      let imageData = response.data.result.printUri
-      imageData = decodeURIComponent(imageData)
-      imageData = imageData.substring(imageData.indexOf(','))
-      let width = imageData.substring(
-        imageData.indexOf("<svg width='") + 12,
-        getPosition(imageData, "'", 2)
-      )
-      let height = imageData.substring(
-        imageData.indexOf("height='") + 8,
-        getPosition(imageData, "'", 4)
-      )
-      if (!imageData.includes("<svg width='")) {
-        width = '1400'
-        height = '950'
-      }
+      // printUri is a data URI for older certificates and raw SVG markup for
+      // the ones sunbird-rc renders; toSvgMarkup handles both.
+      const imageData = toSvgMarkup(response.data.result.printUri)
+      const { width, height } = svgSize(imageData)
       const puppeteer = {
         args: [
           '--no-sandbox',
@@ -1064,7 +1064,7 @@ mobileAppApi.post('/acceptTnc', async (req, res) => {
         contentTypeHeader,
       },
       method: 'PATCH',
-      url: API_END_POINTS.profileUpdate,
+      url: API_END_POINTS.httpsProfileUpdate,
     })
     res.status(200).json({
       message: 'TNC Accepted Successfully',
@@ -1603,26 +1603,34 @@ mobileAppApi.get('/user/getWhatsappConsent', async (req, res) => {
 mobileAppApi.post('/contentSearch', async (req, res) => {
   try {
     logInfo('Inside contentSearch API new end Point')
-    const { rating } = req.query
+
     const courseSearchRequestData = req.body
 
     // Call content search service
     const searchResponse = await searchContent(courseSearchRequestData)
-
-    // Use the helper method to enrich with ratings if needed
-    const enrichedResult = await getContentWithRatings(
-      searchResponse.result,
-      rating === 'true'
-    )
-
-    return res.status(200).json({
-      ...searchResponse,
-      result: enrichedResult,
-    })
+    return res.status(200).json(searchResponse)
   } catch (error) {
     logError('Error in /contentSearch: ' + JSON.stringify(error))
     return res.status(500).json({
-      error: 'Internal Server Error',
+      error: INTERNAL_SERVER_ERROR,
+      message: 'Something went wrong while fetching content search results',
+    })
+  }
+})
+
+mobileAppApi.post('/contentSearchV2', async (req, res) => {
+  try {
+    logInfo('Inside contentSearch API new end Point')
+
+    const courseSearchRequestData = req.body
+
+    // Call content search service
+    const searchResponse = await searchContentV2(courseSearchRequestData)
+    return res.status(200).json(searchResponse)
+  } catch (error) {
+    logError('Error in /contentSearch: ' + JSON.stringify(error))
+    return res.status(500).json({
+      error: INTERNAL_SERVER_ERROR,
       message: 'Something went wrong while fetching content search results',
     })
   }
@@ -1835,5 +1843,51 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
         error: SERVER_ERROR_MSG,
       }
     )
+  }
+})
+
+mobileAppApi.post('/send-by-topic', async (req, res) => {
+  try {
+    const { topic, title, body, data} = req.body
+    if (!topic) {
+      return res.status(400).json({
+        error: 'Topic is required',
+        success: false,
+      })
+    }
+    const firebaseApp = getFirebaseApp()
+    const message: admin.messaging.Message = {
+      android: {
+        notification: {
+          sound: 'default',
+        },
+        priority: 'high',
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+          },
+        },
+      },
+      data: data || {},
+      notification: {
+        body: body || '',
+        title: title || 'Notification',
+      },
+      topic,
+    }
+    const response = await firebaseApp.messaging().send(message)
+    return res.json({
+      messageId: response,
+      success: true,
+      topic,
+    })
+  } catch (error: unknown) {
+    return res.status(500).json({
+      details: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Failed to send topic notification',
+      success: false,
+    })
   }
 })

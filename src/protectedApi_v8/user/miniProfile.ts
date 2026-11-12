@@ -1,10 +1,8 @@
 import axios from 'axios'
 import { Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
-const API_END_POINTS = {
-  viewprofile: `${CONSTANTS.NODE_API_BASE}/userprofiles/pathfinders/viewprofile`,
-}
+import { API_END_POINTS } from '../apiConstants'
+
 export const userMiniProfile = Router()
 
 userMiniProfile.get('/:userId', async (req, res) => {

@@ -1,11 +1,7 @@
 import axios from 'axios'
 import { Request, Response, Router } from 'express'
 import { axiosRequestConfig } from '../../configs/request.config'
-import { CONSTANTS } from '../../utils/env'
-
-const apiEndPoints = {
-  read: `${CONSTANTS.AUTHORING_BACKEND}/action/meta/v1/skills`,
-}
+import { API_END_POINTS } from '../apiConstants'
 
 export const skillsApi = Router()
 
@@ -18,9 +14,9 @@ skillsApi.post('/autocomplete', async (req: Request, res: Response) => {
     // tslint:disable-next-line: no-console
     console.log(
       // tslint:disable-next-line: max-line-length
-      `AUTOCOMPLETE::${apiEndPoints.read}    :: rootOrg:${rootOrg}, org:${org}, langCode:${langCode}`
+      `AUTOCOMPLETE::${API_END_POINTS.read}    :: rootOrg:${rootOrg}, org:${org}, langCode:${langCode}`
     )
-    const response = await axios.post(`${apiEndPoints.read}`, req.body, {
+    const response = await axios.post(`${API_END_POINTS.read}`, req.body, {
       ...axiosRequestConfig,
       headers: { rootOrg, org, langCode },
     })
