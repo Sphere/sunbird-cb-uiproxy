@@ -1790,6 +1790,26 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    '/protected/v8/courseReview/admin/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/admin/summary': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/admin/reviews': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
+    '/protected/v8/courseReview/v1/admin/summary': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.PUBLIC],
+    },
     '/protected/v8/courseReview/reviews': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -2245,6 +2265,8 @@ export const API_LIST = {
     '/protected/v8/courseReview/uploads/:uploadId',
     '/protected/v8/courseReview/reviews/:reviewId/report.md',
     '/protected/v8/courseReview/reviews/:reviewId',
+    '/protected/v8/courseReview/admin/reviews',
+    '/protected/v8/courseReview/admin/summary',
     '/protected/v8/courseReview/reviews',
     '/protected/v8/courseReview/v1/checklist',
     '/protected/v8/courseReview/v1/courses/:courseId/preview',
@@ -2259,6 +2281,8 @@ export const API_LIST = {
     '/protected/v8/courseReview/v1/uploads/:uploadId',
     '/protected/v8/courseReview/v1/reviews/:reviewId/report.md',
     '/protected/v8/courseReview/v1/reviews/:reviewId',
+    '/protected/v8/courseReview/v1/admin/reviews',
+    '/protected/v8/courseReview/v1/admin/summary',
     '/protected/v8/courseReview/v1/reviews',
   ],
 }

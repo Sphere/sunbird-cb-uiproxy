@@ -33,6 +33,8 @@ export const API_END_POINTS = {
     reviewCancel: (reviewId: string) => `${COURSE_REVIEW_BASE}/v1/reviews/${segment(reviewId)}`,
     reviewCreate: `${COURSE_REVIEW_BASE}/v1/reviews`,
     reviewList: `${COURSE_REVIEW_BASE}/v1/reviews`,
+    adminReviews: `${COURSE_REVIEW_BASE}/v1/admin/reviews`,
+    adminSummary: `${COURSE_REVIEW_BASE}/v1/admin/summary`,
     reviewRead: (reviewId: string) => `${COURSE_REVIEW_BASE}/v1/reviews/${segment(reviewId)}`,
     reviewReport: (reviewId: string) => `${COURSE_REVIEW_BASE}/v1/reviews/${segment(reviewId)}/report.md`,
     // Files reviewed on their own (not part of a course). Only JSON passes through here: the
