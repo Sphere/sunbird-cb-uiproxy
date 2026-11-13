@@ -44,6 +44,8 @@ interface UserDetails {
     firstName: string
     facultyType?: string
     facilityName?: string
+    // 'Others' when a staff nurse typed a facility that isn't in the list (facilityName holds it)
+    facilityNameOthers?: string
     hrmsId: string
     instituteName?: string
     instituteType?: string
@@ -66,7 +68,7 @@ const shortHands = {
     staffNurses: 'Staff Nurses',
 }
 const healthBihar = 'State Health Society Bihar'
-const serviceSchemaJoi = Joi.object({
+export const serviceSchemaJoi = Joi.object({
     block: Joi.string()
         .when('roleForInService', {
             is: shortHands.cho,
@@ -194,6 +196,8 @@ const serviceSchemaJoi = Joi.object({
         otherwise: Joi.string().allow('', null).optional(),
         then: Joi.string().required(),
     }).allow('', null).optional(),
+
+    facilityNameOthers: Joi.string().valid('Others').allow('', null).optional(),
 
     nin: Joi.string().when('roleForInService', {
         is: shortHands.cho,
@@ -700,6 +704,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 designation: getDetailsAsPerRole(user).designation,
                                 doj: '',
                                 facilityName: '',
+                                facilityNameOthers: '',
                                 facultyType: '',
                                 hrmsId: '',
                                 instituteName: '',
@@ -765,6 +770,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
                                     facilityName: '',
+                                    facilityNameOthers: '',
                                     facultyType: '',
                                     hrmsId: user.hrmsId,
                                     instituteName: user.instituteName,
@@ -830,6 +836,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     designation: 'ANM-Faculty-Bihar',
                                     doj: '',
                                     facilityName: '',
+                                    facilityNameOthers: '',
                                     facultyType: user.facultyType,
                                     hrmsId: user.hrmsId,
                                     instituteName: user.instituteName,
@@ -896,6 +903,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     designation: getDetailsAsPerRole(user).designation,
                                     doj: '',
                                     facilityName: user.facilityName || '',
+                                    facilityNameOthers: user.facilityNameOthers || '',
                                     facultyType: '',
                                     hrmsId: user.hrmsId,
                                     instituteName: '',
