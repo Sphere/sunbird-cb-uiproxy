@@ -244,6 +244,13 @@ describe("Course review proxy", function () {
         "only courseId is forwarded");
     });
 
+    it("asks which courses have a report, forwarding only the course ids, and is never cached", async function () {
+      const res = await api().get(BASE + "/reviews/latest?courseIds=do_1,do_2&userId=someone");
+      assert.strictEqual(lastHit().url, "/course-review/v1/reviews/latest?courseIds=do_1,do_2",
+        "only courseIds is forwarded, and \"latest\" is not read as a review id");
+      assert.strictEqual(res.headers["cache-control"], "no-store");
+    });
+
     it("cancels with DELETE", async function () {
       await api().delete(BASE + "/reviews/22222222-2222-4222-8222-222222222222");
       assert.strictEqual(lastHit().method, "DELETE");
@@ -458,6 +465,7 @@ describe("Course review proxy", function () {
       "/courses/do_1/measure",
       "/courses/do_1/frac",
       "/reviews",
+      "/reviews/latest",
       "/admin/reviews",
       "/admin/summary",
       "/reviews/22222222-2222-4222-8222-222222222222",

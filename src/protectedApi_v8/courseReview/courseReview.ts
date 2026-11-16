@@ -141,6 +141,26 @@ routes.get('/reviews', async (req: Request, res: Response) => {
     }
 })
 
+/**
+ * GET /reviews/latest?courseIds=do_1,do_2: the current AI review report of each course asked about,
+ * for the "AI reviewed" mark on the portal's course cards. Registered before GET /reviews/:id, so
+ * "latest" is not read as a review id. Only `courseIds` is forwarded; the service checks its shape.
+ */
+routes.get('/reviews/latest', async (req: Request, res: Response) => {
+    try {
+        const courseIds = typeof req.query.courseIds === 'string' ? req.query.courseIds : ''
+        const response = await axios.get(API_END_POINTS.reviewLatest, {
+            headers: buildUpstreamHeaders(req),
+            params: { courseIds },
+            timeout: TIMEOUTS.READ,
+        })
+        noStore(res)
+        return relay(res, response)
+    } catch (error) {
+        return handleUpstreamError(res, error, 'reviews/latest')
+    }
+})
+
 // ---- AI review admins (AI_REVIEW_ADMIN): every review across everyone, and the spend ---------
 // The service reads the user's real roles and refuses anyone else; only the known filters are
 // passed on, so nothing else in the query string reaches it.
@@ -148,7 +168,8 @@ routes.get('/reviews', async (req: Request, res: Response) => {
 const ADMIN_FILTERS = ['from', 'to', 'userId', 'source', 'status', 'q']
 const adminParams = (req: Request, extra: string[] = []): Record<string, string> => {
     const out: Record<string, string> = {}
-    ;[...ADMIN_FILTERS, ...extra].forEach((key) => {
+    const keys = [...ADMIN_FILTERS, ...extra]
+    keys.forEach((key) => {
         const value = req.query[key]
         if (typeof value === 'string' && value !== '') {
             out[key] = value
