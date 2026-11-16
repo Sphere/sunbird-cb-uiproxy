@@ -86,6 +86,8 @@ export const CONSTANTS = {
   FRAC_ETL_API_BASE: env.FRAC_ETL_API_BASE || 'http://frac-etl-service:8083',
   // frac-studio-service (AI FRAC Creator / Reviewer), routed by protectedApi_v8/fracStudio
   FRAC_STUDIO_API_BASE: env.FRAC_STUDIO_API_BASE || `${KONG_API_BASE}/frac-studio`,
+  // Shared secret frac-studio-service checks in x-service-key (its SERVICE_KEY); from the secret store, never committed
+  FRAC_STUDIO_SERVICE_KEY: env.FRAC_STUDIO_SERVICE_KEY || '',
   MSG_91_AUTH_KEY_SSO: env.MSG_91_AUTH_KEY_SSO || '',
   MSG91BASE: env.MSG91BASE || 'http://localhost:3300',
   MSG91KEY: env.MSG91KEY || 'http://localhost:3301',
