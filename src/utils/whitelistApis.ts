@@ -14,6 +14,7 @@ const ROLE = {
   EDITOR: 'EDITOR',
   FRAC_ACCESS_COMPENTENCY: 'FRAC_COMPETENCY_MEMBER',
   FRAC_ADMIN: 'FRAC_ADMIN',
+  FRAC_AI_CREATOR: 'FRAC_AI_CREATOR',
   FRAC_COMPETENCY_REVIEWER: 'FRAC_COMPETENCY_REVIEWER',
   FRAC_REVIEWER_ONE: 'FRAC_REVIEWER_L1',
   FRAC_REVIEWER_TWO: 'FRAC_REVIEWER_L2',
@@ -1765,6 +1766,14 @@ export const API_LIST = {
       // tslint:disable-next-line: object-literal-sort-keys
       ROLE_CHECK: [ROLE.PUBLIC],
     },
+    // FRAC Studio forwards every path to frac-studio-service, which scopes each record to
+    // its owner; one wildcard rule covers the whole /v1 API. Only FRAC_AI_CREATOR users may call
+    // it, the same role the portal's menu and route require.
+    '/protected/v8/fracStudio/:rest+': {
+      checksNeeded: [CHECK.ROLE],
+      // tslint:disable-next-line: object-literal-sort-keys
+      ROLE_CHECK: [ROLE.FRAC_AI_CREATOR],
+    },
     '/protected/v8/courseReview/checklist': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
@@ -2231,6 +2240,7 @@ export const API_LIST = {
     '/protected/v8/aiStudio/artifacts/:rest+',
     '/protected/v8/aiStudio/usage/:rest+',
     '/protected/v8/aiStudio/:rest+',
+    '/protected/v8/fracStudio/:rest+',
     // AI course review: named routes only, there is no passthrough (starting a review spends credit).
     '/protected/v8/courseReview/checklist',
     '/protected/v8/courseReview/courses/:courseId/preview',

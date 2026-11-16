@@ -453,6 +453,30 @@ const buildForwardedBody = (req: Request): { data: any, headers: Record<string, 
 }
 
 /**
+ * How a service other than AI Studio wants the signed-in user named: the user id under its own header
+ * (taken from the session, as always), and whether it wants the display name at all.
+ */
+export interface ForwardIdentity {
+    idHeader: string
+    sendName: boolean
+}
+
+/**
+ * Renames the identity headers {@link buildUpstreamHeaders} set, for a service with its own header name.
+ * The id still comes only from the session, so a caller cannot choose it under either name.
+ */
+const useIdentityHeader = (headers: Record<string, string>, identity: ForwardIdentity): void => {
+    const id = headers[HEADERS.CREATOR_ID]
+    delete headers[HEADERS.CREATOR_ID]
+    if (!identity.sendName) {
+        delete headers[HEADERS.CREATOR_NAME]
+    }
+    if (id) {
+        headers[identity.idHeader] = id
+    }
+}
+
+/**
  * Forwards a request none of the named routes matched straight through to the AI service.
  *
  * This is what keeps the proxy from needing an edit every time the AI service grows an
@@ -474,13 +498,17 @@ export const forwardAny = async (
     req: Request,
     res: Response,
     upstreamBase: string,
-    context: string
+    context: string,
+    identity?: ForwardIdentity
 ): Promise<Response | void> => {
     try {
         // Inside a mounted router `req.url` is the path below the mount point, query string
         // and all, so it is exactly the tail to hang off this router's upstream base.
         const target = upstreamBase + req.url
         const { data, headers } = buildForwardedBody(req)
+        if (identity) {
+            useIdentityHeader(headers, identity)
+        }
 
         // Read back by requestLogger, so one access line can say a request went through the
         // wildcard rather than a named route.
