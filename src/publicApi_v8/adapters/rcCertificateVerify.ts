@@ -90,6 +90,23 @@ function isRevoked(record: RcRecord): boolean {
 }
 
 /**
+ * Event certificates (rcEvents -> rc-proxy-mapper) are flat: name, workshop-name, date, place.
+ * Their schemas can map extra fields such as courseName, so read the record, then the credential.
+ * Course certificates never use these fields (a flat `name` there is not the learner).
+ */
+function eventFields(record: RcRecord, subject: RcRecord, entity: string) {
+  if (entity === DEFAULT_CERT_ENTITY) {
+    return { date: '', name: '', recipientName: '' }
+  }
+  return {
+    date: text(record.date) || text(subject.date),
+    name: text(record.courseName) || text(record['workshop-name']) ||
+      text(subject.courseName) || text(subject['workshop-name']),
+    recipientName: text(record.name) || text(subject.name),
+  }
+}
+
+/**
  * Maps an RC certificate record to the public verification view. Returns null when the
  * record has no id or no recipient, i.e. nothing a visitor could recognise as a certificate.
  */
@@ -99,19 +116,23 @@ export function toVerifiedCertificate(body: unknown, entity: string): IVerifiedC
     return null
   }
   const certificateId = text(record.osid) || text(record.id)
-  const recipientName = text((record.recipient || {}).name)
+  // RC read-by-id drops nested objects inconsistently (training on one env, recipient on
+  // another); the signed credential always names the learner.
+  const subject = signedSubject(record)
+  const event = eventFields(record, subject, entity)
+  const recipientName = text((record.recipient || {}).name) || text(subject.recipientName) || event.recipientName
   if (!certificateId || !recipientName) {
     return null
   }
   const training = record.training || {}
-  const subject = signedSubject(record)
   return {
     certificateId,
     courseId: text(training.id) || text(subject.trainingId),
     // certificateLabel is the template's name, so it is only the last resort for the course
-    courseName: text(training.name) || text(subject.trainingName) || text(record.certificateLabel),
+    courseName: text(training.name) || text(subject.trainingName) || event.name || text(record.certificateLabel),
     entity,
-    issuedOn: issuedOn(record, subject),
+    // an event's printed date beats the record timestamps issuedOn() falls back to
+    issuedOn: event.date || issuedOn(record, subject),
     issuerName: text((record.issuer || {}).name),
     recipientName,
     revoked: isRevoked(record),
