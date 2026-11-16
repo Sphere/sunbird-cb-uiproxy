@@ -90,9 +90,11 @@ describe("FRAC Studio proxy", function () {
     assert.strictEqual(lastHit().url, "/v1/fracs?limit=5");
   });
 
-  it("sends the owner from the session and overwrites one the caller sent", async function () {
-    await api().get(BASE + "/jobs/job-1").set("x-aastrika-creator", "someone-else").set("wid", "someone-else");
-    assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42");
+  it("sends the owner from the session as x-user-id, never the caller's, and no AI Studio identity headers", async function () {
+    await api().get(BASE + "/jobs/job-1").set("x-user-id", "someone-else").set("wid", "someone-else");
+    assert.strictEqual(lastHit().headers["x-user-id"], "uuid-42");
+    assert.strictEqual(lastHit().headers["x-aastrika-creator"], undefined);
+    assert.strictEqual(lastHit().headers["x-aastrika-creator-name"], undefined);
     assert.strictEqual(lastHit().headers["x-authenticated-user-token"], "kc-token");
   });
 
@@ -117,7 +119,7 @@ describe("FRAC Studio proxy", function () {
     assert.ok(/name="file"; filename="GNM dictionary.xlsx"/.test(lastHit().body), "file must keep its field and name");
     assert.ok(/PK-fake-xlsx/.test(lastHit().body), "file bytes must survive the rebuild");
     assert.ok(/name="cadre"[\s\S]*GNM/.test(lastHit().body), "context fields must be forwarded");
-    assert.strictEqual(lastHit().headers["x-aastrika-creator"], "uuid-42");
+    assert.strictEqual(lastHit().headers["x-user-id"], "uuid-42");
   });
 
   it("streams a download back with its filename and type", async function () {
@@ -156,6 +158,7 @@ describe("FRAC Studio proxy", function () {
       const pattern = API_LIST.URL_PATTERN.find((p) => pathToRegexp(p).test(path));
       assert.ok(pattern, `${path} matches no URL_PATTERN`);
       assert.ok(API_LIST.URL[pattern], `${path} resolved to ${pattern}, which has no rule`);
+      assert.deepStrictEqual(API_LIST.URL[pattern].ROLE_CHECK, ["FRAC_AI_CREATOR"], `${path} must need FRAC_AI_CREATOR`);
     }
   });
 });
