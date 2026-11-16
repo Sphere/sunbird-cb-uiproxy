@@ -7,6 +7,7 @@ import { appSignUpWithAutoLogin } from './appSignUpWithAutoLogin'
 import { bnrcUserCreation } from './bnrcUser'
 import { validateCertificate } from './certificateValidate'
 import { certificateVerify } from './certificateVerify'
+import { courseReviewPublicApi } from '../protectedApi_v8/courseReview/courseReview'
 import { competencyAssets } from './competencyAssets'
 import { competencyReporting } from './competencyReporting'
 import { publicCompetencyUser } from './competencyUser'
@@ -54,6 +55,8 @@ publicApiV8.use(
   )
 )
 publicApiV8.use('/competency', publicCompetencyUser)
+// An HTML package's files for the AI review's preview, authorised by their signed link.
+publicApiV8.use('/courseReview', courseReviewPublicApi)
 publicApiV8.use('/tnc', publicTnc)
 publicApiV8.use('/signupWithAutoLogin', signupWithAutoLogin)
 publicApiV8.use('/signupWithAutoLoginV2', signupWithAutoLoginV2)

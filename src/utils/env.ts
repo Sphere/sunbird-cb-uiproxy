@@ -35,6 +35,10 @@ export const CONSTANTS = {
     env.CONTENT_META_FETCH_API_BASE || 'http://localhost:5906',
   CORS_ENVIRONMENT: env.CORS_ENVIRONMENT || 'prod',
   COUNTER: 'http://localhost:5903',
+  COURSE_REVIEW_API_BASE: env.COURSE_REVIEW_API_BASE || `${KONG_API_BASE}/course-review`,
+  // Sent to the course reviewer with every call, so only this proxy can call it with a user's
+  // identity. The same value as the service's CALLER_SECRET; empty sends nothing (local runs).
+  COURSE_REVIEW_SECRET: env.COURSE_REVIEW_SECRET || '',
   DECRYPTION_API_BASE:
     env.DECRYPTION_API_BASE || 'http://decryption-service:8084',
   DEFAULT_ORG: env.DEFAULT_ORG || 'dopt',
