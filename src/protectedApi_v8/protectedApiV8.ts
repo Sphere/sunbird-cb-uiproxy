@@ -39,6 +39,7 @@ import { networkHubApi } from './network-hub'
 import { playlistApi } from './playlist'
 import { portalApi } from './portal-v3'
 import { profileupdatev2 } from './profileupdatev2'
+import { pushNotificationApi } from './pushNotification'
 import { sunbirdrRcCertificate } from './rcEvents'
 import { recommendationApi } from './recommendation'
 import { recommendationEngineV2 } from './recommendationEngineV2'
@@ -74,6 +75,7 @@ protectedApiV8.use('/concept', conceptGraphApi)
 protectedApiV8.use('/content', contentApi)
 protectedApiV8.use('/entityCompetency', entityCompetencyApi)
 protectedApiV8.use('/profanity', contentValidationApi)
+protectedApiV8.use('/pushNotification', pushNotificationApi)
 protectedApiV8.use('/counter', counterApi)
 protectedApiV8.use('/discussionHub', discussionHubApi)
 protectedApiV8.use('/khub', knowledgeHubApi)
