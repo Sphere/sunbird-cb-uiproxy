@@ -25,7 +25,6 @@ pushNotificationApi.post('/send-by-token', async (req, res) => {
 pushNotificationApi.post('/send-by-topic', async (req, res) => {
     try {
         const { topic, title, body, data } = req.body || {}
-        console.log('send-by-topic request body:', req.body)
         if (!topic) {
             res.status(400).send({ error: 'Topic is required', success: false })
             return
