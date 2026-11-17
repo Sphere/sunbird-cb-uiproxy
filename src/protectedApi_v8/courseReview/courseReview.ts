@@ -142,6 +142,73 @@ routes.get('/reviews', async (req: Request, res: Response) => {
 })
 
 /**
+ * GET /reviews/latest?courseIds=do_1,do_2: the current AI review report of each course asked about,
+ * for the "AI reviewed" mark on the portal's course cards. Registered before GET /reviews/:id, so
+ * "latest" is not read as a review id. Only `courseIds` is forwarded; the service checks its shape.
+ */
+routes.get('/reviews/latest', async (req: Request, res: Response) => {
+    try {
+        const courseIds = typeof req.query.courseIds === 'string' ? req.query.courseIds : ''
+        const response = await axios.get(API_END_POINTS.reviewLatest, {
+            headers: buildUpstreamHeaders(req),
+            params: { courseIds },
+            timeout: TIMEOUTS.READ,
+        })
+        noStore(res)
+        return relay(res, response)
+    } catch (error) {
+        return handleUpstreamError(res, error, 'reviews/latest')
+    }
+})
+
+// ---- AI review admins (AI_REVIEW_ADMIN): every review across everyone, and the spend ---------
+// The service reads the user's real roles and refuses anyone else; only the known filters are
+// passed on, so nothing else in the query string reaches it.
+
+const ADMIN_FILTERS = ['from', 'to', 'userId', 'source', 'status', 'q']
+const adminParams = (req: Request, extra: string[] = []): Record<string, string> => {
+    const out: Record<string, string> = {}
+    const keys = [...ADMIN_FILTERS, ...extra]
+    keys.forEach((key) => {
+        const value = req.query[key]
+        if (typeof value === 'string' && value !== '') {
+            out[key] = value
+        }
+    })
+    return out
+}
+
+/** GET /admin/reviews: one page of every review, with who ran it and what it cost. */
+routes.get('/admin/reviews', async (req: Request, res: Response) => {
+    try {
+        const response = await axios.get(API_END_POINTS.adminReviews, {
+            headers: buildUpstreamHeaders(req),
+            params: adminParams(req, ['limit', 'offset']),
+            timeout: TIMEOUTS.READ,
+        })
+        noStore(res)
+        return relay(res, response)
+    } catch (error) {
+        return handleUpstreamError(res, error, 'admin/reviews')
+    }
+})
+
+/** GET /admin/summary: the spend in all, by person, by course and by day, and the month's budget. */
+routes.get('/admin/summary', async (req: Request, res: Response) => {
+    try {
+        const response = await axios.get(API_END_POINTS.adminSummary, {
+            headers: buildUpstreamHeaders(req),
+            params: adminParams(req),
+            timeout: TIMEOUTS.READ,
+        })
+        noStore(res)
+        return relay(res, response)
+    } catch (error) {
+        return handleUpstreamError(res, error, 'admin/summary')
+    }
+})
+
+/**
  * GET /reviews/:id/report.md: the report as a Markdown download. Declared before `/reviews/:id`
  * only for readability; the extra path segment keeps the two from matching each other.
  */

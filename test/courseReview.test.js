@@ -244,6 +244,13 @@ describe("Course review proxy", function () {
         "only courseId is forwarded");
     });
 
+    it("asks which courses have a report, forwarding only the course ids, and is never cached", async function () {
+      const res = await api().get(BASE + "/reviews/latest?courseIds=do_1,do_2&userId=someone");
+      assert.strictEqual(lastHit().url, "/course-review/v1/reviews/latest?courseIds=do_1,do_2",
+        "only courseIds is forwarded, and \"latest\" is not read as a review id");
+      assert.strictEqual(res.headers["cache-control"], "no-store");
+    });
+
     it("cancels with DELETE", async function () {
       await api().delete(BASE + "/reviews/22222222-2222-4222-8222-222222222222");
       assert.strictEqual(lastHit().method, "DELETE");
@@ -285,6 +292,22 @@ describe("Course review proxy", function () {
       assert.strictEqual(past.headers["content-range"], "bytes */10");
       await api().get(PUB + "/package/r/c/t/assets/clip.mp4").set("Range", "items=1-2");
       assert.strictEqual(lastHit().headers.range, undefined, "only a plain byte range is passed on");
+    });
+
+    it("passes only the admin report's own filters on, with the user, and never caches the answer", async function () {
+      const res = await api()
+        .get(BASE + "/v1/admin/reviews")
+        .query({ from: "2026-11-01", to: "2026-11-13", userId: "", source: "upload", q: "BP", limit: "50", offset: "0", evil: "1" });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.headers["cache-control"], "no-store");
+      const hit = lastHit();
+      assert.ok(hit.url.indexOf("/course-review/v1/admin/reviews?") === 0);
+      const sent = new URLSearchParams(hit.url.split("?")[1]);
+      assert.deepStrictEqual(Object.fromEntries(sent), { from: "2026-11-01", to: "2026-11-13", source: "upload", q: "BP", limit: "50", offset: "0" });
+      assert.strictEqual(hit.headers["x-aastrika-user-id"], "uuid-42");
+      const summary = await api().get(BASE + "/admin/summary").query({ from: "2026-11-01", limit: "9" });
+      assert.strictEqual(summary.status, 200);
+      assert.strictEqual(lastHit().url, "/course-review/v1/admin/summary?from=2026-11-01");
     });
 
     it("refuses package paths that would step out of the package", async function () {
@@ -442,6 +465,9 @@ describe("Course review proxy", function () {
       "/courses/do_1/measure",
       "/courses/do_1/frac",
       "/reviews",
+      "/reviews/latest",
+      "/admin/reviews",
+      "/admin/summary",
       "/reviews/22222222-2222-4222-8222-222222222222",
       "/reviews/22222222-2222-4222-8222-222222222222/report.md",
       "/uploads",

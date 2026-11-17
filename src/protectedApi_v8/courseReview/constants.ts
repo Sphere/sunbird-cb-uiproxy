@@ -19,6 +19,8 @@ const segment = (value: string): string => encodeURIComponent(value)
 
 /** Every upstream endpoint, keyed by what it does. Functions where an id is interpolated. */
 export const API_END_POINTS = {
+    adminReviews: `${COURSE_REVIEW_BASE}/v1/admin/reviews`,
+    adminSummary: `${COURSE_REVIEW_BASE}/v1/admin/summary`,
     checklist: `${COURSE_REVIEW_BASE}/v1/checklist`,
     courseFrac: (courseId: string) => `${COURSE_REVIEW_BASE}/v1/courses/${segment(courseId)}/frac`,
     courseMeasure: (courseId: string) => `${COURSE_REVIEW_BASE}/v1/courses/${segment(courseId)}/measure`,
@@ -32,6 +34,8 @@ export const API_END_POINTS = {
         `${COURSE_REVIEW_BASE}/v1/package/${segment(reviewId)}/${segment(contentId)}/${segment(token)}/${file.split('/').map(segment).join('/')}`,
     reviewCancel: (reviewId: string) => `${COURSE_REVIEW_BASE}/v1/reviews/${segment(reviewId)}`,
     reviewCreate: `${COURSE_REVIEW_BASE}/v1/reviews`,
+    /** Which courses have a current AI review report: the mark on the portal's course cards. */
+    reviewLatest: `${COURSE_REVIEW_BASE}/v1/reviews/latest`,
     reviewList: `${COURSE_REVIEW_BASE}/v1/reviews`,
     reviewRead: (reviewId: string) => `${COURSE_REVIEW_BASE}/v1/reviews/${segment(reviewId)}`,
     reviewReport: (reviewId: string) => `${COURSE_REVIEW_BASE}/v1/reviews/${segment(reviewId)}/report.md`,
