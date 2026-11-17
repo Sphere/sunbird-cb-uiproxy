@@ -16,7 +16,7 @@ export function getFirebaseApp(): admin.app.App {
   }
 
   firebaseApp = admin.initializeApp({
-
+    credential: admin.credential.cert(FIREBASE_CONFIG),
   })
 
   return firebaseApp
