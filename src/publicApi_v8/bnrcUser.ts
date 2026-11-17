@@ -46,6 +46,8 @@ interface UserDetails {
     facilityName?: string
     // 'Others' when a staff nurse typed a facility that isn't in the list (facilityName holds it)
     facilityNameOthers?: string
+    // Bihar Staff Nurses: posted at district level (Sadar/Sub Divisional hospital) or block level
+    postingLevel?: string
     hrmsId: string
     instituteName?: string
     instituteType?: string
@@ -198,6 +200,8 @@ export const serviceSchemaJoi = Joi.object({
     }).allow('', null).optional(),
 
     facilityNameOthers: Joi.string().valid('Others').allow('', null).optional(),
+
+    postingLevel: Joi.string().valid('District', 'Block').allow('', null).optional(),
 
     nin: Joi.string().when('roleForInService', {
         is: shortHands.cho,
@@ -713,6 +717,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 nameOther: '',
                                 nin: user.nin || '',
                                 orgType: 'Government',
+                                postingLevel: '',
                                 privateFacilityType: '',
                                 profession: 'Nurse',
                                 professionOtherSpecify: '',
@@ -780,6 +785,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     nameOther: '',
                                     nin: user.nin || '',
                                     orgType: 'Government',
+                                    postingLevel: '',
                                     privateFacilityType: '',
                                     profession: 'Student',
                                     professionOtherSpecify: '',
@@ -845,6 +851,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     nameOther: '',
                                     nin: user.nin || '',
                                     orgType: 'Government',
+                                    postingLevel: '',
                                     privateFacilityType: '',
                                     profession: 'Faculty',
                                     professionOtherSpecify: '',
@@ -912,6 +919,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     nameOther: '',
                                     nin: user.nin || '',
                                     orgType: 'Government',
+                                    postingLevel: user.postingLevel || '',
                                     privateFacilityType: user.privateFacilityType || '',
                                     profession: 'Nurse',
                                     professionOtherSpecify: '',
@@ -942,6 +950,32 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         return false
     }
 }
+// Whether bnrc_registration_data_prod has the posting_level column yet. Cached once present;
+// while absent it is re-checked every 10 minutes, so the column is used as soon as DevOps adds
+// it -- no redeploy, and no failed inserts before then.
+let postingLevelColumn = false
+let postingLevelCheckedAt = 0
+const POSTING_LEVEL_RECHECK_MS = 10 * 60 * 1000
+const hasPostingLevelColumn = async (): Promise<boolean> => {
+    if (postingLevelColumn || Date.now() - postingLevelCheckedAt < POSTING_LEVEL_RECHECK_MS) {
+        return postingLevelColumn
+    }
+    postingLevelCheckedAt = Date.now()
+    try {
+        const result = await pgPool.query(
+            `SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'bnrc_registration_data_prod' AND column_name = 'posting_level' LIMIT 1`
+        )
+        postingLevelColumn = result.rowCount > 0
+        if (!postingLevelColumn) {
+            logInfo('bnrc_registration_data_prod.posting_level not found; storing postingLevel in the profile only')
+        }
+    } catch (error) {
+        logError('Could not check for bnrc_registration_data_prod.posting_level', JSON.stringify(error))
+    }
+    return postingLevelColumn
+}
+
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
     const userDetailedStructure = {
         block: userDetails.block || '',
@@ -962,6 +996,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         organisationId: getDetailsAsPerRole(userDetails).orgId || '',
         organisationName: getDetailsAsPerRole(userDetails).orgName || '',
         phone: userDetails.phone || '',
+        postingLevel: userDetails.postingLevel || '',
         privateFacilityType: userDetails.privateFacilityType || '',
         publicFacilityType: userDetails.publicFacilityType || '',
         registrationSource: 'Self Registration',
@@ -1038,6 +1073,16 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
         ]
 
+        // posting_level is written only once the column exists (DevOps adds it -- see
+        // hasPostingLevelColumn). Naming a missing column would fail EVERY insert.
+        let insertQuery = pgQuery
+        if (await hasPostingLevelColumn()) {
+            pgParams.push(userFinalStatus.postingLevel || '')
+            insertQuery = pgQuery
+                .replace('validation_status_failed_reason, etl_updated_at', 'validation_status_failed_reason, etl_updated_at, posting_level')
+                .replace('$34, $35)', '$34, $35, $36)')
+        }
+
         try {
             const maxRetries = 2
             let retryCount = 0
@@ -1045,7 +1090,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             while (retryCount < maxRetries) {
                 try {
                     logInfo(`PostgreSQL insert attempt ${retryCount + 1}/${maxRetries}`, uniqueId)
-                    await pgPool.query(pgQuery, pgParams)
+                    await pgPool.query(insertQuery, pgParams)
                     logInfo('PostgreSQL insert successful for BNRC registration>>>>', uniqueId)
                     break
                 } catch (queryError) {
