@@ -62,6 +62,23 @@ describe("BNRC Staff Nurse facility Others", () => {
     assert.match(error.message, /nin/);
   });
 
+  it("accepts postingLevel District or Block, and rejects anything else", () => {
+    for (const level of ["District", "Block", ""]) {
+      const { error } = serviceSchemaJoi.validate(staffNurse({ facilityName: "PHC, MAHUA", postingLevel: level }));
+      assert.strictEqual(error, undefined, level);
+    }
+    const { error } = serviceSchemaJoi.validate(staffNurse({ facilityName: "PHC, MAHUA", postingLevel: "Village" }));
+    assert.ok(error);
+    assert.match(error.message, /postingLevel/);
+  });
+
+  it("saves postingLevel on the In Service profile and only writes the DB column once it exists", () => {
+    const src = fs.readFileSync(path.join(__dirname, "../src/publicApi_v8/bnrcUser.ts"), "utf8");
+    const inService = src.slice(src.indexOf('if (user.role == "In Service")'));
+    assert.match(inService, /postingLevel: user\.postingLevel \|\| ''/);
+    assert.match(src, /if \(await hasPostingLevelColumn\(\)\)/);
+  });
+
   it("saves facilityNameOthers on the In Service profile", () => {
     const src = fs.readFileSync(path.join(__dirname, "../src/publicApi_v8/bnrcUser.ts"), "utf8");
     const inService = src.slice(src.indexOf('if (user.role == "In Service")'));
