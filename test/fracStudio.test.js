@@ -166,7 +166,7 @@ describe("FRAC Studio proxy", function () {
       const pattern = API_LIST.URL_PATTERN.find((p) => pathToRegexp(p).test(path));
       assert.ok(pattern, `${path} matches no URL_PATTERN`);
       assert.ok(API_LIST.URL[pattern], `${path} resolved to ${pattern}, which has no rule`);
-      assert.deepStrictEqual(API_LIST.URL[pattern].ROLE_CHECK, ["FRAC_AI_CREATOR"], `${path} must need FRAC_AI_CREATOR`);
+      assert.deepStrictEqual(API_LIST.URL[pattern].ROLE_CHECK, ["FRAC_AI_ADMIN"], `${path} must need FRAC_AI_ADMIN`);
     }
   });
 });

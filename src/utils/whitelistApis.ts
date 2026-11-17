@@ -14,7 +14,7 @@ const ROLE = {
   EDITOR: 'EDITOR',
   FRAC_ACCESS_COMPENTENCY: 'FRAC_COMPETENCY_MEMBER',
   FRAC_ADMIN: 'FRAC_ADMIN',
-  FRAC_AI_CREATOR: 'FRAC_AI_CREATOR',
+  FRAC_AI_ADMIN: 'FRAC_AI_ADMIN',
   FRAC_COMPETENCY_REVIEWER: 'FRAC_COMPETENCY_REVIEWER',
   FRAC_REVIEWER_ONE: 'FRAC_REVIEWER_L1',
   FRAC_REVIEWER_TWO: 'FRAC_REVIEWER_L2',
@@ -1767,12 +1767,12 @@ export const API_LIST = {
       ROLE_CHECK: [ROLE.PUBLIC],
     },
     // FRAC Studio forwards every path to frac-studio-service, which scopes each record to
-    // its owner; one wildcard rule covers the whole /v1 API. Only FRAC_AI_CREATOR users may call
+    // its owner; one wildcard rule covers the whole /v1 API. Only FRAC_AI_ADMIN users may call
     // it, the same role the portal's menu and route require.
     '/protected/v8/fracStudio/:rest+': {
       checksNeeded: [CHECK.ROLE],
       // tslint:disable-next-line: object-literal-sort-keys
-      ROLE_CHECK: [ROLE.FRAC_AI_CREATOR],
+      ROLE_CHECK: [ROLE.FRAC_AI_ADMIN],
     },
     '/protected/v8/courseReview/checklist': {
       checksNeeded: [CHECK.ROLE],
