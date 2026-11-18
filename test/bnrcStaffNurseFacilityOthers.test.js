@@ -76,7 +76,24 @@ describe("BNRC Staff Nurse facility Others", () => {
     const src = fs.readFileSync(path.join(__dirname, "../src/publicApi_v8/bnrcUser.ts"), "utf8");
     const inService = src.slice(src.indexOf('if (user.role == "In Service")'));
     assert.match(inService, /postingLevel: user\.postingLevel \|\| ''/);
-    assert.match(src, /if \(await hasPostingLevelColumn\(\)\)/);
+    assert.match(src, /const extraColumns = await getOptionalColumns\(\)/);
+  });
+
+  it("accepts the six facilityType codes or empty, and rejects anything else", () => {
+    for (const type of ["SH", "SDH", "RH", "CHC", "PHC", "APHC", ""]) {
+      const { error } = serviceSchemaJoi.validate(staffNurse({ facilityName: "PHC, MAHUA", facilityType: type }));
+      assert.strictEqual(error, undefined, type);
+    }
+    const { error } = serviceSchemaJoi.validate(staffNurse({ facilityName: "PHC, MAHUA", facilityType: "Hospital" }));
+    assert.ok(error);
+    assert.match(error.message, /facilityType/);
+  });
+
+  it("saves facilityType on the In Service profile and lists facility_type as an optional column", () => {
+    const src = fs.readFileSync(path.join(__dirname, "../src/publicApi_v8/bnrcUser.ts"), "utf8");
+    const inService = src.slice(src.indexOf('if (user.role == "In Service")'));
+    assert.match(inService, /facilityType: user\.facilityType \|\| ''/);
+    assert.match(src, /OPTIONAL_COLUMNS = \['posting_level', 'facility_type'\]/);
   });
 
   it("saves facilityNameOthers on the In Service profile", () => {

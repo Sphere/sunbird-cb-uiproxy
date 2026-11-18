@@ -46,6 +46,8 @@ interface UserDetails {
     facilityName?: string
     // 'Others' when a staff nurse typed a facility that isn't in the list (facilityName holds it)
     facilityNameOthers?: string
+    // Bihar Staff Nurses: the facility type chosen on the form (SH, SDH, RH, CHC, PHC, APHC)
+    facilityType?: string
     // Bihar Staff Nurses: posted at district level (Sadar/Sub Divisional hospital) or block level
     postingLevel?: string
     hrmsId: string
@@ -200,6 +202,8 @@ export const serviceSchemaJoi = Joi.object({
     }).allow('', null).optional(),
 
     facilityNameOthers: Joi.string().valid('Others').allow('', null).optional(),
+
+    facilityType: Joi.string().valid('SH', 'SDH', 'RH', 'CHC', 'PHC', 'APHC').allow('', null).optional(),
 
     postingLevel: Joi.string().valid('District', 'Block').allow('', null).optional(),
 
@@ -709,6 +713,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                 doj: '',
                                 facilityName: '',
                                 facilityNameOthers: '',
+                                facilityType: '',
                                 facultyType: '',
                                 hrmsId: '',
                                 instituteName: '',
@@ -776,6 +781,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     doj: '',
                                     facilityName: '',
                                     facilityNameOthers: '',
+                                    facilityType: '',
                                     facultyType: '',
                                     hrmsId: user.hrmsId,
                                     instituteName: user.instituteName,
@@ -843,6 +849,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     doj: '',
                                     facilityName: '',
                                     facilityNameOthers: '',
+                                    facilityType: '',
                                     facultyType: user.facultyType,
                                     hrmsId: user.hrmsId,
                                     instituteName: user.instituteName,
@@ -911,6 +918,7 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
                                     doj: '',
                                     facilityName: user.facilityName || '',
                                     facilityNameOthers: user.facilityNameOthers || '',
+                                    facilityType: user.facilityType || '',
                                     facultyType: '',
                                     hrmsId: user.hrmsId,
                                     instituteName: '',
@@ -950,30 +958,37 @@ const userProfileUpdate = async (user: UserDetails, userId: string) => {
         return false
     }
 }
-// Whether bnrc_registration_data_prod has the posting_level column yet. Cached once present;
-// while absent it is re-checked every 10 minutes, so the column is used as soon as DevOps adds
-// it -- no redeploy, and no failed inserts before then.
-let postingLevelColumn = false
-let postingLevelCheckedAt = 0
-const POSTING_LEVEL_RECHECK_MS = 10 * 60 * 1000
-const hasPostingLevelColumn = async (): Promise<boolean> => {
-    if (postingLevelColumn || Date.now() - postingLevelCheckedAt < POSTING_LEVEL_RECHECK_MS) {
-        return postingLevelColumn
+// Columns of bnrc_registration_data_prod that DevOps adds after a release (posting_level for
+// 6.0.6, facility_type for 6.0.7). Each is written only once it exists: naming a missing column would
+// fail EVERY insert. Checked when the server starts and every 10 minutes until all are present, so a
+// column is used as soon as it is added -- no redeploy.
+const OPTIONAL_COLUMNS = ['posting_level', 'facility_type']
+let optionalColumns: string[] = []
+let optionalColumnsCheckedAt = 0
+const OPTIONAL_COLUMNS_RECHECK_MS = 10 * 60 * 1000
+const getOptionalColumns = async (): Promise<string[]> => {
+    if (optionalColumns.length === OPTIONAL_COLUMNS.length
+        || Date.now() - optionalColumnsCheckedAt < OPTIONAL_COLUMNS_RECHECK_MS) {
+        return optionalColumns
     }
-    postingLevelCheckedAt = Date.now()
+    optionalColumnsCheckedAt = Date.now()
     try {
         const result = await pgPool.query(
-            `SELECT 1 FROM information_schema.columns
-             WHERE table_name = 'bnrc_registration_data_prod' AND column_name = 'posting_level' LIMIT 1`
+            `SELECT column_name FROM information_schema.columns
+             WHERE table_name = 'bnrc_registration_data_prod' AND column_name = ANY($1)`,
+            [OPTIONAL_COLUMNS]
         )
-        postingLevelColumn = result.rowCount > 0
-        if (!postingLevelColumn) {
-            logInfo('bnrc_registration_data_prod.posting_level not found; storing postingLevel in the profile only')
+        // tslint:disable-next-line: no-any
+        const present = (result.rows || []).map((row: any) => row.column_name)
+        optionalColumns = OPTIONAL_COLUMNS.filter((column) => present.includes(column))
+        const missing = OPTIONAL_COLUMNS.filter((column) => !present.includes(column))
+        if (missing.length) {
+            logInfo(`bnrc_registration_data_prod is missing ${missing.join(', ')}; those values are kept on the profile only`)
         }
     } catch (error) {
-        logError('Could not check for bnrc_registration_data_prod.posting_level', JSON.stringify(error))
+        logError('Could not check the optional bnrc_registration_data_prod columns', JSON.stringify(error))
     }
-    return postingLevelColumn
+    return optionalColumns
 }
 
 const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyStatus) => {
@@ -986,6 +1001,7 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
         district: userDetails.district || '',
         email: userDetails.email || '',
         facilityName: userDetails.facilityName || '',
+        facilityType: userDetails.facilityType || '',
         facultyType: userDetails.facultyType || '',
         firstName: userDetails.firstName || '',
         hrmsId: userDetails.hrmsId || '',
@@ -1073,14 +1089,20 @@ const updateUserStatusInDatabase = async (userDetails: UserDetails, userJourneyS
             new Date(), // etl_updated_at - PostgreSQL will convert to timestamp with timezone
         ]
 
-        // posting_level is written only once the column exists (DevOps adds it -- see
-        // hasPostingLevelColumn). Naming a missing column would fail EVERY insert.
+        // posting_level / facility_type are written only once each column exists (see getOptionalColumns).
         let insertQuery = pgQuery
-        if (await hasPostingLevelColumn()) {
-            pgParams.push(userFinalStatus.postingLevel || '')
+        const extraColumns = await getOptionalColumns()
+        if (extraColumns.length) {
+            const extraValues = {
+                facility_type: userFinalStatus.facilityType || '',
+                posting_level: userFinalStatus.postingLevel || '',
+            }
+            extraColumns.forEach((column) => pgParams.push(extraValues[column]))
+            const placeholders = extraColumns.map((_column, i) => `$${36 + i}`).join(', ')
             insertQuery = pgQuery
-                .replace('validation_status_failed_reason, etl_updated_at', 'validation_status_failed_reason, etl_updated_at, posting_level')
-                .replace('$34, $35)', '$34, $35, $36)')
+                .replace('validation_status_failed_reason, etl_updated_at',
+                    `validation_status_failed_reason, etl_updated_at, ${extraColumns.join(', ')}`)
+                .replace('$34, $35)', `$34, $35, ${placeholders})`)
         }
 
         try {
