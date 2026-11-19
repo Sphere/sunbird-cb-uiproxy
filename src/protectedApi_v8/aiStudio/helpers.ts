@@ -459,6 +459,13 @@ const buildForwardedBody = (req: Request): { data: any, headers: Record<string, 
 export interface ForwardIdentity {
     idHeader: string
     sendName: boolean
+    /**
+     * False drops the platform API key (`Authorization`) and the user's token: a service that needs neither should
+     * never hold them, so a leak there cannot expose them. Defaults to true (AI Studio uses both).
+     */
+    sendCredentials?: boolean
+    /** Headers only this service gets, read per request (e.g. the shared key proving the call came through here). */
+    serviceHeaders?: () => Record<string, string>
 }
 
 /**
@@ -474,6 +481,16 @@ const useIdentityHeader = (headers: Record<string, string>, identity: ForwardIde
     if (id) {
         headers[identity.idHeader] = id
     }
+    if (identity.sendCredentials === false) {
+        delete headers.Authorization
+        delete headers[HEADERS.USER_TOKEN]
+    }
+    const extra = identity.serviceHeaders ? identity.serviceHeaders() : {}
+    Object.keys(extra).forEach((name) => {
+        if (extra[name]) {
+            headers[name] = extra[name]
+        }
+    })
 }
 
 /**

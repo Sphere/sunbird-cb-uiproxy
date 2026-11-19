@@ -27,8 +27,17 @@ import { forwardAny, ForwardIdentity, resolveCreatorId } from '../aiStudio/helpe
  */
 export const fracStudioApi = Router()
 
-/** The user id travels under FRAC Studio's own header; the service needs no display name. */
-const FRAC_STUDIO_IDENTITY: ForwardIdentity = { idHeader: 'x-user-id', sendName: false }
+/**
+ * The user id travels under FRAC Studio's own header; the service needs no display name, and neither the platform
+ * API key nor the user's token (security review, 16 Nov 2026), so they are not sent. The shared service key proves
+ * to the service that the request came through this proxy (it trusts x-user-id only with it).
+ */
+export const FRAC_STUDIO_IDENTITY: ForwardIdentity = {
+    idHeader: 'x-user-id',
+    sendCredentials: false,
+    sendName: false,
+    serviceHeaders: () => ({ 'x-service-key': CONSTANTS.FRAC_STUDIO_SERVICE_KEY }),
+}
 
 /**
  * Read per request rather than at import, so the base follows `CONSTANTS` if it is changed

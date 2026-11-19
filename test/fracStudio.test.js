@@ -63,6 +63,7 @@ describe("FRAC Studio proxy", function () {
       const { fracStudioApi } = require("../src/protectedApi_v8/fracStudio/fracStudio");
       // The router reads the base per request, so this works even if env.ts loaded earlier
       CONSTANTS.FRAC_STUDIO_API_BASE = "http://127.0.0.1:" + upstream.address().port;
+      CONSTANTS.FRAC_STUDIO_SERVICE_KEY = "test-service-key";
 
       const app = express();
       app.use(express.json());
@@ -95,7 +96,14 @@ describe("FRAC Studio proxy", function () {
     assert.strictEqual(lastHit().headers["x-user-id"], "uuid-42");
     assert.strictEqual(lastHit().headers["x-aastrika-creator"], undefined);
     assert.strictEqual(lastHit().headers["x-aastrika-creator-name"], undefined);
-    assert.strictEqual(lastHit().headers["x-authenticated-user-token"], "kc-token");
+    // The service needs neither the platform API key nor the user's token, so they are not sent
+    assert.strictEqual(lastHit().headers["x-authenticated-user-token"], undefined);
+    assert.strictEqual(lastHit().headers.authorization, undefined);
+  });
+
+  it("sends the shared service key, and never one the caller supplies", async function () {
+    await api().get(BASE + "/jobs/job-1").set("x-service-key", "forged");
+    assert.strictEqual(lastHit().headers["x-service-key"], "test-service-key");
   });
 
   it("forwards a JSON body for PATCH", async function () {
@@ -158,7 +166,7 @@ describe("FRAC Studio proxy", function () {
       const pattern = API_LIST.URL_PATTERN.find((p) => pathToRegexp(p).test(path));
       assert.ok(pattern, `${path} matches no URL_PATTERN`);
       assert.ok(API_LIST.URL[pattern], `${path} resolved to ${pattern}, which has no rule`);
-      assert.deepStrictEqual(API_LIST.URL[pattern].ROLE_CHECK, ["FRAC_AI_CREATOR"], `${path} must need FRAC_AI_CREATOR`);
+      assert.deepStrictEqual(API_LIST.URL[pattern].ROLE_CHECK, ["FRAC_AI_ADMIN"], `${path} must need FRAC_AI_ADMIN`);
     }
   });
 });
