@@ -21,15 +21,15 @@ pushNotificationApi.post('/send-by-token', async (req, res) => {
 })
 
 // Sends a push notification to every device subscribed to the topic using uiproxy's Firebase app.
-// Expected body: { topic, title, body, data? }
+// Expected body: { topic, title, body, data?, imageUrl? }
 pushNotificationApi.post('/send-by-topic', async (req, res) => {
     try {
-        const { topic, title, body, data } = req.body || {}
+        const { topic, title, body, data, imageUrl } = req.body || {}
         if (!topic) {
             res.status(400).send({ error: 'Topic is required', success: false })
             return
         }
-        const messageId = await sendTopicNotification({ topic, title, body, data })
+        const messageId = await sendTopicNotification({ topic, title, body, data, imageUrl })
         res.send({ messageId, success: true, topic })
     } catch (err) {
         logError('Failed to send topic notification. ' + err)

@@ -27,10 +27,25 @@ export interface ITopicNotification {
   title?: string
   body?: string
   data?: { [key: string]: string }
+  imageUrl?: string
+}
+
+// Falls back to the logo inside data.actionData so course notifications show the course thumbnail.
+function resolveImageUrl(imageUrl?: string, data?: { [key: string]: string }): string | undefined {
+  if (imageUrl) {
+    return imageUrl
+  }
+  try {
+    const logo = data && data.actionData ? JSON.parse(data.actionData).logo : undefined
+    return typeof logo === 'string' && logo.startsWith('https://') ? logo : undefined
+  } catch {
+    return undefined
+  }
 }
 
 // Sends a notification to every device subscribed to the topic; returns the FCM message id.
-export async function sendTopicNotification({ topic, title, body, data }: ITopicNotification): Promise<string> {
+export async function sendTopicNotification({ topic, title, body, data, imageUrl }: ITopicNotification): Promise<string> {
+  const image = resolveImageUrl(imageUrl, data)
   const message: admin.messaging.Message = {
     android: {
       notification: {
@@ -39,8 +54,11 @@ export async function sendTopicNotification({ topic, title, body, data }: ITopic
       priority: 'high',
     },
     apns: {
+      // mutable-content lets the iOS Notification Service Extension download and attach the image
+      fcmOptions: image ? { imageUrl: image } : undefined,
       payload: {
         aps: {
+          mutableContent: !!image,
           sound: 'default',
         },
       },
@@ -48,6 +66,7 @@ export async function sendTopicNotification({ topic, title, body, data }: ITopic
     data: data || {},
     notification: {
       body: body || '',
+      imageUrl: image,
       title: title || 'Notification',
     },
     topic,
