@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { Router } from 'express'
 import express from 'express'
-import * as admin from 'firebase-admin'
 import { createProxyServer } from 'http-proxy'
 import Joi from 'joi'
 import jwt_decode from 'jwt-decode'
@@ -18,9 +17,9 @@ import { assessmentCreator } from '../utils/assessmentSubmitHelper'
 import { CONSTANTS } from '../utils/env'
 import { jumbler } from '../utils/jumbler'
 import { logError, logInfo } from '../utils/logger'
-import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
 import { appendPilotMockEntity } from '../utils/pilotMockEntity'
 import { requestValidator } from '../utils/requestValidator'
+import { svgSize, toSvgMarkup } from './adapters/certificateSvg'
 import { adaptCourseHierarchyResponse } from './adapters/courseHierarchyAdapter'
 import {
   adaptUserReadResponse,
@@ -30,7 +29,7 @@ import {
 } from './adapters/userReadAdapter'
 import { API_END_POINTS } from './apiConstants'
 import { searchContent, searchContentV2 } from './contentSearchService'
-import { getFirebaseApp, sendTopicNotification } from './firebase-manager'
+import { sendTopicNotification } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
 
