@@ -30,7 +30,7 @@ import {
 } from './adapters/userReadAdapter'
 import { API_END_POINTS } from './apiConstants'
 import { searchContent, searchContentV2 } from './contentSearchService'
-import { getFirebaseApp } from './firebase-manager'
+import { getFirebaseApp, sendTopicNotification } from './firebase-manager'
 import { fetchnodebbUserDetails } from './nodebbUser'
 import { getCurrentUserRoles } from './rolePermission'
 
@@ -1848,36 +1848,14 @@ mobileAppApi.post('/ext-forms/*', async (req, res) => {
 
 mobileAppApi.post('/send-by-topic', async (req, res) => {
   try {
-    const { topic, title, body, data} = req.body
+    const { topic, title, body, data, imageUrl } = req.body
     if (!topic) {
       return res.status(400).json({
         error: 'Topic is required',
         success: false,
       })
     }
-    const firebaseApp = getFirebaseApp()
-    const message: admin.messaging.Message = {
-      android: {
-        notification: {
-          sound: 'default',
-        },
-        priority: 'high',
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: 'default',
-          },
-        },
-      },
-      data: data || {},
-      notification: {
-        body: body || '',
-        title: title || 'Notification',
-      },
-      topic,
-    }
-    const response = await firebaseApp.messaging().send(message)
+    const response = await sendTopicNotification({ topic, title, body, data, imageUrl })
     return res.json({
       messageId: response,
       success: true,
